@@ -176,7 +176,23 @@
   "clustering": {
     "eyebrow": "Agrupamiento",
     "title": "Agrupamiento jerárquico",
-    "comingSoon": "Esta vista se construye en una tarea posterior."
+    "representationGroupLabel": "Representación",
+    "linkageGroupLabel": "Selección de enlaces",
+    "noLinkages": "Selecciona al menos un enlace para agrupar.",
+    "loading": "Calculando el agrupamiento…",
+    "errorTitle": "No se pudo calcular el agrupamiento",
+    "leader": "Líder",
+    "leaderTree": "Árbol",
+    "leaderPartition": "Partición",
+    "tieSet": "Empate en cofenética (dentro de 1e-3): {{linkages}}.",
+    "sampleSizeCaveat": "Representación: {{representation}}. D = 1 − coseno; Ward opera sobre 2·D. Tamaño muestral del corpus cargado: n = {{count}}. La correlación cofenética tiende a favorecer al enlace promedio; por eso se muestran ambos líderes cuando difieren.",
+    "dendrogramSlot": "El dendrograma de este enlace se añade en una tarea posterior.",
+    "metrics": {
+      "cophenetic": "Cofenética",
+      "silhouetteAtK": "Silueta media (k={{k}})",
+      "daviesBouldinAtK": "Davies–Bouldin (k={{k}})",
+      "undefinedValue": "no definido"
+    }
   },
   "notFound": {
     "title": "Página no encontrada",
