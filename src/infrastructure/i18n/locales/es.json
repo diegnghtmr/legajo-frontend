@@ -38,7 +38,42 @@
   "similarity": {
     "eyebrow": "Similitud",
     "title": "Comparación de similitud",
-    "comingSoon": "Esta vista se construye en una tarea posterior."
+    "selection": {
+      "wrongCount": "Tienes {{count}} artículos seleccionados; selecciona exactamente dos en el corpus para comparar.",
+      "backToCorpus": "Ir al corpus",
+      "comparing": "Comparando {{a}} × {{b}}",
+      "noAlgorithms": "Selecciona al menos un algoritmo para comparar."
+    },
+    "family": {
+      "groupLabel": "Familia de algoritmo",
+      "all": "Todos",
+      "classic": "Clásico",
+      "ai": "IA"
+    },
+    "algorithmsGroupLabel": "Selección de algoritmos",
+    "algorithmsLoading": "Cargando el catálogo de algoritmos…",
+    "algorithmsErrorTitle": "No se pudo cargar el catálogo de algoritmos",
+    "compareLoading": "Calculando la comparación…",
+    "compareErrorTitle": "No se pudo calcular la comparación",
+    "table": {
+      "caption": "Resultados de similitud por algoritmo",
+      "algorithm": "Algoritmo",
+      "family": "Familia",
+      "score": "Puntaje",
+      "raw": "Valor crudo",
+      "time": "Tiempo (ns)",
+      "degenerate": "Degenerado",
+      "scoreLabel": "Puntaje normalizado para {{id}}",
+      "rawUnavailable": "No aplica en este caso degenerado",
+      "cachedMarker": "en caché",
+      "degenerateYes": "Sí",
+      "degenerateNo": "No"
+    },
+    "trace": {
+      "eyebrow": "Traza",
+      "title": "Traza: {{id}}",
+      "comingSoon": "Esta traza se construye en una tarea posterior."
+    }
   },
   "clustering": {
     "eyebrow": "Agrupamiento",
