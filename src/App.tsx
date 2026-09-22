@@ -6,13 +6,15 @@ import { CorpusDetailPlaceholder } from './features/corpus/CorpusDetailPlacehold
 import { CorpusPage } from './features/corpus/CorpusPage';
 import { ClusteringPage } from './features/clustering/ClusteringPage';
 import { SimilarityPage } from './features/similarity/SimilarityPage';
+import { SimilarityTracePage } from './features/similarity/SimilarityTracePage';
 import { NotFoundPage } from './NotFoundPage';
 
 /**
  * Top-level route table. `AppLayout` is the layout route (header, section
  * nav, language switch) that every screen renders inside via `Outlet`.
- * `/similarity` and `/clustering` are real, i18n-titled routes with a
- * placeholder screen until their features are built (W5, W8).
+ * `/clustering` is a real, i18n-titled route with a placeholder screen until
+ * W8; `/similarity/:algorithmId/trace` is a real, i18n-titled placeholder
+ * route until W6 builds its trace panels.
  */
 export function App() {
   return (
@@ -24,6 +26,7 @@ export function App() {
           <Route path=":id" element={<CorpusDetail />} />
         </Route>
         <Route path="similarity" element={<SimilarityPage />} />
+        <Route path="similarity/:algorithmId/trace" element={<SimilarityTracePage />} />
         <Route path="clustering" element={<ClusteringPage />} />
         <Route path="*" element={<NotFoundPage />} />
       </Route>

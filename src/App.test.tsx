@@ -46,6 +46,12 @@ describe('App', () => {
     expect(screen.getByRole('heading', { name: 'Comparación de similitud' })).toBeInTheDocument();
   });
 
+  it('renders the trace placeholder at /similarity/:algorithmId/trace', () => {
+    renderAppAt('/similarity/levenshtein/trace?documentIdA=doc-01&documentIdB=doc-02');
+
+    expect(screen.getByRole('heading', { name: 'Traza: levenshtein' })).toBeInTheDocument();
+  });
+
   it('renders the clustering placeholder at /clustering', () => {
     renderAppAt('/clustering');
 
