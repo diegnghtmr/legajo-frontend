@@ -9,27 +9,45 @@
     "es": "Español",
     "en": "Inglés"
   },
-  "showcase": {
-    "eyebrow": "Sistema de diseño",
-    "title": "Primitivas compartidas",
-    "subtitle": "Muestra de W2",
-    "familyFilterLabel": "Filtro de familia",
-    "algorithmsLabel": "Algoritmos",
-    "family": {
-      "all": "Todas",
-      "classic": "Clásica",
-      "ai": "IA"
+  "nav": {
+    "corpus": "Corpus",
+    "similarity": "Similitud",
+    "clustering": "Agrupamiento"
+  },
+  "corpus": {
+    "eyebrow": "Corpus",
+    "title": "Artículos del corpus",
+    "loading": "Cargando el corpus…",
+    "empty": "El corpus no tiene artículos cargados.",
+    "errorTitle": "No se pudo cargar el corpus",
+    "detail": {
+      "selectPrompt": "Selecciona un artículo para ver su resumen completo.",
+      "loading": "Cargando el artículo…",
+      "errorTitle": "No se pudo cargar el artículo",
+      "abstractLabel": "Resumen",
+      "authorsLabel": "Autores",
+      "idLabel": "Identificador"
     },
-    "scores": {
-      "classicLabel": "Puntaje de Levenshtein",
-      "aiLabel": "Puntaje de embedding-local"
-    },
-    "metrics": {
-      "cophenetic": "Cofenética",
-      "silhouette": "Silueta",
-      "daviesBouldin": "Davies-Bouldin",
-      "leaderLabel": "Árbol"
+    "selection": {
+      "compareCta": "Comparar",
+      "reasonNone": "Selecciona al menos dos artículos para comparar.",
+      "reasonOne": "Selecciona un artículo más para comparar.",
+      "selectedCount": "{{count}} seleccionados"
     }
+  },
+  "similarity": {
+    "eyebrow": "Similitud",
+    "title": "Comparación de similitud",
+    "comingSoon": "Esta vista se construye en una tarea posterior."
+  },
+  "clustering": {
+    "eyebrow": "Agrupamiento",
+    "title": "Agrupamiento jerárquico",
+    "comingSoon": "Esta vista se construye en una tarea posterior."
+  },
+  "notFound": {
+    "title": "Página no encontrada",
+    "description": "La ruta solicitada no existe."
   },
   "errors": {
     "unknownDocument": "El documento solicitado no existe en el corpus.",
