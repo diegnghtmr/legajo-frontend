@@ -1,6 +1,7 @@
 import type { AlgoFamily } from '../family';
 import { AlgoTextButton } from './AlgoTextButton';
 
+/** `family` lets callers filter the list with the family Segmented; it is not rendered. */
 export interface AlgoOption {
   id: string;
   family: AlgoFamily;
@@ -26,7 +27,6 @@ export function AlgoTextList({
         <AlgoTextButton
           key={option.id}
           id={option.id}
-          family={option.family}
           active={selectedIds.includes(option.id)}
           onToggle={() => onToggle(option.id)}
         />
