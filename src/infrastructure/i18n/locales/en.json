@@ -37,6 +37,23 @@
       "matrixReasonNone": "Select at least three articles to view the matrix.",
       "matrixReasonOne": "Select two more articles to view the matrix.",
       "matrixReasonTwo": "Select one more article to view the matrix."
+    },
+    "embeddingsStatus": {
+      "eyebrow": "Embeddings",
+      "title": "Embeddings status",
+      "loading": "Loading the embeddings status…",
+      "errorTitle": "Could not load the embeddings status",
+      "providerLabel": "Provider",
+      "modelLabel": "Model",
+      "dimensionLabel": "Dimension",
+      "corpusSha256Label": "Corpus sha256",
+      "matchLabel": "Corpus match",
+      "matches": "Matches the corpus",
+      "mismatch": "Does not match the corpus",
+      "deviceLabel": "Device",
+      "modeLabel": "Mode",
+      "modeCached": "Cached",
+      "modeLive": "Live"
     }
   },
   "similarity": {

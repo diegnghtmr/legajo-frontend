@@ -37,6 +37,23 @@
       "matrixReasonNone": "Selecciona al menos tres artículos para ver la matriz.",
       "matrixReasonOne": "Selecciona dos artículos más para ver la matriz.",
       "matrixReasonTwo": "Selecciona un artículo más para ver la matriz."
+    },
+    "embeddingsStatus": {
+      "eyebrow": "Embeddings",
+      "title": "Estado de los embeddings",
+      "loading": "Cargando el estado de los embeddings…",
+      "errorTitle": "No se pudo cargar el estado de los embeddings",
+      "providerLabel": "Proveedor",
+      "modelLabel": "Modelo",
+      "dimensionLabel": "Dimensión",
+      "corpusSha256Label": "Sha256 del corpus",
+      "matchLabel": "Coincidencia con el corpus",
+      "matches": "Coincide con el corpus",
+      "mismatch": "No coincide con el corpus",
+      "deviceLabel": "Dispositivo",
+      "modeLabel": "Modo",
+      "modeCached": "En caché",
+      "modeLive": "En vivo"
     }
   },
   "similarity": {

@@ -4,6 +4,7 @@ import { Outlet } from 'react-router';
 import { PanelHeader } from '../../shared/components/Panel';
 import { ArticleList } from './ArticleList';
 import { CompareCta } from './CompareCta';
+import { EmbeddingsStatusPanel } from './EmbeddingsStatusPanel';
 import { MatrixCta } from './MatrixCta';
 
 /**
@@ -22,6 +23,7 @@ export function CorpusPage() {
         <ArticleList />
         <CompareCta />
         <MatrixCta />
+        <EmbeddingsStatusPanel />
       </section>
       <section className="flex-1">
         <Outlet />
