@@ -9,4 +9,4 @@
 - `lib/cn.ts` — minimal class-name joiner (no `clsx`/`tailwind-merge`;
   neither is in the TRD's fixed stack).
 - `types/api.ts` — generated from the OpenAPI contract by `npm run
-  api:types`. Never hand-edit it.
+api:types`. Never hand-edit it.
