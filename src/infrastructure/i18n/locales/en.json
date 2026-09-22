@@ -38,7 +38,42 @@
   "similarity": {
     "eyebrow": "Similarity",
     "title": "Similarity comparison",
-    "comingSoon": "This view is built in a later task."
+    "selection": {
+      "wrongCount": "You have {{count}} articles selected; select exactly two in the corpus to compare.",
+      "backToCorpus": "Go to the corpus",
+      "comparing": "Comparing {{a}} × {{b}}",
+      "noAlgorithms": "Select at least one algorithm to compare."
+    },
+    "family": {
+      "groupLabel": "Algorithm family",
+      "all": "All",
+      "classic": "Classic",
+      "ai": "AI"
+    },
+    "algorithmsGroupLabel": "Algorithm selection",
+    "algorithmsLoading": "Loading the algorithm catalogue…",
+    "algorithmsErrorTitle": "Could not load the algorithm catalogue",
+    "compareLoading": "Computing the comparison…",
+    "compareErrorTitle": "Could not compute the comparison",
+    "table": {
+      "caption": "Similarity results per algorithm",
+      "algorithm": "Algorithm",
+      "family": "Family",
+      "score": "Score",
+      "raw": "Raw value",
+      "time": "Time (ns)",
+      "degenerate": "Degenerate",
+      "scoreLabel": "Normalized score for {{id}}",
+      "rawUnavailable": "Not applicable in this degenerate case",
+      "cachedMarker": "cached",
+      "degenerateYes": "Yes",
+      "degenerateNo": "No"
+    },
+    "trace": {
+      "eyebrow": "Trace",
+      "title": "Trace: {{id}}",
+      "comingSoon": "This trace is built in a later task."
+    }
   },
   "clustering": {
     "eyebrow": "Clustering",
