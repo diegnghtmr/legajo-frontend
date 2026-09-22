@@ -8,7 +8,14 @@ const evaluation = { cophenetic: 0.8, meanSilhouette: { '2': 0.5 }, daviesBouldi
 describe('runClustering', () => {
   it('POSTs the request body and returns the parsed linkage results', async () => {
     const payload = [
-      { linkageId: 'ward', linkageDisplayName: 'Ward', rows: [], leafOrder: [0, 1], evaluation },
+      {
+        linkageId: 'ward',
+        linkageDisplayName: 'Ward',
+        rows: [],
+        leafOrder: [0, 1],
+        documentIds: ['doc-01', 'doc-02'],
+        evaluation,
+      },
     ];
     const postSpy = vi.spyOn(httpClient, 'post').mockResolvedValueOnce({ data: payload });
     const body = { representation: 'tfidf-cosine' as const, linkages: ['ward' as const] };
@@ -46,7 +53,7 @@ describe('runClustering', () => {
 
 describe('cutClustering', () => {
   it('POSTs the cut request and returns the parsed assignment', async () => {
-    const payload = { labels: [0, 0, 1], k: 2 };
+    const payload = { labels: [0, 0, 1], k: 2, documentIds: ['doc-01', 'doc-02', 'doc-03'] };
     const postSpy = vi.spyOn(httpClient, 'post').mockResolvedValueOnce({ data: payload });
     const body = { linkage: 'ward' as const, k: 2 };
 

@@ -4,7 +4,10 @@ import userEvent from '@testing-library/user-event';
 import type { ReactNode } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import type { ClusteringResponse } from '../../infrastructure/api/clustering';
+import type {
+  ClusteringCutResponse,
+  ClusteringResponse,
+} from '../../infrastructure/api/clustering';
 import * as clusteringApi from '../../infrastructure/api/clustering';
 import * as corpusApi from '../../infrastructure/api/corpus';
 import type { ListCorpusResponse } from '../../infrastructure/api/corpus';
@@ -37,18 +40,23 @@ const GOLDEN_ROWS_N6 = [
   { idx1: 8, idx2: 9, mergeDistance: 0.5, size: 6 },
 ];
 
+/** Same order as `CORPUS` (position i is `CORPUS[i]`), the common case. */
+const DOCUMENT_IDS_N6 = CORPUS.map((document) => document.id);
+
 function linkageResult(
   linkageId: LinkageId,
   displayName: string,
   cophenetic: number,
   silhouetteAtKRef: number,
   dbAtKRef: number | null,
+  documentIds: readonly string[] = DOCUMENT_IDS_N6,
 ): ClusteringResponse[number] {
   return {
     linkageId,
     linkageDisplayName: displayName,
     rows: GOLDEN_ROWS_N6,
     leafOrder: [0, 1, 2, 3, 4, 5],
+    documentIds: [...documentIds],
     evaluation: {
       cophenetic,
       meanSilhouette: { '2': 0.15, '3': 0.25, '4': silhouetteAtKRef, '5': 0.35 },
@@ -78,6 +86,7 @@ function linkageResultWithN(
     linkageDisplayName: displayName,
     rows: [],
     leafOrder: Array.from({ length: sampleSize }, (_unused, index) => index),
+    documentIds: Array.from({ length: sampleSize }, (_unused, index) => `doc-n-${index + 1}`),
     evaluation: { cophenetic, meanSilhouette, daviesBouldin },
   };
 }
@@ -231,6 +240,53 @@ describe('ClusteringPage', () => {
     }
   });
 
+  describe('dendrogram leaf labels (W-documentIds)', () => {
+    it('joins each leaf to its title by document id, not by its position in GET /corpus (documentIds order differs from the corpus list order)', async () => {
+      vi.spyOn(corpusApi, 'fetchCorpus').mockResolvedValue(CORPUS);
+      // Reversed relative to CORPUS/DOCUMENT_IDS_N6: leaf id 5 is now doc-01
+      // ("Article 1"), not doc-06 ("Article 6") -- an index-based lookup
+      // into the corpus list would show "Article 6" for leaf 5 instead.
+      const reversedDocumentIds = [...DOCUMENT_IDS_N6].reverse();
+      vi.spyOn(clusteringApi, 'runClustering').mockResolvedValue([
+        linkageResult('single', 'Single', 0.95, 0.2, 0.5, reversedDocumentIds),
+      ]);
+
+      renderPage();
+
+      const dendrogram = await screen.findByTestId('linkage-dendrogram-single');
+      const leafFive = dendrogram.querySelector('[data-leaf-id="5"]');
+      expect(leafFive).not.toBeNull();
+      expect(within(leafFive as HTMLElement).getByText('doc-01')).toBeInTheDocument();
+      expect(leafFive?.querySelector('title')?.textContent).toBe('Article 1');
+    });
+
+    it('still labels every leaf with its document id (no title) when the GET /corpus fetch fails, never a numeric-index guess', async () => {
+      vi.spyOn(corpusApi, 'fetchCorpus').mockRejectedValue({
+        kind: 'unexpected',
+        i18nKey: 'errors.unexpected',
+        message: 'boom',
+      });
+      vi.spyOn(clusteringApi, 'runClustering').mockResolvedValue([
+        linkageResult('single', 'Single', 0.95, 0.2, 0.5),
+      ]);
+
+      renderPage();
+
+      const dendrogram = await screen.findByTestId('linkage-dendrogram-single');
+      await waitFor(() => expect(corpusApi.fetchCorpus).toHaveBeenCalled());
+
+      const leafZero = dendrogram.querySelector('[data-leaf-id="0"]');
+      expect(leafZero).not.toBeNull();
+      await waitFor(() =>
+        expect(
+          within(leafZero as HTMLElement).getByText('doc-01', { selector: 'text' }),
+        ).toBeInTheDocument(),
+      );
+      // Not a numeric-index fallback ("0"), and no title without a resolved corpus.
+      expect(leafZero?.querySelector('title')?.textContent).toBe('doc-01');
+    });
+  });
+
   it('ranks at k_ref derived from the response itself, not a stale corpus-query size (R3-001)', async () => {
     // Corpus query reports 20 documents -> would have implied k_ref =
     // min(4, 19) = 4 under the old (wrong) source. The response's own
@@ -380,6 +436,7 @@ describe('ClusteringPage', () => {
       vi.spyOn(clusteringApi, 'cutClustering').mockResolvedValue({
         labels: [0, 0, 1, 1, 2, 2],
         k: 3,
+        documentIds: DOCUMENT_IDS_N6,
       });
       const user = userEvent.setup();
 
@@ -416,6 +473,7 @@ describe('ClusteringPage', () => {
       vi.spyOn(clusteringApi, 'cutClustering').mockResolvedValue({
         labels: [0, 0, 1, 1, 2, 2],
         k: 3,
+        documentIds: DOCUMENT_IDS_N6,
       });
       const user = userEvent.setup();
 
@@ -445,6 +503,7 @@ describe('ClusteringPage', () => {
       vi.spyOn(clusteringApi, 'cutClustering').mockResolvedValue({
         labels: [0, 0, 1, 1, 2, 2],
         k: 10,
+        documentIds: DOCUMENT_IDS_N6,
       });
       const user = userEvent.setup();
 
@@ -547,6 +606,54 @@ describe('ClusteringPage', () => {
       expect(
         screen.queryByText('El valor de corte k no es válido para este corpus.'),
       ).not.toBeInTheDocument();
+    });
+
+    it('attributes a cut result to the linkages selected at submit time, never to a selection toggled while the request is still in flight (R3-cut-submit-time)', async () => {
+      vi.spyOn(corpusApi, 'fetchCorpus').mockResolvedValue(CORPUS);
+      vi.spyOn(clusteringApi, 'runClustering').mockResolvedValue(DEFAULT_RESPONSE);
+      let resolveCut: (value: ClusteringCutResponse) => void = () => {
+        throw new Error('resolveCut called before cutClustering was invoked');
+      };
+      vi.spyOn(clusteringApi, 'cutClustering').mockImplementation(
+        () =>
+          new Promise<ClusteringCutResponse>((resolve) => {
+            resolveCut = resolve;
+          }),
+      );
+      const user = userEvent.setup();
+
+      renderPage();
+      await waitFor(() => expect(clusteringApi.runClustering).toHaveBeenCalled());
+
+      // Submit the free cut against the current (all four linkages) selection;
+      // the default cut linkage is the first one, "single".
+      await user.click(await screen.findByRole('button', { name: 'Aplicar corte' }));
+      await waitFor(() => expect(clusteringApi.cutClustering).toHaveBeenCalled());
+
+      // While that request is still pending, deselect "ward".
+      vi.mocked(clusteringApi.runClustering).mockResolvedValue(
+        DEFAULT_RESPONSE.filter((result) => result.linkageId !== 'ward'),
+      );
+      await user.click(screen.getByRole('button', { name: 'ward' }));
+      await waitFor(() =>
+        expect(clusteringApi.runClustering).toHaveBeenLastCalledWith({
+          representation: 'tfidf-cosine',
+          linkages: ['single', 'complete', 'average'],
+        }),
+      );
+
+      // Now resolve the in-flight cut — computed against the *original*
+      // four-linkage selection, which no longer matches the page's current
+      // selection.
+      resolveCut({ labels: [0, 0, 1, 1, 2, 2], k: 3, documentIds: DOCUMENT_IDS_N6 });
+
+      const singleDendrogram = await screen.findByTestId('linkage-dendrogram-single');
+      await waitFor(() =>
+        expect(
+          within(singleDendrogram).queryByTestId('dendrogram-cut-line'),
+        ).not.toBeInTheDocument(),
+      );
+      expect(within(singleDendrogram).queryByText('Clúster 0')).not.toBeInTheDocument();
     });
   });
 });

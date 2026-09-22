@@ -35,13 +35,28 @@ export const ClusteringEvaluationSchema = z.object({
   daviesBouldin: z.record(z.string(), z.number().nullable()),
 });
 
-export const LinkageResultSchema = z.object({
-  linkageId: LinkageIdSchema,
-  linkageDisplayName: z.string(),
-  rows: z.array(LinkageStepSchema),
-  leafOrder: z.array(z.number()),
-  evaluation: ClusteringEvaluationSchema,
-});
+/**
+ * `documentIds[i]` is the id of the document behind observation `i` — the
+ * same index `idx1`/`idx2` (< n) and `leafOrder` use, in the order of
+ * `corpus.json`/`GET /corpus` (TRD 1.3.9). Required and non-empty: the UI
+ * must never fall back to assuming leaf *i* is the *i*-th `GET /corpus`
+ * item. The refinement below only guards the two array lengths agreeing
+ * (both carry n); it says nothing about ordering, which is the backend's
+ * contract to keep.
+ */
+export const LinkageResultSchema = z
+  .object({
+    linkageId: LinkageIdSchema,
+    linkageDisplayName: z.string(),
+    rows: z.array(LinkageStepSchema),
+    leafOrder: z.array(z.number()),
+    documentIds: z.array(z.string()).min(1),
+    evaluation: ClusteringEvaluationSchema,
+  })
+  .refine((value) => value.documentIds.length === value.leafOrder.length, {
+    message: 'documentIds must have exactly one entry per observation (same length as leafOrder)',
+    path: ['documentIds'],
+  });
 
 export const LinkageEvaluationSchema = z.object({
   linkageId: LinkageIdSchema,
@@ -49,7 +64,18 @@ export const LinkageEvaluationSchema = z.object({
   evaluation: ClusteringEvaluationSchema,
 });
 
-export const ClusterAssignmentSchema = z.object({
-  labels: z.array(z.number()),
-  k: z.number(),
-});
+/**
+ * `documentIds[i]` is the document whose cluster is `labels[i]` (TRD 1.3.9),
+ * in the order of `corpus.json`/`GET /corpus`. Required and non-empty for
+ * the same reason as `LinkageResultSchema.documentIds`.
+ */
+export const ClusterAssignmentSchema = z
+  .object({
+    labels: z.array(z.number()),
+    k: z.number(),
+    documentIds: z.array(z.string()).min(1),
+  })
+  .refine((value) => value.documentIds.length === value.labels.length, {
+    message: 'documentIds must have exactly one entry per observation (same length as labels)',
+    path: ['documentIds'],
+  });

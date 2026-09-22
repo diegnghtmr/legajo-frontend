@@ -19,14 +19,16 @@ import {
   type RepresentationId,
 } from '../../infrastructure/schemas/clustering';
 import { AlgoTextList, type AlgoOption } from '../../shared/components/AlgoTextList';
-import { Dendrogram, type DendrogramLeafLabel } from '../../shared/components/Dendrogram';
+import { Dendrogram } from '../../shared/components/Dendrogram';
 import { MetricTile } from '../../shared/components/MetricTile';
 import { Panel, PanelHeader } from '../../shared/components/Panel';
 import { SegmentedControl, type SegmentedOption } from '../../shared/components/SegmentedControl';
 import { CORPUS_LIST_QUERY_KEY } from '../corpus/ArticleList';
+import { resolveCutLabelsForLinkage } from './cutLabels';
 import { tryComputeCutDistance } from './cutLine';
 import { CutForm, type CutFormValues } from './CutForm';
 import { formatMetricValue } from './formatMetricValue';
+import { leafLabelsFromDocumentIds } from './leafLabels';
 import {
   hasCanonicalLinkageIds,
   kRefForSampleSize,
@@ -101,6 +103,10 @@ export function ClusteringPage() {
         linkageId: LinkageId;
         k: number;
         labels: readonly number[];
+        /** This cut's own `documentIds` (TRD 1.3.9) — `labels[i]` is the
+         * cluster of `documentIds[i]`. Joined with a linkage's own
+         * `documentIds` by id, never by array position (`cutLabels.ts`). */
+        documentIds: readonly string[];
       }
     | undefined
   >(undefined);
@@ -131,39 +137,31 @@ export function ClusteringPage() {
       ? cutResult
       : undefined;
 
-  // Display-only: leaf mono ids/titles for the dendrograms. Never used for
-  // `k_ref`/ranking (see the doc comment above) — a fetch failure or a
-  // length mismatch against the response's own sample size degrades to
-  // plain numeric leaf ids, same "don't block on secondary data" reasoning
-  // W7 used for the matrix headers.
+  // Display-only: supplies each dendrogram leaf's title. Never used for
+  // `k_ref`/ranking (see the doc comment above) and never used to derive a
+  // leaf's identity — that comes from each linkage result's own
+  // `documentIds` (TRD 1.3.9, `leafLabels.ts`). A fetch failure here just
+  // means no title, same "don't block on secondary data" reasoning W7 used
+  // for the matrix headers; the document id itself is always shown.
   const corpusQuery = useQuery<ListCorpusResponse, ApiError>({
     queryKey: CORPUS_LIST_QUERY_KEY,
     queryFn: fetchCorpus,
   });
 
+  // No `onSuccess`/`onError` here: TanStack Query's `useMutation` config is
+  // recreated every render, but a mutation's own `onSuccess`/`onError`
+  // there run against whichever render produced them *by the time the
+  // request settles* — not the render that submitted it. Reading component
+  // state (`selectedLinkages`) from there would attribute a cut to
+  // whatever the selection happens to be when the promise resolves, not to
+  // the selection the user actually cut. `handleCutSubmit` below passes
+  // per-call callbacks to `mutate()` instead, closing over the submitted
+  // selection explicitly.
   const cutMutation = useMutation<ClusteringCutResponse, ApiError, ClusteringCutRequestBody>({
     // Wrapped (not passed directly) so `cutClustering` is invoked with only
     // its own request body, never react-query's own second `context`
     // argument.
     mutationFn: (body) => cutClustering(body),
-    onSuccess: (data, variables) => {
-      setCutResult({
-        // `variables.representation` is always this page's own state (never
-        // omitted), but the generated request type allows `null` for an
-        // absent body field — narrow back to the page's own default.
-        representation: variables.representation ?? DEFAULT_REPRESENTATION,
-        linkages: selectedLinkages,
-        linkageId: variables.linkage,
-        k: data.k,
-        labels: data.labels,
-      });
-    },
-    onError: (_error, variables) => {
-      setCutErrorContext({
-        representation: variables.representation ?? DEFAULT_REPRESENTATION,
-        linkages: selectedLinkages,
-      });
-    },
   });
 
   const activeCutError =
@@ -220,15 +218,46 @@ export function ClusteringPage() {
     }
   }, [clusteringQuery.data, kRef]);
 
-  const leafLabels: readonly DendrogramLeafLabel[] | undefined = useMemo(() => {
-    if (!corpusQuery.data || sampleSize === undefined || corpusQuery.data.length !== sampleSize) {
+  /** Corpus title lookup by id (never by position) for `leafLabelsFromDocumentIds`. */
+  const corpusTitleById = useMemo(() => {
+    if (!corpusQuery.data) {
       return undefined;
     }
-    return corpusQuery.data.map((document) => ({ label: document.id, title: document.title }));
-  }, [corpusQuery.data, sampleSize]);
+    return new Map(corpusQuery.data.map((document) => [document.id, document.title] as const));
+  }, [corpusQuery.data]);
 
   const handleCutSubmit = (values: CutFormValues) => {
-    cutMutation.mutate({ representation, linkage: values.linkage, k: values.k });
+    // Captured here, at submit time, rather than read from component state
+    // inside the mutation's callbacks below (see the doc comment on
+    // `cutMutation`) — a linkage toggled while this request is still in
+    // flight must never change which selection the result gets attributed to.
+    const submittedLinkages = selectedLinkages;
+
+    cutMutation.mutate(
+      { representation, linkage: values.linkage, k: values.k },
+      {
+        onSuccess: (data, variables) => {
+          setCutResult({
+            // `variables.representation` is always this page's own state
+            // (never omitted), but the generated request type allows `null`
+            // for an absent body field — narrow back to the page's own
+            // default.
+            representation: variables.representation ?? DEFAULT_REPRESENTATION,
+            linkages: submittedLinkages,
+            linkageId: variables.linkage,
+            k: data.k,
+            labels: data.labels,
+            documentIds: data.documentIds,
+          });
+        },
+        onError: (_error, variables) => {
+          setCutErrorContext({
+            representation: variables.representation ?? DEFAULT_REPRESENTATION,
+            linkages: submittedLinkages,
+          });
+        },
+      },
+    );
   };
 
   return (
@@ -329,7 +358,10 @@ export function ClusteringPage() {
                       ariaLabel={t('clustering.dendrogram.ariaLabel', {
                         linkage: linkageResult.linkageDisplayName,
                       })}
-                      leafLabels={leafLabels}
+                      leafLabels={leafLabelsFromDocumentIds(
+                        linkageResult.documentIds,
+                        corpusTitleById,
+                      )}
                       cut={
                         activeCutResult?.linkageId === linkageResult.linkageId
                           ? {
@@ -344,7 +376,14 @@ export function ClusteringPage() {
                                 linkageResult.rows,
                                 activeCutResult.k,
                               ),
-                              labels: activeCutResult.labels,
+                              // Joined by document id (`cutLabels.ts`), never
+                              // by array position: the cut response's own
+                              // `documentIds` need not share positions with
+                              // this linkage's own `documentIds`.
+                              labels: resolveCutLabelsForLinkage(
+                                activeCutResult,
+                                linkageResult.documentIds,
+                              ),
                             }
                           : undefined
                       }
