@@ -1,0 +1,51 @@
+{
+  "app": {
+    "title": "Legajo",
+    "eyebrow": "Banco de similitud y agrupamiento",
+    "description": "Aquí se cargan la selección de corpus, la comparación de similitud y las vistas de agrupamiento jerárquico."
+  },
+  "language": {
+    "switchLabel": "Idioma",
+    "es": "Español",
+    "en": "Inglés"
+  },
+  "showcase": {
+    "eyebrow": "Sistema de diseño",
+    "title": "Primitivas compartidas",
+    "subtitle": "Muestra de W2",
+    "familyFilterLabel": "Filtro de familia",
+    "algorithmsLabel": "Algoritmos",
+    "family": {
+      "all": "Todas",
+      "classic": "Clásica",
+      "ai": "IA"
+    },
+    "scores": {
+      "classicLabel": "Puntaje de Levenshtein",
+      "aiLabel": "Puntaje de embedding-local"
+    },
+    "metrics": {
+      "cophenetic": "Cofenética",
+      "silhouette": "Silueta",
+      "daviesBouldin": "Davies-Bouldin",
+      "leaderLabel": "Árbol"
+    }
+  },
+  "errors": {
+    "unknownDocument": "El documento solicitado no existe en el corpus.",
+    "unknownAlgorithm": "El algoritmo de similitud solicitado no existe.",
+    "unknownRepresentation": "La representación de agrupamiento solicitada no existe.",
+    "unknownLinkage": "El criterio de enlace solicitado no existe.",
+    "invalidCut": "El valor de corte k no es válido para este corpus.",
+    "invalidSelection": "La selección de documentos no es válida (se requieren al menos 3 sin duplicados).",
+    "embeddingApiUnavailable": "El proveedor de embeddings en vivo no está disponible en este momento.",
+    "badRequest": "La solicitud contiene datos inválidos.",
+    "notFound": "El recurso solicitado no existe.",
+    "serverError": "Ocurrió un error inesperado en el servidor.",
+    "serviceUnavailable": "El servicio no está disponible en este momento.",
+    "unexpected": "Ocurrió un error inesperado.",
+    "network": {
+      "coldStart": "No se pudo contactar al servidor. Si es la primera solicitud en un rato, el servidor gratuito puede estar despertando: puede tardar hasta un minuto en responder."
+    }
+  }
+}
