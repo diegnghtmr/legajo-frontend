@@ -1,0 +1,51 @@
+{
+  "app": {
+    "title": "Legajo",
+    "eyebrow": "Similarity and clustering workbench",
+    "description": "Corpus selection, similarity comparison and hierarchical clustering views load here."
+  },
+  "language": {
+    "switchLabel": "Language",
+    "es": "Spanish",
+    "en": "English"
+  },
+  "showcase": {
+    "eyebrow": "Design system",
+    "title": "Shared primitives",
+    "subtitle": "W2 showcase",
+    "familyFilterLabel": "Family filter",
+    "algorithmsLabel": "Algorithms",
+    "family": {
+      "all": "All",
+      "classic": "Classic",
+      "ai": "AI"
+    },
+    "scores": {
+      "classicLabel": "Levenshtein score",
+      "aiLabel": "Embedding-local score"
+    },
+    "metrics": {
+      "cophenetic": "Cophenetic",
+      "silhouette": "Silhouette",
+      "daviesBouldin": "Davies-Bouldin",
+      "leaderLabel": "Tree"
+    }
+  },
+  "errors": {
+    "unknownDocument": "The requested document does not exist in the corpus.",
+    "unknownAlgorithm": "The requested similarity algorithm does not exist.",
+    "unknownRepresentation": "The requested clustering representation does not exist.",
+    "unknownLinkage": "The requested linkage criterion does not exist.",
+    "invalidCut": "The requested cut value k is not valid for this corpus.",
+    "invalidSelection": "The document selection is invalid (at least 3 unique documents are required).",
+    "embeddingApiUnavailable": "The live embedding provider is currently unavailable.",
+    "badRequest": "The request contains invalid data.",
+    "notFound": "The requested resource does not exist.",
+    "serverError": "An unexpected server error occurred.",
+    "serviceUnavailable": "The service is currently unavailable.",
+    "unexpected": "An unexpected error occurred.",
+    "network": {
+      "coldStart": "Could not reach the server. If this is the first request in a while, the free-tier server may be waking up: it can take up to a minute to respond."
+    }
+  }
+}
