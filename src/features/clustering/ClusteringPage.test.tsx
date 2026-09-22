@@ -437,6 +437,34 @@ describe('ClusteringPage', () => {
       ).not.toBeInTheDocument();
     });
 
+    it('still shows the cut labels and no cut line when the response k cannot be resolved to a distance for the loaded rows (R3-cut-distance-throw-in-onsuccess)', async () => {
+      vi.spyOn(corpusApi, 'fetchCorpus').mockResolvedValue(CORPUS);
+      vi.spyOn(clusteringApi, 'runClustering').mockResolvedValue(DEFAULT_RESPONSE);
+      // GOLDEN_ROWS_N6 has 5 rows -> n=6, so k must be in [2, 5]; k=10 is
+      // out of range for those rows even though the request succeeded.
+      vi.spyOn(clusteringApi, 'cutClustering').mockResolvedValue({
+        labels: [0, 0, 1, 1, 2, 2],
+        k: 10,
+      });
+      const user = userEvent.setup();
+
+      renderPage();
+      await waitFor(() => expect(clusteringApi.runClustering).toHaveBeenCalled());
+
+      const cutGroup = await screen.findByRole('radiogroup', { name: 'Enlace a cortar' });
+      await user.click(within(cutGroup).getByRole('radio', { name: 'Complete' }));
+      await user.click(screen.getByRole('button', { name: 'Aplicar corte' }));
+
+      const completeDendrogram = await screen.findByTestId('linkage-dendrogram-complete');
+      await waitFor(() =>
+        expect(within(completeDendrogram).getAllByText('Clúster 0')).toHaveLength(2),
+      );
+      expect(
+        within(completeDendrogram).queryByTestId('dendrogram-cut-line'),
+      ).not.toBeInTheDocument();
+      expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+    });
+
     it('shows the mapped invalid-cut error message when the cut request fails', async () => {
       vi.spyOn(corpusApi, 'fetchCorpus').mockResolvedValue(CORPUS);
       vi.spyOn(clusteringApi, 'runClustering').mockResolvedValue(DEFAULT_RESPONSE);
@@ -456,6 +484,69 @@ describe('ClusteringPage', () => {
       expect(
         await screen.findByText('El valor de corte k no es válido para este corpus.'),
       ).toBeInTheDocument();
+    });
+
+    it('stops showing a previous cut error once the representation changes (R3-stale-cut-error)', async () => {
+      vi.spyOn(corpusApi, 'fetchCorpus').mockResolvedValue(CORPUS);
+      vi.spyOn(clusteringApi, 'runClustering').mockResolvedValue(DEFAULT_RESPONSE);
+      vi.spyOn(clusteringApi, 'cutClustering').mockRejectedValue({
+        kind: 'problem',
+        status: 400,
+        type: 'urn:legajo:problem:invalid-cut',
+        title: 'Invalid cut',
+        i18nKey: 'errors.invalidCut',
+      });
+      const user = userEvent.setup();
+
+      renderPage();
+      await user.click(await screen.findByRole('button', { name: 'Aplicar corte' }));
+
+      expect(
+        await screen.findByText('El valor de corte k no es válido para este corpus.'),
+      ).toBeInTheDocument();
+
+      const representationGroup = screen.getByRole('radiogroup', { name: 'Representación' });
+      await user.click(within(representationGroup).getByRole('radio', { name: 'embedding-local' }));
+
+      await waitFor(() => expect(clusteringApi.runClustering).toHaveBeenCalledTimes(2));
+      expect(
+        screen.queryByText('El valor de corte k no es válido para este corpus.'),
+      ).not.toBeInTheDocument();
+    });
+
+    it('stops showing a previous cut error once a linkage is toggled (R3-stale-cut-error)', async () => {
+      vi.spyOn(corpusApi, 'fetchCorpus').mockResolvedValue(CORPUS);
+      vi.spyOn(clusteringApi, 'runClustering').mockResolvedValue(DEFAULT_RESPONSE);
+      vi.spyOn(clusteringApi, 'cutClustering').mockRejectedValue({
+        kind: 'problem',
+        status: 400,
+        type: 'urn:legajo:problem:invalid-cut',
+        title: 'Invalid cut',
+        i18nKey: 'errors.invalidCut',
+      });
+      const user = userEvent.setup();
+
+      renderPage();
+      await user.click(await screen.findByRole('button', { name: 'Aplicar corte' }));
+
+      expect(
+        await screen.findByText('El valor de corte k no es válido para este corpus.'),
+      ).toBeInTheDocument();
+
+      vi.mocked(clusteringApi.runClustering).mockResolvedValue(
+        DEFAULT_RESPONSE.filter((result) => result.linkageId !== 'ward'),
+      );
+      await user.click(screen.getByRole('button', { name: 'ward' }));
+
+      await waitFor(() =>
+        expect(clusteringApi.runClustering).toHaveBeenLastCalledWith({
+          representation: 'tfidf-cosine',
+          linkages: ['single', 'complete', 'average'],
+        }),
+      );
+      expect(
+        screen.queryByText('El valor de corte k no es válido para este corpus.'),
+      ).not.toBeInTheDocument();
     });
   });
 });

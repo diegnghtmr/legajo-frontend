@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { computeCutDistance, CutLineError } from './cutLine';
+import { computeCutDistance, CutLineError, tryComputeCutDistance } from './cutLine';
 
 /** n = 5 (4 rows), distances already in ascending merge order (TRD §6.4). */
 const ROWS = [
@@ -46,5 +46,15 @@ describe('computeCutDistance', () => {
 
   it('rejects a non-integer k', () => {
     expect(() => computeCutDistance(ROWS, 2.5)).toThrow(CutLineError);
+  });
+});
+
+describe('tryComputeCutDistance', () => {
+  it('returns the same distance as computeCutDistance for a valid k', () => {
+    expect(tryComputeCutDistance(ROWS, 3)).toBe(2.5);
+  });
+
+  it('resolves to undefined instead of throwing when k is out of range for these rows', () => {
+    expect(tryComputeCutDistance(ROWS, 5)).toBeUndefined();
   });
 });

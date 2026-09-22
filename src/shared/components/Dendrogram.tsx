@@ -11,8 +11,14 @@ export interface DendrogramLeafLabel {
 }
 
 export interface DendrogramCut {
-  /** Merge distance where the dashed cut line is drawn (`cutLine.ts`'s own rule; never computed here). */
-  distance: number;
+  /**
+   * Merge distance where the dashed cut line is drawn (`cutLine.ts`'s own
+   * rule; never computed here). `undefined` when the caller could not
+   * resolve a distance for the currently loaded rows (e.g. a stale/
+   * malformed response) — the labels below still render, only the line
+   * itself is skipped.
+   */
+  distance?: number;
   /** Cluster number per original leaf id (`0..n-1`), from the backend's own `POST /clustering/cut` — never computed here. */
   labels: readonly number[];
 }
@@ -88,7 +94,8 @@ export function Dendrogram({
   const memberLabel = (id: number): string =>
     id < n ? leafLabelFor(leafLabels, id) : t('clustering.dendrogram.clusterLabel', { id });
 
-  const cutY = cut !== undefined ? MARGIN_TOP + layout.distanceToY(cut.distance) : undefined;
+  const cutY =
+    cut?.distance !== undefined ? MARGIN_TOP + layout.distanceToY(cut.distance) : undefined;
 
   return (
     <figure className="flex flex-col gap-2">

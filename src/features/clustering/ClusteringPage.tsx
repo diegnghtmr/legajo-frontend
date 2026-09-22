@@ -24,7 +24,7 @@ import { MetricTile } from '../../shared/components/MetricTile';
 import { Panel, PanelHeader } from '../../shared/components/Panel';
 import { SegmentedControl, type SegmentedOption } from '../../shared/components/SegmentedControl';
 import { CORPUS_LIST_QUERY_KEY } from '../corpus/ArticleList';
-import { computeCutDistance } from './cutLine';
+import { tryComputeCutDistance } from './cutLine';
 import { CutForm, type CutFormValues } from './CutForm';
 import { formatMetricValue } from './formatMetricValue';
 import {
@@ -87,16 +87,32 @@ export function ClusteringPage() {
    * `representation`/`linkages` are captured alongside the result and
    * compared, at render time, against the page's current selection; a stale
    * cut for a since-changed request is simply not applied to any panel.
+   *
+   * Only the request's own `k` is kept here, never a pre-computed distance:
+   * the cut line's pixel position depends on whichever `rows` are currently
+   * loaded for `linkageId`, so it is derived at render time (see
+   * `tryComputeCutDistance` below) instead of inside the mutation, where a
+   * throw would turn a successful cut into a rendering error.
    */
   const [cutResult, setCutResult] = useState<
     | {
         representation: RepresentationId;
         linkages: readonly LinkageId[];
         linkageId: LinkageId;
-        distance: number;
+        k: number;
         labels: readonly number[];
       }
     | undefined
+  >(undefined);
+  /**
+   * Scopes the cut error the same way `cutResult` is scoped: an error from a
+   * since-changed (representation, linkages) request must not linger on the
+   * form after the user moves on. `cutMutation.error` alone survives across
+   * renders until the next `mutate()` call, so it is only shown when this
+   * context still matches the page's current selection.
+   */
+  const [cutErrorContext, setCutErrorContext] = useState<
+    { representation: RepresentationId; linkages: readonly LinkageId[] } | undefined
   >(undefined);
 
   const clusteringQuery = useQuery<ClusteringResponse, ApiError>({
@@ -125,12 +141,11 @@ export function ClusteringPage() {
     queryFn: fetchCorpus,
   });
 
-  const cutMutation = useMutation<
-    ClusteringCutResponse,
-    ApiError,
-    ClusteringCutRequestBody & { linkageRows: readonly { mergeDistance: number }[] }
-  >({
-    mutationFn: ({ linkageRows: _linkageRows, ...body }) => cutClustering(body),
+  const cutMutation = useMutation<ClusteringCutResponse, ApiError, ClusteringCutRequestBody>({
+    // Wrapped (not passed directly) so `cutClustering` is invoked with only
+    // its own request body, never react-query's own second `context`
+    // argument.
+    mutationFn: (body) => cutClustering(body),
     onSuccess: (data, variables) => {
       setCutResult({
         // `variables.representation` is always this page's own state (never
@@ -139,11 +154,25 @@ export function ClusteringPage() {
         representation: variables.representation ?? DEFAULT_REPRESENTATION,
         linkages: selectedLinkages,
         linkageId: variables.linkage,
-        distance: computeCutDistance(variables.linkageRows, data.k),
+        k: data.k,
         labels: data.labels,
       });
     },
+    onError: (_error, variables) => {
+      setCutErrorContext({
+        representation: variables.representation ?? DEFAULT_REPRESENTATION,
+        linkages: selectedLinkages,
+      });
+    },
   });
+
+  const activeCutError =
+    cutMutation.error &&
+    cutErrorContext &&
+    cutErrorContext.representation === representation &&
+    cutErrorContext.linkages.join(',') === selectedLinkages.join(',')
+      ? cutMutation.error
+      : undefined;
 
   const toggleLinkage = (id: string) => {
     const linkageId = id as LinkageId;
@@ -199,9 +228,7 @@ export function ClusteringPage() {
   }, [corpusQuery.data, sampleSize]);
 
   const handleCutSubmit = (values: CutFormValues) => {
-    const linkageRows =
-      clusteringQuery.data?.find((result) => result.linkageId === values.linkage)?.rows ?? [];
-    cutMutation.mutate({ representation, linkage: values.linkage, k: values.k, linkageRows });
+    cutMutation.mutate({ representation, linkage: values.linkage, k: values.k });
   };
 
   return (
@@ -305,7 +332,20 @@ export function ClusteringPage() {
                       leafLabels={leafLabels}
                       cut={
                         activeCutResult?.linkageId === linkageResult.linkageId
-                          ? { distance: activeCutResult.distance, labels: activeCutResult.labels }
+                          ? {
+                              // Derived here, not stored on `cutResult`: it
+                              // depends on whichever `rows` are currently
+                              // loaded for this exact linkage, and it must
+                              // never throw a successful cut into an error
+                              // state — a distance that can't be resolved
+                              // just means no dashed line, the labels below
+                              // still render (`tryComputeCutDistance`).
+                              distance: tryComputeCutDistance(
+                                linkageResult.rows,
+                                activeCutResult.k,
+                              ),
+                              labels: activeCutResult.labels,
+                            }
                           : undefined
                       }
                     />
@@ -351,7 +391,7 @@ export function ClusteringPage() {
             defaultLinkage={clusteringQuery.data[0]!.linkageId}
             onSubmit={handleCutSubmit}
             isPending={cutMutation.isPending}
-            error={cutMutation.error ?? undefined}
+            error={activeCutError}
           />
         </Panel>
       )}

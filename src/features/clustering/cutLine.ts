@@ -31,3 +31,26 @@ export function computeCutDistance(rows: readonly { mergeDistance: number }[], k
 
   return (distances[belowIndex] + distances[aboveIndex]) / 2;
 }
+
+/**
+ * Same rule as `computeCutDistance`, but resolves to `undefined` instead of
+ * throwing. Meant for render time, where a successful cut's `k` (the
+ * backend's own answer to `POST /clustering/cut`) is checked again against
+ * whichever rows are currently loaded for that linkage — if the two ever
+ * disagree (a stale/malformed response, or `k` outside the rows' own bound),
+ * the page degrades to "no cut line" instead of turning a successful cut
+ * into a rendering error.
+ */
+export function tryComputeCutDistance(
+  rows: readonly { mergeDistance: number }[],
+  k: number,
+): number | undefined {
+  try {
+    return computeCutDistance(rows, k);
+  } catch (error) {
+    if (error instanceof CutLineError) {
+      return undefined;
+    }
+    throw error;
+  }
+}
