@@ -1,0 +1,62 @@
+@import 'tailwindcss';
+@import '@fontsource/geist-sans/400.css';
+@import '@fontsource/geist-sans/500.css';
+@import '@fontsource/geist-sans/600.css';
+@import '@fontsource/geist-mono/400.css';
+
+/*
+ * Design tokens — DESIGN.md §9.2 (normative sketch). Every value here comes
+ * verbatim from the DESIGN.md YAML front matter; do not add or invent a
+ * value. Change tokens in DESIGN.md first, then mirror the change here.
+ */
+@theme {
+  --color-paper: #fafafa;
+  --color-paper-raised: #ffffff;
+  --color-paper-sunken: #f4f4f5;
+  --color-ink: #171717;
+  --color-ink-secondary: #525252;
+  --color-ink-muted: #737373;
+  --color-hairline: #e5e5e5;
+  --color-hairline-strong: #d4d4d4;
+  --color-primary: #171717;
+  --color-primary-foreground: #fafafa;
+  --color-classic: #b45309;
+  --color-classic-soft: #fef3c7;
+  --color-classic-foreground: #78350f;
+  --color-ai: #6d28d9;
+  --color-ai-soft: #ede9fe;
+  --color-ai-foreground: #4c1d95;
+  --color-success: #15803d;
+  --color-warning: #a16207;
+  --color-danger: #b91c1c;
+  --color-focus: #171717;
+  --color-path: #dc2626;
+  --color-matrix-low: #f5f5f5;
+  --color-matrix-mid-low: #d4d4d4;
+  --color-matrix-mid: #a3a3a3;
+  --color-matrix-high: #171717;
+  --font-sans: 'Geist', 'Inter', ui-sans-serif, system-ui, sans-serif;
+  --font-mono: 'Geist Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+  --font-formula: 'KaTeX_Main', 'Times New Roman', serif;
+  --text-display: 30px;
+  --text-title: 20px;
+  --text-body: 14px;
+  --text-label: 12px;
+  --text-eyebrow: 11px;
+  --text-mono: 12px;
+  --text-formula: 16px;
+  --radius-none: 0px;
+  --radius-sm: 4px;
+  --radius-btn: 6px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-full: 9999px;
+  --spacing: 4px;
+}
+
+@layer base {
+  body {
+    @apply bg-paper text-ink;
+    font-family: var(--font-sans);
+  }
+}
