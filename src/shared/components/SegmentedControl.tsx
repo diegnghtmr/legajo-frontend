@@ -1,11 +1,17 @@
-import type { KeyboardEvent } from 'react';
+import type { KeyboardEvent, ReactNode } from 'react';
 import { useRef } from 'react';
 
 import { cn } from '../lib/cn';
 
 export interface SegmentedOption<TValue extends string> {
   value: TValue;
-  label: string;
+  /**
+   * A plain string for most Segmented uses (e.g. the family filter); a
+   * `ReactNode` is accepted so a caller needing a mono machine id inside an
+   * option (DESIGN.md's "always mono for machine ids") can wrap it, e.g. the
+   * similarity matrix's single-algorithm selector.
+   */
+  label: ReactNode;
 }
 
 export interface SegmentedControlProps<TValue extends string> {
