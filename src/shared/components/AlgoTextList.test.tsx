@@ -36,6 +36,23 @@ describe('AlgoTextList', () => {
     );
   });
 
+  it('renders options with no family (e.g. clustering linkages, which have none)', () => {
+    render(
+      <AlgoTextList
+        options={[{ id: 'single' }, { id: 'complete' }]}
+        selectedIds={['single']}
+        onToggle={vi.fn()}
+        aria-label="Linkages"
+      />,
+    );
+
+    expect(screen.getByRole('button', { name: /single/i })).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByRole('button', { name: /complete/i })).toHaveAttribute(
+      'aria-pressed',
+      'false',
+    );
+  });
+
   it('calls onToggle with the clicked option id', async () => {
     const user = userEvent.setup();
     const onToggle = vi.fn();
