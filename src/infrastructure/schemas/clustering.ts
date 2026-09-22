@@ -2,6 +2,18 @@ import { z } from 'zod';
 
 /** The four fixed linkage criteria (TRD §6.4), Ward included (TAC-03). */
 export const LinkageIdSchema = z.enum(['single', 'complete', 'average', 'ward']);
+export type LinkageId = z.infer<typeof LinkageIdSchema>;
+
+/**
+ * The three fixed vector-space representations `POST /clustering*` accepts
+ * (TRD §6.6). Not `$ref`'d in the generated OpenAPI types (inlined instead,
+ * see `api.ts`'s doc comment on `ClusteringRequest.representation`), so
+ * there is no generated type to contract-test this schema against — the
+ * runtime `.options` check below is the equivalent of `LinkageIdSchema`'s
+ * own test.
+ */
+export const RepresentationIdSchema = z.enum(['tfidf-cosine', 'embedding-local', 'embedding-api']);
+export type RepresentationId = z.infer<typeof RepresentationIdSchema>;
 
 /** One row of a linkage matrix (TRD §6.4). `idx1 < idx2` always. */
 export const LinkageStepSchema = z.object({
