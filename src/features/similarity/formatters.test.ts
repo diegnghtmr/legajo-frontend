@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { formatComputedNanos, formatRawValue } from './formatters';
+import { formatComputedNanos, formatRawValue, formatTraceNumber } from './formatters';
 
 describe('formatComputedNanos', () => {
   it('formats an integer nanosecond count with locale thousands separators (es)', () => {
@@ -27,5 +27,18 @@ describe('formatRawValue', () => {
 
   it('formats a non-integer raw value to 4 decimals', () => {
     expect(formatRawValue(0.123456789)).toBe('0.1235');
+  });
+});
+
+describe('formatTraceNumber', () => {
+  it('renders an integer verbatim, with no decimal point', () => {
+    expect(formatTraceNumber(5)).toBe('5');
+    expect(formatTraceNumber(0)).toBe('0');
+    expect(formatTraceNumber(-3)).toBe('-3');
+  });
+
+  it('renders a non-integer to 6 decimals, the interface displays what the backend sent verbatim', () => {
+    expect(formatTraceNumber(0.123456789)).toBe('0.123457');
+    expect(formatTraceNumber(-0.5)).toBe('-0.500000');
   });
 });

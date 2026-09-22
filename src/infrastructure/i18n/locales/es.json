@@ -72,7 +72,88 @@
     "trace": {
       "eyebrow": "Traza",
       "title": "Traza: {{id}}",
-      "comingSoon": "Esta traza se construye en una tarea posterior."
+      "backToCompare": "Volver a la comparación",
+      "loading": "Cargando la traza…",
+      "errorTitle": "No se pudo cargar la traza",
+      "dp": {
+        "matrixCaption": "Matriz completa de {{id}}",
+        "downloadCsv": "Descargar matriz completa (CSV)",
+        "pathCellSuffix": "celda del camino óptimo",
+        "legendHeading": "Leyenda de operaciones",
+        "operationsHeading": "Secuencia de operaciones",
+        "operationsTableCaption": "Secuencia de operaciones de {{id}}",
+        "fromLabel": "Desde",
+        "toLabel": "Hasta",
+        "operationLabel": "Operación",
+        "operation": {
+          "MATCH": "Coincidencia",
+          "SUBSTITUTION": "Sustitución",
+          "INSERTION": "Inserción",
+          "DELETION": "Eliminación",
+          "MISMATCH": "Discrepancia",
+          "GAP": "Hueco"
+        },
+        "formula": {
+          "levenshtein": "Recurrencia de Levenshtein: mínimo costo de edición",
+          "needlemanWunsch": "Recurrencia de Needleman–Wunsch: máxima puntuación de alineamiento"
+        }
+      },
+      "jaccard": {
+        "setALabel": "Conjunto A",
+        "setBLabel": "Conjunto B",
+        "intersectionLabel": "Intersección",
+        "unionLabel": "Unión",
+        "intersectionSizeLabel": "|A ∩ B|",
+        "unionSizeLabel": "|A ∪ B|",
+        "coefficientLabel": "Coeficiente de Jaccard"
+      },
+      "tfidf": {
+        "corpusSizeLabel": "Tamaño del corpus (N)",
+        "termsHeading": "Pesos término a término",
+        "termLabel": "Término",
+        "frequencyALabel": "f(t, A)",
+        "frequencyBLabel": "f(t, B)",
+        "documentFrequencyLabel": "df(t)",
+        "tfALabel": "tf(t, A)",
+        "tfBLabel": "tf(t, B)",
+        "idfLabel": "idf(t)",
+        "rawWeightALabel": "w(t, A) crudo",
+        "rawWeightBLabel": "w(t, B) crudo",
+        "normalizedWeightALabel": "w(t, A) normalizado",
+        "normalizedWeightBLabel": "w(t, B) normalizado",
+        "dotProductLabel": "Producto punto",
+        "rawNormALabel": "Norma cruda de A",
+        "rawNormBLabel": "Norma cruda de B",
+        "cosineLabel": "Coseno",
+        "angleLabel": "Ángulo (°)",
+        "formula": "Coseno y ángulo a partir de los vectores TF-IDF normalizados L2"
+      },
+      "embeddingLocal": {
+        "providerLabel": "Proveedor",
+        "modelLabel": "Modelo",
+        "dimensionLabel": "Dimensión",
+        "vectorAExcerptLabel": "Extracto del vector A (8 primeras)",
+        "vectorBExcerptLabel": "Extracto del vector B (8 primeras)",
+        "preNormL2ALabel": "Norma previa a normalizar (A)",
+        "preNormL2BLabel": "Norma previa a normalizar (B)",
+        "dotProductLabel": "Producto punto",
+        "cosineLabel": "Coseno",
+        "angleLabel": "Ángulo (°)",
+        "normalizedScoreLabel": "Puntaje normalizado"
+      },
+      "embeddingApi": {
+        "providerLabel": "Proveedor",
+        "modelLabel": "Modelo",
+        "dimensionLabel": "Dimensión",
+        "vectorAExcerptLabel": "Extracto del vector A (8 primeras)",
+        "vectorBExcerptLabel": "Extracto del vector B (8 primeras)",
+        "preNormL2ALabel": "Norma previa a normalizar (A)",
+        "preNormL2BLabel": "Norma previa a normalizar (B)",
+        "sumSquaredDiffLabel": "Suma de diferencias al cuadrado",
+        "distanceLabel": "Distancia euclidiana",
+        "normalizedScoreLabel": "Puntaje normalizado",
+        "providerStatusLabel": "Estado del proveedor"
+      }
     }
   },
   "clustering": {
