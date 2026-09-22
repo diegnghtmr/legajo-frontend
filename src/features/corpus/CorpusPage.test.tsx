@@ -5,9 +5,11 @@ import { MemoryRouter, Route, Routes } from 'react-router';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import * as corpusApi from '../../infrastructure/api/corpus';
+import * as embeddingsApi from '../../infrastructure/api/embeddings';
 import { useSelectionStore } from './selectionStore';
 
 vi.mock('../../infrastructure/api/corpus');
+vi.mock('../../infrastructure/api/embeddings');
 
 import { CorpusDetail } from './CorpusDetail';
 import { CorpusDetailPlaceholder } from './CorpusDetailPlaceholder';
@@ -34,11 +36,31 @@ beforeEach(() => {
   useSelectionStore.setState({ selectedIds: [], canCompare: false, canMatrix: false });
 });
 
+const EMBEDDINGS_STATUS = {
+  embeddingLocal: {
+    provider: 'sentence-transformers',
+    model: 'all-MiniLM-L6-v2',
+    dimension: 384,
+    corpusSha256: 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b85',
+    matchesCorpus: true,
+    device: 'cpu',
+  },
+  embeddingApi: {
+    provider: 'google',
+    model: 'gemini-embedding-2-preview',
+    dimension: 1536,
+    corpusSha256: 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b85',
+    matchesCorpus: true,
+    mode: 'cached' as const,
+  },
+};
+
 describe('CorpusPage', () => {
-  it('renders the corpus title, the article list and the select-an-article prompt by default', async () => {
+  it('renders the corpus title, the article list, the select-an-article prompt and the embeddings status panel by default', async () => {
     vi.spyOn(corpusApi, 'fetchCorpus').mockResolvedValue([
       { id: 'doc-01', title: 'First article', authors: ['A. One'] },
     ]);
+    vi.spyOn(embeddingsApi, 'fetchEmbeddingsStatus').mockResolvedValue(EMBEDDINGS_STATUS);
 
     renderCorpusRoutes();
 
@@ -49,6 +71,11 @@ describe('CorpusPage', () => {
     ).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Comparar' })).toBeDisabled();
     expect(screen.getByRole('button', { name: 'Ver matriz' })).toBeDisabled();
+    expect(
+      await screen.findByRole('heading', { name: 'Estado de los embeddings' }),
+    ).toBeInTheDocument();
+    expect(screen.getByText('embedding-local')).toBeInTheDocument();
+    expect(screen.getByText('embedding-api')).toBeInTheDocument();
   });
 
   it('navigating to an article shows its detail next to the still-visible list', async () => {
@@ -61,6 +88,7 @@ describe('CorpusPage', () => {
       authors: ['A. One'],
       abstract: 'The full abstract.',
     });
+    vi.spyOn(embeddingsApi, 'fetchEmbeddingsStatus').mockResolvedValue(EMBEDDINGS_STATUS);
     const user = userEvent.setup();
 
     renderCorpusRoutes();
@@ -68,6 +96,27 @@ describe('CorpusPage', () => {
     await user.click(await screen.findByRole('link', { name: 'First article' }));
 
     expect(await screen.findByText('The full abstract.')).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'First article' })).toBeInTheDocument();
+  });
+
+  it('an embeddings-status fetch failure is shown only inside its own panel and never hides the article list', async () => {
+    vi.spyOn(corpusApi, 'fetchCorpus').mockResolvedValue([
+      { id: 'doc-01', title: 'First article', authors: ['A. One'] },
+    ]);
+    vi.spyOn(embeddingsApi, 'fetchEmbeddingsStatus').mockRejectedValue({
+      kind: 'network',
+      cause: 'timeout',
+      i18nKey: 'errors.network.coldStart',
+    });
+
+    renderCorpusRoutes();
+
+    expect(await screen.findByRole('link', { name: 'First article' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Comparar' })).toBeInTheDocument();
+    expect(
+      await screen.findByText('No se pudo cargar el estado de los embeddings'),
+    ).toBeInTheDocument();
+    expect(screen.getByRole('alert')).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'First article' })).toBeInTheDocument();
   });
 });
