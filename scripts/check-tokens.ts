@@ -61,6 +61,8 @@ export function stripThemeBlocks(css: string): string {
       index += 1;
     }
 
+    // Keep the block's newlines so violations after it report their real line.
+    result += css.slice(themeStart, index).replace(/[^\n]/g, '');
     cursor = index;
   }
 

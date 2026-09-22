@@ -62,5 +62,7 @@ describe('findViolations', () => {
 
     expect(violations).toHaveLength(1);
     expect(violations[0]?.match).toBe('#00ff00');
+    // Stripping the @theme block must not shift line numbers: the leak is on line 5.
+    expect(violations[0]?.line).toBe(5);
   });
 });

@@ -8,7 +8,8 @@ export default defineConfig({
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 2 : 0,
-  reporter: 'list',
+  // html writes playwright-report/, which CI uploads on failure.
+  reporter: [['list'], ['html', { open: 'never' }]],
   use: {
     baseURL: BASE_URL,
     trace: 'on-first-retry',
