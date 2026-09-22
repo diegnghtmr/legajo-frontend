@@ -154,3 +154,11 @@ export const AlgorithmTraceSchema = z.discriminatedUnion('algorithmId', [
 ]);
 
 export type AlgorithmTrace = z.infer<typeof AlgorithmTraceSchema>;
+
+// Per-branch types, so a trace panel can declare it renders exactly one
+// variant instead of narrowing `AlgorithmTrace` by hand at every call site.
+export type DpMatrixTrace = z.infer<typeof DpMatrixTraceSchema>;
+export type JaccardTrace = z.infer<typeof JaccardTraceSchema>;
+export type TfIdfCosineTrace = z.infer<typeof TfIdfCosineTraceSchema>;
+export type EmbeddingLocalTrace = z.infer<typeof EmbeddingLocalTraceSchema>;
+export type EmbeddingApiTrace = z.infer<typeof EmbeddingApiTraceSchema>;

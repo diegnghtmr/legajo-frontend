@@ -21,3 +21,15 @@ export function formatRawValue(rawValue: number | null | undefined): string | nu
 
   return Number.isInteger(rawValue) ? String(rawValue) : rawValue.toFixed(4);
 }
+
+/**
+ * Formats one trace field (TRD §6.3): the interface renders the backend's
+ * own number verbatim, never recomputing it. An integer (a frequency, a
+ * document count, a DP score) is shown with no decimal point; anything else
+ * (a weight, a cosine, an angle, a distance) keeps 6 decimals, more than
+ * `formatRawValue`'s 4 because a trace is read for audit, not skimmed in a
+ * results table.
+ */
+export function formatTraceNumber(value: number): string {
+  return Number.isInteger(value) ? String(value) : value.toFixed(6);
+}

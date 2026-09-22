@@ -72,7 +72,88 @@
     "trace": {
       "eyebrow": "Trace",
       "title": "Trace: {{id}}",
-      "comingSoon": "This trace is built in a later task."
+      "backToCompare": "Back to the comparison",
+      "loading": "Loading the trace…",
+      "errorTitle": "Could not load the trace",
+      "dp": {
+        "matrixCaption": "Complete {{id}} matrix",
+        "downloadCsv": "Download the complete matrix (CSV)",
+        "pathCellSuffix": "optimal path cell",
+        "legendHeading": "Operation legend",
+        "operationsHeading": "Operations sequence",
+        "operationsTableCaption": "Operations sequence for {{id}}",
+        "fromLabel": "From",
+        "toLabel": "To",
+        "operationLabel": "Operation",
+        "operation": {
+          "MATCH": "Match",
+          "SUBSTITUTION": "Substitution",
+          "INSERTION": "Insertion",
+          "DELETION": "Deletion",
+          "MISMATCH": "Mismatch",
+          "GAP": "Gap"
+        },
+        "formula": {
+          "levenshtein": "Levenshtein recurrence: minimum edit cost",
+          "needlemanWunsch": "Needleman–Wunsch recurrence: maximum alignment score"
+        }
+      },
+      "jaccard": {
+        "setALabel": "Set A",
+        "setBLabel": "Set B",
+        "intersectionLabel": "Intersection",
+        "unionLabel": "Union",
+        "intersectionSizeLabel": "|A ∩ B|",
+        "unionSizeLabel": "|A ∪ B|",
+        "coefficientLabel": "Jaccard coefficient"
+      },
+      "tfidf": {
+        "corpusSizeLabel": "Corpus size (N)",
+        "termsHeading": "Term-by-term weights",
+        "termLabel": "Term",
+        "frequencyALabel": "f(t, A)",
+        "frequencyBLabel": "f(t, B)",
+        "documentFrequencyLabel": "df(t)",
+        "tfALabel": "tf(t, A)",
+        "tfBLabel": "tf(t, B)",
+        "idfLabel": "idf(t)",
+        "rawWeightALabel": "raw w(t, A)",
+        "rawWeightBLabel": "raw w(t, B)",
+        "normalizedWeightALabel": "normalized w(t, A)",
+        "normalizedWeightBLabel": "normalized w(t, B)",
+        "dotProductLabel": "Dot product",
+        "rawNormALabel": "Raw norm of A",
+        "rawNormBLabel": "Raw norm of B",
+        "cosineLabel": "Cosine",
+        "angleLabel": "Angle (°)",
+        "formula": "Cosine and angle from the L2-normalized TF-IDF vectors"
+      },
+      "embeddingLocal": {
+        "providerLabel": "Provider",
+        "modelLabel": "Model",
+        "dimensionLabel": "Dimension",
+        "vectorAExcerptLabel": "Vector A excerpt (first 8)",
+        "vectorBExcerptLabel": "Vector B excerpt (first 8)",
+        "preNormL2ALabel": "Pre-normalization norm (A)",
+        "preNormL2BLabel": "Pre-normalization norm (B)",
+        "dotProductLabel": "Dot product",
+        "cosineLabel": "Cosine",
+        "angleLabel": "Angle (°)",
+        "normalizedScoreLabel": "Normalized score"
+      },
+      "embeddingApi": {
+        "providerLabel": "Provider",
+        "modelLabel": "Model",
+        "dimensionLabel": "Dimension",
+        "vectorAExcerptLabel": "Vector A excerpt (first 8)",
+        "vectorBExcerptLabel": "Vector B excerpt (first 8)",
+        "preNormL2ALabel": "Pre-normalization norm (A)",
+        "preNormL2BLabel": "Pre-normalization norm (B)",
+        "sumSquaredDiffLabel": "Sum of squared differences",
+        "distanceLabel": "Euclidean distance",
+        "normalizedScoreLabel": "Normalized score",
+        "providerStatusLabel": "Provider status"
+      }
     }
   },
   "clustering": {
