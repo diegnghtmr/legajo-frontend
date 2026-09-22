@@ -44,6 +44,28 @@ function linkageResult(
 }
 
 /**
+ * Builds a linkage result whose `leafOrder` length (n) and per-k metrics are
+ * fully explicit — used by the R3-001 tests, where n itself (not just k_ref's
+ * metrics) is the thing under test.
+ */
+function linkageResultWithN(
+  linkageId: LinkageId,
+  displayName: string,
+  sampleSize: number,
+  cophenetic: number,
+  meanSilhouette: Record<string, number>,
+  daviesBouldin: Record<string, number | null>,
+): ClusteringResponse[number] {
+  return {
+    linkageId,
+    linkageDisplayName: displayName,
+    rows: [],
+    leafOrder: Array.from({ length: sampleSize }, (_unused, index) => index),
+    evaluation: { cophenetic, meanSilhouette, daviesBouldin },
+  };
+}
+
+/**
  * single wins cophenetic alone (no tie); complete has the highest silhouette
  * at k_ref=4, so the two leaders differ — the same shape as the backend's
  * own `picksTheSoleCopheneticLeaderWhenThereIsNoTie` golden case.
@@ -189,18 +211,133 @@ describe('ClusteringPage', () => {
     }
   });
 
-  it('degrades gracefully with no leader marks when the corpus size is unavailable', async () => {
-    vi.spyOn(corpusApi, 'fetchCorpus').mockRejectedValue({
-      kind: 'unexpected',
-      i18nKey: 'errors.unexpected',
-      message: 'corpus down',
-    });
-    vi.spyOn(clusteringApi, 'runClustering').mockResolvedValue(DEFAULT_RESPONSE);
+  it('ranks at k_ref derived from the response itself, not a stale corpus-query size (R3-001)', async () => {
+    // Corpus query reports 20 documents -> would have implied k_ref =
+    // min(4, 19) = 4 under the old (wrong) source. The response's own
+    // leafOrder length is 4 -> the correct k_ref is min(4, 4-1) = 3.
+    // At k_ref=3, "single" leads the silhouette (partition); "complete" is
+    // the unique cophenetic (tree) leader. Ranking at the stale k_ref=4
+    // would instead make "complete" the partition leader too (leadersDiffer
+    // = false), so the "Árbol"/"Partición" split only appears when k_ref=3
+    // is actually used.
+    vi.spyOn(corpusApi, 'fetchCorpus').mockResolvedValue(
+      Array.from({ length: 20 }, (_unused, index) => ({
+        id: `doc-${index + 1}`,
+        title: `Article ${index + 1}`,
+        authors: ['A. Author'],
+      })),
+    );
+    vi.spyOn(clusteringApi, 'runClustering').mockResolvedValue([
+      linkageResultWithN(
+        'single',
+        'Single',
+        4,
+        0.3,
+        { '2': 0.1, '3': 0.9, '4': 0.05 },
+        { '2': 0.5, '3': 0.5, '4': 0.5 },
+      ),
+      linkageResultWithN(
+        'complete',
+        'Complete',
+        4,
+        0.95,
+        { '2': 0.1, '3': 0.1, '4': 0.99 },
+        { '2': 0.5, '3': 0.5, '4': 0.5 },
+      ),
+      linkageResultWithN(
+        'average',
+        'Average',
+        4,
+        0.2,
+        { '2': 0.1, '3': 0.2, '4': 0.2 },
+        { '2': 0.5, '3': 0.5, '4': 0.5 },
+      ),
+      linkageResultWithN(
+        'ward',
+        'Ward',
+        4,
+        0.1,
+        { '2': 0.1, '3': 0.05, '4': 0.1 },
+        { '2': 0.5, '3': 0.5, '4': 0.5 },
+      ),
+    ]);
 
     renderPage();
 
-    const singlePanel = await screen.findByTestId('linkage-panel-single');
-    expect(within(singlePanel).queryByText('Árbol')).not.toBeInTheDocument();
-    expect(within(singlePanel).queryByText('Líder')).not.toBeInTheDocument();
+    const completePanel = await screen.findByTestId('linkage-panel-complete');
+    expect(within(completePanel).getByText('Árbol')).toBeInTheDocument();
+
+    const singlePanel = screen.getByTestId('linkage-panel-single');
+    expect(within(singlePanel).getByText('Partición')).toBeInTheDocument();
+
+    expect(screen.getByText(/n = 4/)).toBeInTheDocument();
+  });
+
+  it('shows no leader marks and the "requires all four" explanation when linkages disagree on n (R3-001)', async () => {
+    vi.spyOn(corpusApi, 'fetchCorpus').mockResolvedValue(CORPUS);
+    vi.spyOn(clusteringApi, 'runClustering').mockResolvedValue([
+      linkageResultWithN('single', 'Single', 6, 0.95, { '4': 0.2 }, { '4': 0.5 }),
+      linkageResultWithN('complete', 'Complete', 5, 0.5, { '4': 0.9 }, { '4': 0.1 }),
+      linkageResultWithN('average', 'Average', 6, 0.4, { '4': 0.3 }, { '4': 0.2 }),
+      linkageResultWithN('ward', 'Ward', 6, 0.3, { '4': 0.1 }, { '4': null }),
+    ]);
+
+    renderPage();
+
+    await screen.findByTestId('linkage-panel-single');
+    expect(
+      screen.getByText('Los líderes se muestran cuando se comparan los cuatro enlaces.'),
+    ).toBeInTheDocument();
+    expect(screen.queryByText('Árbol')).not.toBeInTheDocument();
+    expect(screen.queryByText('Partición')).not.toBeInTheDocument();
+    expect(screen.queryByText('Líder')).not.toBeInTheDocument();
+  });
+
+  it('shows no leader marks and the "requires all four" explanation for a duplicate/non-canonical linkage id (R3-001)', async () => {
+    vi.spyOn(corpusApi, 'fetchCorpus').mockResolvedValue(CORPUS);
+    vi.spyOn(clusteringApi, 'runClustering').mockResolvedValue([
+      linkageResultWithN('single', 'Single A', 6, 0.95, { '4': 0.2 }, { '4': 0.5 }),
+      linkageResultWithN('single', 'Single B', 6, 0.5, { '4': 0.9 }, { '4': 0.1 }),
+      linkageResultWithN('average', 'Average', 6, 0.4, { '4': 0.3 }, { '4': 0.2 }),
+      linkageResultWithN('complete', 'Complete', 6, 0.3, { '4': 0.1 }, { '4': null }),
+    ]);
+
+    renderPage();
+
+    await screen.findByTestId('dendrogram-slot-average');
+    expect(
+      screen.getByText('Los líderes se muestran cuando se comparan los cuatro enlaces.'),
+    ).toBeInTheDocument();
+    expect(screen.queryByText('Árbol')).not.toBeInTheDocument();
+    expect(screen.queryByText('Partición')).not.toBeInTheDocument();
+    expect(screen.queryByText('Líder')).not.toBeInTheDocument();
+  });
+
+  it('shows no leader marks and the "requires all four" explanation when the user deselected a linkage (R3-002)', async () => {
+    vi.spyOn(corpusApi, 'fetchCorpus').mockResolvedValue(CORPUS);
+    vi.spyOn(clusteringApi, 'runClustering').mockResolvedValue(DEFAULT_RESPONSE);
+    const user = userEvent.setup();
+
+    renderPage();
+    await waitFor(() => expect(clusteringApi.runClustering).toHaveBeenCalled());
+
+    vi.mocked(clusteringApi.runClustering).mockResolvedValue(
+      DEFAULT_RESPONSE.filter((result) => result.linkageId !== 'ward'),
+    );
+    await user.click(screen.getByRole('button', { name: 'ward' }));
+
+    await waitFor(() =>
+      expect(clusteringApi.runClustering).toHaveBeenLastCalledWith({
+        representation: 'tfidf-cosine',
+        linkages: ['single', 'complete', 'average'],
+      }),
+    );
+
+    expect(
+      await screen.findByText('Los líderes se muestran cuando se comparan los cuatro enlaces.'),
+    ).toBeInTheDocument();
+    expect(screen.queryByText('Árbol')).not.toBeInTheDocument();
+    expect(screen.queryByText('Partición')).not.toBeInTheDocument();
+    expect(screen.queryByText('Líder')).not.toBeInTheDocument();
   });
 });

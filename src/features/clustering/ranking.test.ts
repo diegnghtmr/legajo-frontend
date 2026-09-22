@@ -2,11 +2,14 @@ import { describe, expect, it } from 'vitest';
 
 import {
   COPHENETIC_TIE_TOLERANCE,
+  hasCanonicalLinkageIds,
   kRefForSampleSize,
   metricsAtKRef,
   rankClusteringLinkages,
+  sampleSizeFromResponse,
   type LinkageMetricsAtKRef,
 } from './ranking';
+import type { LinkageId } from '../../infrastructure/schemas/clustering';
 
 function metric(
   linkageId: LinkageMetricsAtKRef['linkageId'],
@@ -258,5 +261,53 @@ describe('metricsAtKRef', () => {
     ];
 
     expect(() => metricsAtKRef(results, 4)).toThrow(RangeError);
+  });
+});
+
+describe('sampleSizeFromResponse — R3-001: n comes from the response, not the corpus query', () => {
+  const withLeafOrder = (length: number) => ({
+    leafOrder: Array.from({ length }, (_unused, index) => index),
+  });
+
+  it('returns n when every linkage agrees on leafOrder length', () => {
+    const results = [withLeafOrder(6), withLeafOrder(6), withLeafOrder(6), withLeafOrder(6)];
+
+    expect(sampleSizeFromResponse(results)).toBe(6);
+  });
+
+  it('returns undefined when linkages disagree on leafOrder length', () => {
+    const results = [withLeafOrder(6), withLeafOrder(5), withLeafOrder(6), withLeafOrder(6)];
+
+    expect(sampleSizeFromResponse(results)).toBeUndefined();
+  });
+
+  it('returns undefined for an empty response', () => {
+    expect(sampleSizeFromResponse([])).toBeUndefined();
+  });
+});
+
+describe('hasCanonicalLinkageIds — R3-001: ranking requires exactly {single, complete, average, ward}', () => {
+  it('accepts the canonical set regardless of order', () => {
+    const ids: LinkageId[] = ['ward', 'single', 'average', 'complete'];
+
+    expect(hasCanonicalLinkageIds(ids)).toBe(true);
+  });
+
+  it('rejects a duplicate id standing in for a missing one', () => {
+    const ids: LinkageId[] = ['single', 'single', 'average', 'ward'];
+
+    expect(hasCanonicalLinkageIds(ids)).toBe(false);
+  });
+
+  it('rejects fewer than four ids', () => {
+    const ids: LinkageId[] = ['single', 'complete', 'average'];
+
+    expect(hasCanonicalLinkageIds(ids)).toBe(false);
+  });
+
+  it('rejects more than four ids', () => {
+    const ids = ['single', 'complete', 'average', 'ward', 'single'] as LinkageId[];
+
+    expect(hasCanonicalLinkageIds(ids)).toBe(false);
   });
 });

@@ -167,10 +167,54 @@ export function kRefForSampleSize(sampleSize: number): number {
   return Math.min(4, sampleSize - 1);
 }
 
+/**
+ * True only when `ids` is exactly the canonical set `{single, complete,
+ * average, ward}` (TRD §6.4) — same length, no duplicates, no stray value.
+ * `LinkageId` is itself a closed enum, so the only way a schema-valid
+ * response can fail this is a duplicate id standing in for a missing one
+ * (e.g. two `"ward"` entries and no `"single"`); ranking must refuse that
+ * shape rather than silently ranking a lopsided set.
+ */
+export function hasCanonicalLinkageIds(ids: readonly LinkageId[]): boolean {
+  if (ids.length !== LINKAGE_DECLARATION_ORDER.length) {
+    return false;
+  }
+  const seen = new Set<LinkageId>();
+  for (const id of ids) {
+    if (seen.has(id)) {
+      return false;
+    }
+    seen.add(id);
+  }
+  return LINKAGE_DECLARATION_ORDER.every((id) => seen.has(id));
+}
+
 type LinkageResultForRanking = Pick<
   z.infer<typeof LinkageResultSchema>,
   'linkageId' | 'evaluation'
 >;
+
+type LinkageResultForSampleSize = Pick<z.infer<typeof LinkageResultSchema>, 'leafOrder'>;
+
+/**
+ * Derives the corpus sample size `n` straight from the `POST /clustering`
+ * response itself, rather than from the separately cached corpus-list query:
+ * a stale/mismatched corpus size must never silently mark leaders at the
+ * wrong cut. Per TRD §6.4, every linkage's `leafOrder` has exactly `n`
+ * entries (its matrix has `n - 1` rows, so `leafOrder` — not `rows` — is the
+ * field that carries `n`). Returns `undefined` when the response is empty or
+ * when the linkages disagree on `n`, which can only mean a malformed/
+ * inconsistent response; ranking must show no leader marks rather than guess.
+ */
+export function sampleSizeFromResponse(
+  results: readonly LinkageResultForSampleSize[],
+): number | undefined {
+  if (results.length === 0) {
+    return undefined;
+  }
+  const [first, ...rest] = results.map((result) => result.leafOrder.length);
+  return rest.every((size) => size === first) ? first : undefined;
+}
 
 /**
  * Reads each linkage's three metrics at the fixed cut `k_ref` out of a

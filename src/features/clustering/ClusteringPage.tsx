@@ -8,7 +8,6 @@ import {
   type ClusteringRequestBody,
   type ClusteringResponse,
 } from '../../infrastructure/api/clustering';
-import { fetchCorpus, type ListCorpusResponse } from '../../infrastructure/api/corpus';
 import {
   LinkageIdSchema,
   RepresentationIdSchema,
@@ -19,9 +18,14 @@ import { AlgoTextList, type AlgoOption } from '../../shared/components/AlgoTextL
 import { MetricTile } from '../../shared/components/MetricTile';
 import { Panel, PanelHeader } from '../../shared/components/Panel';
 import { SegmentedControl, type SegmentedOption } from '../../shared/components/SegmentedControl';
-import { CORPUS_LIST_QUERY_KEY } from '../corpus/ArticleList';
 import { formatMetricValue } from './formatMetricValue';
-import { kRefForSampleSize, metricsAtKRef, rankClusteringLinkages } from './ranking';
+import {
+  hasCanonicalLinkageIds,
+  kRefForSampleSize,
+  metricsAtKRef,
+  rankClusteringLinkages,
+  sampleSizeFromResponse,
+} from './ranking';
 
 const REPRESENTATION_IDS = [...RepresentationIdSchema.options];
 const DEFAULT_REPRESENTATION: RepresentationId = 'tfidf-cosine';
@@ -48,9 +52,13 @@ function sortedCuts<TValue>(record: Record<string, TValue>): Array<[string, TVal
  * Clustering screen (DESIGN.md §6.4, PRD HU-2.2, TAC-04): representation and
  * linkage selection, `POST /clustering`, and the metrics strip applying the
  * TRD §6.5 ranking rule over the backend's own numbers (`ranking.ts`).
- * Reads the corpus list only for its size `n` (the sample-size caveat and
- * `k_ref`); a corpus-fetch failure degrades to no leader marks rather than
- * blocking the metrics themselves, same reasoning as W7's matrix headers.
+ * The sample size `n` (the sample-size caveat and `k_ref`) is derived from
+ * the clustering response itself (every linkage's `leafOrder` length, TRD
+ * §6.4) rather than from the separately cached corpus-list query, so a stale
+ * corpus size can never silently mark leaders at the wrong cut. Ranking also
+ * requires the linkages to agree on `n` and to be exactly the canonical set
+ * `{single, complete, average, ward}`; either violation degrades to no
+ * leader marks rather than guessing, same reasoning as W7's matrix headers.
  *
  * The dendrograms and the free cut (`POST /clustering/cut`) are W8b's slot,
  * marked per linkage below — D3 only draws from `rows`/`leafOrder`, never
@@ -61,12 +69,6 @@ export function ClusteringPage() {
   const [representation, setRepresentation] = useState<RepresentationId>(DEFAULT_REPRESENTATION);
   const [selectedLinkages, setSelectedLinkages] = useState<LinkageId[]>([...LINKAGE_IDS]);
   const hasLinkagesSelected = selectedLinkages.length > 0;
-
-  const corpusQuery = useQuery<ListCorpusResponse, ApiError>({
-    queryKey: CORPUS_LIST_QUERY_KEY,
-    queryFn: fetchCorpus,
-  });
-  const sampleSize = corpusQuery.data?.length;
 
   const clusteringQuery = useQuery<ClusteringResponse, ApiError>({
     queryKey: [CLUSTERING_QUERY_KEY_PREFIX, representation, selectedLinkages] as const,
@@ -86,6 +88,13 @@ export function ClusteringPage() {
     );
   };
 
+  const sampleSize = useMemo(() => {
+    if (!clusteringQuery.data) {
+      return undefined;
+    }
+    return sampleSizeFromResponse(clusteringQuery.data);
+  }, [clusteringQuery.data]);
+
   const kRef = useMemo(() => {
     if (sampleSize === undefined) {
       return undefined;
@@ -98,16 +107,20 @@ export function ClusteringPage() {
   }, [sampleSize]);
 
   const ranking = useMemo(() => {
-    if (kRef === undefined || !clusteringQuery.data || clusteringQuery.data.length !== 4) {
+    if (
+      kRef === undefined ||
+      !clusteringQuery.data ||
+      !hasCanonicalLinkageIds(clusteringQuery.data.map((result) => result.linkageId))
+    ) {
       return undefined;
     }
     try {
       return rankClusteringLinkages(metricsAtKRef(clusteringQuery.data, kRef));
     } catch {
       // The ranking rule requires exactly the four canonical linkages with
-      // finite metrics (TRD §6.4/§6.5). A non-conforming response (e.g. a
-      // partial linkage selection, or malformed data) just means no leader
-      // is marked — every metric tile is still shown from the raw response.
+      // finite metrics (TRD §6.4/§6.5). A non-conforming response (e.g.
+      // malformed data) just means no leader is marked — every metric tile
+      // is still shown from the raw response.
       return undefined;
     }
   }, [clusteringQuery.data, kRef]);
@@ -211,9 +224,15 @@ export function ClusteringPage() {
             );
           })}
 
-          {ranking && ranking.copheneticTieSet.length > 1 && (
+          {ranking ? (
+            ranking.copheneticTieSet.length > 1 && (
+              <p className="text-body text-ink-secondary">
+                {t('clustering.tieSet', { linkages: ranking.copheneticTieSet.join(', ') })}
+              </p>
+            )
+          ) : (
             <p className="text-body text-ink-secondary">
-              {t('clustering.tieSet', { linkages: ranking.copheneticTieSet.join(', ') })}
+              {t('clustering.leadersRequireAllLinkages')}
             </p>
           )}
         </div>
