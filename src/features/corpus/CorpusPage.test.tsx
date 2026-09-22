@@ -48,6 +48,7 @@ describe('CorpusPage', () => {
       screen.getByText('Selecciona un artículo para ver su resumen completo.'),
     ).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Comparar' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Ver matriz' })).toBeDisabled();
   });
 
   it('navigating to an article shows its detail next to the still-visible list', async () => {
