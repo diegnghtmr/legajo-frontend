@@ -57,4 +57,9 @@ describe('AppLayout', () => {
     expect(await screen.findByRole('link', { name: 'Similarity' })).toBeInTheDocument();
     expect(screen.getByText('corpus page')).toBeInTheDocument();
   });
+  it('names the language switch as a group so assistive technology announces it', () => {
+    renderLayout();
+
+    expect(screen.getByRole('group', { name: /idioma|language/i })).toBeInTheDocument();
+  });
 });

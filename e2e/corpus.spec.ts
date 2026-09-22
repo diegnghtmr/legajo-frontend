@@ -73,4 +73,17 @@ test.describe('corpus screen', () => {
 
     expect(results.violations).toEqual([]);
   });
+
+  for (const path of ['/corpus/doc-01', '/similarity', '/clustering', '/no-such-route']) {
+    test(`has no automatically detectable WCAG 2.1 AA violations on ${path}`, async ({ page }) => {
+      await page.goto(path);
+      await expect(page.getByRole('main')).toBeVisible();
+
+      const results = await new AxeBuilder({ page })
+        .withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa'])
+        .analyze();
+
+      expect(results.violations).toEqual([]);
+    });
+  }
 });

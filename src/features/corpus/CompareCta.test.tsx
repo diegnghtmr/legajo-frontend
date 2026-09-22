@@ -1,4 +1,6 @@
 import { render, screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
+import { MemoryRouter, Route, Routes } from 'react-router';
 import { beforeEach, describe, expect, it } from 'vitest';
 
 import { useSelectionStore } from './selectionStore';
@@ -10,7 +12,11 @@ beforeEach(() => {
 
 describe('CompareCta', () => {
   it('is disabled and shows the "select two" reason with 0 selected', () => {
-    render(<CompareCta />);
+    render(
+      <MemoryRouter>
+        <CompareCta />
+      </MemoryRouter>,
+    );
 
     const button = screen.getByRole('button', { name: 'Comparar' });
     expect(button).toBeDisabled();
@@ -22,7 +28,11 @@ describe('CompareCta', () => {
   it('is disabled and shows the "select one more" reason with 1 selected', () => {
     useSelectionStore.getState().toggle('doc-01');
 
-    render(<CompareCta />);
+    render(
+      <MemoryRouter>
+        <CompareCta />
+      </MemoryRouter>,
+    );
 
     const button = screen.getByRole('button', { name: 'Comparar' });
     expect(button).toBeDisabled();
@@ -33,7 +43,11 @@ describe('CompareCta', () => {
     useSelectionStore.getState().toggle('doc-01');
     useSelectionStore.getState().toggle('doc-02');
 
-    render(<CompareCta />);
+    render(
+      <MemoryRouter>
+        <CompareCta />
+      </MemoryRouter>,
+    );
 
     const button = screen.getByRole('button', { name: 'Comparar' });
     expect(button).toBeEnabled();
@@ -48,8 +62,29 @@ describe('CompareCta', () => {
     useSelectionStore.getState().toggle('doc-02');
     useSelectionStore.getState().toggle('doc-03');
 
-    render(<CompareCta />);
+    render(
+      <MemoryRouter>
+        <CompareCta />
+      </MemoryRouter>,
+    );
 
     expect(screen.getByRole('button', { name: 'Comparar' })).toBeEnabled();
+  });
+  it('opens the similarity view when activated with two articles selected', async () => {
+    const user = userEvent.setup();
+    useSelectionStore.getState().toggle('doc-01');
+    useSelectionStore.getState().toggle('doc-02');
+    render(
+      <MemoryRouter initialEntries={['/corpus']}>
+        <Routes>
+          <Route path="/corpus" element={<CompareCta />} />
+          <Route path="/similarity" element={<p>similarity view</p>} />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    await user.click(screen.getByRole('button', { name: 'Comparar' }));
+
+    expect(screen.getByText('similarity view')).toBeInTheDocument();
   });
 });

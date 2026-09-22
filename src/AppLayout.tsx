@@ -14,7 +14,7 @@ function LanguageSwitch() {
   const { i18n, t } = useTranslation();
 
   return (
-    <div className="flex items-center gap-1" aria-label={t('language.switchLabel')}>
+    <div role="group" className="flex items-center gap-1" aria-label={t('language.switchLabel')}>
       {SUPPORTED_LANGUAGES.map((language) => {
         const active = i18n.resolvedLanguage === language;
         return (

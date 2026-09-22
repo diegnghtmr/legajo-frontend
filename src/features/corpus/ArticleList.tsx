@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 
-import type { ApiError } from '../../infrastructure/apiError';
+import { DEFAULT_UNEXPECTED_I18N_KEY, type ApiError } from '../../infrastructure/apiError';
 import { fetchCorpus, type ListCorpusResponse } from '../../infrastructure/api/corpus';
 import { ArticleRow } from './ArticleRow';
 import { useSelectionStore } from './selectionStore';
@@ -35,7 +35,9 @@ export function ArticleList() {
     return (
       <div role="alert" className="flex flex-col gap-1">
         <p className="text-body font-semibold text-danger">{t('corpus.errorTitle')}</p>
-        <p className="text-body text-ink-secondary">{t(error.i18nKey)}</p>
+        <p className="text-body text-ink-secondary">
+          {t(error.i18nKey ?? DEFAULT_UNEXPECTED_I18N_KEY)}
+        </p>
       </div>
     );
   }

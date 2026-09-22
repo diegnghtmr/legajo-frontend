@@ -1,4 +1,5 @@
 import { useTranslation } from 'react-i18next';
+import { useNavigate } from 'react-router';
 
 import { useSelectionStore } from './selectionStore';
 
@@ -9,6 +10,7 @@ import { useSelectionStore } from './selectionStore';
  */
 export function CompareCta() {
   const { t } = useTranslation();
+  const navigate = useNavigate();
   const selectedCount = useSelectionStore((state) => state.selectedIds.length);
   const canCompare = useSelectionStore((state) => state.canCompare);
 
@@ -24,6 +26,7 @@ export function CompareCta() {
       <button
         type="button"
         disabled={!canCompare}
+        onClick={() => void navigate('/similarity')}
         className="rounded-btn bg-ink px-4 py-2 text-body font-semibold text-primary-foreground disabled:opacity-45 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus"
       >
         {t('corpus.selection.compareCta')}
