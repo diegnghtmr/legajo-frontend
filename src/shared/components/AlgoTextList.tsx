@@ -1,10 +1,15 @@
 import type { AlgoFamily } from '../family';
 import { AlgoTextButton } from './AlgoTextButton';
 
-/** `family` lets callers filter the list with the family Segmented; it is not rendered. */
+/**
+ * `family` lets callers filter the list with the family Segmented; it is not
+ * rendered. Optional because not every `AlgoTextList` consumer has a family
+ * concept — the clustering linkage selection (single/complete/average/ward)
+ * has no family Segmented, so it omits it entirely.
+ */
 export interface AlgoOption {
   id: string;
-  family: AlgoFamily;
+  family?: AlgoFamily;
 }
 
 export interface AlgoTextListProps {

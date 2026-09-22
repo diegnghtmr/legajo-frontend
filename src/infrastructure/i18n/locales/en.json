@@ -176,7 +176,24 @@
   "clustering": {
     "eyebrow": "Clustering",
     "title": "Hierarchical clustering",
-    "comingSoon": "This view is built in a later task."
+    "representationGroupLabel": "Representation",
+    "linkageGroupLabel": "Linkage selection",
+    "noLinkages": "Select at least one linkage to cluster.",
+    "loading": "Computing the clustering…",
+    "errorTitle": "Could not compute the clustering",
+    "leader": "Leader",
+    "leaderTree": "Tree",
+    "leaderPartition": "Partition",
+    "tieSet": "Cophenetic tie (within 1e-3): {{linkages}}.",
+    "leadersRequireAllLinkages": "Leaders are shown when all four linkages are compared.",
+    "sampleSizeCaveat": "Representation: {{representation}}. D = 1 − cosine; Ward operates on 2·D. Sample size of the loaded corpus: n = {{count}}. Cophenetic correlation tends to favor average linkage; both leaders are shown when they differ for this reason.",
+    "dendrogramSlot": "This linkage's dendrogram is added in a later task.",
+    "metrics": {
+      "cophenetic": "Cophenetic",
+      "silhouetteAtK": "Mean silhouette (k={{k}})",
+      "daviesBouldinAtK": "Davies–Bouldin (k={{k}})",
+      "undefinedValue": "undefined"
+    }
   },
   "notFound": {
     "title": "Page not found",

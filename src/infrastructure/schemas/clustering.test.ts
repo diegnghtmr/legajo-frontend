@@ -9,6 +9,7 @@ import {
   LinkageIdSchema,
   LinkageResultSchema,
   LinkageStepSchema,
+  RepresentationIdSchema,
 } from './clustering';
 
 type LinkageStep = components['schemas']['LinkageStep'];
@@ -44,6 +45,20 @@ describe('clustering schemas (contract)', () => {
 describe('LinkageIdSchema', () => {
   it('accepts exactly the four fixed linkage criteria, Ward included', () => {
     expect(LinkageIdSchema.options).toEqual(['single', 'complete', 'average', 'ward']);
+  });
+});
+
+describe('RepresentationIdSchema', () => {
+  it('accepts exactly the three fixed representations, tfidf-cosine first (the default)', () => {
+    expect(RepresentationIdSchema.options).toEqual([
+      'tfidf-cosine',
+      'embedding-local',
+      'embedding-api',
+    ]);
+  });
+
+  it('rejects an unknown representation', () => {
+    expect(RepresentationIdSchema.safeParse('bm25').success).toBe(false);
   });
 });
 
