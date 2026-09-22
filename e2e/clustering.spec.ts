@@ -22,6 +22,22 @@ function evaluation(cophenetic: number, silhouetteAtKRef: number, dbAtKRef: numb
 }
 
 /**
+ * Golden n = 6 linkage matrix (TRD §6.4 conventions: 5 rows, `idx1 < idx2`,
+ * the cluster created by row i gets id 6 + i, non-decreasing distances) —
+ * same shape `dendrogramLayout.test.ts` and `ClusteringPage.test.tsx`
+ * validate on their own, so every mocked linkage here has a real dendrogram
+ * to draw instead of `rows: []` (which W8b's `Dendrogram` would now reject
+ * as malformed).
+ */
+const GOLDEN_ROWS_N6 = [
+  { idx1: 0, idx2: 1, mergeDistance: 0.1, size: 2 },
+  { idx1: 2, idx2: 3, mergeDistance: 0.2, size: 2 },
+  { idx1: 4, idx2: 5, mergeDistance: 0.3, size: 2 },
+  { idx1: 6, idx2: 7, mergeDistance: 0.4, size: 4 },
+  { idx1: 8, idx2: 9, mergeDistance: 0.5, size: 6 },
+];
+
+/**
  * `single` wins cophenetic alone (no tie, TRD §6.5); `complete` has the
  * highest silhouette at k_ref=4, so the two leaders differ and both the
  * "Árbol"/Tree and "Partición"/Partition eyebrows are exercised.
@@ -30,28 +46,28 @@ const DEFAULT_CLUSTERING_RESPONSE = [
   {
     linkageId: 'single',
     linkageDisplayName: 'Single',
-    rows: [],
+    rows: GOLDEN_ROWS_N6,
     leafOrder: [0, 1, 2, 3, 4, 5],
     evaluation: evaluation(0.95, 0.2, 0.5),
   },
   {
     linkageId: 'complete',
     linkageDisplayName: 'Complete',
-    rows: [],
-    leafOrder: [0, 1, 2, 3, 4, 5],
+    rows: GOLDEN_ROWS_N6,
+    leafOrder: [2, 3, 0, 1, 4, 5],
     evaluation: evaluation(0.5, 0.9, 0.1),
   },
   {
     linkageId: 'average',
     linkageDisplayName: 'Average',
-    rows: [],
+    rows: GOLDEN_ROWS_N6,
     leafOrder: [0, 1, 2, 3, 4, 5],
     evaluation: evaluation(0.4, 0.3, 0.2),
   },
   {
     linkageId: 'ward',
     linkageDisplayName: 'Ward',
-    rows: [],
+    rows: GOLDEN_ROWS_N6,
     leafOrder: [0, 1, 2, 3, 4, 5],
     evaluation: evaluation(0.3, 0.1, null),
   },
@@ -125,9 +141,50 @@ test.describe('clustering screen', () => {
       });
   });
 
-  test('deselecting every linkage shows the reason and no dendrogram-slot panels', async ({
+  test('shows four dendrograms and applies a free cut with cluster labels and a cut line on the chosen linkage', async ({
     page,
   }) => {
+    await page.route('**/api/v1/clustering/cut', async (route) => {
+      expect(route.request().postDataJSON()).toEqual({
+        representation: 'tfidf-cosine',
+        linkage: 'complete',
+        k: 3,
+      });
+      await route.fulfill({ json: { labels: [0, 0, 1, 1, 2, 2], k: 3 } });
+    });
+
+    await page.goto('/clustering');
+
+    for (const { linkageDisplayName } of DEFAULT_CLUSTERING_RESPONSE) {
+      await expect(
+        page.getByRole('img', { name: `Dendrograma de ${linkageDisplayName}` }),
+      ).toBeVisible();
+    }
+
+    const cutGroup = page.getByRole('radiogroup', { name: 'Enlace a cortar' });
+    await cutGroup.getByRole('radio', { name: 'Complete' }).click();
+    await page.getByLabel('Número de clústeres k (entre 2 y 5)').fill('3');
+    await page.getByRole('button', { name: 'Aplicar corte' }).click();
+
+    const completeDendrogram = page.getByTestId('linkage-dendrogram-complete');
+    // An SVG `<line>` has a zero-area bounding box in Chromium's own
+    // visibility geometry, so Playwright's `toBeVisible()` (which needs a
+    // hit-testable point) reports it as hidden even though it renders; a DOM
+    // presence check is the correct assertion here, same as the component
+    // unit test's own `querySelectorAll` presence check.
+    await expect(completeDendrogram.getByTestId('dendrogram-cut-line')).toBeAttached();
+    // labels = [0, 0, 1, 1, 2, 2] over 6 leaves -> two leaves per cluster.
+    await expect(completeDendrogram.getByText('Clúster 0')).toHaveCount(2);
+    await expect(completeDendrogram.getByText('Clúster 1')).toHaveCount(2);
+    await expect(completeDendrogram.getByText('Clúster 2')).toHaveCount(2);
+
+    // No cut line leaks onto a linkage that was not cut.
+    await expect(
+      page.getByTestId('linkage-dendrogram-single').getByTestId('dendrogram-cut-line'),
+    ).toHaveCount(0);
+  });
+
+  test('deselecting every linkage shows the reason and no linkage panels', async ({ page }) => {
     await page.goto('/clustering');
     await expect(page.getByRole('heading', { name: 'Single' })).toBeVisible();
 
