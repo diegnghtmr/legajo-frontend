@@ -169,6 +169,33 @@ describe('SimilarityPage — exactly two selected', () => {
     );
   });
 
+  it('with every algorithm deselected, shows the reason and sends no further compare request', async () => {
+    vi.spyOn(similarityApi, 'fetchSimilarityAlgorithms').mockResolvedValue(CATALOGUE);
+    vi.spyOn(similarityApi, 'compareSimilarity').mockResolvedValue(compareResponseFor(ALL_SIX_IDS));
+    const user = userEvent.setup();
+
+    renderWithProviders(<SimilarityPage />);
+    await screen.findByRole('button', { name: 'embedding-api' });
+    await waitFor(() => expect(similarityApi.compareSimilarity).toHaveBeenCalled());
+
+    expect(ALL_SIX_IDS).toHaveLength(6);
+    for (const id of ALL_SIX_IDS) {
+      await user.click(screen.getByRole('button', { name: id }));
+    }
+    const callsWithNoSelection = vi.mocked(similarityApi.compareSimilarity).mock.calls.length;
+
+    expect(
+      await screen.findByText('Selecciona al menos un algoritmo para comparar.'),
+    ).toBeInTheDocument();
+    expect(screen.queryByRole('table')).not.toBeInTheDocument();
+    expect(vi.mocked(similarityApi.compareSimilarity).mock.calls.length).toBe(callsWithNoSelection);
+    expect(
+      vi
+        .mocked(similarityApi.compareSimilarity)
+        .mock.calls.some(([request]) => request.algorithmIds?.length === 0),
+    ).toBe(false);
+  });
+
   it('shows the mapped error message when the algorithm catalogue fails to load', async () => {
     vi.spyOn(similarityApi, 'fetchSimilarityAlgorithms').mockRejectedValue({
       kind: 'network',
