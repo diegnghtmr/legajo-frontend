@@ -187,12 +187,32 @@
     "tieSet": "Cophenetic tie (within 1e-3): {{linkages}}.",
     "leadersRequireAllLinkages": "Leaders are shown when all four linkages are compared.",
     "sampleSizeCaveat": "Representation: {{representation}}. D = 1 − cosine; Ward operates on 2·D. Sample size of the loaded corpus: n = {{count}}. Cophenetic correlation tends to favor average linkage; both leaders are shown when they differ for this reason.",
-    "dendrogramSlot": "This linkage's dendrogram is added in a later task.",
     "metrics": {
       "cophenetic": "Cophenetic",
       "silhouetteAtK": "Mean silhouette (k={{k}})",
       "daviesBouldinAtK": "Davies–Bouldin (k={{k}})",
       "undefinedValue": "undefined"
+    },
+    "dendrogram": {
+      "ariaLabel": "{{linkage}} dendrogram",
+      "malformed": "This linkage's dendrogram could not be drawn.",
+      "clusterLabel": "Cluster {{id}}",
+      "mergeTableCaption": "Merge order for the {{linkage}} dendrogram",
+      "mergeTableStep": "Step",
+      "mergeTableLeft": "Member A",
+      "mergeTableRight": "Member B",
+      "mergeTableDistance": "Distance"
+    },
+    "cutForm": {
+      "title": "Free cut",
+      "linkageGroupLabel": "Linkage to cut",
+      "kLabel": "Number of clusters k (between {{min}} and {{max}})",
+      "submit": "Apply cut",
+      "pending": "Applying the cut…",
+      "errorTitle": "Could not apply the cut",
+      "errors": {
+        "kRange": "k must be an integer between {{min}} and {{max}}."
+      }
     }
   },
   "notFound": {

@@ -1,13 +1,17 @@
 import { useMemo, useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 
 import { DEFAULT_UNEXPECTED_I18N_KEY, type ApiError } from '../../infrastructure/apiError';
 import {
+  cutClustering,
   runClustering,
+  type ClusteringCutRequestBody,
+  type ClusteringCutResponse,
   type ClusteringRequestBody,
   type ClusteringResponse,
 } from '../../infrastructure/api/clustering';
+import { fetchCorpus, type ListCorpusResponse } from '../../infrastructure/api/corpus';
 import {
   LinkageIdSchema,
   RepresentationIdSchema,
@@ -15,9 +19,13 @@ import {
   type RepresentationId,
 } from '../../infrastructure/schemas/clustering';
 import { AlgoTextList, type AlgoOption } from '../../shared/components/AlgoTextList';
+import { Dendrogram, type DendrogramLeafLabel } from '../../shared/components/Dendrogram';
 import { MetricTile } from '../../shared/components/MetricTile';
 import { Panel, PanelHeader } from '../../shared/components/Panel';
 import { SegmentedControl, type SegmentedOption } from '../../shared/components/SegmentedControl';
+import { CORPUS_LIST_QUERY_KEY } from '../corpus/ArticleList';
+import { tryComputeCutDistance } from './cutLine';
+import { CutForm, type CutFormValues } from './CutForm';
 import { formatMetricValue } from './formatMetricValue';
 import {
   hasCanonicalLinkageIds,
@@ -60,15 +68,52 @@ function sortedCuts<TValue>(record: Record<string, TValue>): Array<[string, TVal
  * `{single, complete, average, ward}`; either violation degrades to no
  * leader marks rather than guessing, same reasoning as W7's matrix headers.
  *
- * The dendrograms and the free cut (`POST /clustering/cut`) are W8b's slot,
- * marked per linkage below — D3 only draws from `rows`/`leafOrder`, never
- * computed here.
+ * The four dendrograms (`Dendrogram`, W8b) render one per linkage, each from
+ * its own `rows`/`leafOrder` — D3 only draws, it never computes a merge. The
+ * free cut (`POST /clustering/cut`) is a `CutForm` below them; a successful
+ * cut's cluster labels and dashed cut line are shown only on the cut
+ * linkage's own dendrogram, never on the other three.
  */
 export function ClusteringPage() {
   const { t } = useTranslation();
   const [representation, setRepresentation] = useState<RepresentationId>(DEFAULT_REPRESENTATION);
   const [selectedLinkages, setSelectedLinkages] = useState<LinkageId[]>([...LINKAGE_IDS]);
   const hasLinkagesSelected = selectedLinkages.length > 0;
+  /**
+   * A cut's labels only mean something for the exact request they were
+   * computed against. Rather than resetting this in an effect (which would
+   * call `setState` synchronously inside an effect body — a cascading-render
+   * anti-pattern the project's lint rules reject), the request's own
+   * `representation`/`linkages` are captured alongside the result and
+   * compared, at render time, against the page's current selection; a stale
+   * cut for a since-changed request is simply not applied to any panel.
+   *
+   * Only the request's own `k` is kept here, never a pre-computed distance:
+   * the cut line's pixel position depends on whichever `rows` are currently
+   * loaded for `linkageId`, so it is derived at render time (see
+   * `tryComputeCutDistance` below) instead of inside the mutation, where a
+   * throw would turn a successful cut into a rendering error.
+   */
+  const [cutResult, setCutResult] = useState<
+    | {
+        representation: RepresentationId;
+        linkages: readonly LinkageId[];
+        linkageId: LinkageId;
+        k: number;
+        labels: readonly number[];
+      }
+    | undefined
+  >(undefined);
+  /**
+   * Scopes the cut error the same way `cutResult` is scoped: an error from a
+   * since-changed (representation, linkages) request must not linger on the
+   * form after the user moves on. `cutMutation.error` alone survives across
+   * renders until the next `mutate()` call, so it is only shown when this
+   * context still matches the page's current selection.
+   */
+  const [cutErrorContext, setCutErrorContext] = useState<
+    { representation: RepresentationId; linkages: readonly LinkageId[] } | undefined
+  >(undefined);
 
   const clusteringQuery = useQuery<ClusteringResponse, ApiError>({
     queryKey: [CLUSTERING_QUERY_KEY_PREFIX, representation, selectedLinkages] as const,
@@ -78,6 +123,56 @@ export function ClusteringPage() {
     },
     enabled: hasLinkagesSelected,
   });
+
+  const activeCutResult =
+    cutResult &&
+    cutResult.representation === representation &&
+    cutResult.linkages.join(',') === selectedLinkages.join(',')
+      ? cutResult
+      : undefined;
+
+  // Display-only: leaf mono ids/titles for the dendrograms. Never used for
+  // `k_ref`/ranking (see the doc comment above) — a fetch failure or a
+  // length mismatch against the response's own sample size degrades to
+  // plain numeric leaf ids, same "don't block on secondary data" reasoning
+  // W7 used for the matrix headers.
+  const corpusQuery = useQuery<ListCorpusResponse, ApiError>({
+    queryKey: CORPUS_LIST_QUERY_KEY,
+    queryFn: fetchCorpus,
+  });
+
+  const cutMutation = useMutation<ClusteringCutResponse, ApiError, ClusteringCutRequestBody>({
+    // Wrapped (not passed directly) so `cutClustering` is invoked with only
+    // its own request body, never react-query's own second `context`
+    // argument.
+    mutationFn: (body) => cutClustering(body),
+    onSuccess: (data, variables) => {
+      setCutResult({
+        // `variables.representation` is always this page's own state (never
+        // omitted), but the generated request type allows `null` for an
+        // absent body field — narrow back to the page's own default.
+        representation: variables.representation ?? DEFAULT_REPRESENTATION,
+        linkages: selectedLinkages,
+        linkageId: variables.linkage,
+        k: data.k,
+        labels: data.labels,
+      });
+    },
+    onError: (_error, variables) => {
+      setCutErrorContext({
+        representation: variables.representation ?? DEFAULT_REPRESENTATION,
+        linkages: selectedLinkages,
+      });
+    },
+  });
+
+  const activeCutError =
+    cutMutation.error &&
+    cutErrorContext &&
+    cutErrorContext.representation === representation &&
+    cutErrorContext.linkages.join(',') === selectedLinkages.join(',')
+      ? cutMutation.error
+      : undefined;
 
   const toggleLinkage = (id: string) => {
     const linkageId = id as LinkageId;
@@ -124,6 +219,17 @@ export function ClusteringPage() {
       return undefined;
     }
   }, [clusteringQuery.data, kRef]);
+
+  const leafLabels: readonly DendrogramLeafLabel[] | undefined = useMemo(() => {
+    if (!corpusQuery.data || sampleSize === undefined || corpusQuery.data.length !== sampleSize) {
+      return undefined;
+    }
+    return corpusQuery.data.map((document) => ({ label: document.id, title: document.title }));
+  }, [corpusQuery.data, sampleSize]);
+
+  const handleCutSubmit = (values: CutFormValues) => {
+    cutMutation.mutate({ representation, linkage: values.linkage, k: values.k });
+  };
 
   return (
     <div className="flex flex-col gap-6">
@@ -213,12 +319,37 @@ export function ClusteringPage() {
                     ))}
                   </div>
 
-                  <p
-                    className="mt-3 text-label text-ink-muted"
-                    data-testid={`dendrogram-slot-${linkageResult.linkageId}`}
+                  <div
+                    className="mt-3"
+                    data-testid={`linkage-dendrogram-${linkageResult.linkageId}`}
                   >
-                    {t('clustering.dendrogramSlot')}
-                  </p>
+                    <Dendrogram
+                      rows={linkageResult.rows}
+                      leafOrder={linkageResult.leafOrder}
+                      ariaLabel={t('clustering.dendrogram.ariaLabel', {
+                        linkage: linkageResult.linkageDisplayName,
+                      })}
+                      leafLabels={leafLabels}
+                      cut={
+                        activeCutResult?.linkageId === linkageResult.linkageId
+                          ? {
+                              // Derived here, not stored on `cutResult`: it
+                              // depends on whichever `rows` are currently
+                              // loaded for this exact linkage, and it must
+                              // never throw a successful cut into an error
+                              // state — a distance that can't be resolved
+                              // just means no dashed line, the labels below
+                              // still render (`tryComputeCutDistance`).
+                              distance: tryComputeCutDistance(
+                                linkageResult.rows,
+                                activeCutResult.k,
+                              ),
+                              labels: activeCutResult.labels,
+                            }
+                          : undefined
+                      }
+                    />
+                  </div>
                 </Panel>
               </div>
             );
@@ -242,6 +373,27 @@ export function ClusteringPage() {
         <p className="text-body text-ink-muted">
           {t('clustering.sampleSizeCaveat', { representation, count: sampleSize })}
         </p>
+      )}
+
+      {clusteringQuery.data && sampleSize !== undefined && (
+        <Panel>
+          <PanelHeader title={t('clustering.cutForm.title')} />
+          <CutForm
+            // Remounts (resetting react-hook-form's own default value) when
+            // the set of available linkages actually changes, so a stale
+            // default never lingers after the user deselects one.
+            key={clusteringQuery.data.map((result) => result.linkageId).join(',')}
+            linkages={clusteringQuery.data.map((result) => ({
+              id: result.linkageId,
+              displayName: result.linkageDisplayName,
+            }))}
+            n={sampleSize}
+            defaultLinkage={clusteringQuery.data[0]!.linkageId}
+            onSubmit={handleCutSubmit}
+            isPending={cutMutation.isPending}
+            error={activeCutError}
+          />
+        </Panel>
       )}
     </div>
   );

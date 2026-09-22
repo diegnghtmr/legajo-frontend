@@ -23,6 +23,20 @@ const CORPUS: ListCorpusResponse = Array.from({ length: 6 }, (_unused, index) =>
   authors: ['A. Author'],
 }));
 
+/**
+ * Golden n = 6 linkage matrix (TRD §6.4 conventions), shared by every
+ * `linkageResult()` fixture below so the real `Dendrogram` this page now
+ * renders always has a well-formed matrix to draw — the same shape
+ * `dendrogramLayout.test.ts` validates on its own.
+ */
+const GOLDEN_ROWS_N6 = [
+  { idx1: 0, idx2: 1, mergeDistance: 0.1, size: 2 },
+  { idx1: 2, idx2: 3, mergeDistance: 0.2, size: 2 },
+  { idx1: 4, idx2: 5, mergeDistance: 0.3, size: 2 },
+  { idx1: 6, idx2: 7, mergeDistance: 0.4, size: 4 },
+  { idx1: 8, idx2: 9, mergeDistance: 0.5, size: 6 },
+];
+
 function linkageResult(
   linkageId: LinkageId,
   displayName: string,
@@ -33,7 +47,7 @@ function linkageResult(
   return {
     linkageId,
     linkageDisplayName: displayName,
-    rows: [],
+    rows: GOLDEN_ROWS_N6,
     leafOrder: [0, 1, 2, 3, 4, 5],
     evaluation: {
       cophenetic,
@@ -46,7 +60,10 @@ function linkageResult(
 /**
  * Builds a linkage result whose `leafOrder` length (n) and per-k metrics are
  * fully explicit — used by the R3-001 tests, where n itself (not just k_ref's
- * metrics) is the thing under test.
+ * metrics) is the thing under test. `rows` stays empty on purpose: these
+ * tests exercise the ranking degradation path, never the dendrogram itself,
+ * so a malformed (empty) matrix here is inert — `Dendrogram` degrades to its
+ * own translated error, which none of these tests assert against.
  */
 function linkageResultWithN(
   linkageId: LinkageId,
@@ -200,14 +217,17 @@ describe('ClusteringPage', () => {
     expect(await screen.findByText('Ocurrió un error inesperado.')).toBeInTheDocument();
   });
 
-  it('leaves a clearly marked slot for the W8b dendrograms, per linkage', async () => {
+  it('renders an accessible dendrogram for each linkage, in its own dendrogram container', async () => {
     vi.spyOn(corpusApi, 'fetchCorpus').mockResolvedValue(CORPUS);
     vi.spyOn(clusteringApi, 'runClustering').mockResolvedValue(DEFAULT_RESPONSE);
 
     renderPage();
 
-    for (const linkageId of ALL_FOUR) {
-      expect(await screen.findByTestId(`dendrogram-slot-${linkageId}`)).toBeInTheDocument();
+    for (const { linkageId, linkageDisplayName } of DEFAULT_RESPONSE) {
+      const container = await screen.findByTestId(`linkage-dendrogram-${linkageId}`);
+      expect(within(container).getByRole('img')).toHaveAccessibleName(
+        `Dendrograma de ${linkageDisplayName}`,
+      );
     }
   });
 
@@ -304,7 +324,7 @@ describe('ClusteringPage', () => {
 
     renderPage();
 
-    await screen.findByTestId('dendrogram-slot-average');
+    await screen.findByTestId('linkage-dendrogram-average');
     expect(
       screen.getByText('Los líderes se muestran cuando se comparan los cuatro enlaces.'),
     ).toBeInTheDocument();
@@ -339,5 +359,194 @@ describe('ClusteringPage', () => {
     expect(screen.queryByText('Árbol')).not.toBeInTheDocument();
     expect(screen.queryByText('Partición')).not.toBeInTheDocument();
     expect(screen.queryByText('Líder')).not.toBeInTheDocument();
+  });
+
+  describe('the free cut', () => {
+    it('renders the cut form bounded by n once the clustering response has loaded', async () => {
+      vi.spyOn(corpusApi, 'fetchCorpus').mockResolvedValue(CORPUS);
+      vi.spyOn(clusteringApi, 'runClustering').mockResolvedValue(DEFAULT_RESPONSE);
+
+      renderPage();
+
+      expect(
+        await screen.findByRole('radiogroup', { name: 'Enlace a cortar' }),
+      ).toBeInTheDocument();
+      expect(screen.getByLabelText('Número de clústeres k (entre 2 y 5)')).toBeInTheDocument();
+    });
+
+    it('submits {representation, linkage, k} and shows the cluster labels and cut line only on that linkage after success', async () => {
+      vi.spyOn(corpusApi, 'fetchCorpus').mockResolvedValue(CORPUS);
+      vi.spyOn(clusteringApi, 'runClustering').mockResolvedValue(DEFAULT_RESPONSE);
+      vi.spyOn(clusteringApi, 'cutClustering').mockResolvedValue({
+        labels: [0, 0, 1, 1, 2, 2],
+        k: 3,
+      });
+      const user = userEvent.setup();
+
+      renderPage();
+      await waitFor(() => expect(clusteringApi.runClustering).toHaveBeenCalled());
+
+      const cutGroup = await screen.findByRole('radiogroup', { name: 'Enlace a cortar' });
+      await user.click(within(cutGroup).getByRole('radio', { name: 'Complete' }));
+
+      const kInput = screen.getByLabelText('Número de clústeres k (entre 2 y 5)');
+      await user.clear(kInput);
+      await user.type(kInput, '3');
+      await user.click(screen.getByRole('button', { name: 'Aplicar corte' }));
+
+      await waitFor(() =>
+        expect(clusteringApi.cutClustering).toHaveBeenCalledWith({
+          representation: 'tfidf-cosine',
+          linkage: 'complete',
+          k: 3,
+        }),
+      );
+
+      const completeDendrogram = await screen.findByTestId('linkage-dendrogram-complete');
+      expect(within(completeDendrogram).getByTestId('dendrogram-cut-line')).toBeInTheDocument();
+      expect(within(completeDendrogram).getAllByText('Clúster 0')).toHaveLength(2);
+
+      const singleDendrogram = screen.getByTestId('linkage-dendrogram-single');
+      expect(within(singleDendrogram).queryByTestId('dendrogram-cut-line')).not.toBeInTheDocument();
+    });
+
+    it('clears a previous cut result once the representation changes (it was computed against a different request)', async () => {
+      vi.spyOn(corpusApi, 'fetchCorpus').mockResolvedValue(CORPUS);
+      vi.spyOn(clusteringApi, 'runClustering').mockResolvedValue(DEFAULT_RESPONSE);
+      vi.spyOn(clusteringApi, 'cutClustering').mockResolvedValue({
+        labels: [0, 0, 1, 1, 2, 2],
+        k: 3,
+      });
+      const user = userEvent.setup();
+
+      renderPage();
+      await user.click(await screen.findByRole('button', { name: 'Aplicar corte' }));
+
+      const singleDendrogram = await screen.findByTestId('linkage-dendrogram-single');
+      await waitFor(() =>
+        expect(within(singleDendrogram).getByTestId('dendrogram-cut-line')).toBeInTheDocument(),
+      );
+
+      const representationGroup = screen.getByRole('radiogroup', { name: 'Representación' });
+      await user.click(within(representationGroup).getByRole('radio', { name: 'embedding-local' }));
+
+      await waitFor(() => expect(clusteringApi.runClustering).toHaveBeenCalledTimes(2));
+      const refreshedSingleDendrogram = await screen.findByTestId('linkage-dendrogram-single');
+      expect(
+        within(refreshedSingleDendrogram).queryByTestId('dendrogram-cut-line'),
+      ).not.toBeInTheDocument();
+    });
+
+    it('still shows the cut labels and no cut line when the response k cannot be resolved to a distance for the loaded rows (R3-cut-distance-throw-in-onsuccess)', async () => {
+      vi.spyOn(corpusApi, 'fetchCorpus').mockResolvedValue(CORPUS);
+      vi.spyOn(clusteringApi, 'runClustering').mockResolvedValue(DEFAULT_RESPONSE);
+      // GOLDEN_ROWS_N6 has 5 rows -> n=6, so k must be in [2, 5]; k=10 is
+      // out of range for those rows even though the request succeeded.
+      vi.spyOn(clusteringApi, 'cutClustering').mockResolvedValue({
+        labels: [0, 0, 1, 1, 2, 2],
+        k: 10,
+      });
+      const user = userEvent.setup();
+
+      renderPage();
+      await waitFor(() => expect(clusteringApi.runClustering).toHaveBeenCalled());
+
+      const cutGroup = await screen.findByRole('radiogroup', { name: 'Enlace a cortar' });
+      await user.click(within(cutGroup).getByRole('radio', { name: 'Complete' }));
+      await user.click(screen.getByRole('button', { name: 'Aplicar corte' }));
+
+      const completeDendrogram = await screen.findByTestId('linkage-dendrogram-complete');
+      await waitFor(() =>
+        expect(within(completeDendrogram).getAllByText('Clúster 0')).toHaveLength(2),
+      );
+      expect(
+        within(completeDendrogram).queryByTestId('dendrogram-cut-line'),
+      ).not.toBeInTheDocument();
+      expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+    });
+
+    it('shows the mapped invalid-cut error message when the cut request fails', async () => {
+      vi.spyOn(corpusApi, 'fetchCorpus').mockResolvedValue(CORPUS);
+      vi.spyOn(clusteringApi, 'runClustering').mockResolvedValue(DEFAULT_RESPONSE);
+      vi.spyOn(clusteringApi, 'cutClustering').mockRejectedValue({
+        kind: 'problem',
+        status: 400,
+        type: 'urn:legajo:problem:invalid-cut',
+        title: 'Invalid cut',
+        i18nKey: 'errors.invalidCut',
+      });
+      const user = userEvent.setup();
+
+      renderPage();
+
+      await user.click(await screen.findByRole('button', { name: 'Aplicar corte' }));
+
+      expect(
+        await screen.findByText('El valor de corte k no es válido para este corpus.'),
+      ).toBeInTheDocument();
+    });
+
+    it('stops showing a previous cut error once the representation changes (R3-stale-cut-error)', async () => {
+      vi.spyOn(corpusApi, 'fetchCorpus').mockResolvedValue(CORPUS);
+      vi.spyOn(clusteringApi, 'runClustering').mockResolvedValue(DEFAULT_RESPONSE);
+      vi.spyOn(clusteringApi, 'cutClustering').mockRejectedValue({
+        kind: 'problem',
+        status: 400,
+        type: 'urn:legajo:problem:invalid-cut',
+        title: 'Invalid cut',
+        i18nKey: 'errors.invalidCut',
+      });
+      const user = userEvent.setup();
+
+      renderPage();
+      await user.click(await screen.findByRole('button', { name: 'Aplicar corte' }));
+
+      expect(
+        await screen.findByText('El valor de corte k no es válido para este corpus.'),
+      ).toBeInTheDocument();
+
+      const representationGroup = screen.getByRole('radiogroup', { name: 'Representación' });
+      await user.click(within(representationGroup).getByRole('radio', { name: 'embedding-local' }));
+
+      await waitFor(() => expect(clusteringApi.runClustering).toHaveBeenCalledTimes(2));
+      expect(
+        screen.queryByText('El valor de corte k no es válido para este corpus.'),
+      ).not.toBeInTheDocument();
+    });
+
+    it('stops showing a previous cut error once a linkage is toggled (R3-stale-cut-error)', async () => {
+      vi.spyOn(corpusApi, 'fetchCorpus').mockResolvedValue(CORPUS);
+      vi.spyOn(clusteringApi, 'runClustering').mockResolvedValue(DEFAULT_RESPONSE);
+      vi.spyOn(clusteringApi, 'cutClustering').mockRejectedValue({
+        kind: 'problem',
+        status: 400,
+        type: 'urn:legajo:problem:invalid-cut',
+        title: 'Invalid cut',
+        i18nKey: 'errors.invalidCut',
+      });
+      const user = userEvent.setup();
+
+      renderPage();
+      await user.click(await screen.findByRole('button', { name: 'Aplicar corte' }));
+
+      expect(
+        await screen.findByText('El valor de corte k no es válido para este corpus.'),
+      ).toBeInTheDocument();
+
+      vi.mocked(clusteringApi.runClustering).mockResolvedValue(
+        DEFAULT_RESPONSE.filter((result) => result.linkageId !== 'ward'),
+      );
+      await user.click(screen.getByRole('button', { name: 'ward' }));
+
+      await waitFor(() =>
+        expect(clusteringApi.runClustering).toHaveBeenLastCalledWith({
+          representation: 'tfidf-cosine',
+          linkages: ['single', 'complete', 'average'],
+        }),
+      );
+      expect(
+        screen.queryByText('El valor de corte k no es válido para este corpus.'),
+      ).not.toBeInTheDocument();
+    });
   });
 });
