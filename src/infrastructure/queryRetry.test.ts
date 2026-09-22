@@ -45,8 +45,32 @@ describe('shouldRetryQuery', () => {
     expect(shouldRetryQuery(2, network)).toBe(false);
   });
 
-  it('does not retry an unexpected (unclassified) error', () => {
+  it('does not retry an unexpected error with no status', () => {
     expect(shouldRetryQuery(0, unexpected)).toBe(false);
+  });
+
+  it('does not retry an unexpected error with a status below 500 (e.g. a proxy 4xx)', () => {
+    const unexpected4xx: ApiError = {
+      kind: 'unexpected',
+      status: 404,
+      i18nKey: 'errors.unexpected',
+      message: 'boom',
+    };
+
+    expect(shouldRetryQuery(0, unexpected4xx)).toBe(false);
+  });
+
+  it('retries an unexpected error with a 5xx status, up to the retry limit (e.g. a proxy HTML 502 while the free-tier backend wakes up)', () => {
+    const unexpected502: ApiError = {
+      kind: 'unexpected',
+      status: 502,
+      i18nKey: 'errors.unexpected',
+      message: 'The server returned status 502 with an unrecognized response body.',
+    };
+
+    expect(shouldRetryQuery(0, unexpected502)).toBe(true);
+    expect(shouldRetryQuery(1, unexpected502)).toBe(true);
+    expect(shouldRetryQuery(2, unexpected502)).toBe(false);
   });
 
   it('does not retry a non-ApiError thrown value', () => {

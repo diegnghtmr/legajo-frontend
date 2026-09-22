@@ -106,6 +106,69 @@ describe('mapAxiosErrorToApiError', () => {
     });
   });
 
+  it('classifies a real about:blank 400 body as kind problem, keeping title/detail and falling back by status', () => {
+    const error = problemResponseError(400, {
+      type: 'about:blank',
+      title: 'Bad Request',
+      status: 400,
+      detail: 'Malformed JSON request',
+    });
+
+    const result = mapAxiosErrorToApiError(error);
+
+    expect(result).toEqual({
+      kind: 'problem',
+      status: 400,
+      type: undefined,
+      title: 'Bad Request',
+      detail: 'Malformed JSON request',
+      instance: undefined,
+      i18nKey: 'errors.badRequest',
+    });
+  });
+
+  it('classifies a real about:blank 500 body as kind problem, keeping title/detail and falling back by status', () => {
+    const error = problemResponseError(500, {
+      type: 'about:blank',
+      title: 'Internal Server Error',
+      status: 500,
+      detail: 'An unexpected error occurred.',
+    });
+
+    const result = mapAxiosErrorToApiError(error);
+
+    expect(result).toEqual({
+      kind: 'problem',
+      status: 500,
+      type: undefined,
+      title: 'Internal Server Error',
+      detail: 'An unexpected error occurred.',
+      instance: undefined,
+      i18nKey: 'errors.serverError',
+    });
+  });
+
+  it('classifies an unknown (non-fixed) URN as kind problem, keeping title/detail and falling back by status', () => {
+    const error = problemResponseError(400, {
+      type: 'urn:legajo:problem:something-else',
+      title: 'Bad Request',
+      status: 400,
+      detail: 'a future, not-yet-mapped problem type',
+    });
+
+    const result = mapAxiosErrorToApiError(error);
+
+    expect(result).toEqual({
+      kind: 'problem',
+      status: 400,
+      type: undefined,
+      title: 'Bad Request',
+      detail: 'a future, not-yet-mapped problem type',
+      instance: undefined,
+      i18nKey: 'errors.badRequest',
+    });
+  });
+
   it('maps a non-problem response body (unexpected shape) to an unexpected error, not a crash', () => {
     const error = problemResponseError(500, '<html>Internal Server Error</html>');
 

@@ -1,6 +1,10 @@
 import axios from 'axios';
 
-import { ProblemDetailSchema, type ProblemType } from './schemas/problemDetail';
+import {
+  LenientProblemDetailSchema,
+  ProblemTypeSchema,
+  type ProblemType,
+} from './schemas/problemDetail';
 
 /**
  * The seven fixed URNs (TRD §6.6) mapped to i18n keys the UI can render
@@ -24,7 +28,7 @@ const STATUS_FALLBACK_I18N_KEYS: Record<number, string> = {
   503: 'errors.serviceUnavailable',
 };
 
-const DEFAULT_UNEXPECTED_I18N_KEY = 'errors.unexpected';
+export const DEFAULT_UNEXPECTED_I18N_KEY = 'errors.unexpected';
 
 /**
  * Render's free tier suspends the backend when idle (TRD §14.4): the first
@@ -59,6 +63,15 @@ export interface ApiUnexpectedError {
 }
 
 export type ApiError = ApiProblemError | ApiNetworkError | ApiUnexpectedError;
+
+function asKnownProblemType(type: string | undefined): ProblemType | undefined {
+  if (type === undefined) {
+    return undefined;
+  }
+
+  const parsed = ProblemTypeSchema.safeParse(type);
+  return parsed.success ? parsed.data : undefined;
+}
 
 function i18nKeyForProblem(type: ProblemType | undefined, status: number): string {
   if (type) {
@@ -96,7 +109,7 @@ export function mapAxiosErrorToApiError(error: unknown): ApiError {
   }
 
   const { status, data } = error.response;
-  const parsedProblem = ProblemDetailSchema.safeParse(data);
+  const parsedProblem = LenientProblemDetailSchema.safeParse(data);
 
   if (!parsedProblem.success) {
     return {
@@ -108,14 +121,15 @@ export function mapAxiosErrorToApiError(error: unknown): ApiError {
   }
 
   const problem = parsedProblem.data;
+  const knownType = asKnownProblemType(problem.type);
 
   return {
     kind: 'problem',
     status,
-    type: problem.type,
-    title: problem.title,
+    type: knownType,
+    title: problem.title ?? `HTTP ${status}`,
     detail: problem.detail,
     instance: problem.instance,
-    i18nKey: i18nKeyForProblem(problem.type, status),
+    i18nKey: i18nKeyForProblem(knownType, status),
   };
 }

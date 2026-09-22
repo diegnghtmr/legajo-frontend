@@ -17,7 +17,10 @@ function isApiError(error: unknown): error is ApiError {
  * response is a client mistake or a business-rule violation that retrying
  * cannot fix, so it never retries. A 5xx problem or a network/cold-start
  * failure can succeed on a later attempt, so it retries up to the limit. An
- * unclassified error is not retried, since its cause is unknown.
+ * `unexpected` error with no known status is not retried, since its cause is
+ * unknown; but one that does carry a 5xx status (e.g. a proxy's HTML 502
+ * while the Render free-tier backend wakes up, TRD §14.4) is retried the
+ * same as a 5xx problem, since the underlying cause is the same cold start.
  */
 export function shouldRetryQuery(failureCount: number, error: unknown): boolean {
   if (failureCount >= MAX_RETRIES) {
@@ -30,6 +33,10 @@ export function shouldRetryQuery(failureCount: number, error: unknown): boolean 
 
   if (error.kind === 'problem') {
     return error.status >= 500;
+  }
+
+  if (error.kind === 'unexpected') {
+    return error.status !== undefined && error.status >= 500;
   }
 
   return error.kind === 'network';

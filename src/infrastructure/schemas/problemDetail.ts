@@ -28,3 +28,22 @@ export const ProblemDetailSchema = z.object({
 });
 
 export type ProblemDetail = z.infer<typeof ProblemDetailSchema>;
+
+/**
+ * The RFC 9457 shape as the spec actually defines it: every member is
+ * optional, and `type` is any string (RFC 9457 §3 defaults an absent `type`
+ * to `about:blank`, and a real server can send a URN outside the seven fixed
+ * ones). `mapAxiosErrorToApiError` classifies with this lenient shape so a
+ * real `about:blank` body or an unknown URN still reads as a Problem Detail
+ * instead of falling through to `kind: 'unexpected'`. `ProblemDetailSchema`
+ * above stays the strict seven-URN contract used by its own contract test.
+ */
+export const LenientProblemDetailSchema = z.object({
+  type: z.string().optional(),
+  title: z.string().optional(),
+  status: z.number().optional(),
+  detail: z.string().optional(),
+  instance: z.string().optional(),
+});
+
+export type LenientProblemDetail = z.infer<typeof LenientProblemDetailSchema>;
