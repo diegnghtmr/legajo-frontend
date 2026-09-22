@@ -4,9 +4,9 @@ import { EnvValidationError, loadEnv, resolveEnv } from './env';
 
 describe('resolveEnv', () => {
   it('accepts a valid absolute URL in any mode', () => {
-    expect(resolveEnv({ VITE_API_BASE_URL: 'https://legajo-api.onrender.com', PROD: true })).toEqual(
-      { apiBaseUrl: 'https://legajo-api.onrender.com' },
-    );
+    expect(
+      resolveEnv({ VITE_API_BASE_URL: 'https://legajo-api.onrender.com', PROD: true }),
+    ).toEqual({ apiBaseUrl: 'https://legajo-api.onrender.com' });
   });
 
   it('falls back to same-origin ("") in development when the value is missing', () => {
@@ -18,7 +18,9 @@ describe('resolveEnv', () => {
   });
 
   it('throws in production when the value is missing', () => {
-    expect(() => resolveEnv({ VITE_API_BASE_URL: undefined, PROD: true })).toThrow(EnvValidationError);
+    expect(() => resolveEnv({ VITE_API_BASE_URL: undefined, PROD: true })).toThrow(
+      EnvValidationError,
+    );
   });
 
   it('throws in production when the value is an empty string', () => {
