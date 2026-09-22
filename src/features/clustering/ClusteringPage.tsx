@@ -19,14 +19,16 @@ import {
   type RepresentationId,
 } from '../../infrastructure/schemas/clustering';
 import { AlgoTextList, type AlgoOption } from '../../shared/components/AlgoTextList';
-import { Dendrogram, type DendrogramLeafLabel } from '../../shared/components/Dendrogram';
+import { Dendrogram } from '../../shared/components/Dendrogram';
 import { MetricTile } from '../../shared/components/MetricTile';
 import { Panel, PanelHeader } from '../../shared/components/Panel';
 import { SegmentedControl, type SegmentedOption } from '../../shared/components/SegmentedControl';
 import { CORPUS_LIST_QUERY_KEY } from '../corpus/ArticleList';
+import { resolveCutLabelsForLinkage } from './cutLabels';
 import { tryComputeCutDistance } from './cutLine';
 import { CutForm, type CutFormValues } from './CutForm';
 import { formatMetricValue } from './formatMetricValue';
+import { leafLabelsFromDocumentIds } from './leafLabels';
 import {
   hasCanonicalLinkageIds,
   kRefForSampleSize,
@@ -101,6 +103,10 @@ export function ClusteringPage() {
         linkageId: LinkageId;
         k: number;
         labels: readonly number[];
+        /** This cut's own `documentIds` (TRD 1.3.9) — `labels[i]` is the
+         * cluster of `documentIds[i]`. Joined with a linkage's own
+         * `documentIds` by id, never by array position (`cutLabels.ts`). */
+        documentIds: readonly string[];
       }
     | undefined
   >(undefined);
@@ -131,11 +137,12 @@ export function ClusteringPage() {
       ? cutResult
       : undefined;
 
-  // Display-only: leaf mono ids/titles for the dendrograms. Never used for
-  // `k_ref`/ranking (see the doc comment above) — a fetch failure or a
-  // length mismatch against the response's own sample size degrades to
-  // plain numeric leaf ids, same "don't block on secondary data" reasoning
-  // W7 used for the matrix headers.
+  // Display-only: supplies each dendrogram leaf's title. Never used for
+  // `k_ref`/ranking (see the doc comment above) and never used to derive a
+  // leaf's identity — that comes from each linkage result's own
+  // `documentIds` (TRD 1.3.9, `leafLabels.ts`). A fetch failure here just
+  // means no title, same "don't block on secondary data" reasoning W7 used
+  // for the matrix headers; the document id itself is always shown.
   const corpusQuery = useQuery<ListCorpusResponse, ApiError>({
     queryKey: CORPUS_LIST_QUERY_KEY,
     queryFn: fetchCorpus,
@@ -156,6 +163,7 @@ export function ClusteringPage() {
         linkageId: variables.linkage,
         k: data.k,
         labels: data.labels,
+        documentIds: data.documentIds,
       });
     },
     onError: (_error, variables) => {
@@ -220,12 +228,13 @@ export function ClusteringPage() {
     }
   }, [clusteringQuery.data, kRef]);
 
-  const leafLabels: readonly DendrogramLeafLabel[] | undefined = useMemo(() => {
-    if (!corpusQuery.data || sampleSize === undefined || corpusQuery.data.length !== sampleSize) {
+  /** Corpus title lookup by id (never by position) for `leafLabelsFromDocumentIds`. */
+  const corpusTitleById = useMemo(() => {
+    if (!corpusQuery.data) {
       return undefined;
     }
-    return corpusQuery.data.map((document) => ({ label: document.id, title: document.title }));
-  }, [corpusQuery.data, sampleSize]);
+    return new Map(corpusQuery.data.map((document) => [document.id, document.title] as const));
+  }, [corpusQuery.data]);
 
   const handleCutSubmit = (values: CutFormValues) => {
     cutMutation.mutate({ representation, linkage: values.linkage, k: values.k });
@@ -329,7 +338,10 @@ export function ClusteringPage() {
                       ariaLabel={t('clustering.dendrogram.ariaLabel', {
                         linkage: linkageResult.linkageDisplayName,
                       })}
-                      leafLabels={leafLabels}
+                      leafLabels={leafLabelsFromDocumentIds(
+                        linkageResult.documentIds,
+                        corpusTitleById,
+                      )}
                       cut={
                         activeCutResult?.linkageId === linkageResult.linkageId
                           ? {
@@ -344,7 +356,14 @@ export function ClusteringPage() {
                                 linkageResult.rows,
                                 activeCutResult.k,
                               ),
-                              labels: activeCutResult.labels,
+                              // Joined by document id (`cutLabels.ts`), never
+                              // by array position: the cut response's own
+                              // `documentIds` need not share positions with
+                              // this linkage's own `documentIds`.
+                              labels: resolveCutLabelsForLinkage(
+                                activeCutResult,
+                                linkageResult.documentIds,
+                              ),
                             }
                           : undefined
                       }

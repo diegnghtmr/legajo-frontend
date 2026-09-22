@@ -13,6 +13,9 @@ const CORPUS_SUMMARIES = Array.from({ length: 6 }, (_unused, index) => ({
   authors: ['A. Author'],
 }));
 
+/** Same order as `CORPUS_SUMMARIES` (TRD 1.3.9: documentIds[i] is the document behind observation i). */
+const DOCUMENT_IDS = CORPUS_SUMMARIES.map((document) => document.id);
+
 function evaluation(cophenetic: number, silhouetteAtKRef: number, dbAtKRef: number | null) {
   return {
     cophenetic,
@@ -48,6 +51,7 @@ const DEFAULT_CLUSTERING_RESPONSE = [
     linkageDisplayName: 'Single',
     rows: GOLDEN_ROWS_N6,
     leafOrder: [0, 1, 2, 3, 4, 5],
+    documentIds: DOCUMENT_IDS,
     evaluation: evaluation(0.95, 0.2, 0.5),
   },
   {
@@ -55,6 +59,7 @@ const DEFAULT_CLUSTERING_RESPONSE = [
     linkageDisplayName: 'Complete',
     rows: GOLDEN_ROWS_N6,
     leafOrder: [2, 3, 0, 1, 4, 5],
+    documentIds: DOCUMENT_IDS,
     evaluation: evaluation(0.5, 0.9, 0.1),
   },
   {
@@ -62,6 +67,7 @@ const DEFAULT_CLUSTERING_RESPONSE = [
     linkageDisplayName: 'Average',
     rows: GOLDEN_ROWS_N6,
     leafOrder: [0, 1, 2, 3, 4, 5],
+    documentIds: DOCUMENT_IDS,
     evaluation: evaluation(0.4, 0.3, 0.2),
   },
   {
@@ -69,6 +75,7 @@ const DEFAULT_CLUSTERING_RESPONSE = [
     linkageDisplayName: 'Ward',
     rows: GOLDEN_ROWS_N6,
     leafOrder: [0, 1, 2, 3, 4, 5],
+    documentIds: DOCUMENT_IDS,
     evaluation: evaluation(0.3, 0.1, null),
   },
 ];
@@ -150,7 +157,9 @@ test.describe('clustering screen', () => {
         linkage: 'complete',
         k: 3,
       });
-      await route.fulfill({ json: { labels: [0, 0, 1, 1, 2, 2], k: 3 } });
+      await route.fulfill({
+        json: { labels: [0, 0, 1, 1, 2, 2], k: 3, documentIds: DOCUMENT_IDS },
+      });
     });
 
     await page.goto('/clustering');

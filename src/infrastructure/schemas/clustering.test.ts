@@ -89,20 +89,21 @@ describe('ClusteringEvaluationSchema (runtime)', () => {
 });
 
 describe('LinkageResultSchema (runtime)', () => {
-  it('accepts a real-shaped linkage result', () => {
-    const payload = {
-      linkageId: 'ward',
-      linkageDisplayName: 'Ward',
-      rows: [{ idx1: 0, idx2: 1, mergeDistance: 0.12, size: 2 }],
-      leafOrder: [0, 1, 2],
-      evaluation: {
-        cophenetic: 0.8,
-        meanSilhouette: { '2': 0.5 },
-        daviesBouldin: { '2': null },
-      },
-    };
+  const validPayload = {
+    linkageId: 'ward',
+    linkageDisplayName: 'Ward',
+    rows: [{ idx1: 0, idx2: 1, mergeDistance: 0.12, size: 2 }],
+    leafOrder: [0, 1, 2],
+    documentIds: ['doc-01', 'doc-02', 'doc-03'],
+    evaluation: {
+      cophenetic: 0.8,
+      meanSilhouette: { '2': 0.5 },
+      daviesBouldin: { '2': null },
+    },
+  };
 
-    expect(LinkageResultSchema.safeParse(payload).success).toBe(true);
+  it('accepts a real-shaped linkage result', () => {
+    expect(LinkageResultSchema.safeParse(validPayload).success).toBe(true);
   });
 
   it('rejects an unknown linkageId', () => {
@@ -111,19 +112,55 @@ describe('LinkageResultSchema (runtime)', () => {
       linkageDisplayName: 'Centroid',
       rows: [],
       leafOrder: [],
+      documentIds: [],
       evaluation: { cophenetic: 0, meanSilhouette: {}, daviesBouldin: {} },
     };
 
     expect(LinkageResultSchema.safeParse(payload).success).toBe(false);
   });
+
+  it('rejects a payload missing documentIds', () => {
+    const { documentIds: _documentIds, ...withoutDocumentIds } = validPayload;
+    expect(LinkageResultSchema.safeParse(withoutDocumentIds).success).toBe(false);
+  });
+
+  it('rejects an empty documentIds', () => {
+    expect(LinkageResultSchema.safeParse({ ...validPayload, documentIds: [] }).success).toBe(false);
+  });
+
+  it('rejects documentIds shorter than leafOrder (n mismatch)', () => {
+    expect(
+      LinkageResultSchema.safeParse({ ...validPayload, documentIds: ['doc-01', 'doc-02'] }).success,
+    ).toBe(false);
+  });
 });
 
 describe('ClusterAssignmentSchema (runtime)', () => {
-  it('accepts labels plus k', () => {
-    expect(ClusterAssignmentSchema.safeParse({ labels: [0, 0, 1, 1], k: 2 }).success).toBe(true);
+  const validPayload = { labels: [0, 0, 1, 1], k: 2, documentIds: ['a', 'b', 'c', 'd'] };
+
+  it('accepts labels plus k plus documentIds', () => {
+    expect(ClusterAssignmentSchema.safeParse(validPayload).success).toBe(true);
   });
 
   it('rejects a payload missing k', () => {
-    expect(ClusterAssignmentSchema.safeParse({ labels: [0, 1] }).success).toBe(false);
+    const { k: _k, ...withoutK } = validPayload;
+    expect(ClusterAssignmentSchema.safeParse(withoutK).success).toBe(false);
+  });
+
+  it('rejects a payload missing documentIds', () => {
+    const { documentIds: _documentIds, ...withoutDocumentIds } = validPayload;
+    expect(ClusterAssignmentSchema.safeParse(withoutDocumentIds).success).toBe(false);
+  });
+
+  it('rejects an empty documentIds', () => {
+    expect(ClusterAssignmentSchema.safeParse({ ...validPayload, documentIds: [] }).success).toBe(
+      false,
+    );
+  });
+
+  it('rejects documentIds shorter than labels (n mismatch)', () => {
+    expect(
+      ClusterAssignmentSchema.safeParse({ ...validPayload, documentIds: ['a', 'b'] }).success,
+    ).toBe(false);
   });
 });

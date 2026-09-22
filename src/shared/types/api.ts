@@ -486,6 +486,8 @@ export interface components {
             /** @description (n-1) rows (19 rows with n = 20). */
             rows: components["schemas"]["LinkageStep"][];
             leafOrder: number[];
+            /** @description Length n; position i is the id of the document behind observation i, in the order of corpus.json (the same order GET /corpus lists). idx1/idx2 (< n) and leafOrder index into this same order (TRD 1.3.9). */
+            documentIds: string[];
             evaluation: components["schemas"]["ClusteringEvaluation"];
         };
         LinkageEvaluation: {
@@ -496,6 +498,8 @@ export interface components {
         ClusterAssignment: {
             labels: number[];
             k: number;
+            /** @description Length n, aligned with labels: documentIds[i] is the document whose cluster is labels[i], in the order of corpus.json (the same order GET /corpus lists, TRD 1.3.9). */
+            documentIds: string[];
         };
         EmbeddingLocalStatus: {
             provider: string;

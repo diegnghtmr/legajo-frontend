@@ -19,8 +19,15 @@ export interface DendrogramCut {
    * itself is skipped.
    */
   distance?: number;
-  /** Cluster number per original leaf id (`0..n-1`), from the backend's own `POST /clustering/cut` — never computed here. */
-  labels: readonly number[];
+  /**
+   * Cluster number per original leaf id (`0..n-1`), from the backend's own
+   * `POST /clustering/cut` — never computed here. Callers resolve this array
+   * by document id against the cut response's own `documentIds` (TRD 1.3.9,
+   * `cutLabels.ts`), not by assuming array position; an `undefined` entry
+   * means that leaf's document could not be resolved from the cut result,
+   * so no cluster number is shown for it.
+   */
+  labels: readonly (number | undefined)[];
 }
 
 export interface DendrogramProps {

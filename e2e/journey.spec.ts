@@ -143,6 +143,9 @@ const CORPUS_SUMMARIES_B = Array.from({ length: 6 }, (_unused, index) => ({
   authors: ['A. Author'],
 }));
 
+/** Same order as `CORPUS_SUMMARIES_B` (TRD 1.3.9: documentIds[i] is the document behind observation i). */
+const DOCUMENT_IDS_B = CORPUS_SUMMARIES_B.map((document) => document.id);
+
 /**
  * Golden n = 6 linkage matrix (TRD §6.4 conventions: 5 rows, `idx1 < idx2`,
  * the cluster created by row i gets id 6 + i, non-decreasing distances) —
@@ -170,6 +173,7 @@ const CLUSTERING_RESPONSE = [
     linkageDisplayName: 'Single',
     rows: GOLDEN_ROWS_N6,
     leafOrder: [0, 1, 2, 3, 4, 5],
+    documentIds: DOCUMENT_IDS_B,
     evaluation: evaluation(0.4, 0.2, 0.55),
   },
   {
@@ -177,6 +181,7 @@ const CLUSTERING_RESPONSE = [
     linkageDisplayName: 'Complete',
     rows: GOLDEN_ROWS_N6,
     leafOrder: [2, 3, 0, 1, 4, 5],
+    documentIds: DOCUMENT_IDS_B,
     evaluation: evaluation(0.5, 0.3, 0.45),
   },
   {
@@ -184,6 +189,7 @@ const CLUSTERING_RESPONSE = [
     linkageDisplayName: 'Average',
     rows: GOLDEN_ROWS_N6,
     leafOrder: [0, 1, 4, 5, 2, 3],
+    documentIds: DOCUMENT_IDS_B,
     evaluation: evaluation(0.6, 0.25, 0.35),
   },
   {
@@ -191,6 +197,7 @@ const CLUSTERING_RESPONSE = [
     linkageDisplayName: 'Ward',
     rows: GOLDEN_ROWS_N6,
     leafOrder: [0, 1, 2, 3, 4, 5],
+    documentIds: DOCUMENT_IDS_B,
     // A defined (non-null) Davies-Bouldin at k_ref, so the journey's
     // "the DB metric is visible" step never has to read "no definido".
     evaluation: evaluation(0.35, 0.4, 0.25),
@@ -205,7 +212,9 @@ async function mockFlowB(page: Page) {
     await route.fulfill({ json: CLUSTERING_RESPONSE });
   });
   await page.route('**/api/v1/clustering/cut', async (route) => {
-    await route.fulfill({ json: { labels: [0, 0, 1, 1, 2, 2], k: 3 } });
+    await route.fulfill({
+      json: { labels: [0, 0, 1, 1, 2, 2], k: 3, documentIds: DOCUMENT_IDS_B },
+    });
   });
 }
 
