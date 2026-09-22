@@ -1,6 +1,6 @@
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { DpMatrix } from './DpMatrix';
 
@@ -113,5 +113,41 @@ describe('DpMatrix', () => {
     }
 
     vi.unstubAllGlobals();
+  });
+
+  describe('CSV download anchor lifecycle', () => {
+    afterEach(() => {
+      vi.unstubAllGlobals();
+      vi.useRealTimers();
+    });
+
+    it('attaches the anchor to the document before clicking it, and revokes the object URL only once timers advance', () => {
+      vi.useFakeTimers();
+      const createObjectURL = vi.fn(() => 'blob:mock-url');
+      const revokeObjectURL = vi.fn();
+      vi.stubGlobal('URL', { ...URL, createObjectURL, revokeObjectURL });
+
+      let anchorInDocumentAtClick = false;
+      const originalClick = HTMLAnchorElement.prototype.click;
+      HTMLAnchorElement.prototype.click = function click(this: HTMLAnchorElement) {
+        anchorInDocumentAtClick = document.body.contains(this);
+        return originalClick.call(this);
+      };
+
+      try {
+        renderMatrix();
+        fireEvent.click(screen.getByRole('button', { name: 'Download CSV' }));
+
+        expect(anchorInDocumentAtClick).toBe(true);
+        expect(revokeObjectURL).not.toHaveBeenCalled();
+
+        vi.advanceTimersByTime(0);
+
+        expect(revokeObjectURL).toHaveBeenCalledTimes(1);
+        expect(revokeObjectURL).toHaveBeenCalledWith('blob:mock-url');
+      } finally {
+        HTMLAnchorElement.prototype.click = originalClick;
+      }
+    });
   });
 });

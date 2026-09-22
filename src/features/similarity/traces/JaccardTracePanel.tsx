@@ -36,59 +36,67 @@ export function JaccardTracePanel({ trace }: JaccardTracePanelProps) {
   const unionHeadingId = useId();
 
   return (
-    <dl className="flex flex-col gap-4">
-      <div>
-        <dt className="text-eyebrow font-semibold uppercase tracking-wide text-ink-secondary">
-          {t('similarity.trace.jaccard.setALabel')}
-        </dt>
-        <dd>
-          <TokenSet tokens={trace.setA} />
-        </dd>
-      </div>
-      <div>
-        <dt className="text-eyebrow font-semibold uppercase tracking-wide text-ink-secondary">
-          {t('similarity.trace.jaccard.setBLabel')}
-        </dt>
-        <dd>
-          <TokenSet tokens={trace.setB} />
-        </dd>
-      </div>
+    <div className="flex flex-col gap-4">
+      <dl className="flex flex-col gap-4">
+        <div>
+          <dt className="text-eyebrow font-semibold uppercase tracking-wide text-ink-secondary">
+            {t('similarity.trace.jaccard.setALabel')}
+          </dt>
+          <dd>
+            <TokenSet tokens={trace.setA} />
+          </dd>
+        </div>
+        <div>
+          <dt className="text-eyebrow font-semibold uppercase tracking-wide text-ink-secondary">
+            {t('similarity.trace.jaccard.setBLabel')}
+          </dt>
+          <dd>
+            <TokenSet tokens={trace.setB} />
+          </dd>
+        </div>
+      </dl>
 
-      <div role="region" aria-labelledby={intersectionHeadingId}>
-        <dt
+      {/*
+       * A labelled landmark (native `role="region"` via `<section>` +
+       * `aria-labelledby`) must not be a direct child of `dl`: `dl` only
+       * accepts `dt`/`dd` groups, or `div`s wrapping such groups, never an
+       * element carrying its own `role`. Each region sits beside the `dl`s
+       * instead of inside one, the same way other trace panels place a
+       * non-`dl` heading/content section next to their `dl`s.
+       */}
+      <section aria-labelledby={intersectionHeadingId} className="flex flex-col gap-1">
+        <h3
           id={intersectionHeadingId}
           className="text-eyebrow font-semibold uppercase tracking-wide text-ink-secondary"
         >
           {t('similarity.trace.jaccard.intersectionLabel')}
-        </dt>
-        <dd className="flex flex-col gap-1">
-          <SizeLabel
-            label={t('similarity.trace.jaccard.intersectionSizeLabel')}
-            value={trace.intersectionSize}
-          />
-          <TokenSet tokens={trace.intersection} />
-        </dd>
-      </div>
+        </h3>
+        <SizeLabel
+          label={t('similarity.trace.jaccard.intersectionSizeLabel')}
+          value={trace.intersectionSize}
+        />
+        <TokenSet tokens={trace.intersection} />
+      </section>
 
-      <div role="region" aria-labelledby={unionHeadingId}>
-        <dt
+      <section aria-labelledby={unionHeadingId} className="flex flex-col gap-1">
+        <h3
           id={unionHeadingId}
           className="text-eyebrow font-semibold uppercase tracking-wide text-ink-secondary"
         >
           {t('similarity.trace.jaccard.unionLabel')}
-        </dt>
-        <dd className="flex flex-col gap-1">
-          <SizeLabel label={t('similarity.trace.jaccard.unionSizeLabel')} value={trace.unionSize} />
-          <TokenSet tokens={trace.union} />
-        </dd>
-      </div>
+        </h3>
+        <SizeLabel label={t('similarity.trace.jaccard.unionSizeLabel')} value={trace.unionSize} />
+        <TokenSet tokens={trace.union} />
+      </section>
 
-      <div>
-        <dt className="text-eyebrow font-semibold uppercase tracking-wide text-ink-secondary">
-          {t('similarity.trace.jaccard.coefficientLabel')}
-        </dt>
-        <dd className="font-mono text-mono text-ink">{formatTraceNumber(trace.coefficient)}</dd>
-      </div>
-    </dl>
+      <dl>
+        <div>
+          <dt className="text-eyebrow font-semibold uppercase tracking-wide text-ink-secondary">
+            {t('similarity.trace.jaccard.coefficientLabel')}
+          </dt>
+          <dd className="font-mono text-mono text-ink">{formatTraceNumber(trace.coefficient)}</dd>
+        </div>
+      </dl>
+    </div>
   );
 }

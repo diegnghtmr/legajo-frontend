@@ -38,4 +38,16 @@ describe('JaccardTracePanel', () => {
     const unionRegion = screen.getByRole('region', { name: /uni[oó]n/i });
     expect(unionRegion).toHaveTextContent('token-d');
   });
+
+  it('never places an element carrying a `role` as a direct child of a `dl` (invalid content model)', () => {
+    const { container } = render(<JaccardTracePanel trace={TRACE} />);
+
+    const dls = container.querySelectorAll('dl');
+    expect(dls.length).toBeGreaterThan(0);
+    for (const dl of dls) {
+      for (const child of dl.children) {
+        expect(child.hasAttribute('role')).toBe(false);
+      }
+    }
+  });
 });

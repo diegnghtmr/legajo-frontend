@@ -40,6 +40,65 @@ const JACCARD_TRACE = {
   coefficient: 0.5,
 };
 
+const TFIDF_TRACE = {
+  algorithmId: 'tfidf-cosine',
+  corpusSize: 20,
+  terms: [
+    {
+      term: 'algorithm',
+      frequencyA: 2,
+      frequencyB: 1,
+      documentFrequency: 5,
+      tfA: 0.2,
+      tfB: 0.1,
+      idf: 1.3862,
+      rawWeightA: 0.2772,
+      rawWeightB: 0.1386,
+      normalizedWeightA: 0.7071,
+      normalizedWeightB: 0.7071,
+    },
+  ],
+  dotProduct: 0.5,
+  rawNormA: 1,
+  rawNormB: 1,
+  cosine: 0.5,
+  angleDegrees: 60,
+};
+
+const EMBEDDING_LOCAL_TRACE = {
+  algorithmId: 'embedding-local',
+  provider: 'sentence-transformers',
+  model: 'all-MiniLM-L6-v2',
+  dimension: 384,
+  vectorAExcerpt: [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8],
+  vectorBExcerpt: [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8],
+  vectorA: [],
+  vectorB: [],
+  preNormL2A: 1,
+  preNormL2B: 1,
+  dotProduct: 0.9,
+  cosine: 0.9,
+  angleDegrees: 25,
+  normalizedScore: 0.9,
+};
+
+const EMBEDDING_API_TRACE = {
+  algorithmId: 'embedding-api',
+  provider: 'google',
+  model: 'gemini-embedding-2-preview',
+  dimension: 1536,
+  vectorAExcerpt: [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8],
+  vectorBExcerpt: [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8],
+  vectorA: [],
+  vectorB: [],
+  preNormL2A: 1,
+  preNormL2B: 1,
+  sumSquaredDiff: 0.2,
+  distance: 0.4472,
+  normalizedScore: 0.68,
+  providerStatus: 'cached',
+};
+
 async function mockTrace(page: Page, algorithmId: string, trace: unknown) {
   await page.route(`**/api/v1/similarity/${algorithmId}/trace**`, async (route) => {
     await route.fulfill({ json: trace });
@@ -111,4 +170,44 @@ test.describe('similarity trace view', () => {
 
     expect(results.violations).toEqual([]);
   });
+
+  // Every non-DP trace panel gets its own axe pass, not only Jaccard: the
+  // `role="region"`-inside-`dl` defect (R3-jaccard-dl-region-a11y-untested)
+  // was only caught because one of these panels had an axe-detectable
+  // structural violation, so the other `dl`-using panels get the same check.
+  const AXE_TRACES: ReadonlyArray<{
+    algorithmId: string;
+    trace: unknown;
+    headingName: string;
+  }> = [
+    { algorithmId: 'jaccard', trace: JACCARD_TRACE, headingName: 'Traza: jaccard' },
+    { algorithmId: 'tfidf-cosine', trace: TFIDF_TRACE, headingName: 'Traza: tfidf-cosine' },
+    {
+      algorithmId: 'embedding-local',
+      trace: EMBEDDING_LOCAL_TRACE,
+      headingName: 'Traza: embedding-local',
+    },
+    {
+      algorithmId: 'embedding-api',
+      trace: EMBEDDING_API_TRACE,
+      headingName: 'Traza: embedding-api',
+    },
+  ];
+
+  for (const { algorithmId, trace, headingName } of AXE_TRACES) {
+    test(`has no automatically detectable WCAG 2.1 AA violations on the ${algorithmId} trace view`, async ({
+      page,
+    }) => {
+      await mockTrace(page, algorithmId, trace);
+
+      await page.goto(`/similarity/${algorithmId}/trace?documentIdA=doc-01&documentIdB=doc-02`);
+      await expect(page.getByRole('heading', { name: headingName })).toBeVisible();
+
+      const results = await new AxeBuilder({ page })
+        .withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa'])
+        .analyze();
+
+      expect(results.violations).toEqual([]);
+    });
+  }
 });

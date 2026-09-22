@@ -97,8 +97,16 @@ export function DpMatrix({
     const anchor = document.createElement('a');
     anchor.href = url;
     anchor.download = downloadFileName;
+    // Some browsers only start the download if the anchor is actually in the
+    // document when `click()` fires. Revoking the object URL must wait for
+    // the next tick: revoking it synchronously (right after `click()`) can
+    // race the download that `click()` just kicked off and cancel it.
+    document.body.appendChild(anchor);
     anchor.click();
-    URL.revokeObjectURL(url);
+    anchor.remove();
+    setTimeout(() => {
+      URL.revokeObjectURL(url);
+    }, 0);
   }
 
   return (
