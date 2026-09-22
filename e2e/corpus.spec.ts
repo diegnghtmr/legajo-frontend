@@ -18,12 +18,34 @@ const CORPUS_DOCUMENT = {
   abstract: 'This paper surveys classic and embedding-based similarity measures.',
 };
 
+const EMBEDDINGS_STATUS = {
+  embeddingLocal: {
+    provider: 'sentence-transformers',
+    model: 'all-MiniLM-L6-v2',
+    dimension: 384,
+    corpusSha256: 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b85',
+    matchesCorpus: true,
+    device: 'cpu',
+  },
+  embeddingApi: {
+    provider: 'google',
+    model: 'gemini-embedding-2-preview',
+    dimension: 1536,
+    corpusSha256: 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b85',
+    matchesCorpus: true,
+    mode: 'cached',
+  },
+};
+
 async function mockCorpusApi(page: Page) {
   await page.route('**/api/v1/corpus', async (route) => {
     await route.fulfill({ json: CORPUS_SUMMARIES });
   });
   await page.route('**/api/v1/corpus/doc-01', async (route) => {
     await route.fulfill({ json: CORPUS_DOCUMENT });
+  });
+  await page.route('**/api/v1/embeddings/status', async (route) => {
+    await route.fulfill({ json: EMBEDDINGS_STATUS });
   });
 }
 
@@ -59,6 +81,15 @@ test.describe('corpus screen', () => {
     await secondCheckbox.check();
 
     await expect(compareButton).toBeEnabled();
+  });
+
+  test('shows the embeddings status panel with both families (TAC-13)', async ({ page }) => {
+    await page.goto('/');
+
+    await expect(page.getByRole('heading', { name: 'Estado de los embeddings' })).toBeVisible();
+    await expect(page.getByText('embedding-local')).toBeVisible();
+    await expect(page.getByText('embedding-api')).toBeVisible();
+    await expect(page.getByText('Coincide con el corpus').first()).toBeVisible();
   });
 
   test('has no automatically detectable WCAG 2.1 AA violations on the corpus screen', async ({
