@@ -148,30 +148,20 @@ export function ClusteringPage() {
     queryFn: fetchCorpus,
   });
 
+  // No `onSuccess`/`onError` here: TanStack Query's `useMutation` config is
+  // recreated every render, but a mutation's own `onSuccess`/`onError`
+  // there run against whichever render produced them *by the time the
+  // request settles* — not the render that submitted it. Reading component
+  // state (`selectedLinkages`) from there would attribute a cut to
+  // whatever the selection happens to be when the promise resolves, not to
+  // the selection the user actually cut. `handleCutSubmit` below passes
+  // per-call callbacks to `mutate()` instead, closing over the submitted
+  // selection explicitly.
   const cutMutation = useMutation<ClusteringCutResponse, ApiError, ClusteringCutRequestBody>({
     // Wrapped (not passed directly) so `cutClustering` is invoked with only
     // its own request body, never react-query's own second `context`
     // argument.
     mutationFn: (body) => cutClustering(body),
-    onSuccess: (data, variables) => {
-      setCutResult({
-        // `variables.representation` is always this page's own state (never
-        // omitted), but the generated request type allows `null` for an
-        // absent body field — narrow back to the page's own default.
-        representation: variables.representation ?? DEFAULT_REPRESENTATION,
-        linkages: selectedLinkages,
-        linkageId: variables.linkage,
-        k: data.k,
-        labels: data.labels,
-        documentIds: data.documentIds,
-      });
-    },
-    onError: (_error, variables) => {
-      setCutErrorContext({
-        representation: variables.representation ?? DEFAULT_REPRESENTATION,
-        linkages: selectedLinkages,
-      });
-    },
   });
 
   const activeCutError =
@@ -237,7 +227,37 @@ export function ClusteringPage() {
   }, [corpusQuery.data]);
 
   const handleCutSubmit = (values: CutFormValues) => {
-    cutMutation.mutate({ representation, linkage: values.linkage, k: values.k });
+    // Captured here, at submit time, rather than read from component state
+    // inside the mutation's callbacks below (see the doc comment on
+    // `cutMutation`) — a linkage toggled while this request is still in
+    // flight must never change which selection the result gets attributed to.
+    const submittedLinkages = selectedLinkages;
+
+    cutMutation.mutate(
+      { representation, linkage: values.linkage, k: values.k },
+      {
+        onSuccess: (data, variables) => {
+          setCutResult({
+            // `variables.representation` is always this page's own state
+            // (never omitted), but the generated request type allows `null`
+            // for an absent body field — narrow back to the page's own
+            // default.
+            representation: variables.representation ?? DEFAULT_REPRESENTATION,
+            linkages: submittedLinkages,
+            linkageId: variables.linkage,
+            k: data.k,
+            labels: data.labels,
+            documentIds: data.documentIds,
+          });
+        },
+        onError: (_error, variables) => {
+          setCutErrorContext({
+            representation: variables.representation ?? DEFAULT_REPRESENTATION,
+            linkages: submittedLinkages,
+          });
+        },
+      },
+    );
   };
 
   return (

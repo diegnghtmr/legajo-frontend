@@ -4,7 +4,10 @@ import userEvent from '@testing-library/user-event';
 import type { ReactNode } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import type { ClusteringResponse } from '../../infrastructure/api/clustering';
+import type {
+  ClusteringCutResponse,
+  ClusteringResponse,
+} from '../../infrastructure/api/clustering';
 import * as clusteringApi from '../../infrastructure/api/clustering';
 import * as corpusApi from '../../infrastructure/api/corpus';
 import type { ListCorpusResponse } from '../../infrastructure/api/corpus';
@@ -603,6 +606,54 @@ describe('ClusteringPage', () => {
       expect(
         screen.queryByText('El valor de corte k no es válido para este corpus.'),
       ).not.toBeInTheDocument();
+    });
+
+    it('attributes a cut result to the linkages selected at submit time, never to a selection toggled while the request is still in flight (R3-cut-submit-time)', async () => {
+      vi.spyOn(corpusApi, 'fetchCorpus').mockResolvedValue(CORPUS);
+      vi.spyOn(clusteringApi, 'runClustering').mockResolvedValue(DEFAULT_RESPONSE);
+      let resolveCut: (value: ClusteringCutResponse) => void = () => {
+        throw new Error('resolveCut called before cutClustering was invoked');
+      };
+      vi.spyOn(clusteringApi, 'cutClustering').mockImplementation(
+        () =>
+          new Promise<ClusteringCutResponse>((resolve) => {
+            resolveCut = resolve;
+          }),
+      );
+      const user = userEvent.setup();
+
+      renderPage();
+      await waitFor(() => expect(clusteringApi.runClustering).toHaveBeenCalled());
+
+      // Submit the free cut against the current (all four linkages) selection;
+      // the default cut linkage is the first one, "single".
+      await user.click(await screen.findByRole('button', { name: 'Aplicar corte' }));
+      await waitFor(() => expect(clusteringApi.cutClustering).toHaveBeenCalled());
+
+      // While that request is still pending, deselect "ward".
+      vi.mocked(clusteringApi.runClustering).mockResolvedValue(
+        DEFAULT_RESPONSE.filter((result) => result.linkageId !== 'ward'),
+      );
+      await user.click(screen.getByRole('button', { name: 'ward' }));
+      await waitFor(() =>
+        expect(clusteringApi.runClustering).toHaveBeenLastCalledWith({
+          representation: 'tfidf-cosine',
+          linkages: ['single', 'complete', 'average'],
+        }),
+      );
+
+      // Now resolve the in-flight cut — computed against the *original*
+      // four-linkage selection, which no longer matches the page's current
+      // selection.
+      resolveCut({ labels: [0, 0, 1, 1, 2, 2], k: 3, documentIds: DOCUMENT_IDS_N6 });
+
+      const singleDendrogram = await screen.findByTestId('linkage-dendrogram-single');
+      await waitFor(() =>
+        expect(
+          within(singleDendrogram).queryByTestId('dendrogram-cut-line'),
+        ).not.toBeInTheDocument(),
+      );
+      expect(within(singleDendrogram).queryByText('Clúster 0')).not.toBeInTheDocument();
     });
   });
 });
