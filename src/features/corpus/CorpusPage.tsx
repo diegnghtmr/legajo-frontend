@@ -4,6 +4,7 @@ import { Outlet } from 'react-router';
 import { PanelHeader } from '../../shared/components/Panel';
 import { ArticleList } from './ArticleList';
 import { CompareCta } from './CompareCta';
+import { MatrixCta } from './MatrixCta';
 
 /**
  * Corpus / selection screen (DESIGN.md §6.1): a list of abstracts on the
@@ -20,6 +21,7 @@ export function CorpusPage() {
         <PanelHeader eyebrow={t('corpus.eyebrow')} title={t('corpus.title')} />
         <ArticleList />
         <CompareCta />
+        <MatrixCta />
       </section>
       <section className="flex-1">
         <Outlet />

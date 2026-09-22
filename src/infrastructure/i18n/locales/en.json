@@ -32,7 +32,11 @@
       "compareCta": "Compare",
       "reasonNone": "Select at least two articles to compare.",
       "reasonOne": "Select one more article to compare.",
-      "selectedCount": "{{count}} selected"
+      "selectedCount": "{{count}} selected",
+      "matrixCta": "View matrix",
+      "matrixReasonNone": "Select at least three articles to view the matrix.",
+      "matrixReasonOne": "Select two more articles to view the matrix.",
+      "matrixReasonTwo": "Select one more article to view the matrix."
     }
   },
   "similarity": {
@@ -42,7 +46,8 @@
       "wrongCount": "You have {{count}} articles selected; select exactly two in the corpus to compare.",
       "backToCorpus": "Go to the corpus",
       "comparing": "Comparing {{a}} × {{b}}",
-      "noAlgorithms": "Select at least one algorithm to compare."
+      "noAlgorithms": "Select at least one algorithm to compare.",
+      "viewMatrix": "View the similarity matrix"
     },
     "family": {
       "groupLabel": "Algorithm family",
@@ -153,6 +158,18 @@
         "distanceLabel": "Euclidean distance",
         "normalizedScoreLabel": "Normalized score",
         "providerStatusLabel": "Provider status"
+      }
+    },
+    "matrix": {
+      "eyebrow": "Matrix",
+      "title": "Similarity matrix",
+      "wrongCount": "You have {{count}} articles selected; select at least three in the corpus to view the matrix.",
+      "algorithmGroupLabel": "Matrix algorithm",
+      "loading": "Computing the matrix…",
+      "errorTitle": "Could not compute the matrix",
+      "table": {
+        "caption": "Pairwise similarity matrix for the chosen algorithm",
+        "degenerateMarker": "degenerate case"
       }
     }
   },

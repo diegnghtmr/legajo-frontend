@@ -32,7 +32,11 @@
       "compareCta": "Comparar",
       "reasonNone": "Selecciona al menos dos artículos para comparar.",
       "reasonOne": "Selecciona un artículo más para comparar.",
-      "selectedCount": "{{count}} seleccionados"
+      "selectedCount": "{{count}} seleccionados",
+      "matrixCta": "Ver matriz",
+      "matrixReasonNone": "Selecciona al menos tres artículos para ver la matriz.",
+      "matrixReasonOne": "Selecciona dos artículos más para ver la matriz.",
+      "matrixReasonTwo": "Selecciona un artículo más para ver la matriz."
     }
   },
   "similarity": {
@@ -42,7 +46,8 @@
       "wrongCount": "Tienes {{count}} artículos seleccionados; selecciona exactamente dos en el corpus para comparar.",
       "backToCorpus": "Ir al corpus",
       "comparing": "Comparando {{a}} × {{b}}",
-      "noAlgorithms": "Selecciona al menos un algoritmo para comparar."
+      "noAlgorithms": "Selecciona al menos un algoritmo para comparar.",
+      "viewMatrix": "Ver la matriz de similitud"
     },
     "family": {
       "groupLabel": "Familia de algoritmo",
@@ -153,6 +158,18 @@
         "distanceLabel": "Distancia euclidiana",
         "normalizedScoreLabel": "Puntaje normalizado",
         "providerStatusLabel": "Estado del proveedor"
+      }
+    },
+    "matrix": {
+      "eyebrow": "Matriz",
+      "title": "Matriz de similitud",
+      "wrongCount": "Tienes {{count}} artículos seleccionados; selecciona al menos tres en el corpus para ver la matriz.",
+      "algorithmGroupLabel": "Algoritmo de la matriz",
+      "loading": "Calculando la matriz…",
+      "errorTitle": "No se pudo calcular la matriz",
+      "table": {
+        "caption": "Matriz de similitud por pares para el algoritmo elegido",
+        "degenerateMarker": "caso degenerado"
       }
     }
   },

@@ -46,6 +46,12 @@ describe('App', () => {
     expect(screen.getByRole('heading', { name: 'Comparación de similitud' })).toBeInTheDocument();
   });
 
+  it('renders the matrix screen at /similarity/matrix', () => {
+    renderAppAt('/similarity/matrix');
+
+    expect(screen.getByRole('heading', { name: 'Matriz de similitud' })).toBeInTheDocument();
+  });
+
   it('renders the trace placeholder at /similarity/:algorithmId/trace', () => {
     renderAppAt('/similarity/levenshtein/trace?documentIdA=doc-01&documentIdB=doc-02');
 

@@ -84,6 +84,42 @@ describe('SimilarityPage — wrong selection count', () => {
   );
 });
 
+describe('SimilarityPage — three or more selected (wrong count for compare, matrix eligible)', () => {
+  it('shows a link to the similarity matrix in addition to the wrong-count message', () => {
+    useSelectionStore.setState({
+      selectedIds: ['doc-01', 'doc-02', 'doc-03'],
+      canCompare: false,
+      canMatrix: true,
+    });
+
+    renderWithProviders(<SimilarityPage />);
+
+    expect(
+      screen.getByText(
+        'Tienes 3 artículos seleccionados; selecciona exactamente dos en el corpus para comparar.',
+      ),
+    ).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Ver la matriz de similitud' })).toHaveAttribute(
+      'href',
+      '/similarity/matrix',
+    );
+  });
+
+  it('does not show the matrix link with fewer than 3 selected', () => {
+    useSelectionStore.setState({
+      selectedIds: ['doc-01'],
+      canCompare: false,
+      canMatrix: false,
+    });
+
+    renderWithProviders(<SimilarityPage />);
+
+    expect(
+      screen.queryByRole('link', { name: 'Ver la matriz de similitud' }),
+    ).not.toBeInTheDocument();
+  });
+});
+
 describe('SimilarityPage — exactly two selected', () => {
   beforeEach(() => {
     useSelectionStore.setState({

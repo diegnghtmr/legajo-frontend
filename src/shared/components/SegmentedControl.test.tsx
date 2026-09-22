@@ -110,6 +110,23 @@ describe('SegmentedControl', () => {
     expect(onChange).toHaveBeenCalledWith('classic');
   });
 
+  it('accepts a rich node as an option label, keeping the accessible name from its text', () => {
+    render(
+      <SegmentedControl
+        options={[
+          { value: 'all' as Family, label: <span className="font-mono">all</span> },
+          { value: 'classic' as Family, label: <span className="font-mono">classic</span> },
+        ]}
+        value={'all' as Family}
+        onChange={() => {}}
+        aria-label="Mono filter"
+      />,
+    );
+
+    const option = screen.getByRole('radio', { name: 'all' });
+    expect(option.querySelector('span.font-mono')).toBeInTheDocument();
+  });
+
   it('jumps to the first option on Home and the last option on End', async () => {
     const user = userEvent.setup();
     const onChange = vi.fn();

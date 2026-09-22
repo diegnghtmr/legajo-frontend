@@ -77,6 +77,7 @@ export function SimilarityPage() {
     );
   };
 
+  const canMatrix = useSelectionStore((state) => state.canMatrix);
   const hasExactlyTwoSelected = selectedArticleIds.length === 2;
   const hasAlgorithmsSelected = selectedAlgorithmIds.length > 0;
 
@@ -113,6 +114,14 @@ export function SimilarityPage() {
         >
           {t('similarity.selection.backToCorpus')}
         </Link>
+        {canMatrix && (
+          <Link
+            to="/similarity/matrix"
+            className="text-body font-semibold text-ink underline-offset-2 hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus"
+          >
+            {t('similarity.selection.viewMatrix')}
+          </Link>
+        )}
       </div>
     );
   }
