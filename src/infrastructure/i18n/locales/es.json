@@ -154,6 +154,18 @@
         "normalizedScoreLabel": "Puntaje normalizado",
         "providerStatusLabel": "Estado del proveedor"
       }
+    },
+    "matrix": {
+      "eyebrow": "Matriz",
+      "title": "Matriz de similitud",
+      "wrongCount": "Tienes {{count}} artículos seleccionados; selecciona al menos tres en el corpus para ver la matriz.",
+      "algorithmGroupLabel": "Algoritmo de la matriz",
+      "loading": "Calculando la matriz…",
+      "errorTitle": "No se pudo calcular la matriz",
+      "table": {
+        "caption": "Matriz de similitud por pares para el algoritmo elegido",
+        "degenerateMarker": "caso degenerado"
+      }
     }
   },
   "clustering": {
