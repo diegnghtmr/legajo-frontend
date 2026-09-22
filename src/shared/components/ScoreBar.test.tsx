@@ -33,4 +33,12 @@ describe('ScoreBar', () => {
     );
     expect(screen.getByText('1.000')).toBeInTheDocument();
   });
+  it.each([Number.NaN, -0.1, 1.2])(
+    'refuses a value outside the [0, 1] contract (%s) instead of drawing a misleading bar',
+    (value) => {
+      expect(() => render(<ScoreBar value={value} family="classic" label="Score" />)).toThrow(
+        RangeError,
+      );
+    },
+  );
 });

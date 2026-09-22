@@ -10,11 +10,16 @@ export interface ScoreBarProps {
 
 /**
  * Mono score value + fill bar (DESIGN.md §6.2, §9.3). The backend guarantees
- * `value` is within [0, 1] (TRD §6.3); this component renders it verbatim
- * and never clamps. `role="meter"` fits a scalar measurement within a known
+ * `value` is within [0, 1] (TRD §6.3); this component renders it verbatim,
+ * never clamps, and throws on a value outside that range. `role="meter"` fits a scalar measurement within a known
  * range better than `progressbar` (which implies task completion).
  */
 export function ScoreBar({ value, family, label }: ScoreBarProps) {
+  // A value outside the contract is a bug upstream; drawing it would show a misleading bar
+  // (a negative width is dropped by the browser and renders full), so fail loudly instead.
+  if (!Number.isFinite(value) || value < 0 || value > 1) {
+    throw new RangeError(`ScoreBar value must be within [0, 1], got ${value}`);
+  }
   const formatted = value.toFixed(3);
   const percentage = value * 100;
 

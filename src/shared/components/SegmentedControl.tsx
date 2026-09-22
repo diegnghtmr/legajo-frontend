@@ -37,9 +37,13 @@ export function SegmentedControl<TValue extends string>({
     optionRefs.current[index]?.focus();
   };
 
+  // With no matching value the first option stands in, so the group stays reachable and
+  // operable by keyboard (WAI-ARIA radiogroup pattern).
+  const matchedIndex = options.findIndex((option) => option.value === value);
+  const focusIndex = matchedIndex === -1 ? 0 : matchedIndex;
+
   const handleKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
-    const currentIndex = options.findIndex((option) => option.value === value);
-    if (currentIndex === -1) return;
+    const currentIndex = focusIndex;
 
     switch (event.key) {
       case 'ArrowRight':
@@ -83,7 +87,7 @@ export function SegmentedControl<TValue extends string>({
             type="button"
             role="radio"
             aria-checked={isActive}
-            tabIndex={isActive ? 0 : -1}
+            tabIndex={index === focusIndex ? 0 : -1}
             onClick={() => onChange(option.value)}
             className={cn(
               'rounded-btn px-3 py-1.5 text-label font-medium text-ink-secondary transition-colors',

@@ -91,6 +91,25 @@ describe('SegmentedControl', () => {
     expect(screen.getByRole('radio', { name: 'AI' })).toHaveFocus();
   });
 
+  it('keeps the group keyboard-reachable when the value matches no option', async () => {
+    const user = userEvent.setup();
+    const onChange = vi.fn();
+    render(
+      <SegmentedControl
+        options={OPTIONS}
+        value={'stale' as Family}
+        onChange={onChange}
+        aria-label="Family filter"
+      />,
+    );
+
+    expect(screen.getByRole('radio', { name: 'All' })).toHaveAttribute('tabindex', '0');
+    await user.tab();
+    await user.keyboard('{ArrowRight}');
+
+    expect(onChange).toHaveBeenCalledWith('classic');
+  });
+
   it('jumps to the first option on Home and the last option on End', async () => {
     const user = userEvent.setup();
     const onChange = vi.fn();
