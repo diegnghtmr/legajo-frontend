@@ -284,4 +284,30 @@ test.describe('TAC-15 journey', () => {
 
     await assertNoAxeViolations(page);
   });
+
+  test('TAC-16: switching to English changes the nav, page title, and compare CTA, and switching back restores Spanish', async ({
+    page,
+  }) => {
+    await mockFlowA(page);
+
+    await page.goto('/');
+    const nav = page.getByRole('navigation');
+    await expect(page.getByRole('heading', { name: 'Artículos del corpus' })).toBeVisible();
+    await expect(nav.getByRole('link', { name: 'Similitud', exact: true })).toBeVisible();
+    await expect(nav.getByRole('link', { name: 'Agrupamiento', exact: true })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Comparar' })).toBeVisible();
+
+    await page.getByRole('button', { name: 'English' }).click();
+
+    await expect(page.getByRole('heading', { name: 'Corpus articles' })).toBeVisible();
+    await expect(nav.getByRole('link', { name: 'Similarity', exact: true })).toBeVisible();
+    await expect(nav.getByRole('link', { name: 'Clustering', exact: true })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Compare' })).toBeVisible();
+
+    await page.getByRole('button', { name: 'Español' }).click();
+
+    await expect(page.getByRole('heading', { name: 'Artículos del corpus' })).toBeVisible();
+    await expect(nav.getByRole('link', { name: 'Similitud', exact: true })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Comparar' })).toBeVisible();
+  });
 });
