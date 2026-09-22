@@ -9,27 +9,45 @@
     "es": "Spanish",
     "en": "English"
   },
-  "showcase": {
-    "eyebrow": "Design system",
-    "title": "Shared primitives",
-    "subtitle": "W2 showcase",
-    "familyFilterLabel": "Family filter",
-    "algorithmsLabel": "Algorithms",
-    "family": {
-      "all": "All",
-      "classic": "Classic",
-      "ai": "AI"
+  "nav": {
+    "corpus": "Corpus",
+    "similarity": "Similarity",
+    "clustering": "Clustering"
+  },
+  "corpus": {
+    "eyebrow": "Corpus",
+    "title": "Corpus articles",
+    "loading": "Loading the corpus…",
+    "empty": "The corpus has no articles loaded.",
+    "errorTitle": "Could not load the corpus",
+    "detail": {
+      "selectPrompt": "Select an article to see its full abstract.",
+      "loading": "Loading the article…",
+      "errorTitle": "Could not load the article",
+      "abstractLabel": "Abstract",
+      "authorsLabel": "Authors",
+      "idLabel": "Identifier"
     },
-    "scores": {
-      "classicLabel": "Levenshtein score",
-      "aiLabel": "Embedding-local score"
-    },
-    "metrics": {
-      "cophenetic": "Cophenetic",
-      "silhouette": "Silhouette",
-      "daviesBouldin": "Davies-Bouldin",
-      "leaderLabel": "Tree"
+    "selection": {
+      "compareCta": "Compare",
+      "reasonNone": "Select at least two articles to compare.",
+      "reasonOne": "Select one more article to compare.",
+      "selectedCount": "{{count}} selected"
     }
+  },
+  "similarity": {
+    "eyebrow": "Similarity",
+    "title": "Similarity comparison",
+    "comingSoon": "This view is built in a later task."
+  },
+  "clustering": {
+    "eyebrow": "Clustering",
+    "title": "Hierarchical clustering",
+    "comingSoon": "This view is built in a later task."
+  },
+  "notFound": {
+    "title": "Page not found",
+    "description": "The requested route does not exist."
   },
   "errors": {
     "unknownDocument": "The requested document does not exist in the corpus.",
