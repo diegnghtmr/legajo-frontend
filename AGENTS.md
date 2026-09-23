@@ -77,7 +77,9 @@ desarrollo, no una comprobación); todo lo demás se ejecuta con los scripts de
 | Pruebas unitarias y cobertura | `scripts/npm-in-docker.sh run test:coverage` |
 | Build de producción | `scripts/npm-in-docker.sh run build` |
 | Extremo a extremo con axe (simulado, imagen oficial de Playwright) | `scripts/e2e-in-docker.sh` |
+| Extremo a extremo sin simulaciones, contra el backend real (F3) | `scripts/e2e-fullstack-in-docker.sh` |
 | Humo de la imagen (contra un contenedor ya corriendo) | `docker run --rm --network host -v "$(pwd)":/workspace:ro -w /workspace curlimages/curl:8.15.0 sh scripts/smoke-image.sh <base-url>` |
+| Helper `docker-volume.sh` (ownership de volúmenes) | `scripts/tests/docker-volume.test.sh` |
 
 `scripts/npm-in-docker.sh` corre sobre `node:24-alpine` con el repositorio
 montado y `node_modules` en un volumen Docker con nombre propio, para que el
@@ -86,8 +88,11 @@ contenedor nunca choque con un `node_modules` instalado en el host.
 con la versión fijada de `@playwright/test`, con sus navegadores incluidos —
 nunca Chromium del host ni una configuración temporal apuntando a él — y su
 propio volumen de `node_modules` (musl/Alpine y glibc/Ubuntu no pueden
-compartir binarios nativos). El detalle de cada decisión está comentado en la
-cabecera del script correspondiente.
+compartir binarios nativos). `scripts/e2e-fullstack-in-docker.sh` corre esa
+misma imagen de Playwright, pero primero levanta el stack completo
+(`docker compose` del repositorio del backend, K4) y siempre lo apaga al
+terminar, incluso si la prueba falla. El detalle de cada decisión está
+comentado en la cabecera del script correspondiente.
 
 La CI falla si `src/shared/types/api.ts` no coincide con el OpenAPI publicado, si
 un esquema Zod y los tipos generados discrepan en campos requeridos, si hay

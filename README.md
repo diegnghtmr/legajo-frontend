@@ -82,6 +82,7 @@ all, only a `curl`-based check that runs in a separate, minimal pinned image
 | Production build                            | `scripts/npm-in-docker.sh run build`                                                         |
 | API types drift (after `npm run api:types`) | `scripts/npm-in-docker.sh run api:types` then `git diff --exit-code src/shared/types/api.ts` |
 | Mocked end-to-end (Playwright + axe)        | `scripts/e2e-in-docker.sh`                                                                   |
+| Full-stack end-to-end, no mocks (see below) | `scripts/e2e-fullstack-in-docker.sh`                                                         |
 | Image smoke test                            | needs a running container — see "Image smoke test" below                                     |
 | `docker-volume.sh` volume-ownership helper  | `scripts/tests/docker-volume.test.sh`                                                        |
 
@@ -109,9 +110,33 @@ header with no version number (`server_tokens off`), that a deep SPA route
 `/assets/*` output (cached for a year) — every check fails loudly on an
 empty or missing value rather than treating it as a pass.
 
-A full-stack end-to-end suite against the real backend — no `page.route`
-mocks — arrives in a follow-up task (F3); today's `npm run e2e` /
-`scripts/e2e-in-docker.sh` suite mocks every API response.
+## Full-stack e2e (no mocks)
+
+`npm run e2e` / `scripts/e2e-in-docker.sh` (above) mock every API response
+with `page.route`. A separate suite, `e2e-fullstack/`, runs the same Flow
+A/Flow B journeys (TAC-15) against a **real, already-running backend** —
+zero interception anywhere (a static guard spec,
+`e2e-fullstack/no-mocks.guard.spec.ts`, fails the suite if one is ever
+added) — with the real, versioned 20-document corpus (ids `d01..d20`) and
+real numbers cross-checked against the backend directly (e.g.
+needleman-wunsch(d01, d02) ≈ 0.0707, the same value the backend's own
+`scripts/smoke.sh` asserts).
+
+It has its own Playwright config (`playwright.fullstack.config.ts`, no
+`webServer`) and its own npm script:
+
+```sh
+scripts/e2e-fullstack-in-docker.sh
+```
+
+This brings up the full stack from the sibling backend repository's
+`docker-compose.yml` (task K4: `backend` + `frontend`, the latter built from
+THIS checkout), runs `npm run e2e:fullstack` inside the same pinned
+Playwright image `scripts/e2e-in-docker.sh` uses, always tears the stack
+down afterwards, and dumps Compose logs on failure. It looks for the backend
+checkout at `../backend` by default; override with `LEGAJO_BACKEND_DIR` if
+your sibling checkout lives elsewhere (in CI it is `legajo-backend/`, see
+`.github/workflows/frontend.yml`'s `fullstack-e2e` job).
 
 ## Scripts
 
@@ -126,6 +151,7 @@ mocks — arrives in a follow-up task (F3); today's `npm run e2e` /
 | `npm run test`                    | Vitest unit/component/contract-type tests                                                                                  |
 | `npm run test:coverage`           | Vitest with V8 coverage report                                                                                             |
 | `npm run e2e`                     | Builds, then runs Playwright + axe against the preview server                                                              |
+| `npm run e2e:fullstack`           | Runs the no-mocks Playwright + axe suite (`e2e-fullstack/`) against an already-running full-stack Compose stack            |
 | `npm run check:tokens`            | Fails if a hex color literal appears in `src/` outside the `@theme` block of `src/index.css` (generated `api.ts` excluded) |
 | `npm run api:sync`                | Copies `../backend/docs/openapi-legajo.yaml` into `contract/openapi-legajo.yaml` (workspace layout only)                   |
 | `npm run api:types`               | Regenerates `src/shared/types/api.ts` from `contract/openapi-legajo.yaml`                                                  |
