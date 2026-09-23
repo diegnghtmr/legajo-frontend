@@ -173,6 +173,15 @@ test.describe('benchmarks screen', () => {
     await page.goto('/benchmarks');
     await expect(page.getByRole('group', { name: 'Algoritmos clásicos por pares' })).toBeVisible();
 
+    const chartGroupNames = [
+      'Algoritmos clásicos por pares',
+      'Enlaces jerárquicos (HAC)',
+      'Métricas internas de agrupamiento',
+    ];
+    for (const name of chartGroupNames) {
+      await expect(page.getByRole('group', { name })).toHaveAttribute('data-scale', 'linear');
+    }
+
     const scaleGroup = page.getByRole('radiogroup', { name: 'Escala' });
     await expect(scaleGroup.getByRole('radio', { name: 'Lineal' })).toHaveAttribute(
       'aria-checked',
@@ -185,8 +194,13 @@ test.describe('benchmarks screen', () => {
       'aria-checked',
       'true',
     );
-    // The charts stay mounted and visible after the scale switch.
-    await expect(page.getByRole('group', { name: 'Algoritmos clásicos por pares' })).toBeVisible();
+    // The charts stay mounted and visible after the scale switch, and each
+    // one actually re-renders on the log axis (not just the toggle itself).
+    for (const name of chartGroupNames) {
+      const group = page.getByRole('group', { name });
+      await expect(group).toBeVisible();
+      await expect(group).toHaveAttribute('data-scale', 'log');
+    }
   });
 
   test('has no automatically detectable WCAG 2.1 AA violations on the benchmarks screen', async ({

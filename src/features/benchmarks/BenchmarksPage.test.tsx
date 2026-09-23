@@ -104,6 +104,15 @@ describe('BenchmarksPage', () => {
     ).toBeInTheDocument();
   });
 
+  it('shows the generic unexpected-error message when the query rejects with a plain Error', async () => {
+    vi.spyOn(benchmarksApi, 'fetchBenchmarks').mockRejectedValue(new Error('boom'));
+
+    renderWithProviders(<BenchmarksPage />);
+
+    expect(await screen.findByRole('alert')).toBeInTheDocument();
+    expect(screen.getByText('Ocurrió un error inesperado.')).toBeInTheDocument();
+  });
+
   it('renders the harness, every curve group, embedding tiles and the SLO section', async () => {
     vi.spyOn(benchmarksApi, 'fetchBenchmarks').mockResolvedValue(REPORT);
 
@@ -138,5 +147,27 @@ describe('BenchmarksPage', () => {
 
     await userEvent.click(logLogOption);
     expect(logLogOption).toHaveAttribute('aria-checked', 'true');
+  });
+
+  it('switches every curve chart’s data-scale attribute when the toggle is clicked', async () => {
+    vi.spyOn(benchmarksApi, 'fetchBenchmarks').mockResolvedValue(REPORT);
+
+    const { container } = renderWithProviders(<BenchmarksPage />);
+    await screen.findByText('12th Gen Intel(R) Core(TM) i9-12900H');
+
+    const chartGroups = () =>
+      Array.from(container.querySelectorAll<HTMLElement>('[role="group"][data-scale]'));
+    expect(chartGroups()).toHaveLength(3);
+    for (const group of chartGroups()) {
+      expect(group).toHaveAttribute('data-scale', 'linear');
+    }
+
+    const scaleGroup = screen.getByRole('radiogroup', { name: 'Escala' });
+    await userEvent.click(within(scaleGroup).getByRole('radio', { name: 'Log–log' }));
+
+    expect(chartGroups()).toHaveLength(3);
+    for (const group of chartGroups()) {
+      expect(group).toHaveAttribute('data-scale', 'log');
+    }
   });
 });

@@ -88,4 +88,86 @@ describe('BenchmarkCurveChart', () => {
   it('renders without throwing on the log-log scale', () => {
     expect(() => renderChart('log-log')).not.toThrow();
   });
+
+  it('exposes the active scale on the chart container', () => {
+    const { container: linearContainer } = renderChart('linear');
+    expect(linearContainer.querySelector('[role="group"]')).toHaveAttribute('data-scale', 'linear');
+
+    const { container: logContainer } = renderChart('log-log');
+    expect(logContainer.querySelector('[role="group"]')).toHaveAttribute('data-scale', 'log');
+  });
+
+  it('excludes non-positive points from the log-log plot while keeping them in the sr-only table', () => {
+    const seriesWithNonPositive: FamilySeries[] = [
+      {
+        family: 'levenshtein',
+        points: [
+          { size: 0, valueNs: 100 },
+          { size: 50, valueNs: 7_900 },
+          { size: 100, valueNs: 29_600 },
+        ],
+      },
+    ];
+
+    const linear = render(
+      <BenchmarkCurveChart
+        title="Linear"
+        xAxisLabel="L"
+        yAxisLabel="T"
+        series={seriesWithNonPositive}
+        slopes={new Map()}
+        scale="linear"
+        dataTableCaption="linear-data"
+        slopeTableCaption="linear-slope"
+      />,
+    );
+    expect(linear.container.querySelectorAll('[data-shape="circle"]')).toHaveLength(3);
+    linear.unmount();
+
+    const logLog = render(
+      <BenchmarkCurveChart
+        title="LogLog"
+        xAxisLabel="L"
+        yAxisLabel="T"
+        series={seriesWithNonPositive}
+        slopes={new Map()}
+        scale="log-log"
+        dataTableCaption="loglog-data"
+        slopeTableCaption="loglog-slope"
+      />,
+    );
+    // The size = 0 point cannot be plotted on a log axis; the other two remain.
+    expect(logLog.container.querySelectorAll('[data-shape="circle"]')).toHaveLength(2);
+
+    const dataTable = screen.getByRole('table', { name: 'loglog-data' });
+    expect(within(dataTable).getAllByRole('row')).toHaveLength(4); // header + all 3 raw points
+    logLog.unmount();
+  });
+
+  it('overlays the dotted theoretical curve only for a family with a slope entry', () => {
+    const slopesForLevenshteinOnly = new Map([
+      ['levenshtein', { empiricalSlope: 2.04, theoreticalExponent: 2 }],
+    ]);
+
+    render(
+      <BenchmarkCurveChart
+        title="Mixed"
+        xAxisLabel="L"
+        yAxisLabel="T"
+        series={SERIES}
+        slopes={slopesForLevenshteinOnly}
+        scale="linear"
+        dataTableCaption="mixed-data"
+        slopeTableCaption="mixed-slope"
+      />,
+    );
+
+    const theoreticalPaths = document.querySelectorAll('path[stroke="var(--color-ink-muted)"]');
+    expect(theoreticalPaths).toHaveLength(1);
+
+    const slopeTable = screen.getByRole('table', { name: 'mixed-slope' });
+    expect(within(slopeTable).getAllByRole('row')).toHaveLength(2); // header + levenshtein only
+    expect(within(slopeTable).getByText('levenshtein')).toBeInTheDocument();
+    expect(within(slopeTable).queryByText('jaccard')).not.toBeInTheDocument();
+  });
 });
