@@ -5,7 +5,15 @@ import tseslint from 'typescript-eslint';
 
 export default tseslint.config(
   {
-    ignores: ['dist', 'coverage', 'playwright-report', 'test-results', 'src/shared/types/api.ts'],
+    ignores: [
+      'dist',
+      'coverage',
+      'playwright-report',
+      'playwright-report-fullstack',
+      'test-results',
+      'test-results-fullstack',
+      'src/shared/types/api.ts',
+    ],
   },
   {
     files: ['**/*.{ts,tsx}'],
@@ -26,7 +34,14 @@ export default tseslint.config(
     },
   },
   {
-    files: ['scripts/**/*.ts', '*.config.ts', 'playwright.config.ts', 'e2e/**/*.ts'],
+    files: [
+      'scripts/**/*.ts',
+      '*.config.ts',
+      'playwright.config.ts',
+      'playwright.fullstack.config.ts',
+      'e2e/**/*.ts',
+      'e2e-fullstack/**/*.ts',
+    ],
     languageOptions: {
       globals: globals.node,
     },

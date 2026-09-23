@@ -25,9 +25,14 @@ dist-ssr/
 # Test and coverage output
 coverage/
 playwright-report/
+playwright-report-fullstack/
 test-results/
+test-results-fullstack/
 blob-report/
 .playwright/
+
+# CI-only sibling backend checkout (F4: actions/checkout path=legajo-backend)
+legajo-backend/
 
 # CodeGraph index (per-worktree, never versioned)
 .codegraph/

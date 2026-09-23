@@ -17,6 +17,7 @@
     "test": "vitest run",
     "test:coverage": "vitest run --coverage",
     "e2e": "VITE_API_BASE_URL=http://localhost:4173 npm run build && playwright test",
+    "e2e:fullstack": "playwright test --config=playwright.fullstack.config.ts",
     "api:sync": "node scripts/sync-openapi.ts",
     "api:types": "openapi-typescript contract/openapi-legajo.yaml -o src/shared/types/api.ts",
     "check:tokens": "node scripts/check-tokens.ts"
