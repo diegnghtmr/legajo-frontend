@@ -50,6 +50,18 @@ describe('BenchmarkHarnessSchema (runtime)', () => {
     const { measuredAt: _measuredAt, ...withoutMeasuredAt } = validPayload;
     expect(BenchmarkHarnessSchema.safeParse(withoutMeasuredAt).success).toBe(false);
   });
+
+  it('rejects a non-integer logicalCores', () => {
+    expect(BenchmarkHarnessSchema.safeParse({ ...validPayload, logicalCores: 20.5 }).success).toBe(
+      false,
+    );
+  });
+
+  it('rejects a non-integer totalRamBytes', () => {
+    expect(
+      BenchmarkHarnessSchema.safeParse({ ...validPayload, totalRamBytes: 33363460096.5 }).success,
+    ).toBe(false);
+  });
 });
 
 describe('BenchmarkResultSchema (runtime)', () => {
@@ -92,6 +104,10 @@ describe('BenchmarkSlopeSchema (runtime)', () => {
   it('rejects a payload missing theoreticalExponent', () => {
     const { theoreticalExponent: _theoreticalExponent, ...withoutExponent } = validPayload;
     expect(BenchmarkSlopeSchema.safeParse(withoutExponent).success).toBe(false);
+  });
+
+  it('rejects a non-integer points count', () => {
+    expect(BenchmarkSlopeSchema.safeParse({ ...validPayload, points: 5.5 }).success).toBe(false);
   });
 });
 

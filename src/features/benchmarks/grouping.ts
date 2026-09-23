@@ -45,10 +45,28 @@ export interface FamilySeries {
 }
 
 /**
+ * Converts one result's score to nanoseconds, or `undefined` when the unit is
+ * unrecognized. `toNanoseconds` throws on a schema-valid-but-unrecognized
+ * unit (any string passes `BenchmarkResultSchema.unit`); a single malformed
+ * record must never abort every other family's chart, so callers treat it as
+ * omitted, the same rule `seriesForFamilies`'s own contract already applies
+ * to a family absent from the response.
+ */
+function toNanosecondsOrSkip(result: BenchmarkResult): number | undefined {
+  try {
+    return toNanoseconds(result.score, result.unit);
+  } catch {
+    return undefined;
+  }
+}
+
+/**
  * Groups the flat `results[]` by family for the families requested, sorted
  * ascending by `size` and converted to nanoseconds so every family in a
  * chart shares one axis. A requested family absent from the response (e.g. a
- * malformed or partial export) is simply omitted, never fabricated.
+ * malformed or partial export), or one individual result with an
+ * unrecognized unit, is simply omitted, never fabricated and never fatal to
+ * the rest of the group.
  */
 export function seriesForFamilies(
   results: readonly BenchmarkResult[],
@@ -59,7 +77,10 @@ export function seriesForFamilies(
   for (const family of families) {
     const points = results
       .filter((result) => result.family === family)
-      .map((result) => ({ size: result.size, valueNs: toNanoseconds(result.score, result.unit) }))
+      .flatMap((result) => {
+        const valueNs = toNanosecondsOrSkip(result);
+        return valueNs === undefined ? [] : [{ size: result.size, valueNs }];
+      })
       .sort((a, b) => a.size - b.size);
 
     if (points.length > 0) {
@@ -102,7 +123,8 @@ export interface EmbeddingDimensionTile {
  * Both embedding-primitive families grouped by dimension (DESIGN.md §6 item
  * 6: "a single timing tile per embedding dimension, no curve"). `d = 384`
  * and `d = 1536` are the fixed NFR-QA-10 measurement points; any other
- * dimension present in the response is still grouped, never dropped.
+ * dimension present in the response is still grouped, never dropped. A
+ * result with an unrecognized unit is omitted, same rule as `seriesForFamilies`.
  */
 export function embeddingResultsByDimension(
   results: readonly BenchmarkResult[],
@@ -111,8 +133,12 @@ export function embeddingResultsByDimension(
 
   for (const family of EMBEDDING_FAMILIES) {
     for (const result of results.filter((entry) => entry.family === family)) {
+      const valueNs = toNanosecondsOrSkip(result);
+      if (valueNs === undefined) {
+        continue;
+      }
       const tile = byDimension.get(result.size) ?? { dimension: result.size, entries: [] };
-      tile.entries.push({ family, valueNs: toNanoseconds(result.score, result.unit) });
+      tile.entries.push({ family, valueNs });
       byDimension.set(result.size, tile);
     }
   }

@@ -77,6 +77,24 @@ describe('seriesForFamilies', () => {
       { family: 'embedding-dot-product', points: [{ size: 384, valueNs: 195 }] },
     ]);
   });
+
+  it('omits a result with an unrecognized unit instead of aborting the whole family', () => {
+    const withMalformedUnit: BenchmarkResult[] = [
+      ...RESULTS,
+      result({ family: 'levenshtein', size: 200, score: 50, unit: 'op/s' }),
+    ];
+
+    let series: ReturnType<typeof seriesForFamilies> = [];
+    expect(() => {
+      series = seriesForFamilies(withMalformedUnit, PAIRWISE_CLASSIC_FAMILIES);
+    }).not.toThrow();
+
+    const levenshtein = series.find((entry) => entry.family === 'levenshtein');
+    expect(levenshtein?.points).toEqual([
+      { size: 50, valueNs: 7_900 },
+      { size: 100, valueNs: 29_600 },
+    ]);
+  });
 });
 
 describe('mergeSeriesIntoRows', () => {
@@ -135,6 +153,24 @@ describe('embeddingResultsByDimension', () => {
 
   it('returns an empty array with no embedding results', () => {
     expect(embeddingResultsByDimension([])).toEqual([]);
+  });
+
+  it('omits an embedding result with an unrecognized unit instead of aborting', () => {
+    const withMalformedUnit: BenchmarkResult[] = [
+      ...embeddingResults,
+      result({
+        family: 'embedding-dot-product',
+        parameter: 'dimension',
+        size: 768,
+        score: 400,
+        unit: 'op/s',
+      }),
+    ];
+
+    expect(() => embeddingResultsByDimension(withMalformedUnit)).not.toThrow();
+    expect(
+      embeddingResultsByDimension(withMalformedUnit).some((tile) => tile.dimension === 768),
+    ).toBe(false);
   });
 });
 

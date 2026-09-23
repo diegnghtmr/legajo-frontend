@@ -5,6 +5,8 @@ type BenchmarkResult = BenchmarkReportResponse['results'][number];
 
 export interface SloEvaluation {
   family: string;
+  /** The result's own `size` (fixed at 20 for every `slo-*` family, TAC-07), kept for a unique row key. */
+  size: number;
   valueMs: number;
   thresholdMs: number;
   /** Strictly under the threshold, matching TAC-07's own "< 5 s" / "< 1 s" wording. */
@@ -22,6 +24,7 @@ export function evaluateSlo(result: BenchmarkResult, thresholdMs: number): SloEv
 
   return {
     family: result.family,
+    size: result.size,
     valueMs,
     thresholdMs,
     withinThreshold: valueMs < thresholdMs,

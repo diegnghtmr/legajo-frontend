@@ -18,6 +18,12 @@ describe('toNanoseconds', () => {
   it('throws on an unrecognized JMH unit', () => {
     expect(() => toNanoseconds(1, 'op/s')).toThrow(/op\/s/);
   });
+
+  it('rejects a unit that collides with an inherited Object.prototype property', () => {
+    expect(() => toNanoseconds(1, 'constructor')).toThrow(/constructor/);
+    expect(() => toNanoseconds(1, 'toString')).toThrow(/toString/);
+    expect(() => toNanoseconds(1, '__proto__')).toThrow(/__proto__/);
+  });
 });
 
 describe('formatDuration', () => {
