@@ -467,6 +467,37 @@ describe('ClusteringPage', () => {
       expect(within(singleDendrogram).queryByTestId('dendrogram-cut-line')).not.toBeInTheDocument();
     });
 
+    it('resolves the cut labels by document id, not by array position, when the cut response documentIds order differs from the linkage result (TRD 1.3.9)', async () => {
+      vi.spyOn(corpusApi, 'fetchCorpus').mockResolvedValue(CORPUS);
+      vi.spyOn(clusteringApi, 'runClustering').mockResolvedValue(DEFAULT_RESPONSE);
+      vi.spyOn(clusteringApi, 'cutClustering').mockResolvedValue({
+        labels: [0, 0, 1, 1, 2, 2],
+        // Reversed relative to the "single" linkage's own `documentIds`
+        // (DOCUMENT_IDS_N6): the cut request computes its own pairing and
+        // is never guaranteed to share array positions with any linkage.
+        documentIds: [...DOCUMENT_IDS_N6].reverse(),
+        k: 3,
+      });
+      const user = userEvent.setup();
+
+      renderPage();
+      await waitFor(() => expect(clusteringApi.runClustering).toHaveBeenCalled());
+      await user.click(await screen.findByRole('button', { name: 'Aplicar corte' }));
+
+      const singleDendrogram = await screen.findByTestId('linkage-dendrogram-single');
+      await waitFor(() =>
+        expect(within(singleDendrogram).getByTestId('dendrogram-cut-line')).toBeInTheDocument(),
+      );
+
+      // Leaf id 0 is DOCUMENT_IDS_N6[0] ("doc-01"), which sits LAST in the
+      // cut response's own (reversed) documentIds -> its label is 2. A join
+      // by array position would wrongly read labels[0] = 0 for this leaf.
+      const leafZero = singleDendrogram.querySelector('[data-leaf-id="0"]') as HTMLElement;
+      expect(leafZero).not.toBeNull();
+      expect(within(leafZero).getByText('Clúster 2')).toBeInTheDocument();
+      expect(within(leafZero).queryByText('Clúster 0')).not.toBeInTheDocument();
+    });
+
     it('clears a previous cut result once the representation changes (it was computed against a different request)', async () => {
       vi.spyOn(corpusApi, 'fetchCorpus').mockResolvedValue(CORPUS);
       vi.spyOn(clusteringApi, 'runClustering').mockResolvedValue(DEFAULT_RESPONSE);

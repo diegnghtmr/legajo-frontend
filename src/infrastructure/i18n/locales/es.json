@@ -229,6 +229,7 @@
       "submit": "Aplicar corte",
       "pending": "Aplicando el corte…",
       "errorTitle": "No se pudo aplicar el corte",
+      "noValidRange": "No hay una cantidad de clústeres válida para cortar este corpus.",
       "errors": {
         "kRange": "k debe ser un entero entre {{min}} y {{max}}."
       }

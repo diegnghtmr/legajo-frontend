@@ -56,6 +56,8 @@ function buildCutSchema(n: number) {
  */
 export function CutForm({ linkages, n, defaultLinkage, onSubmit, isPending, error }: CutFormProps) {
   const { t } = useTranslation();
+  /** No k in [2, n-1] exists once n-1 < 2 (n < 3): the range would be inverted (e.g. "between 2 and 1"). */
+  const hasValidCutRange = n - 1 >= 2;
   const schema = useMemo(() => buildCutSchema(n), [n]);
   const {
     control,
@@ -96,20 +98,24 @@ export function CutForm({ linkages, n, defaultLinkage, onSubmit, isPending, erro
         />
       </div>
 
-      <label className="flex flex-col gap-1 text-label text-ink-secondary" htmlFor="cut-k">
-        {t('clustering.cutForm.kLabel', { min: 2, max: n - 1 })}
-        <input
-          id="cut-k"
-          type="number"
-          min={2}
-          max={n - 1}
-          step={1}
-          {...register('k', { valueAsNumber: true })}
-          className="w-24 rounded-md border border-hairline-strong bg-paper-raised px-2 py-1 text-body text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus"
-        />
-      </label>
+      {hasValidCutRange ? (
+        <label className="flex flex-col gap-1 text-label text-ink-secondary" htmlFor="cut-k">
+          {t('clustering.cutForm.kLabel', { min: 2, max: n - 1 })}
+          <input
+            id="cut-k"
+            type="number"
+            min={2}
+            max={n - 1}
+            step={1}
+            {...register('k', { valueAsNumber: true })}
+            className="w-24 rounded-md border border-hairline-strong bg-paper-raised px-2 py-1 text-body text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus"
+          />
+        </label>
+      ) : (
+        <p className="text-label text-ink-muted">{t('clustering.cutForm.noValidRange')}</p>
+      )}
 
-      {errors.k && (
+      {hasValidCutRange && errors.k && (
         <p role="alert" className="text-body text-danger">
           {t('clustering.cutForm.errors.kRange', { min: 2, max: n - 1 })}
         </p>
@@ -117,7 +123,7 @@ export function CutForm({ linkages, n, defaultLinkage, onSubmit, isPending, erro
 
       <button
         type="submit"
-        disabled={isPending}
+        disabled={isPending || !hasValidCutRange}
         className="w-fit rounded-btn bg-primary px-3 py-1.5 text-body text-primary-foreground hover:opacity-90 disabled:opacity-45 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus"
       >
         {isPending ? t('clustering.cutForm.pending') : t('clustering.cutForm.submit')}

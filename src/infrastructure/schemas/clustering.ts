@@ -56,6 +56,10 @@ export const LinkageResultSchema = z
   .refine((value) => value.documentIds.length === value.leafOrder.length, {
     message: 'documentIds must have exactly one entry per observation (same length as leafOrder)',
     path: ['documentIds'],
+  })
+  .refine((value) => new Set(value.documentIds).size === value.documentIds.length, {
+    message: 'documentIds must not contain duplicates (one entry per observation)',
+    path: ['documentIds'],
   });
 
 export const LinkageEvaluationSchema = z.object({
@@ -77,5 +81,9 @@ export const ClusterAssignmentSchema = z
   })
   .refine((value) => value.documentIds.length === value.labels.length, {
     message: 'documentIds must have exactly one entry per observation (same length as labels)',
+    path: ['documentIds'],
+  })
+  .refine((value) => new Set(value.documentIds).size === value.documentIds.length, {
+    message: 'documentIds must not contain duplicates (one entry per observation)',
     path: ['documentIds'],
   });

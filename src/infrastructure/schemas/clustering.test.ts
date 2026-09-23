@@ -133,6 +133,15 @@ describe('LinkageResultSchema (runtime)', () => {
       LinkageResultSchema.safeParse({ ...validPayload, documentIds: ['doc-01', 'doc-02'] }).success,
     ).toBe(false);
   });
+
+  it('rejects duplicate documentIds (same length as leafOrder, but not one entry per observation)', () => {
+    expect(
+      LinkageResultSchema.safeParse({
+        ...validPayload,
+        documentIds: ['doc-01', 'doc-01', 'doc-03'],
+      }).success,
+    ).toBe(false);
+  });
 });
 
 describe('ClusterAssignmentSchema (runtime)', () => {
@@ -161,6 +170,13 @@ describe('ClusterAssignmentSchema (runtime)', () => {
   it('rejects documentIds shorter than labels (n mismatch)', () => {
     expect(
       ClusterAssignmentSchema.safeParse({ ...validPayload, documentIds: ['a', 'b'] }).success,
+    ).toBe(false);
+  });
+
+  it('rejects duplicate documentIds (same length as labels, but not one entry per observation)', () => {
+    expect(
+      ClusterAssignmentSchema.safeParse({ ...validPayload, documentIds: ['a', 'a', 'c', 'd'] })
+        .success,
     ).toBe(false);
   });
 });
