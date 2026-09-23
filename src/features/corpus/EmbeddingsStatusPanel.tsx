@@ -152,7 +152,9 @@ function EmbeddingsStatusContent({ data }: { data: EmbeddingsStatusResponse }) {
   const modeLabel =
     data.embeddingApi.mode === 'live'
       ? t('corpus.embeddingsStatus.modeLive')
-      : t('corpus.embeddingsStatus.modeCached');
+      : data.embeddingApi.mode === 'cached'
+        ? t('corpus.embeddingsStatus.modeCached')
+        : t('corpus.embeddingsStatus.modeUnknown');
 
   return (
     <div className="flex flex-col gap-6">

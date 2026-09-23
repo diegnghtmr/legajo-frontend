@@ -54,7 +54,8 @@
       "deviceLabel": "Dispositivo",
       "modeLabel": "Modo",
       "modeCached": "En caché",
-      "modeLive": "En vivo"
+      "modeLive": "En vivo",
+      "modeUnknown": "Modo desconocido"
     }
   },
   "similarity": {

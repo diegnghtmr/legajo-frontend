@@ -4,9 +4,9 @@ import { shortenHash } from './shortenHash';
 
 describe('shortenHash', () => {
   it('shortens a real sha256 hex digest to a readable prefix…suffix form', () => {
-    const sha256 = 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b85';
+    const sha256 = 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855';
 
-    expect(shortenHash(sha256)).toBe('e3b0c442…852b85');
+    expect(shortenHash(sha256)).toBe('e3b0c442…52b855');
   });
 
   it('leaves a string at the exact boundary length unchanged', () => {
