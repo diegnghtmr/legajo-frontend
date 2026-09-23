@@ -1,0 +1,26 @@
+# Dependencies and build output — installed/rebuilt inside the image.
+node_modules
+dist
+dist-ssr
+
+# Test and coverage output — not part of the shipped image.
+coverage
+playwright-report
+test-results
+blob-report
+.playwright
+
+# VCS, CI and editor metadata.
+.git
+.github
+.vscode
+.idea
+.DS_Store
+*.local
+
+# Secrets: an env file must never reach the build context or the image.
+.env*
+
+# Local scratch and per-worktree tooling state.
+.scratch_mutation
+.codegraph
