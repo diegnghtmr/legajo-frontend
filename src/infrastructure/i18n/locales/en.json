@@ -12,7 +12,8 @@
   "nav": {
     "corpus": "Corpus",
     "similarity": "Similarity",
-    "clustering": "Clustering"
+    "clustering": "Clustering",
+    "benchmarks": "Benchmarks"
   },
   "corpus": {
     "eyebrow": "Corpus",
@@ -230,6 +231,56 @@
       "errors": {
         "kRange": "k must be an integer between {{min}} and {{max}}."
       }
+    }
+  },
+  "benchmarks": {
+    "eyebrow": "Benchmarks",
+    "title": "Performance benchmarks (JMH)",
+    "loading": "Loading the measurements…",
+    "errorTitle": "Could not load the benchmarks",
+    "scaleGroupLabel": "Scale",
+    "scaleLinear": "Linear",
+    "scaleLogLog": "Log–log",
+    "harness": {
+      "eyebrow": "Reference harness",
+      "title": "Reference machine (NFR-QA-10)",
+      "cpuModelLabel": "CPU",
+      "logicalCoresLabel": "Logical cores",
+      "ramLabel": "RAM",
+      "jdkLabel": "JDK",
+      "osLabel": "Operating system",
+      "measuredAtLabel": "Measured at"
+    },
+    "curves": {
+      "pairwiseTitle": "Classic pairwise algorithms",
+      "hacTitle": "Hierarchical linkages (HAC)",
+      "internalMetricsTitle": "Internal clustering metrics",
+      "xAxisLength": "Sequence length (L)",
+      "xAxisN": "Sample size (n)",
+      "yAxisLabel": "Time",
+      "legendTheoretical": "{{family}} (theoretical)",
+      "slopeTableCaption": "Log–log slope: {{group}}",
+      "slopeTableFamily": "Family",
+      "slopeTableEmpirical": "Empirical slope",
+      "slopeTableTheoretical": "Theoretical exponent",
+      "dataTableCaption": "Measured values: {{group}}",
+      "dataTableSize": "Size"
+    },
+    "embedding": {
+      "title": "Embedding primitives (O(d))",
+      "tileTitle": "d = {{dimension}}"
+    },
+    "slo": {
+      "title": "Performance targets (SLO)",
+      "classicTitle": "NFR-QA-01 — classic pairwise comparisons (n = 20)",
+      "clusteringTitle": "NFR-QA-02 — all four linkages (n = 20)",
+      "algorithmLabel": "Algorithm",
+      "familyLabel": "Family",
+      "valueLabel": "Measured",
+      "thresholdLabel": "Threshold",
+      "statusLabel": "Status",
+      "statusWithin": "Within threshold",
+      "statusExceeds": "Exceeds threshold"
     }
   },
   "notFound": {
