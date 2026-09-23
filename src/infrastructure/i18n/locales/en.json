@@ -266,7 +266,9 @@
       "slopeTableEmpirical": "Empirical slope",
       "slopeTableTheoretical": "Theoretical exponent",
       "dataTableCaption": "Measured values: {{group}}",
-      "dataTableSize": "Size"
+      "dataTableSize": "Size",
+      "dataTableMissingValue": "No data",
+      "noData": "No measurements available for this group."
     },
     "embedding": {
       "title": "Embedding primitives (O(d))",

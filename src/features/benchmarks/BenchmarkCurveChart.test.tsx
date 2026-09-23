@@ -170,4 +170,64 @@ describe('BenchmarkCurveChart', () => {
     expect(within(slopeTable).getByText('levenshtein')).toBeInTheDocument();
     expect(within(slopeTable).queryByText('jaccard')).not.toBeInTheDocument();
   });
+
+  it('shows a "no data" state instead of an empty chart when the group has no series', () => {
+    render(
+      <BenchmarkCurveChart
+        title="Empty group"
+        xAxisLabel="L"
+        yAxisLabel="T"
+        series={[]}
+        slopes={new Map()}
+        scale="linear"
+        dataTableCaption="empty-data"
+        slopeTableCaption="empty-slope"
+      />,
+    );
+
+    expect(screen.getByRole('heading', { name: 'Empty group' })).toBeInTheDocument();
+    expect(screen.getByRole('status')).toHaveTextContent(
+      'No hay mediciones disponibles para este grupo.',
+    );
+    expect(screen.queryByRole('group', { name: 'Empty group' })).not.toBeInTheDocument();
+  });
+
+  it('gives a missing value in the sr-only data table accessible text instead of an empty cell', () => {
+    const seriesWithGap: FamilySeries[] = [
+      {
+        family: 'levenshtein',
+        points: [{ size: 50, valueNs: 7_900 }],
+      },
+      {
+        family: 'jaccard',
+        points: [
+          { size: 50, valueNs: 4_500 },
+          { size: 100, valueNs: 20_300 },
+        ],
+      },
+    ];
+
+    render(
+      <BenchmarkCurveChart
+        title="Gap"
+        xAxisLabel="L"
+        yAxisLabel="T"
+        series={seriesWithGap}
+        slopes={new Map()}
+        scale="linear"
+        dataTableCaption="gap-data"
+        slopeTableCaption="gap-slope"
+      />,
+    );
+
+    const dataTable = screen.getByRole('table', { name: 'gap-data' });
+    const rows = within(dataTable).getAllByRole('row');
+    expect(rows).toHaveLength(3); // header + size 50 + size 100
+
+    // levenshtein has no point at size 100: its cell must say so, never an empty cell.
+    const size100Row = rows[2]!;
+    expect(within(size100Row).getByText('100')).toBeInTheDocument();
+    expect(within(size100Row).getByText('Sin dato')).toBeInTheDocument();
+    expect(within(size100Row).getByText('20.3 µs')).toBeInTheDocument();
+  });
 });

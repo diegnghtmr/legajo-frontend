@@ -266,7 +266,9 @@
       "slopeTableEmpirical": "Pendiente empírica",
       "slopeTableTheoretical": "Exponente teórico",
       "dataTableCaption": "Valores medidos: {{group}}",
-      "dataTableSize": "Tamaño"
+      "dataTableSize": "Tamaño",
+      "dataTableMissingValue": "Sin dato",
+      "noData": "No hay mediciones disponibles para este grupo."
     },
     "embedding": {
       "title": "Primitivas de embeddings (O(d))",
