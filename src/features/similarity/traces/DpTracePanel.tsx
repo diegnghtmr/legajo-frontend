@@ -62,7 +62,12 @@ export function DpTracePanel({ trace }: DpTracePanelProps) {
         <h3 className="mb-1 text-eyebrow font-semibold uppercase tracking-wide text-ink-secondary">
           {t('similarity.trace.dp.operationsHeading')}
         </h3>
-        <div className="max-h-64 overflow-auto rounded-md border border-hairline">
+        <div
+          role="region"
+          aria-label={t('similarity.trace.dp.operationsTableCaption', { id: trace.algorithmId })}
+          tabIndex={0}
+          className="max-h-64 overflow-auto rounded-md border border-hairline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus"
+        >
           <table className="w-full border-collapse text-left">
             <caption className="sr-only">
               {t('similarity.trace.dp.operationsTableCaption', { id: trace.algorithmId })}

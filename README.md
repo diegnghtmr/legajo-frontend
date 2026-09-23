@@ -32,10 +32,14 @@ Build the production image (`Dockerfile`, multi-stage: Node 24 build →
 `nginx-unprivileged` runtime). `VITE_API_BASE_URL` is a **required build-time**
 value — Vite inlines it into the bundle, so it cannot change after the image
 is built. There is no default: the build fails with a clear error if
-`--build-arg VITE_API_BASE_URL` is missing or empty, rather than silently
-shipping a bundle pointing at the wrong API. Every caller passes it
-explicitly — this command, the `image-smoke` CI job, and the future Compose
-`frontend` service:
+`--build-arg VITE_API_BASE_URL` is missing, empty, or has any whitespace
+inside the value (surrounding whitespace is trimmed; interior whitespace is
+rejected outright, never silently stripped — a typo like `http://local
+host:8080` must fail, not quietly become `http://localhost:8080`), rather
+than silently shipping a bundle pointing at the wrong API. Every caller
+passes it explicitly — this command, the `image-smoke` CI job, and the
+backend repository's Compose `frontend` service (task K4), which defaults
+this same argument to `http://localhost:8080`:
 
 ```sh
 docker build --build-arg VITE_API_BASE_URL=http://localhost:8080 \
@@ -58,10 +62,14 @@ Nothing in this repo is verified on the host — every check below runs inside
 a container (TRD §14.2). `scripts/npm-in-docker.sh` runs an `npm` command
 against the pinned `node:24-alpine` image, with the repo bind-mounted and
 `node_modules` kept in its own named Docker volume (so the container and any
-host-installed `node_modules` never collide). `scripts/e2e-in-docker.sh` and
-`scripts/smoke-image.sh` use their own pinned images for the same reason —
-see the comments at the top of each script for why they cannot share that
-volume or a base image with each other.
+host-installed `node_modules` never collide). `scripts/e2e-in-docker.sh` uses
+its own pinned Playwright image and its own `node_modules` volume, for a
+different reason: that image is glibc/Ubuntu while `node:24-alpine` is
+musl/Alpine, and this repo's native dependencies can't share binaries across
+the two (see the comment at the top of that script). `scripts/smoke-image.sh`
+is unrelated to either volume — it has no Node/`node_modules` of its own at
+all, only a `curl`-based check that runs in a separate, minimal pinned image
+(see the comment at the top of that script for why).
 
 | Check                                       | Container command                                                                            |
 | ------------------------------------------- | -------------------------------------------------------------------------------------------- |
@@ -75,6 +83,7 @@ volume or a base image with each other.
 | API types drift (after `npm run api:types`) | `scripts/npm-in-docker.sh run api:types` then `git diff --exit-code src/shared/types/api.ts` |
 | Mocked end-to-end (Playwright + axe)        | `scripts/e2e-in-docker.sh`                                                                   |
 | Image smoke test                            | needs a running container — see "Image smoke test" below                                     |
+| `docker-volume.sh` volume-ownership helper  | `scripts/tests/docker-volume.test.sh`                                                        |
 
 ### Image smoke test
 
@@ -91,8 +100,11 @@ readiness wait — a real wall-clock deadline (up to 30s total, each probe's
 own timeout capped by whatever is left of that budget) — plus a
 connect/total timeout on every ordinary request, so a not-yet-ready or hung
 container fails it clearly instead of hanging forever. It then checks the
-root document and a baseline security header, that a deep SPA route (e.g.
-`/clustering`) falls back to the same `index.html` with the same
+root document, all three security headers nginx.conf sets
+(`X-Content-Type-Options: nosniff`, `Referrer-Policy:
+strict-origin-when-cross-origin`, `X-Frame-Options: DENY`) plus a `Server`
+header with no version number (`server_tokens off`), that a deep SPA route
+(e.g. `/clustering`) falls back to the same `index.html` with the same
 `Cache-Control: no-cache`, and the cache headers on the hashed
 `/assets/*` output (cached for a year) — every check fails loudly on an
 empty or missing value rather than treating it as a pass.

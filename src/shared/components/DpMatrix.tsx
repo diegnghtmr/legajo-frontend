@@ -113,7 +113,10 @@ export function DpMatrix({
     <div className="flex flex-col gap-2">
       <div
         ref={containerRef}
-        className="max-h-[420px] max-w-full overflow-auto rounded-md border border-hairline"
+        role="region"
+        aria-label={ariaLabel}
+        tabIndex={0}
+        className="max-h-[420px] max-w-full overflow-auto rounded-md border border-hairline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus"
       >
         <table className="border-collapse text-center">
           <caption className="sr-only">{ariaLabel}</caption>
