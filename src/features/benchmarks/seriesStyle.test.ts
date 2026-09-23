@@ -13,6 +13,10 @@ describe('dashPatternForIndex', () => {
   it('cycles back to the first pattern past the fixed set', () => {
     expect(dashPatternForIndex(4)).toBe(dashPatternForIndex(0));
   });
+
+  it('wraps a negative index to the same pattern as its positive equivalent (safe modulo)', () => {
+    expect(dashPatternForIndex(-1)).toBe(dashPatternForIndex(3));
+  });
 });
 
 describe('markerShapeForIndex', () => {
@@ -23,5 +27,9 @@ describe('markerShapeForIndex', () => {
 
   it('cycles back to the first shape past the fixed set', () => {
     expect(markerShapeForIndex(4)).toBe(markerShapeForIndex(0));
+  });
+
+  it('wraps a negative index to the same shape as its positive equivalent (safe modulo)', () => {
+    expect(markerShapeForIndex(-1)).toBe(markerShapeForIndex(3));
   });
 });

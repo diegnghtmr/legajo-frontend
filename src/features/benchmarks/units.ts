@@ -32,21 +32,41 @@ function formatNumber(value: number): string {
   return Number.isInteger(rounded) ? String(rounded) : rounded.toFixed(1);
 }
 
+const DURATION_UNITS = [
+  { suffix: 'ns', divisor: 1 },
+  { suffix: 'µs', divisor: 1_000 },
+  { suffix: 'ms', divisor: 1_000_000 },
+  { suffix: 's', divisor: 1_000_000_000 },
+] as const;
+
 /**
  * Picks the most legible unit (ns / µs / ms / s) for a nanosecond duration,
  * for mono display next to a chart or metric tile. Purely presentational —
  * never used for the underlying comparisons, which always stay in
  * nanoseconds (`toNanoseconds`).
+ *
+ * The unit is chosen only after rounding to one decimal place: picking it
+ * from the raw magnitude first (e.g. `nanoseconds < 1_000_000` for ms) lets
+ * a value like `999_999_999` ns round to "1000.0 ms" instead of bumping up
+ * to "1 s", and `999.96` ns round to "1000.0 ns" instead of "1 µs".
  */
 export function formatDuration(nanoseconds: number): string {
-  if (nanoseconds < 1_000) {
-    return `${formatNumber(nanoseconds)} ns`;
+  let unitIndex = 0;
+  for (let index = DURATION_UNITS.length - 1; index >= 0; index -= 1) {
+    if (nanoseconds >= DURATION_UNITS[index].divisor) {
+      unitIndex = index;
+      break;
+    }
   }
-  if (nanoseconds < 1_000_000) {
-    return `${formatNumber(nanoseconds / 1_000)} µs`;
+
+  while (unitIndex < DURATION_UNITS.length - 1) {
+    const rounded = Math.round((nanoseconds / DURATION_UNITS[unitIndex]!.divisor) * 10) / 10;
+    if (rounded < 1_000) {
+      break;
+    }
+    unitIndex += 1;
   }
-  if (nanoseconds < 1_000_000_000) {
-    return `${formatNumber(nanoseconds / 1_000_000)} ms`;
-  }
-  return `${formatNumber(nanoseconds / 1_000_000_000)} s`;
+
+  const { suffix, divisor } = DURATION_UNITS[unitIndex]!;
+  return `${formatNumber(nanoseconds / divisor)} ${suffix}`;
 }

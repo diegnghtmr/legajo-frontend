@@ -42,4 +42,16 @@ describe('formatDuration', () => {
   it('formats second-scale values in s', () => {
     expect(formatDuration(2_500_000_000)).toBe('2.5 s');
   });
+
+  it('picks the unit after rounding: 999_999_999 ns rounds up to 1000.0 ms, which bumps to 1 s', () => {
+    expect(formatDuration(999_999_999)).toBe('1 s');
+  });
+
+  it('picks the unit after rounding: 999.96 ns rounds up to 1000.0 ns, which bumps to 1 µs', () => {
+    expect(formatDuration(999.96)).toBe('1 µs');
+  });
+
+  it('does not bump the unit for a value that rounds to just under the next order of magnitude', () => {
+    expect(formatDuration(999.94)).toBe('999.9 ns');
+  });
 });
