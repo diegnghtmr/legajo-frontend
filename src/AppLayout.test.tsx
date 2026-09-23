@@ -31,6 +31,7 @@ describe('AppLayout', () => {
     expect(screen.getByRole('link', { name: 'Corpus' })).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Similitud' })).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Agrupamiento' })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Benchmarks' })).toBeInTheDocument();
   });
 
   it('marks the active section link with aria-current', () => {

@@ -12,7 +12,8 @@
   "nav": {
     "corpus": "Corpus",
     "similarity": "Similitud",
-    "clustering": "Agrupamiento"
+    "clustering": "Agrupamiento",
+    "benchmarks": "Benchmarks"
   },
   "corpus": {
     "eyebrow": "Corpus",
@@ -230,6 +231,56 @@
       "errors": {
         "kRange": "k debe ser un entero entre {{min}} y {{max}}."
       }
+    }
+  },
+  "benchmarks": {
+    "eyebrow": "Benchmarks",
+    "title": "Benchmarks de rendimiento (JMH)",
+    "loading": "Cargando las mediciones…",
+    "errorTitle": "No se pudieron cargar los benchmarks",
+    "scaleGroupLabel": "Escala",
+    "scaleLinear": "Lineal",
+    "scaleLogLog": "Log–log",
+    "harness": {
+      "eyebrow": "Arnés de referencia",
+      "title": "Máquina de referencia (NFR-QA-10)",
+      "cpuModelLabel": "CPU",
+      "logicalCoresLabel": "Núcleos lógicos",
+      "ramLabel": "RAM",
+      "jdkLabel": "JDK",
+      "osLabel": "Sistema operativo",
+      "measuredAtLabel": "Medido el"
+    },
+    "curves": {
+      "pairwiseTitle": "Algoritmos clásicos por pares",
+      "hacTitle": "Enlaces jerárquicos (HAC)",
+      "internalMetricsTitle": "Métricas internas de agrupamiento",
+      "xAxisLength": "Longitud de secuencia (L)",
+      "xAxisN": "Tamaño de muestra (n)",
+      "yAxisLabel": "Tiempo",
+      "legendTheoretical": "{{family}} (teórico)",
+      "slopeTableCaption": "Pendiente log–log: {{group}}",
+      "slopeTableFamily": "Familia",
+      "slopeTableEmpirical": "Pendiente empírica",
+      "slopeTableTheoretical": "Exponente teórico",
+      "dataTableCaption": "Valores medidos: {{group}}",
+      "dataTableSize": "Tamaño"
+    },
+    "embedding": {
+      "title": "Primitivas de embeddings (O(d))",
+      "tileTitle": "d = {{dimension}}"
+    },
+    "slo": {
+      "title": "Objetivos de rendimiento (SLO)",
+      "classicTitle": "NFR-QA-01 — comparaciones clásicas por pares (n = 20)",
+      "clusteringTitle": "NFR-QA-02 — los cuatro enlaces (n = 20)",
+      "algorithmLabel": "Algoritmo",
+      "familyLabel": "Familia",
+      "valueLabel": "Medido",
+      "thresholdLabel": "Umbral",
+      "statusLabel": "Estado",
+      "statusWithin": "Dentro del umbral",
+      "statusExceeds": "Excede el umbral"
     }
   },
   "notFound": {

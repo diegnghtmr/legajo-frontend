@@ -1,6 +1,7 @@
 import { Navigate, Route, Routes } from 'react-router';
 
 import { AppLayout } from './AppLayout';
+import { BenchmarksPage } from './features/benchmarks/BenchmarksPage';
 import { CorpusDetail } from './features/corpus/CorpusDetail';
 import { CorpusDetailPlaceholder } from './features/corpus/CorpusDetailPlaceholder';
 import { CorpusPage } from './features/corpus/CorpusPage';
@@ -33,6 +34,7 @@ export function App() {
         <Route path="similarity/matrix" element={<SimilarityMatrixPage />} />
         <Route path="similarity/:algorithmId/trace" element={<SimilarityTracePage />} />
         <Route path="clustering" element={<ClusteringPage />} />
+        <Route path="benchmarks" element={<BenchmarksPage />} />
         <Route path="*" element={<NotFoundPage />} />
       </Route>
     </Routes>
