@@ -60,19 +60,39 @@ si lo usa una sola, se queda dentro de esa feature.
 ## Comandos
 
 Definidos por el TRD, apéndice A; `package.json` confirma los nombres reales.
+**Regla del autor: nada se prueba en el pc, se prueba en contenedores** (TRD
+§14.2). `npm run dev` es la única excepción razonable (servidor de
+desarrollo, no una comprobación); todo lo demás se ejecuta con los scripts de
+`scripts/` sobre imágenes fijadas, nunca con `mise`/`npm`/`npx` del host.
 
-| Para | Comando |
+| Para | Comando en contenedor |
 |---|---|
-| Desarrollo con proxy `/api` al backend en `localhost:8080` | `npm run dev` |
-| Regenerar los tipos desde el OpenAPI del backend | `npm run api:types` |
-| Tipos, lint y formato | `npm run typecheck`, `npm run lint`, `npm run format` |
-| Pruebas unitarias y cobertura | `npm run test`, `npm run test:coverage` |
-| Extremo a extremo con axe | `npm run e2e` |
-| Build de producción | `npm run build` |
+| Desarrollo con proxy `/api` al backend en `localhost:8080` (host, no es una comprobación) | `npm run dev` |
+| Instalar dependencias | `scripts/npm-in-docker.sh ci` |
+| Regenerar los tipos desde el OpenAPI del backend | `scripts/npm-in-docker.sh run api:types` |
+| Tipos | `scripts/npm-in-docker.sh run typecheck` |
+| Lint | `scripts/npm-in-docker.sh run lint` |
+| Formato | `scripts/npm-in-docker.sh run format:check` |
+| Conformidad de tokens (sin hex fuera de `@theme`) | `scripts/npm-in-docker.sh run check:tokens` |
+| Pruebas unitarias y cobertura | `scripts/npm-in-docker.sh run test:coverage` |
+| Build de producción | `scripts/npm-in-docker.sh run build` |
+| Extremo a extremo con axe (simulado, imagen oficial de Playwright) | `scripts/e2e-in-docker.sh` |
+| Humo de la imagen (contra un contenedor ya corriendo) | `docker run --rm --network host -v "$(pwd)":/workspace:ro -w /workspace curlimages/curl:8.15.0 sh scripts/smoke-image.sh <base-url>` |
+
+`scripts/npm-in-docker.sh` corre sobre `node:24-alpine` con el repositorio
+montado y `node_modules` en un volumen Docker con nombre propio, para que el
+contenedor nunca choque con un `node_modules` instalado en el host.
+`scripts/e2e-in-docker.sh` usa la imagen oficial de Playwright que coincide
+con la versión fijada de `@playwright/test`, con sus navegadores incluidos —
+nunca Chromium del host ni una configuración temporal apuntando a él — y su
+propio volumen de `node_modules` (musl/Alpine y glibc/Ubuntu no pueden
+compartir binarios nativos). El detalle de cada decisión está comentado en la
+cabecera del script correspondiente.
 
 La CI falla si `src/shared/types/api.ts` no coincide con el OpenAPI publicado, si
 un esquema Zod y los tipos generados discrepan en campos requeridos, si hay
-valores hex fuera de `@theme`, o si axe reporta violaciones AA en los flujos A y B.
+valores hex fuera de `@theme`, si axe reporta violaciones AA en los flujos A y B,
+o si la prueba de humo de la imagen (`image-smoke`, TRD §14.3) falla.
 
 ## Reglas que no se negocian
 
@@ -135,7 +155,7 @@ TDD estricto: rojo, verde, refactor.
 
 - Leer `DESIGN.md` y TRD §6.7 antes de cualquier PR de interfaz.
 - Cambiar tokens en el YAML de `DESIGN.md` y en `@theme` antes que en componentes.
-- Escribir la prueba antes del código y correr `typecheck`, `lint`, `test` y `e2e` antes del commit.
+- Escribir la prueba antes del código y correr `typecheck`, `lint`, `test` y `e2e` antes del commit, siempre con los comandos en contenedor de la tabla anterior.
 - Mantener el mapa de este archivo al día cuando se mueve algo.
 
 ## Si algo no está claro

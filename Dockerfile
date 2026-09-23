@@ -1,9 +1,9 @@
 # syntax=docker/dockerfile:1
 #
 # Legajo frontend image (TRD §14.2): a multi-stage build that compiles the
-# Vite bundle with Node 24, then serves it as static files from nginx. This
-# is the same image the local Compose stack (backend repo) and, later, a
-# Docker-based host run — no runtime Node in the shipped image.
+# Vite bundle with Node 24, then serves the static output with nginx. The
+# local Compose stack (backend repo) runs this same image, as would any
+# other Docker-based host; no runtime Node ships in the final image.
 
 ##### Build stage ############################################################
 FROM node:24-alpine AS build
@@ -25,13 +25,33 @@ COPY . .
 # Build-time API base URL (TRD §14.2, Appendix A): Vite inlines it into the
 # bundle at build time (src/infrastructure/env.ts requires an absolute URL
 # for a production build), so it cannot be changed after `npm run build`.
-# The default targets the backend service name/port of the default-profile
-# Compose stack (TRD §14.1/§14.2: backend on :8080); override with
-# `--build-arg VITE_API_BASE_URL=...` for CI or another deployed target.
-ARG VITE_API_BASE_URL=http://localhost:8080
-ENV VITE_API_BASE_URL=${VITE_API_BASE_URL}
-
-RUN npm run build
+# There is no default: a silently-applied default could ship a bundle that
+# points at the wrong API without anyone noticing, so every caller passes
+# it explicitly — the default-profile Compose stack (TRD §14.1/§14.2:
+# backend on :8080), the `image-smoke` CI job, and any manual build (see
+# README "Running with Docker").
+ARG VITE_API_BASE_URL
+# The guard and the build run in the SAME shell (one RUN), not a guard RUN
+# followed by a separate `ENV VITE_API_BASE_URL=${VITE_API_BASE_URL}`: an
+# `ENV` instruction can only read the original ARG, not a shell variable a
+# prior RUN computed, so a previous version of this check validated
+# `trimmed` but then still exported the untrimmed `$VITE_API_BASE_URL` to
+# the build — a value with surrounding whitespace (e.g.
+# `--build-arg 'VITE_API_BASE_URL= http://localhost:8080 '`) passed the
+# guard yet still reached Vite with the whitespace intact. Prefixing `npm
+# run build` with `VITE_API_BASE_URL="$trimmed"` guarantees the exact value
+# that was validated is the exact value Vite inlines into the bundle.
+RUN trimmed="$(printf '%s' "$VITE_API_BASE_URL" | tr -d '[:space:]')"; \
+    if [ -z "$trimmed" ]; then \
+      echo "ERROR: --build-arg VITE_API_BASE_URL is required and must not be empty or whitespace-only." >&2; \
+      echo "  Vite inlines it into the bundle at build time (TRD Appendix A); an" >&2; \
+      echo "  unset/blank value would silently ship a bundle pointing at the wrong API." >&2; \
+      echo "  Docker/Compose build: --build-arg VITE_API_BASE_URL=http://localhost:8080" >&2; \
+      echo "  Vercel: set VITE_API_BASE_URL as a Project Environment Variable instead —" >&2; \
+      echo "  Vercel builds this app with Vite directly, not through this Dockerfile." >&2; \
+      exit 1; \
+    fi; \
+    VITE_API_BASE_URL="$trimmed" npm run build
 
 ##### Runtime stage ###########################################################
 # nginx-unprivileged (not the official nginx image) so the container never
