@@ -131,6 +131,17 @@ export function BenchmarkCurveChart({
 }: BenchmarkCurveChartProps) {
   const { t } = useTranslation();
 
+  if (series.length === 0) {
+    return (
+      <Panel>
+        <PanelHeader title={title} />
+        <p role="status" className="text-body text-ink-secondary">
+          {t('benchmarks.curves.noData')}
+        </p>
+      </Panel>
+    );
+  }
+
   const chartData = mergeSeriesIntoRows(series);
   const plottedSeries = seriesForPlotting(series, scale);
   const rowsBySize = new Map(
@@ -271,7 +282,9 @@ export function BenchmarkCurveChart({
               <td>{row.size}</td>
               {series.map((entry) => (
                 <td key={entry.family}>
-                  {row[entry.family] === undefined ? '' : formatDuration(row[entry.family]!)}
+                  {row[entry.family] === undefined
+                    ? t('benchmarks.curves.dataTableMissingValue')
+                    : formatDuration(row[entry.family]!)}
                 </td>
               ))}
             </tr>
