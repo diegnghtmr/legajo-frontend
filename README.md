@@ -29,9 +29,13 @@ for the full pile and folder map.
 ## Running with Docker
 
 Build the production image (`Dockerfile`, multi-stage: Node 24 build →
-`nginx-unprivileged` runtime). `VITE_API_BASE_URL` is a **build-time** value —
-Vite inlines it into the bundle, so it cannot change after the image is
-built:
+`nginx-unprivileged` runtime). `VITE_API_BASE_URL` is a **required build-time**
+value — Vite inlines it into the bundle, so it cannot change after the image
+is built. There is no default: the build fails with a clear error if
+`--build-arg VITE_API_BASE_URL` is missing or empty, rather than silently
+shipping a bundle pointing at the wrong API. Every caller passes it
+explicitly — this command, the `image-smoke` CI job, and the future Compose
+`frontend` service:
 
 ```sh
 docker build --build-arg VITE_API_BASE_URL=http://localhost:8080 \
@@ -73,9 +77,14 @@ volume or a base image with each other.
 | Image smoke test (against a running container, see below) | `docker run --rm --network host -v "$(pwd)":/workspace:ro -w /workspace curlimages/curl:8.15.0 sh scripts/smoke-image.sh <base-url>` |
 
 The image smoke test needs a container already running (see "Running with
-Docker" above), then checks the root document, that a deep SPA route (e.g.
-`/clustering`) falls back to the same `index.html`, and the cache headers
-(`index.html` never cached, hashed `/assets/*` cached for a year).
+Docker" above). It can run right away, with no separate wait step: it has its
+own bounded readiness wait (up to 30s, polling the container directly) plus a
+connect/total timeout on every request, so a not-yet-ready or hung container
+fails it clearly instead of hanging forever. It then checks the root
+document, that a deep SPA route (e.g. `/clustering`) falls back to the same
+`index.html`, and the cache headers (`index.html` never cached, hashed
+`/assets/*` cached for a year) — every check fails loudly on an empty or
+missing value rather than treating it as a pass.
 
 A full-stack end-to-end suite against the real backend — no `page.route`
 mocks — arrives in a follow-up task (F3); today's `npm run e2e` /
@@ -120,9 +129,10 @@ without reaching into the private, sibling `backend/` repo:
   development (the Vite proxy handles `/api`); required and validated as an
   absolute URL for a production build (`src/infrastructure/env.ts`) — set to
   the deployed Render URL for Vercel, or passed as `--build-arg
-  VITE_API_BASE_URL=...` for the Docker image. `.env.example` documents this
-  variable for local `npm run dev`/`npm run build` use; never commit a real
-  value.
+  VITE_API_BASE_URL=...` for the Docker image, where a missing or empty value
+  fails the build immediately with a clear error (no silent default: see
+  "Running with Docker"). `.env.example` documents this variable for local
+  `npm run dev`/`npm run build` use; never commit a real value.
 
 ## Deployment
 

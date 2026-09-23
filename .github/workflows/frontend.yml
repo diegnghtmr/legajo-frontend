@@ -80,18 +80,9 @@ jobs:
       - name: Run container
         run: docker run -d --name legajo-frontend-smoke -p 8081:8080 legajo-frontend:ci
 
-      - name: Wait for container to become healthy
-        run: |
-          for _ in $(seq 1 30); do
-            status="$(docker inspect --format='{{.State.Health.Status}}' legajo-frontend-smoke)"
-            if [ "$status" = "healthy" ]; then
-              exit 0
-            fi
-            sleep 1
-          done
-          echo "legajo-frontend-smoke did not become healthy in time" >&2
-          exit 1
-
+      # No separate wait step: scripts/smoke-image.sh has its own bounded
+      # readiness wait (30s, polling the container directly), so it can run
+      # right after `docker run` with no blind `sleep` in this workflow.
       - name: Image smoke test
         run: |
           docker run --rm --network host \

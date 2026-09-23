@@ -23,13 +23,9 @@ REPO_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
 IMAGE="node:24-alpine"
 VOLUME="legajo-frontend-node-modules-alpine"
 
-docker volume create "${VOLUME}" >/dev/null
-
-# The volume is root-owned the first time Docker creates it; align it with
-# the host uid/gid up front so the actual command below (run unprivileged)
-# can read and write it. A no-op chown on later runs is cheap.
-docker run --rm -v "${VOLUME}:/vol" "${IMAGE}" \
-  chown -R "$(id -u):$(id -g)" /vol
+# shellcheck source=lib/docker-volume.sh
+source "${SCRIPT_DIR}/lib/docker-volume.sh"
+prepare_host_owned_volume "${VOLUME}" "${IMAGE}"
 
 docker run --rm \
   --user "$(id -u):$(id -g)" \
