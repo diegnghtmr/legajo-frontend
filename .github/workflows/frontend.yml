@@ -131,3 +131,60 @@ jobs:
       - name: Clean up container
         if: always()
         run: docker rm -f legajo-frontend-smoke
+
+  # Full-stack e2e against the real backend, no mocks (F3/F4, TRD
+  # §14.3/1.3.11): checks out the sibling backend repository with a
+  # read-only deploy key, brings up both services from the backend's own
+  # docker-compose.yml (task K4), and runs e2e-fullstack/ against them.
+  # Independent of `ci` and `image-smoke` above.
+  #
+  # A pull request from a fork cannot read this repository's secrets, so
+  # LEGAJO_BACKEND_DEPLOY_KEY would be empty for one — this repository is
+  # private, so GitHub does not accept fork PRs against it at all, but the
+  # explicit check below stays regardless, so a future visibility change
+  # never turns "no secret" into a silent skip.
+  fullstack-e2e:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # Fails loudly, by name, before the next step ever runs — never a
+      # silent skip and never a generic downstream auth error from
+      # actions/checkout. The secret is passed through `env:`, never
+      # interpolated into the `run:` script text, so a shell expansion
+      # mistake can never end up echoing or otherwise exposing it.
+      - name: Verify LEGAJO_BACKEND_DEPLOY_KEY is set
+        env:
+          DEPLOY_KEY: ${{ secrets.LEGAJO_BACKEND_DEPLOY_KEY }}
+        run: |
+          if [ -z "$DEPLOY_KEY" ]; then
+            echo "ERROR: the LEGAJO_BACKEND_DEPLOY_KEY secret is empty or missing." >&2
+            echo "  This job needs it to check out diegnghtmr/legajo-backend read-only" >&2
+            echo "  (TRD §14.3/1.3.11); it must never be skipped silently." >&2
+            exit 1
+          fi
+
+      - name: Checkout legajo-backend (read-only deploy key)
+        uses: actions/checkout@v4
+        with:
+          repository: diegnghtmr/legajo-backend
+          ssh-key: ${{ secrets.LEGAJO_BACKEND_DEPLOY_KEY }}
+          path: legajo-backend
+          ref: main
+
+      # scripts/e2e-fullstack-in-docker.sh brings the Compose stack up,
+      # builds this checkout's own frontend image into it, runs the
+      # no-mocks suite, and always tears the stack down (its own trap),
+      # dumping Compose logs on failure.
+      - name: Full-stack e2e (no mocks)
+        run: LEGAJO_BACKEND_DIR=legajo-backend scripts/e2e-fullstack-in-docker.sh
+
+      - name: Upload full-stack Playwright report
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report-fullstack
+          path: |
+            playwright-report-fullstack/
+            test-results-fullstack/
+          retention-days: 7
