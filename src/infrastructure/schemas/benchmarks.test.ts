@@ -133,3 +133,38 @@ describe('BenchmarkReportSchema (runtime)', () => {
     expect(BenchmarkReportSchema.safeParse({ results: [], slopes: [] }).success).toBe(false);
   });
 });
+
+describe('BenchmarkReportSchema (runtime): duplicate (family, size) results', () => {
+  const harness = {
+    cpuModel: 'x',
+    logicalCores: 1,
+    totalRamBytes: 1,
+    jdk: 'x',
+    os: 'x',
+    measuredAt: '2026-01-01T00:00:00Z',
+  };
+
+  function resultAt(family: string, size: number, score: number) {
+    return { benchmark: 'x', family, parameter: 'length', size, score, error: 0, unit: 'ns/op' };
+  }
+
+  it('accepts two different families sharing the same size', () => {
+    expect(
+      BenchmarkReportSchema.safeParse({
+        harness,
+        results: [resultAt('levenshtein', 50, 1), resultAt('jaccard', 50, 2)],
+        slopes: [],
+      }).success,
+    ).toBe(true);
+  });
+
+  it('rejects two results for the same (family, size) pair instead of letting one silently overwrite the other downstream', () => {
+    expect(
+      BenchmarkReportSchema.safeParse({
+        harness,
+        results: [resultAt('levenshtein', 50, 1), resultAt('levenshtein', 50, 2)],
+        slopes: [],
+      }).success,
+    ).toBe(false);
+  });
+});

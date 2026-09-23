@@ -36,8 +36,32 @@ export const BenchmarkSlopeSchema = z.object({
   theoreticalExponent: z.number(),
 });
 
-export const BenchmarkReportSchema = z.object({
-  harness: BenchmarkHarnessSchema,
-  results: z.array(BenchmarkResultSchema),
-  slopes: z.array(BenchmarkSlopeSchema),
-});
+/**
+ * `mergeSeriesIntoRows` (`features/benchmarks/grouping.ts`) keys its output
+ * rows by `(family, size)`, so a second result for the same pair would
+ * silently overwrite the first instead of being reported — reject that
+ * shape here instead, so the page shows its error state up front.
+ */
+export const BenchmarkReportSchema = z
+  .object({
+    harness: BenchmarkHarnessSchema,
+    results: z.array(BenchmarkResultSchema),
+    slopes: z.array(BenchmarkSlopeSchema),
+  })
+  .refine(
+    (value) => {
+      const seen = new Set<string>();
+      for (const result of value.results) {
+        const key = `${result.family}\u0000${result.size}`;
+        if (seen.has(key)) {
+          return false;
+        }
+        seen.add(key);
+      }
+      return true;
+    },
+    {
+      message: 'results must not contain two entries for the same (family, size) pair',
+      path: ['results'],
+    },
+  );
