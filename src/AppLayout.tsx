@@ -42,6 +42,7 @@ const SECTIONS = [
   { to: '/corpus', labelKey: 'nav.corpus' },
   { to: '/similarity', labelKey: 'nav.similarity' },
   { to: '/clustering', labelKey: 'nav.clustering' },
+  { to: '/benchmarks', labelKey: 'nav.benchmarks' },
 ] as const;
 
 /**
