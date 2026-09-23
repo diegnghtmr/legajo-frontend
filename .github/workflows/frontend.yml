@@ -61,3 +61,47 @@ jobs:
             playwright-report/
             test-results/
           retention-days: 7
+
+  # Builds the shipped container image and checks that it actually serves the
+  # SPA correctly (TRD §14.2/§14.3): root document, SPA fallback on a deep
+  # route, and the cache headers on index.html vs. hashed assets. Independent
+  # of the `ci` job above; it never touches host Node, only Docker.
+  image-smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build image
+        run: |
+          docker build \
+            --build-arg VITE_API_BASE_URL=http://localhost:8080 \
+            -t legajo-frontend:ci .
+
+      - name: Run container
+        run: docker run -d --name legajo-frontend-smoke -p 8081:8080 legajo-frontend:ci
+
+      - name: Wait for container to become healthy
+        run: |
+          for _ in $(seq 1 30); do
+            status="$(docker inspect --format='{{.State.Health.Status}}' legajo-frontend-smoke)"
+            if [ "$status" = "healthy" ]; then
+              exit 0
+            fi
+            sleep 1
+          done
+          echo "legajo-frontend-smoke did not become healthy in time" >&2
+          exit 1
+
+      - name: Image smoke test
+        run: |
+          docker run --rm --network host \
+            -v "$PWD":/workspace:ro -w /workspace \
+            curlimages/curl:8.15.0 sh scripts/smoke-image.sh http://localhost:8081
+
+      - name: Container logs on failure
+        if: failure()
+        run: docker logs legajo-frontend-smoke
+
+      - name: Clean up container
+        if: always()
+        run: docker rm -f legajo-frontend-smoke

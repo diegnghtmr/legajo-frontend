@@ -19,9 +19,67 @@ for the full pile and folder map.
 
 ## Requirements
 
-- Node 24 LTS. This repo pins it via `.nvmrc` and `package.json#engines`. If
-  your machine's default Node is different, run commands through
-  [`mise`](https://mise.jdx.dev): `mise exec node@24 -- npm <script>`.
+- Docker (29+) and Docker Compose. Every check, build and test in this repo
+  runs inside a container — see "Checks run in containers" below — so a host
+  install of Node is not required to work on this app.
+- Node 24 LTS is still pinned via `.nvmrc` and `package.json#engines` for
+  editor tooling (IntelliSense, `tsc` in your IDE); it is never required to
+  run a check.
+
+## Running with Docker
+
+Build the production image (`Dockerfile`, multi-stage: Node 24 build →
+`nginx-unprivileged` runtime). `VITE_API_BASE_URL` is a **build-time** value —
+Vite inlines it into the bundle, so it cannot change after the image is
+built:
+
+```sh
+docker build --build-arg VITE_API_BASE_URL=http://localhost:8080 \
+  -t legajo-frontend:local .
+```
+
+Run it. The container listens on `:8080` (it runs as a non-root user, so it
+cannot bind `:80` itself); publish it on host `:80` per TRD §14.2:
+
+```sh
+docker run --rm -p 80:8080 legajo-frontend:local
+```
+
+The image ships a `HEALTHCHECK` that polls `/`; `docker ps` shows
+`healthy`/`unhealthy` once it settles.
+
+## Checks run in containers
+
+Nothing in this repo is verified on the host — every check below runs inside
+a container (TRD §14.2). `scripts/npm-in-docker.sh` runs an `npm` command
+against the pinned `node:24-alpine` image, with the repo bind-mounted and
+`node_modules` kept in its own named Docker volume (so the container and any
+host-installed `node_modules` never collide). `scripts/e2e-in-docker.sh` and
+`scripts/smoke-image.sh` use their own pinned images for the same reason —
+see the comments at the top of each script for why they cannot share that
+volume or a base image with each other.
+
+| Check | Container command |
+| --- | --- |
+| Install dependencies | `scripts/npm-in-docker.sh ci` |
+| Format check | `scripts/npm-in-docker.sh run format:check` |
+| Lint | `scripts/npm-in-docker.sh run lint` |
+| Typecheck | `scripts/npm-in-docker.sh run typecheck` |
+| Design token conformance | `scripts/npm-in-docker.sh run check:tokens` |
+| Unit/contract tests with coverage | `scripts/npm-in-docker.sh run test:coverage` |
+| Production build | `scripts/npm-in-docker.sh run build` |
+| API types drift (after `npm run api:types`) | `scripts/npm-in-docker.sh run api:types` then `git diff --exit-code src/shared/types/api.ts` |
+| Mocked end-to-end (Playwright + axe) | `scripts/e2e-in-docker.sh` |
+| Image smoke test (against a running container, see below) | `docker run --rm --network host -v "$(pwd)":/workspace:ro -w /workspace curlimages/curl:8.15.0 sh scripts/smoke-image.sh <base-url>` |
+
+The image smoke test needs a container already running (see "Running with
+Docker" above), then checks the root document, that a deep SPA route (e.g.
+`/clustering`) falls back to the same `index.html`, and the cache headers
+(`index.html` never cached, hashed `/assets/*` cached for a year).
+
+A full-stack end-to-end suite against the real backend — no `page.route`
+mocks — arrives in a follow-up task (F3); today's `npm run e2e` /
+`scripts/e2e-in-docker.sh` suite mocks every API response.
 
 ## Scripts
 
@@ -57,14 +115,30 @@ without reaching into the private, sibling `backend/` repo:
 
 ## Environment
 
-- `VITE_API_BASE_URL` — base URL of the backend API, set at build time. Empty
-  in development (the Vite proxy handles `/api`); set to the deployed Render
-  URL for a production build. Document it in `.env.example` (this task did not
-  create that file — see the W1 progress notes for why); never commit a real
+- `VITE_API_BASE_URL` — base URL of the backend API, set at **build time**
+  (Vite inlines it into the bundle; it cannot be changed at runtime). Empty in
+  development (the Vite proxy handles `/api`); required and validated as an
+  absolute URL for a production build (`src/infrastructure/env.ts`) — set to
+  the deployed Render URL for Vercel, or passed as `--build-arg
+  VITE_API_BASE_URL=...` for the Docker image. `.env.example` documents this
+  variable for local `npm run dev`/`npm run build` use; never commit a real
   value.
 
 ## Deployment
 
 Static Vercel deployment of the Vite build; `vercel.json` rewrites every route
-to `/index.html` (SPA fallback). See TRD §14.4 for the Render/Vercel pairing
-and CORS origins.
+to `/index.html` (SPA fallback). The `nginx.conf`/`try_files` fallback in this
+repo's Docker image is the equivalent for the local Compose stack and any
+other container-based host. See TRD §14.4 for the Render/Vercel pairing and
+CORS origins.
+
+**Public URLs (TAC-11, pending deploy):**
+
+- Frontend (Vercel): _pending — not deployed yet_
+- Backend API base (Render): _pending — not deployed yet_
+
+**Cold start.** The backend runs on Render's free tier, which suspends the
+service when idle; the first request after a period of inactivity can take
+tens of seconds while the instance wakes up. Before a live demo, poll
+`GET <backend URL>/actuator/health` until it returns 200 so the instance is
+already warm when the audience watches (TRD §14.4 point 4).
