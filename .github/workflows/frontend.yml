@@ -5,6 +5,11 @@ on:
     branches: [main]
   pull_request:
 
+# Least-privilege default: neither job pushes, comments, or otherwise writes
+# anything back to the repository or its GITHUB_TOKEN-scoped resources.
+permissions:
+  contents: read
+
 defaults:
   run:
     working-directory: .
@@ -76,6 +81,36 @@ jobs:
           docker build \
             --build-arg VITE_API_BASE_URL=http://localhost:8080 \
             -t legajo-frontend:ci .
+
+      # Cheap on top of the successful build above: only the ARG-guard layer
+      # and anything after it are cache-invalidated by a different build-arg
+      # value (everything before it — npm ci, COPY — hits the existing
+      # cache), and the guard fails before the expensive `npm run build`
+      # layer ever runs. Guards against the required-arg check regressing
+      # back to a silent default.
+      #
+      # A build failing is not, on its own, proof of that: a network error,
+      # a Docker daemon hiccup, or a base-image pull failure would also make
+      # `docker build` exit non-zero, and would wrongly pass a check that
+      # only looked at the exit code. So this also asserts the captured
+      # output actually contains the guard's own message.
+      - name: Negative test - build fails without VITE_API_BASE_URL
+        run: |
+          set +e
+          docker build -t legajo-frontend:negative-test . >negative-build.log 2>&1
+          build_status=$?
+          set -e
+          if [ "$build_status" -eq 0 ]; then
+            echo "ERROR: docker build succeeded without --build-arg VITE_API_BASE_URL; the required-arg guard regressed." >&2
+            cat negative-build.log >&2
+            exit 1
+          fi
+          if ! grep -q "VITE_API_BASE_URL is required" negative-build.log; then
+            echo "ERROR: docker build failed without --build-arg VITE_API_BASE_URL, but not with the expected guard message — this looks like an unrelated build failure (network, Docker daemon, base image pull, ...), not proof the required-arg guard is working." >&2
+            cat negative-build.log >&2
+            exit 1
+          fi
+          echo "OK: build correctly failed without --build-arg VITE_API_BASE_URL, with the expected guard message"
 
       - name: Run container
         run: docker run -d --name legajo-frontend-smoke -p 8081:8080 legajo-frontend:ci
