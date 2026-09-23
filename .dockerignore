@@ -24,3 +24,16 @@ blob-report
 # Local scratch and per-worktree tooling state.
 .scratch_mutation
 .codegraph
+
+# CI-only sibling backend checkout for the full-stack e2e job (F4:
+# actions/checkout path=legajo-backend, scripts/e2e-fullstack-in-docker.sh).
+# It lands *inside* this repo's workspace in CI, never in a local checkout,
+# but the frontend image build context must never include it: the backend
+# repo builds its own image from its own Dockerfile, and without this entry
+# `docker build .` here would silently pull the entire sibling repository
+# (including its own .git history) into the frontend build context.
+legajo-backend/
+
+# Full-stack e2e report/output directories (never part of the shipped image).
+playwright-report-fullstack
+test-results-fullstack
