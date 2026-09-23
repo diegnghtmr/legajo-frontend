@@ -201,6 +201,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/benchmarks": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * JMH reference-run measurements
+         * @description Reads the versioned benchmarks/results/jmh-results.csv and slopes.csv exports as-is (TRD §6.6, fixed by TRD 1.3.10); never runs JMH and never recalculates anything. If a results file is missing or malformed the server fails at startup instead of exposing this endpoint, so a successful response always carries real reference-harness data.
+         */
+        get: operations["benchmarks"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/actuator/health": {
         parameters: {
             query?: never;
@@ -525,6 +545,43 @@ export interface components {
         EmbeddingStatus: {
             embeddingLocal: components["schemas"]["EmbeddingLocalStatus"];
             embeddingApi: components["schemas"]["EmbeddingApiStatus"];
+        };
+        /** @description The reference-harness metadata recorded in jmh-results.csv's header at JMH run time (NFR-QA-10). Every field is always present: the harness sidecar the export reads from fails closed on a missing key (TRD §6.6/§9). */
+        BenchmarkHarness: {
+            cpuModel: string;
+            logicalCores: number;
+            /** Format: int64 */
+            totalRamBytes: number;
+            jdk: string;
+            os: string;
+            /** @description ISO-8601 instant the JMH run finished (the CSV header's utcDate). */
+            measuredAt: string;
+        };
+        /** @description One benchmark method at one parameter value, read as-is from jmh-results.csv (TRD §6.6). Includes the slo-* families (NFR-QA-01/ NFR-QA-02) and both embedding-dimension measurements. */
+        BenchmarkResult: {
+            /** @description Fully qualified JMH benchmark method name. */
+            benchmark: string;
+            /** @description Curve/family id (e.g. levenshtein, slo-clustering). */
+            family: string;
+            /** @description Name of the varying @Param this benchmark's size is (e.g. length, n, dimension). */
+            parameter: string;
+            size: number;
+            score: number;
+            error: number;
+            /** @description JMH throughput/time unit (e.g. ns/op, us/op, ms/op). */
+            unit: string;
+        };
+        /** @description Least-squares log-log slope of one curve family next to its documented theoretical exponent (TRD §6.3/§6.4/§6.5, TAC-18), read as-is from slopes.csv. A fixed-n SLO family is not a curve and never appears here. */
+        BenchmarkSlope: {
+            family: string;
+            points: number;
+            empiricalSlope: number;
+            theoreticalExponent: number;
+        };
+        BenchmarkReport: {
+            harness: components["schemas"]["BenchmarkHarness"];
+            results: components["schemas"]["BenchmarkResult"][];
+            slopes: components["schemas"]["BenchmarkSlope"][];
         };
     };
     responses: {
@@ -898,6 +955,27 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["EmbeddingStatus"];
+                };
+            };
+            default: components["responses"]["UnexpectedError"];
+        };
+    };
+    benchmarks: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The reference harness plus every classified result and curve slope. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BenchmarkReport"];
                 };
             };
             default: components["responses"]["UnexpectedError"];
