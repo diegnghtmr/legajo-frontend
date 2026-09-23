@@ -5,6 +5,11 @@ on:
     branches: [main]
   pull_request:
 
+# Least-privilege default: neither job pushes, comments, or otherwise writes
+# anything back to the repository or its GITHUB_TOKEN-scoped resources.
+permissions:
+  contents: read
+
 defaults:
   run:
     working-directory: .
@@ -76,6 +81,20 @@ jobs:
           docker build \
             --build-arg VITE_API_BASE_URL=http://localhost:8080 \
             -t legajo-frontend:ci .
+
+      # Cheap on top of the successful build above: only the ARG-guard layer
+      # and anything after it are cache-invalidated by a different build-arg
+      # value (everything before it — npm ci, COPY — hits the existing
+      # cache), and the guard fails before the expensive `npm run build`
+      # layer ever runs. Guards against the required-arg check regressing
+      # back to a silent default.
+      - name: Negative test - build fails without VITE_API_BASE_URL
+        run: |
+          if docker build -t legajo-frontend:negative-test . ; then
+            echo "ERROR: docker build succeeded without --build-arg VITE_API_BASE_URL; the required-arg guard regressed." >&2
+            exit 1
+          fi
+          echo "OK: build correctly failed without --build-arg VITE_API_BASE_URL"
 
       - name: Run container
         run: docker run -d --name legajo-frontend-smoke -p 8081:8080 legajo-frontend:ci

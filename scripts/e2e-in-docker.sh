@@ -30,21 +30,37 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
 VOLUME="legajo-frontend-node-modules-noble"
+LOCKFILE_IMAGE="node:24-alpine" # tiny, already used by scripts/npm-in-docker.sh
 
 # The lockfile is the single source of truth for the pinned browser/runner
-# version — see the comment above.
+# version (see the comment above). Parsed with `node -e ... JSON.parse(...)`
+# run inside a throwaway container — not a host tool, and not a grep/sed
+# regex against the lockfile's text — for two reasons: a real JSON parser
+# cannot misread the file the way a regex can (e.g. matching an unrelated
+# "version" key), and the container's own `console.error` + `process.exit(1)`
+# prints its failure message directly at the point of failure. A bash-level
+# guard placed *after* a failing pipeline is fragile here: under
+# `set -euo pipefail`, a `grep` that matches nothing exits the whole script
+# right there, before any later `if` ever runs.
 PLAYWRIGHT_VERSION="$(
-  grep -A1 '"node_modules/@playwright/test"' "${REPO_DIR}/package-lock.json" |
-    sed -n 's/.*"version": *"\([^"]*\)".*/\1/p' |
-    head -n1
+  docker run --rm -v "${REPO_DIR}/package-lock.json:/package-lock.json:ro" "${LOCKFILE_IMAGE}" \
+    node -e '
+      const fs = require("fs");
+      const lock = JSON.parse(fs.readFileSync("/package-lock.json", "utf8"));
+      const entry = lock.packages && lock.packages["node_modules/@playwright/test"];
+      const version = entry && entry.version;
+      if (typeof version !== "string" || version === "") {
+        console.error(
+          "ERROR: package-lock.json has no resolved version for " +
+          "\"node_modules/@playwright/test\" under .packages. " +
+          "scripts/e2e-in-docker.sh needs this to pick a matching " +
+          "mcr.microsoft.com/playwright image tag."
+        );
+        process.exit(1);
+      }
+      process.stdout.write(version);
+    '
 )"
-if [ -z "${PLAYWRIGHT_VERSION}" ]; then
-  echo 'ERROR: could not determine the resolved @playwright/test version from' >&2
-  echo '  package-lock.json (looked for "node_modules/@playwright/test").' >&2
-  echo '  scripts/e2e-in-docker.sh needs this to pick a matching' >&2
-  echo '  mcr.microsoft.com/playwright image tag.' >&2
-  exit 1
-fi
 IMAGE="mcr.microsoft.com/playwright:v${PLAYWRIGHT_VERSION}-noble"
 
 # shellcheck source=lib/docker-volume.sh
@@ -82,7 +98,7 @@ INNER
 
 docker run --rm \
   --user "$(id -u):$(id -g)" \
-  --ipc=host \
+  --shm-size=1gb \
   -e HOME=/tmp \
   -e npm_config_cache=/tmp/.npm-cache \
   -e CI=true \

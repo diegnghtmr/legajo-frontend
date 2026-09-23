@@ -63,28 +63,39 @@ host-installed `node_modules` never collide). `scripts/e2e-in-docker.sh` and
 see the comments at the top of each script for why they cannot share that
 volume or a base image with each other.
 
-| Check | Container command |
-| --- | --- |
-| Install dependencies | `scripts/npm-in-docker.sh ci` |
-| Format check | `scripts/npm-in-docker.sh run format:check` |
-| Lint | `scripts/npm-in-docker.sh run lint` |
-| Typecheck | `scripts/npm-in-docker.sh run typecheck` |
-| Design token conformance | `scripts/npm-in-docker.sh run check:tokens` |
-| Unit/contract tests with coverage | `scripts/npm-in-docker.sh run test:coverage` |
-| Production build | `scripts/npm-in-docker.sh run build` |
+| Check                                       | Container command                                                                            |
+| ------------------------------------------- | -------------------------------------------------------------------------------------------- |
+| Install dependencies                        | `scripts/npm-in-docker.sh ci`                                                                |
+| Format check                                | `scripts/npm-in-docker.sh run format:check`                                                  |
+| Lint                                        | `scripts/npm-in-docker.sh run lint`                                                          |
+| Typecheck                                   | `scripts/npm-in-docker.sh run typecheck`                                                     |
+| Design token conformance                    | `scripts/npm-in-docker.sh run check:tokens`                                                  |
+| Unit/contract tests with coverage           | `scripts/npm-in-docker.sh run test:coverage`                                                 |
+| Production build                            | `scripts/npm-in-docker.sh run build`                                                         |
 | API types drift (after `npm run api:types`) | `scripts/npm-in-docker.sh run api:types` then `git diff --exit-code src/shared/types/api.ts` |
-| Mocked end-to-end (Playwright + axe) | `scripts/e2e-in-docker.sh` |
-| Image smoke test (against a running container, see below) | `docker run --rm --network host -v "$(pwd)":/workspace:ro -w /workspace curlimages/curl:8.15.0 sh scripts/smoke-image.sh <base-url>` |
+| Mocked end-to-end (Playwright + axe)        | `scripts/e2e-in-docker.sh`                                                                   |
+| Image smoke test                            | needs a running container — see "Image smoke test" below                                     |
 
-The image smoke test needs a container already running (see "Running with
-Docker" above). It can run right away, with no separate wait step: it has its
-own bounded readiness wait (up to 30s, polling the container directly) plus a
-connect/total timeout on every request, so a not-yet-ready or hung container
-fails it clearly instead of hanging forever. It then checks the root
-document, that a deep SPA route (e.g. `/clustering`) falls back to the same
-`index.html`, and the cache headers (`index.html` never cached, hashed
-`/assets/*` cached for a year) — every check fails loudly on an empty or
-missing value rather than treating it as a pass.
+### Image smoke test
+
+Needs a container already running (see "Running with Docker" above):
+
+```sh
+docker run --rm --network host \
+  -v "$(pwd)":/workspace:ro -w /workspace \
+  curlimages/curl:8.15.0 sh scripts/smoke-image.sh <base-url>
+```
+
+It can run right away, with no separate wait step: it has its own bounded
+readiness wait — a real wall-clock deadline (up to 30s total, each probe's
+own timeout capped by whatever is left of that budget) — plus a
+connect/total timeout on every ordinary request, so a not-yet-ready or hung
+container fails it clearly instead of hanging forever. It then checks the
+root document and a baseline security header, that a deep SPA route (e.g.
+`/clustering`) falls back to the same `index.html` with the same
+`Cache-Control: no-cache`, and the cache headers on the hashed
+`/assets/*` output (cached for a year) — every check fails loudly on an
+empty or missing value rather than treating it as a pass.
 
 A full-stack end-to-end suite against the real backend — no `page.route`
 mocks — arrives in a follow-up task (F3); today's `npm run e2e` /
@@ -129,7 +140,7 @@ without reaching into the private, sibling `backend/` repo:
   development (the Vite proxy handles `/api`); required and validated as an
   absolute URL for a production build (`src/infrastructure/env.ts`) — set to
   the deployed Render URL for Vercel, or passed as `--build-arg
-  VITE_API_BASE_URL=...` for the Docker image, where a missing or empty value
+VITE_API_BASE_URL=...` for the Docker image, where a missing or empty value
   fails the build immediately with a clear error (no silent default: see
   "Running with Docker"). `.env.example` documents this variable for local
   `npm run dev`/`npm run build` use; never commit a real value.
