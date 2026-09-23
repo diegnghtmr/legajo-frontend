@@ -64,6 +64,14 @@ describe('App', () => {
     expect(screen.getByRole('heading', { name: 'Agrupamiento jerárquico' })).toBeInTheDocument();
   });
 
+  it('renders the benchmarks screen at /benchmarks', () => {
+    renderAppAt('/benchmarks');
+
+    expect(
+      screen.getByRole('heading', { name: 'Benchmarks de rendimiento (JMH)' }),
+    ).toBeInTheDocument();
+  });
+
   it('renders the not-found page for an unknown route', () => {
     renderAppAt('/does-not-exist');
 
