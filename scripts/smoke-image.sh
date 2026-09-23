@@ -7,7 +7,10 @@
 #      all, so a caller (e.g. CI, right after `docker run`) never needs its
 #      own sleep.
 #   1. GET /             -> 200, body contains the app mount node (id="root"),
-#      and a baseline security header (X-Content-Type-Options: nosniff)
+#      all three baseline security headers nginx.conf sets on every
+#      location block (X-Content-Type-Options: nosniff, Referrer-Policy:
+#      strict-origin-when-cross-origin, X-Frame-Options: DENY), and a
+#      Server header with no version number (server_tokens off)
 #   2. GET /<deep route> -> 200, same index.html body (SPA fallback works),
 #      same Cache-Control: no-cache as the real index.html
 #   3. GET /             -> Cache-Control: no-cache (never cache the shell)
@@ -81,6 +84,23 @@ assert_header_contains() {
   esac
 }
 
+# assert_server_header_has_no_version <header-file> <context>
+# nginx.conf sets `server_tokens off`, so the `Server` response header must
+# be the bare product name with no version suffix (e.g. "nginx", never
+# "nginx/1.27.4") — a version number in that header would mean
+# `server_tokens off` regressed or a different, unconfigured server answered
+# the request. Checked by the presence of any digit, not an exact-string
+# match against "nginx": robust to nginx renaming its own default value
+# without this check needing to track that string too.
+assert_server_header_has_no_version() {
+  value="$(header_value "$1" 'server')"
+  case "$value" in
+    '') fail "$2 Server header is missing" ;;
+    *[0-9]*) fail "$2 Server is '$value', expected no version number (server_tokens off)" ;;
+    *) pass "$2 Server: $value" ;;
+  esac
+}
+
 # --- 0. Bounded readiness wait, measured wall-clock ---------------------
 # A real deadline (`date +%s`), not an attempt counter: each probe's own
 # --max-time is capped by whatever is left of the budget, so a run of
@@ -117,6 +137,9 @@ status="$(fetch "$BASE_URL/" "$root_headers" "$root_body")"
 grep -q 'id="root"' "$root_body" || fail 'GET / body does not contain the app root element (id="root")'
 pass "GET / -> 200 with app root element"
 assert_header_contains "$root_headers" 'x-content-type-options' 'nosniff' "GET /"
+assert_header_contains "$root_headers" 'referrer-policy' 'strict-origin-when-cross-origin' "GET /"
+assert_header_contains "$root_headers" 'x-frame-options' 'DENY' "GET /"
+assert_server_header_has_no_version "$root_headers" "GET /"
 
 # --- 2. Deep SPA route falls back to the same index.html --------------
 DEEP_ROUTE="/clustering"

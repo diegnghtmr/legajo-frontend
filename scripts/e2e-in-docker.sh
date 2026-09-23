@@ -5,9 +5,10 @@
 # verified on the host).
 #
 # The image tag is derived from package-lock.json's resolved
-# `@playwright/test` version, not hand-maintained: a hardcoded tag can drift
-# from the lockfile whenever a dependency bump changes it, silently pairing
-# mismatched browsers and test runner. After `npm ci` runs inside the
+# `@playwright/test` version (scripts/lib/playwright-image.sh, shared with
+# scripts/e2e-fullstack-in-docker.sh), not hand-maintained: a hardcoded tag
+# can drift from the lockfile whenever a dependency bump changes it, silently
+# pairing mismatched browsers and test runner. After `npm ci` runs inside the
 # container, the installed `@playwright/test` version is checked against
 # that same tag as a second guard, in case the lockfile itself is stale
 # against node_modules.
@@ -30,37 +31,10 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
 VOLUME="legajo-frontend-node-modules-noble"
-LOCKFILE_IMAGE="node:24-alpine" # tiny, already used by scripts/npm-in-docker.sh
 
-# The lockfile is the single source of truth for the pinned browser/runner
-# version (see the comment above). Parsed with `node -e ... JSON.parse(...)`
-# run inside a throwaway container — not a host tool, and not a grep/sed
-# regex against the lockfile's text — for two reasons: a real JSON parser
-# cannot misread the file the way a regex can (e.g. matching an unrelated
-# "version" key), and the container's own `console.error` + `process.exit(1)`
-# prints its failure message directly at the point of failure. A bash-level
-# guard placed *after* a failing pipeline is fragile here: under
-# `set -euo pipefail`, a `grep` that matches nothing exits the whole script
-# right there, before any later `if` ever runs.
-PLAYWRIGHT_VERSION="$(
-  docker run --rm -v "${REPO_DIR}/package-lock.json:/package-lock.json:ro" "${LOCKFILE_IMAGE}" \
-    node -e '
-      const fs = require("fs");
-      const lock = JSON.parse(fs.readFileSync("/package-lock.json", "utf8"));
-      const entry = lock.packages && lock.packages["node_modules/@playwright/test"];
-      const version = entry && entry.version;
-      if (typeof version !== "string" || version === "") {
-        console.error(
-          "ERROR: package-lock.json has no resolved version for " +
-          "\"node_modules/@playwright/test\" under .packages. " +
-          "scripts/e2e-in-docker.sh needs this to pick a matching " +
-          "mcr.microsoft.com/playwright image tag."
-        );
-        process.exit(1);
-      }
-      process.stdout.write(version);
-    '
-)"
+# shellcheck source=lib/playwright-image.sh
+source "${SCRIPT_DIR}/lib/playwright-image.sh"
+PLAYWRIGHT_VERSION="$(resolve_playwright_image "${REPO_DIR}")"
 IMAGE="mcr.microsoft.com/playwright:v${PLAYWRIGHT_VERSION}-noble"
 
 # shellcheck source=lib/docker-volume.sh
@@ -72,9 +46,16 @@ prepare_host_owned_volume "${VOLUME}" "${IMAGE}"
 # `npm run e2e` against a half-installed node_modules; then a second guard
 # compares the just-installed @playwright/test version against the image
 # tag chosen above, in case node_modules/package-lock.json disagree.
-# Built with a quoted heredoc (not string interpolation) so `$installed` and
-# `$PLAYWRIGHT_VERSION` are expanded by the container's shell, not by this
-# script, and no nested-quoting is needed for the embedded JSON parsing.
+# Built with a quoted heredoc (`<<'INNER'`, not string interpolation): every
+# `$...` reference here (`$installed`, `$PLAYWRIGHT_VERSION`, the `if`
+# comparison) must stay literal text while this OUTER script builds the
+# INNER_SCRIPT string, and only get expanded once by the CONTAINER's own
+# shell when it actually runs — an unquoted heredoc would let this outer
+# script's shell expand them (against variables that don't exist here) while
+# building the string, breaking the script long before the container ever
+# sees it. `$PLAYWRIGHT_VERSION` itself reaches the container as its own
+# `-e PLAYWRIGHT_VERSION=...` environment variable below, not by
+# interpolating its value into this string at all.
 INNER_SCRIPT="$(cat <<'INNER'
 set -e
 

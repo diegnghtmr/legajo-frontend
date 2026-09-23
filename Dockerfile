@@ -4,6 +4,15 @@
 # Vite bundle with Node 24, then serves the static output with nginx. The
 # local Compose stack (backend repo) runs this same image, as would any
 # other Docker-based host; no runtime Node ships in the final image.
+#
+# Base images below are pinned by tag, not by digest — the same decision the
+# backend repo's own Dockerfile documents, for consistency across the two
+# images: a tag already pins the exact upstream version this team develops
+# against (`node:24-alpine`, `nginxinc/nginx-unprivileged:1.27-alpine`),
+# stays readable in a diff (a digest is an opaque hash), and needs no manual
+# digest-bump step whenever the upstream image republishes the same tag with
+# a security patch — a digest pin would silently stop receiving those
+# patches until someone remembers to update it by hand.
 
 ##### Build stage ############################################################
 FROM node:24-alpine AS build
@@ -41,7 +50,17 @@ ARG VITE_API_BASE_URL
 # guard yet still reached Vite with the whitespace intact. Prefixing `npm
 # run build` with `VITE_API_BASE_URL="$trimmed"` guarantees the exact value
 # that was validated is the exact value Vite inlines into the bundle.
-RUN trimmed="$(printf '%s' "$VITE_API_BASE_URL" | tr -d '[:space:]')"; \
+#
+# Only LEADING/TRAILING whitespace is trimmed (`sed`, not `tr -d`): an
+# earlier version of this guard used `tr -d '[:space:]'`, which removes
+# EVERY whitespace character, including in the middle of the value — a typo
+# like `--build-arg 'VITE_API_BASE_URL=http://local host:8080'` silently
+# became the working-looking `http://localhost:8080` instead of failing
+# loudly, defeating the entire point of this guard (never silently correct
+# a value that might not be what the caller meant). Any whitespace still
+# left after trimming only the ends is therefore rejected outright, not
+# repaired.
+RUN trimmed="$(printf '%s' "$VITE_API_BASE_URL" | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')"; \
     if [ -z "$trimmed" ]; then \
       echo "ERROR: --build-arg VITE_API_BASE_URL is required and must not be empty or whitespace-only." >&2; \
       echo "  Vite inlines it into the bundle at build time (TRD Appendix A); an" >&2; \
@@ -51,6 +70,13 @@ RUN trimmed="$(printf '%s' "$VITE_API_BASE_URL" | tr -d '[:space:]')"; \
       echo "  Vercel builds this app with Vite directly, not through this Dockerfile." >&2; \
       exit 1; \
     fi; \
+    case "$trimmed" in \
+      *[[:space:]]*) \
+        echo "ERROR: --build-arg VITE_API_BASE_URL must not contain whitespace inside the value (surrounding whitespace is trimmed; interior whitespace is rejected, never silently removed)." >&2; \
+        echo "  got: '$VITE_API_BASE_URL'" >&2; \
+        exit 1; \
+        ;; \
+    esac; \
     VITE_API_BASE_URL="$trimmed" npm run build
 
 ##### Runtime stage ###########################################################
