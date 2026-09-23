@@ -1,3 +1,4 @@
+export * from './benchmarks';
 export * from './clustering';
 export * from './corpus';
 export * from './embeddings';
