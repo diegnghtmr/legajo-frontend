@@ -96,6 +96,10 @@ npm run e2e
 INNER
 )"
 
+# `--shm-size=1gb`: Chromium needs more than Docker's default 64MB
+# /dev/shm, or it can crash rendering larger pages. This grows the
+# CONTAINER's own /dev/shm instead; unlike `--ipc=host` (Playwright's other
+# documented option), it does not share the host's IPC namespace.
 docker run --rm \
   --user "$(id -u):$(id -g)" \
   --shm-size=1gb \
