@@ -23,6 +23,7 @@ describe('evaluateSlo', () => {
     const evaluation = evaluateSlo(result({ score: 11.6, unit: 'ms/op' }), 5_000);
     expect(evaluation).toEqual({
       family: 'slo-classic-levenshtein',
+      size: 20,
       valueMs: 11.6,
       thresholdMs: 5_000,
       withinThreshold: true,

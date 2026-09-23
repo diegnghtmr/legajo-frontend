@@ -6,8 +6,8 @@ import { z } from 'zod';
  */
 export const BenchmarkHarnessSchema = z.object({
   cpuModel: z.string(),
-  logicalCores: z.number(),
-  totalRamBytes: z.number(),
+  logicalCores: z.number().int(),
+  totalRamBytes: z.number().int(),
   jdk: z.string(),
   os: z.string(),
   measuredAt: z.string(),
@@ -31,7 +31,7 @@ export const BenchmarkResultSchema = z.object({
 /** Least-squares log-log slope of one curve family (TAC-18); no `slo-*` entries. */
 export const BenchmarkSlopeSchema = z.object({
   family: z.string(),
-  points: z.number(),
+  points: z.number().int(),
   empiricalSlope: z.number(),
   theoreticalExponent: z.number(),
 });

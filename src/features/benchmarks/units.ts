@@ -1,10 +1,16 @@
-/** Nanoseconds per JMH throughput/time unit (TRD §6.6's `BenchmarkResult.unit`). */
-const NANOSECONDS_PER_UNIT: Record<string, number> = {
-  'ns/op': 1,
-  'us/op': 1_000,
-  'ms/op': 1_000_000,
-  's/op': 1_000_000_000,
-};
+/**
+ * Nanoseconds per JMH throughput/time unit (TRD §6.6's `BenchmarkResult.unit`).
+ * A `Map`, not a plain object: a plain object's lookup would silently resolve
+ * an unrecognized unit like `"constructor"` or `"toString"` to an inherited
+ * `Object.prototype` value instead of `undefined`, turning a malformed unit
+ * into a silent `NaN` rather than the intended rejection below.
+ */
+const NANOSECONDS_PER_UNIT = new Map<string, number>([
+  ['ns/op', 1],
+  ['us/op', 1_000],
+  ['ms/op', 1_000_000],
+  ['s/op', 1_000_000_000],
+]);
 
 /**
  * Converts a raw JMH score to nanoseconds so every family, regardless of its
@@ -13,7 +19,7 @@ const NANOSECONDS_PER_UNIT: Record<string, number> = {
  * throws rather than silently misreading the magnitude.
  */
 export function toNanoseconds(score: number, unit: string): number {
-  const factor = NANOSECONDS_PER_UNIT[unit];
+  const factor = NANOSECONDS_PER_UNIT.get(unit);
   if (factor === undefined) {
     throw new Error(`Unknown JMH unit: ${unit}`);
   }

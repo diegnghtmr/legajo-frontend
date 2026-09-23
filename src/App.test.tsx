@@ -3,8 +3,10 @@ import { render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
+import * as benchmarksApi from './infrastructure/api/benchmarks';
 import * as corpusApi from './infrastructure/api/corpus';
 
+vi.mock('./infrastructure/api/benchmarks');
 vi.mock('./infrastructure/api/corpus');
 
 import { App } from './App';
@@ -64,12 +66,15 @@ describe('App', () => {
     expect(screen.getByRole('heading', { name: 'Agrupamiento jerárquico' })).toBeInTheDocument();
   });
 
-  it('renders the benchmarks screen at /benchmarks', () => {
+  it('renders the benchmarks screen at /benchmarks without making a real request', () => {
+    vi.spyOn(benchmarksApi, 'fetchBenchmarks').mockReturnValue(new Promise(() => {}));
+
     renderAppAt('/benchmarks');
 
     expect(
       screen.getByRole('heading', { name: 'Benchmarks de rendimiento (JMH)' }),
     ).toBeInTheDocument();
+    expect(benchmarksApi.fetchBenchmarks).toHaveBeenCalledTimes(1);
   });
 
   it('renders the not-found page for an unknown route', () => {

@@ -37,7 +37,7 @@ export function EmbeddingTiles({ results }: { results: readonly BenchmarkResult[
               <div className="flex flex-wrap gap-3">
                 {tile.entries.map((entry) => (
                   <MetricTile
-                    key={entry.family}
+                    key={`${entry.family}-${tile.dimension}`}
                     label={entry.family}
                     value={formatDuration(entry.valueNs)}
                   />

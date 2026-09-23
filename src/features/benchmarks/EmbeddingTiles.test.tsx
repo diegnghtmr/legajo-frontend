@@ -50,4 +50,14 @@ describe('EmbeddingTiles', () => {
     const { container } = render(<EmbeddingTiles results={[]} />);
     expect(container).toBeEmptyDOMElement();
   });
+
+  it('omits a result with an unrecognized unit instead of throwing during render', () => {
+    const withMalformedUnit: BenchmarkResult[] = [
+      ...RESULTS,
+      result({ family: 'embedding-dot-product', size: 768, score: 400, unit: 'op/s' }),
+    ];
+
+    expect(() => render(<EmbeddingTiles results={withMalformedUnit} />)).not.toThrow();
+    expect(screen.queryByTestId('embedding-tile-768')).not.toBeInTheDocument();
+  });
 });
