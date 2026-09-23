@@ -54,7 +54,8 @@
       "deviceLabel": "Device",
       "modeLabel": "Mode",
       "modeCached": "Cached",
-      "modeLive": "Live"
+      "modeLive": "Live",
+      "modeUnknown": "Unknown mode"
     }
   },
   "similarity": {

@@ -124,6 +124,22 @@ describe('EmbeddingsStatusPanel', () => {
     expect(await screen.findByTestId('embeddings-status-api-mode')).toHaveTextContent('En caché');
   });
 
+  it('never labels an unrecognized mode value as cached, showing a neutral unknown label instead', async () => {
+    vi.spyOn(embeddingsApi, 'fetchEmbeddingsStatus').mockResolvedValue({
+      ...BASE_STATUS,
+      embeddingApi: {
+        ...BASE_STATUS.embeddingApi,
+        mode: 'stale' as unknown as (typeof BASE_STATUS.embeddingApi)['mode'],
+      },
+    });
+
+    renderWithProviders(<EmbeddingsStatusPanel />);
+
+    const modeField = await screen.findByTestId('embeddings-status-api-mode');
+    expect(modeField).toHaveTextContent('Modo desconocido');
+    expect(modeField).not.toHaveTextContent('En caché');
+  });
+
   it('keeps every dt/dd group as a direct child of its dl (no double-wrapped div, per HTML5)', async () => {
     vi.spyOn(embeddingsApi, 'fetchEmbeddingsStatus').mockResolvedValue(BASE_STATUS);
 
