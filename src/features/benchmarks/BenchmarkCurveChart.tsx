@@ -35,6 +35,34 @@ function formatSlopeNumber(value: number): string {
   return value.toFixed(2);
 }
 
+/**
+ * A log axis has no representation for zero or a negative value (`Math.log`
+ * of either is `-Infinity`/`NaN`), which breaks Recharts' domain calculation
+ * for the *entire* chart, not just the offending point — every series goes
+ * blank, not only the bad one. On `log-log`, such points are excluded from
+ * the plotted series; they stay in the sr-only data table below, which
+ * always reflects every raw measured value regardless of scale.
+ */
+function plottableOnScale(
+  point: { size: number; valueNs: number },
+  scale: 'linear' | 'log-log',
+): boolean {
+  return scale !== 'log-log' || (point.size > 0 && point.valueNs > 0);
+}
+
+function seriesForPlotting(
+  series: readonly FamilySeries[],
+  scale: 'linear' | 'log-log',
+): FamilySeries[] {
+  if (scale !== 'log-log') {
+    return series as FamilySeries[];
+  }
+  return series.map((entry) => ({
+    family: entry.family,
+    points: entry.points.filter((point) => plottableOnScale(point, scale)),
+  }));
+}
+
 /** Renders one grayscale marker shape per series (DESIGN.md §7.6, color is not the only channel). */
 function seriesDot(shape: MarkerShape) {
   return function SeriesDot(props: DotItemDotProps) {
@@ -104,9 +132,12 @@ export function BenchmarkCurveChart({
   const { t } = useTranslation();
 
   const chartData = mergeSeriesIntoRows(series);
-  const rowsBySize = new Map(chartData.map((row) => [row.size, { ...row }]));
+  const plottedSeries = seriesForPlotting(series, scale);
+  const rowsBySize = new Map(
+    mergeSeriesIntoRows(plottedSeries).map((row) => [row.size, { ...row }]),
+  );
 
-  for (const { family, points } of series) {
+  for (const { family, points } of plottedSeries) {
     const slope = slopes.get(family);
     if (!slope) {
       continue;
@@ -129,6 +160,7 @@ export function BenchmarkCurveChart({
       <div
         role="group"
         aria-label={title}
+        data-scale={axisScale}
         className="overflow-x-auto"
         style={{ width: CHART_WIDTH, maxWidth: '100%' }}
       >
