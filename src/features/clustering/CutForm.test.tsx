@@ -118,4 +118,29 @@ describe('CutForm', () => {
       'El valor de corte k no es válido para este corpus.',
     );
   });
+
+  it('disables the form and shows a reason when n - 1 < 2 (no valid k for n = 2)', () => {
+    renderForm({ n: 2 });
+
+    expect(screen.getByRole('button', { name: 'Aplicar corte' })).toBeDisabled();
+    expect(screen.queryByLabelText(/Número de clústeres k/)).not.toBeInTheDocument();
+    expect(
+      screen.getByText('No hay una cantidad de clústeres válida para cortar este corpus.'),
+    ).toBeInTheDocument();
+  });
+
+  it('still offers a valid single-value range when n - 1 === 2 (n = 3)', async () => {
+    const user = userEvent.setup();
+    const { onSubmit } = renderForm({ n: 3 });
+
+    expect(
+      screen.queryByText('No hay una cantidad de clústeres válida para cortar este corpus.'),
+    ).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Aplicar corte' })).not.toBeDisabled();
+
+    await setK(user, '2');
+    await user.click(screen.getByRole('button', { name: 'Aplicar corte' }));
+
+    expect(onSubmit).toHaveBeenCalledWith({ linkage: 'single', k: 2 });
+  });
 });

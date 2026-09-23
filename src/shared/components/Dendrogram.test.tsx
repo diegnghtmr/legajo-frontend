@@ -124,6 +124,27 @@ describe('Dendrogram', () => {
     expect(screen.getAllByText('Clúster 2')).toHaveLength(1);
   });
 
+  it('renders no cluster text for a leaf whose cut label is undefined, while other leaves still render', () => {
+    const { container } = render(
+      <Dendrogram
+        rows={ROWS}
+        leafOrder={LEAF_ORDER}
+        ariaLabel="Single dendrogram"
+        leafLabels={LEAF_LABELS}
+        cut={{ distance: 2.5, labels: [0, undefined, 1, 1, 2] }}
+      />,
+    );
+
+    // Leaf id 1's cut label is undefined: its group gets no cluster-number
+    // <text> node at all (not merely a blank one), while every other leaf's
+    // group still renders its own.
+    for (const leafId of [0, 2, 3, 4]) {
+      expect(container.querySelector(`[data-leaf-id="${leafId}"] text.fill-ink`)).not.toBeNull();
+    }
+    expect(container.querySelector('[data-leaf-id="1"] text.fill-ink')).toBeNull();
+    expect(screen.queryByText(/undefined/)).not.toBeInTheDocument();
+  });
+
   it('shows a translated, non-crashing error instead of drawing a malformed matrix', () => {
     render(
       <Dendrogram rows={ROWS.slice(0, 2)} leafOrder={LEAF_ORDER} ariaLabel="Broken dendrogram" />,
