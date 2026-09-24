@@ -27,7 +27,7 @@ const CORPUS: ListCorpusResponse = Array.from({ length: 6 }, (_unused, index) =>
 }));
 
 /**
- * Golden n = 6 linkage matrix (TRD §6.4 conventions), shared by every
+ * Golden n = 6 linkage matrix, shared by every
  * `linkageResult()` fixture below so the real `Dendrogram` this page now
  * renders always has a well-formed matrix to draw — the same shape
  * `dendrogramLayout.test.ts` validates on its own.
@@ -67,8 +67,9 @@ function linkageResult(
 
 /**
  * Builds a linkage result whose `leafOrder` length (n) and per-k metrics are
- * fully explicit — used by the R3-001 tests, where n itself (not just k_ref's
- * metrics) is the thing under test. `rows` stays empty on purpose: these
+ * fully explicit — used by the ranking-degradation tests below, where n
+ * itself (not just k_ref's metrics) is the thing under test. `rows` stays
+ * empty on purpose: these
  * tests exercise the ranking degradation path, never the dendrogram itself,
  * so a malformed (empty) matrix here is inert — `Dendrogram` degrades to its
  * own translated error, which none of these tests assert against.
@@ -287,7 +288,7 @@ describe('ClusteringPage', () => {
     });
   });
 
-  it('ranks at k_ref derived from the response itself, not a stale corpus-query size (R3-001)', async () => {
+  it('ranks at k_ref derived from the response itself, not a stale corpus-query size', async () => {
     // Corpus query reports 20 documents -> would have implied k_ref =
     // min(4, 19) = 4 under the old (wrong) source. The response's own
     // leafOrder length is 4 -> the correct k_ref is min(4, 4-1) = 3.
@@ -349,7 +350,7 @@ describe('ClusteringPage', () => {
     expect(screen.getByText(/n = 4/)).toBeInTheDocument();
   });
 
-  it('shows no leader marks and the "requires all four" explanation when linkages disagree on n (R3-001)', async () => {
+  it('shows no leader marks and the "requires all four" explanation when linkages disagree on n', async () => {
     vi.spyOn(corpusApi, 'fetchCorpus').mockResolvedValue(CORPUS);
     vi.spyOn(clusteringApi, 'runClustering').mockResolvedValue([
       linkageResultWithN('single', 'Single', 6, 0.95, { '4': 0.2 }, { '4': 0.5 }),
@@ -369,7 +370,7 @@ describe('ClusteringPage', () => {
     expect(screen.queryByText('Líder')).not.toBeInTheDocument();
   });
 
-  it('shows no leader marks and the "requires all four" explanation for a duplicate/non-canonical linkage id (R3-001)', async () => {
+  it('shows no leader marks and the "requires all four" explanation for a duplicate/non-canonical linkage id', async () => {
     vi.spyOn(corpusApi, 'fetchCorpus').mockResolvedValue(CORPUS);
     vi.spyOn(clusteringApi, 'runClustering').mockResolvedValue([
       linkageResultWithN('single', 'Single A', 6, 0.95, { '4': 0.2 }, { '4': 0.5 }),
@@ -389,7 +390,7 @@ describe('ClusteringPage', () => {
     expect(screen.queryByText('Líder')).not.toBeInTheDocument();
   });
 
-  it('shows no leader marks and the "requires all four" explanation when the user deselected a linkage (R3-002)', async () => {
+  it('shows no leader marks and the "requires all four" explanation when the user deselected a linkage', async () => {
     vi.spyOn(corpusApi, 'fetchCorpus').mockResolvedValue(CORPUS);
     vi.spyOn(clusteringApi, 'runClustering').mockResolvedValue(DEFAULT_RESPONSE);
     const user = userEvent.setup();
@@ -467,7 +468,7 @@ describe('ClusteringPage', () => {
       expect(within(singleDendrogram).queryByTestId('dendrogram-cut-line')).not.toBeInTheDocument();
     });
 
-    it('resolves the cut labels by document id, not by array position, when the cut response documentIds order differs from the linkage result (TRD 1.3.9)', async () => {
+    it('resolves the cut labels by document id, not by array position, when the cut response documentIds order differs from the linkage result', async () => {
       vi.spyOn(corpusApi, 'fetchCorpus').mockResolvedValue(CORPUS);
       vi.spyOn(clusteringApi, 'runClustering').mockResolvedValue(DEFAULT_RESPONSE);
       vi.spyOn(clusteringApi, 'cutClustering').mockResolvedValue({
@@ -526,7 +527,7 @@ describe('ClusteringPage', () => {
       ).not.toBeInTheDocument();
     });
 
-    it('still shows the cut labels and no cut line when the response k cannot be resolved to a distance for the loaded rows (R3-cut-distance-throw-in-onsuccess)', async () => {
+    it('still shows the cut labels and no cut line when the response k cannot be resolved to a distance for the loaded rows', async () => {
       vi.spyOn(corpusApi, 'fetchCorpus').mockResolvedValue(CORPUS);
       vi.spyOn(clusteringApi, 'runClustering').mockResolvedValue(DEFAULT_RESPONSE);
       // GOLDEN_ROWS_N6 has 5 rows -> n=6, so k must be in [2, 5]; k=10 is
@@ -576,7 +577,7 @@ describe('ClusteringPage', () => {
       ).toBeInTheDocument();
     });
 
-    it('stops showing a previous cut error once the representation changes (R3-stale-cut-error)', async () => {
+    it('stops showing a previous cut error once the representation changes', async () => {
       vi.spyOn(corpusApi, 'fetchCorpus').mockResolvedValue(CORPUS);
       vi.spyOn(clusteringApi, 'runClustering').mockResolvedValue(DEFAULT_RESPONSE);
       vi.spyOn(clusteringApi, 'cutClustering').mockRejectedValue({
@@ -604,7 +605,7 @@ describe('ClusteringPage', () => {
       ).not.toBeInTheDocument();
     });
 
-    it('stops showing a previous cut error once a linkage is toggled (R3-stale-cut-error)', async () => {
+    it('stops showing a previous cut error once a linkage is toggled', async () => {
       vi.spyOn(corpusApi, 'fetchCorpus').mockResolvedValue(CORPUS);
       vi.spyOn(clusteringApi, 'runClustering').mockResolvedValue(DEFAULT_RESPONSE);
       vi.spyOn(clusteringApi, 'cutClustering').mockRejectedValue({
@@ -639,7 +640,7 @@ describe('ClusteringPage', () => {
       ).not.toBeInTheDocument();
     });
 
-    it('attributes a cut result to the linkages selected at submit time, never to a selection toggled while the request is still in flight (R3-cut-submit-time)', async () => {
+    it('attributes a cut result to the linkages selected at submit time, never to a selection toggled while the request is still in flight', async () => {
       vi.spyOn(corpusApi, 'fetchCorpus').mockResolvedValue(CORPUS);
       vi.spyOn(clusteringApi, 'runClustering').mockResolvedValue(DEFAULT_RESPONSE);
       let resolveCut: (value: ClusteringCutResponse) => void = () => {

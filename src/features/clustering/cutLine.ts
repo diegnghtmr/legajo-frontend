@@ -1,21 +1,21 @@
 /**
- * Thrown for a `k` outside the contract's own bound (TRD §6.6: `k` integer
+ * Thrown for a `k` outside the contract's own bound (`k` integer
  * in `[2, n-1]`) — the same range the cut form validates before ever
  * submitting, kept here too since this function is also usable on its own.
  */
 export class CutLineError extends Error {}
 
 /**
- * Presentation rule for the dashed cut line (DESIGN.md §6 item 4 says only
- * "cut line dashed `warning`, always drawn when a cut is requested" — the
- * exact height is this task's own choice, documented here): the line sits
+ * Presentation rule for the dashed cut line ("cut line dashed `warning`,
+ * always drawn when a cut is requested" — the exact height is this
+ * function's own choice, documented here): the line sits
  * midway between the `(n-k)`-th and `(n-k+1)`-th merge distances in
  * ascending order. Cutting after the first `n-k` merges (in increasing
  * distance order) leaves exactly `k` clusters, so the line separates the
  * last merge kept from the first merge undone — never a computed cut
  * itself, only a pixel position derived from the backend's own distances.
  *
- * Rows normally already arrive non-decreasing (TRD §6.4), but this sorts
+ * Rows normally already arrive non-decreasing, but this sorts
  * defensively rather than assuming that invariant holds.
  */
 export function computeCutDistance(rows: readonly { mergeDistance: number }[], k: number): number {

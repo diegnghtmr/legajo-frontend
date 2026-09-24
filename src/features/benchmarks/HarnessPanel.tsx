@@ -18,8 +18,8 @@ function Row({ label, value }: { label: string; value: string }) {
 }
 
 /**
- * Reference-harness key-value rows (DESIGN.md §6 item 6): the machine the
- * versioned JMH numbers were measured on (NFR-QA-10), read as-is from the
+ * Reference-harness key-value rows: the machine the
+ * versioned JMH numbers were measured on, read as-is from the
  * `GET /benchmarks` response — never recomputed.
  */
 export function HarnessPanel({ harness }: { harness: BenchmarkHarness }) {

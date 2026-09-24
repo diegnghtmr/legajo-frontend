@@ -88,7 +88,7 @@ describe('DpTracePanel', () => {
   it('makes the scrollable operations table itself keyboard-focusable (WCAG 2.1.1 scrollable-region-focusable)', () => {
     // Same gap DpMatrix.tsx had (see its own test): the mocked/small fixtures
     // here never overflow max-h-64, so this only surfaced against a real
-    // backend response with a longer operations sequence (F3 full-stack e2e).
+    // backend response with a longer operations sequence (full-stack e2e).
     render(<DpTracePanel trace={LEVENSHTEIN_TRACE} />);
 
     const region = screen.getByRole('region', { name: /secuencia de operaciones/i });

@@ -20,8 +20,8 @@ export interface DpTracePanelProps {
 /**
  * DP trace panel (Levenshtein / Needleman–Wunsch): the complete matrix with
  * its optimal path (`DpMatrix`), the algorithm-specific operation legend and
- * the full ordered operations sequence — both required for auditability
- * (PRD HU-1.2) — plus one KaTeX recurrence caption per algorithm family.
+ * the full ordered operations sequence — both required for auditability —
+ * plus one KaTeX recurrence caption per algorithm family.
  */
 export function DpTracePanel({ trace }: DpTracePanelProps) {
   const { t } = useTranslation();

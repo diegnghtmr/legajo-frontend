@@ -264,7 +264,7 @@ describe('metricsAtKRef', () => {
   });
 });
 
-describe('sampleSizeFromResponse — R3-001: n comes from the response, not the corpus query', () => {
+describe('sampleSizeFromResponse — n comes from the response, not the corpus query', () => {
   const withLeafOrder = (length: number) => ({
     leafOrder: Array.from({ length }, (_unused, index) => index),
   });
@@ -286,7 +286,7 @@ describe('sampleSizeFromResponse — R3-001: n comes from the response, not the 
   });
 });
 
-describe('hasCanonicalLinkageIds — R3-001: ranking requires exactly {single, complete, average, ward}', () => {
+describe('hasCanonicalLinkageIds — ranking requires exactly {single, complete, average, ward}', () => {
   it('accepts the canonical set regardless of order', () => {
     const ids: LinkageId[] = ['ward', 'single', 'average', 'complete'];
 

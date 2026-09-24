@@ -1,9 +1,9 @@
 import { create } from 'zustand';
 
-/** Minimum selected articles to enable the pairwise "Compare" CTA (PRD HU-1.1). */
+/** Minimum selected articles to enable the pairwise "Compare" CTA. */
 const MIN_FOR_COMPARE = 2;
 
-/** Minimum selected articles to enable the m×m similarity matrix (PRD HU-1.4). */
+/** Minimum selected articles to enable the m×m similarity matrix. */
 const MIN_FOR_MATRIX = 3;
 
 export interface SelectionState {
@@ -26,7 +26,7 @@ function deriveThresholds(
 }
 
 /**
- * Article multi-select for corpus/similarity (DESIGN.md §7.3: "simple toggles
+ * Article multi-select for corpus/similarity ("simple toggles
  * stay in Zustand, not react-hook-form"). `canCompare`/`canMatrix` are
  * recomputed on every mutation rather than derived at read time, so callers
  * can select them directly without a memoized selector.

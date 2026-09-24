@@ -20,7 +20,7 @@ export interface CompareTableProps {
 }
 
 /**
- * The six-capability comparison table (DESIGN.md §6.2, PRD HU-1.1). A plain
+ * The six-capability comparison table. A plain
  * semantic `<table>` instead of TanStack Table: there is no sorting,
  * filtering, or pagination requirement for a fixed, small (≤6) row set, so
  * the extra dependency and column-definition ceremony would not simplify

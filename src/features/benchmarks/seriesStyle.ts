@@ -1,8 +1,7 @@
 /**
- * Grayscale-first series styling (DESIGN.md §7.5 "grayscale by default"):
- * SVG `strokeDasharray` values and marker shapes cycle through a fixed set
- * so two series in the same chart are always distinguishable without color
- * (DESIGN.md §7.6 "color is not the only channel").
+ * Grayscale-first series styling: SVG `strokeDasharray` values and marker
+ * shapes cycle through a fixed set so two series in the same chart are
+ * always distinguishable without color (color is never the only channel).
  */
 const DASH_PATTERNS = ['', '6 3', '2 2', '8 3 2 3'] as const;
 

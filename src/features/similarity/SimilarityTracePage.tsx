@@ -15,8 +15,8 @@ import { TfIdfTracePanel } from './traces/TfIdfTracePanel';
 import { PanelHeader } from '../../shared/components/Panel';
 
 /**
- * Routes one resolved trace to its panel by the `algorithmId` discriminator
- * (TRD §6.3). `levenshtein`/`needleman-wunsch` share `DpTracePanel`; every
+ * Routes one resolved trace to its panel by the `algorithmId` discriminator.
+ * `levenshtein`/`needleman-wunsch` share `DpTracePanel`; every
  * other capability has exactly one panel. Zod already guarantees the
  * discriminator is one of these five variants (`AlgorithmTraceSchema`), so
  * there is no "unknown" branch to render — a rejected fetch is handled
@@ -39,12 +39,12 @@ function TracePanel({ trace }: { trace: SimilarityTraceResponse }) {
 }
 
 /**
- * One capability's complete audit trace (`/similarity/:algorithmId/trace`,
- * DESIGN.md §6 item 2–3, PRD HU-1.2/1.3/1.6). Reads `algorithmId` from the
+ * One capability's complete audit trace (`/similarity/:algorithmId/trace`).
+ * Reads `algorithmId` from the
  * route and `documentIdA`/`documentIdB` from the query string set by
  * `CompareTable`'s link. A rejected fetch renders the mapped `ApiError`:
  * 404 `unknown-algorithm` for a bad path segment, 400 `unknown-document` for
- * a bad query id (TRD §6.6).
+ * a bad query id.
  */
 export function SimilarityTracePage() {
   const { t } = useTranslation();

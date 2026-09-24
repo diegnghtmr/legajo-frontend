@@ -5,4 +5,3 @@ test-results
 node_modules
 contract/openapi-legajo.yaml
 src/shared/types/api.ts
-AGENTS.md

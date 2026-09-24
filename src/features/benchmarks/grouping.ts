@@ -3,7 +3,7 @@ import { toNanoseconds } from './units';
 
 type BenchmarkResult = BenchmarkReportResponse['results'][number];
 
-/** Pairwise classic algorithms, curve x = L (synthetic sequence length), NFR-QA-10. */
+/** Pairwise classic algorithms, curve x = L (synthetic sequence length). */
 export const PAIRWISE_CLASSIC_FAMILIES = [
   'levenshtein',
   'needleman-wunsch',
@@ -11,7 +11,7 @@ export const PAIRWISE_CLASSIC_FAMILIES = [
   'tfidf-cosine',
 ] as const;
 
-/** The four fixed HAC linkages, curve x = n (TRD §6.4). */
+/** The four fixed HAC linkages, curve x = n. */
 export const HAC_LINKAGE_FAMILIES = [
   'hac-single',
   'hac-complete',
@@ -19,16 +19,16 @@ export const HAC_LINKAGE_FAMILIES = [
   'hac-ward',
 ] as const;
 
-/** Internal clustering-evaluation metrics, curve x = n (TRD §6.5). */
+/** Internal clustering-evaluation metrics, curve x = n. */
 export const INTERNAL_METRIC_FAMILIES = ['mean-silhouette', 'davies-bouldin'] as const;
 
-/** Embedding O(d) primitives, one timing per dimension, no curve (NFR-QA-10). */
+/** Embedding O(d) primitives, one timing per dimension, no curve. */
 export const EMBEDDING_FAMILIES = [
   'embedding-dot-product',
   'embedding-euclidean-sum-squared',
 ] as const;
 
-/** NFR-QA-01: all C(n,2) classic comparisons per algorithm, fixed n = 20. */
+/** All C(n,2) classic comparisons per algorithm, fixed n = 20. */
 export const SLO_CLASSIC_FAMILIES = [
   'slo-classic-levenshtein',
   'slo-classic-needleman-wunsch',
@@ -36,7 +36,7 @@ export const SLO_CLASSIC_FAMILIES = [
   'slo-classic-tfidf-cosine',
 ] as const;
 
-/** NFR-QA-02: all four linkages from cached matrices/vectors, fixed n = 20. */
+/** All four linkages from cached matrices/vectors, fixed n = 20. */
 export const SLO_CLUSTERING_FAMILY = 'slo-clustering';
 
 export interface FamilySeries {
@@ -120,9 +120,9 @@ export interface EmbeddingDimensionTile {
 }
 
 /**
- * Both embedding-primitive families grouped by dimension (DESIGN.md §6 item
- * 6: "a single timing tile per embedding dimension, no curve"). `d = 384`
- * and `d = 1536` are the fixed NFR-QA-10 measurement points; any other
+ * Both embedding-primitive families grouped by dimension (a single timing
+ * tile per embedding dimension, no curve). `d = 384`
+ * and `d = 1536` are the fixed measurement points; any other
  * dimension present in the response is still grouped, never dropped. A
  * result with an unrecognized unit is omitted, same rule as `seriesForFamilies`.
  */

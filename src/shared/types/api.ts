@@ -13,7 +13,7 @@ export interface paths {
         };
         /**
          * List every document in the reference corpus
-         * @description `id`, `title`, and `authors` only — never the abstract (TRD §6.6).
+         * @description `id`, `title`, and `authors` only — never the abstract.
          */
         get: operations["listCorpus"];
         put?: never;
@@ -50,7 +50,7 @@ export interface paths {
         };
         /**
          * The catalogue of the six similarity capabilities
-         * @description Exactly six ids, including `needleman-wunsch` (TAC-01).
+         * @description Exactly six ids, including `needleman-wunsch`.
          */
         get: operations["listSimilarityAlgorithms"];
         put?: never;
@@ -72,7 +72,7 @@ export interface paths {
         put?: never;
         /**
          * Multi-algorithm pairwise similarity for two documents
-         * @description `algorithmIds` is optional; omitted or `null` defaults to all six capabilities (TAC-01, PRD HU-1.1), so the default request already exercises every capability.
+         * @description `algorithmIds` is optional; omitted or `null` defaults to all six capabilities, so the default request already exercises every capability.
          */
         post: operations["compareSimilarity"];
         delete?: never;
@@ -110,7 +110,7 @@ export interface paths {
         };
         /**
          * The complete audit trace for one capability and one document pair
-         * @description Returns the **complete** trace with no truncation parameter (NFR-QA-03). The trace pair is identified by two required query parameters (a decision this feature took: the TRD fixes the path but not the pair-identification shape for a GET).
+         * @description Returns the **complete** trace with no truncation parameter. The trace pair is identified by two required query parameters, since the path alone does not identify a pair for a GET.
          */
         get: operations["similarityTrace"];
         put?: never;
@@ -132,7 +132,7 @@ export interface paths {
         put?: never;
         /**
          * Run hierarchical clustering for one or more linkage criteria
-         * @description Returns, per linkage, the (n-1)-row linkage matrix, `leafOrder`, and the evaluation block computed always at the fixed cuts k ∈ {2,3,4,5} ∩ [2, n-1]. There is no `ks` request parameter, so no conforming request can alter the fixed-cut rule (TAC-04).
+         * @description Returns, per linkage, the (n-1)-row linkage matrix, `leafOrder`, and the evaluation block computed always at the fixed cuts k ∈ {2,3,4,5} ∩ [2, n-1]. There is no `ks` request parameter, so no conforming request can alter the fixed-cut rule.
          */
         post: operations["runClustering"];
         delete?: never;
@@ -190,7 +190,7 @@ export interface paths {
         };
         /**
          * Status of both embedding families in one response
-         * @description One object per capability (`embeddingLocal`, `embeddingApi`), because each reads its own cache and each cache can drift from the corpus independently (TRD §6.6, fixed by TRD 1.3.6; TAC-13).
+         * @description One object per capability (`embeddingLocal`, `embeddingApi`), because each reads its own cache and each cache can drift from the corpus independently.
          */
         get: operations["embeddingsStatus"];
         put?: never;
@@ -210,7 +210,7 @@ export interface paths {
         };
         /**
          * JMH reference-run measurements
-         * @description Reads the versioned benchmarks/results/jmh-results.csv and slopes.csv exports as-is (TRD §6.6, fixed by TRD 1.3.10); never runs JMH and never recalculates anything. If a results file is missing or malformed the server fails at startup instead of exposing this endpoint, so a successful response always carries real reference-harness data.
+         * @description Reads the versioned benchmarks/results/jmh-results.csv and slopes.csv exports as-is; never runs JMH and never recalculates anything. If a results file is missing or malformed the server fails at startup instead of exposing this endpoint, so a successful response always carries real reference-harness data.
          */
         get: operations["benchmarks"];
         put?: never;
@@ -230,7 +230,7 @@ export interface paths {
         };
         /**
          * Liveness check
-         * @description TAC-11 verifies this answers 200 from the deployed URL.
+         * @description Answers 200 with status UP when the application is healthy.
          */
         get: operations["health"];
         put?: never;
@@ -246,7 +246,7 @@ export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
         /**
-         * @description One of the six fixed similarity capability ids (TRD §6.3).
+         * @description One of the six fixed similarity capability ids.
          * @enum {string}
          */
         AlgorithmId: "levenshtein" | "needleman-wunsch" | "jaccard" | "tfidf-cosine" | "embedding-local" | "embedding-api";
@@ -254,7 +254,7 @@ export interface components {
         AlgorithmKind: "CLASSIC" | "AI";
         /** @enum {string} */
         LinkageId: "single" | "complete" | "average" | "ward";
-        /** @description RFC 9457 Problem Detail, as Spring Framework 7 serializes it natively. `type` carries one of this API's fixed URNs, or is entirely absent (never a literal JSON `null`) when the error is one Spring's own machinery classifies without a domain-specific cause (TRD §6.6). */
+        /** @description RFC 9457 Problem Detail, as Spring Framework 7 serializes it natively. `type` carries one of this API's fixed URNs, or is entirely absent (never a literal JSON `null`) when the error is one Spring's own machinery classifies without a domain-specific cause. */
         ProblemDetail: {
             /**
              * Format: uri
@@ -296,7 +296,7 @@ export interface components {
             displayName: string;
             kind: components["schemas"]["AlgorithmKind"];
         };
-        /** @description TRD §6.3 common result envelope, as returned over the wire (with `cached`). */
+        /** @description Common result envelope, as returned over the wire (with `cached`). */
         SimilarityResult: {
             /** Format: double */
             normalizedScore: number;
@@ -317,7 +317,7 @@ export interface components {
         CompareRequest: {
             documentIdA: string;
             documentIdB: string;
-            /** @description Omitted or null defaults to all six capabilities (TAC-01). */
+            /** @description Omitted or null defaults to all six capabilities. */
             algorithmIds?: components["schemas"]["AlgorithmId"][] | null;
         };
         MatrixRequest: {
@@ -339,7 +339,7 @@ export interface components {
             to: components["schemas"]["MatrixCell"];
             operation: components["schemas"]["DpOperationKind"];
         };
-        /** @description Shared by `levenshtein` and `needleman-wunsch` (TRD §6.3). */
+        /** @description Shared by `levenshtein` and `needleman-wunsch`. */
         DpMatrixTrace: {
             /**
              * @description discriminator enum property added by openapi-typescript
@@ -395,7 +395,7 @@ export interface components {
              */
             algorithmId: "tfidf-cosine";
             corpusSize: number;
-            /** @description Only terms present in at least one of the two compared documents (TRD §6.3). */
+            /** @description Only terms present in at least one of the two compared documents. */
             terms: components["schemas"]["TfIdfTermTrace"][];
             /** Format: double */
             dotProduct: number;
@@ -459,7 +459,7 @@ export interface components {
             normalizedScore: number;
             providerStatus: string;
         };
-        /** @description One variant per similarity capability (TRD §6.3, NFR-QA-03). `levenshtein` and `needleman-wunsch` share the `DpMatrixTrace` shape. */
+        /** @description One variant per similarity capability. `levenshtein` and `needleman-wunsch` share the `DpMatrixTrace` shape. */
         AlgorithmTrace: components["schemas"]["DpMatrixTrace"] | components["schemas"]["JaccardTrace"] | components["schemas"]["TfIdfCosineTrace"] | components["schemas"]["EmbeddingLocalTrace"] | components["schemas"]["EmbeddingApiTrace"];
         ClusteringRequest: {
             /**
@@ -480,7 +480,7 @@ export interface components {
             /** @description Business rule: integer in [2, n-1] (2–19 in the reference corpus). */
             k: number;
         };
-        /** @description One row of a linkage matrix (TRD §6.4). `idx1 < idx2` always. */
+        /** @description One row of a linkage matrix. `idx1 < idx2` always. */
         LinkageStep: {
             idx1: number;
             idx2: number;
@@ -488,14 +488,14 @@ export interface components {
             mergeDistance: number;
             size: number;
         };
-        /** @description `meanSilhouette`/`daviesBouldin` are objects keyed by the fixed cut k (JSON object keys are always strings, e.g. "2".."5") — computed always at k ∈ {2,3,4,5} ∩ [2, n-1] (TAC-04). */
+        /** @description `meanSilhouette`/`daviesBouldin` are objects keyed by the fixed cut k (JSON object keys are always strings, e.g. "2".."5") — computed always at k ∈ {2,3,4,5} ∩ [2, n-1]. */
         ClusteringEvaluation: {
             /** Format: double */
             cophenetic: number;
             meanSilhouette: {
                 [key: string]: number;
             };
-            /** @description null for a k whose centroids coincide (TRD §6.5). */
+            /** @description null for a k whose centroids coincide. */
             daviesBouldin: {
                 [key: string]: number | null;
             };
@@ -506,7 +506,7 @@ export interface components {
             /** @description (n-1) rows (19 rows with n = 20). */
             rows: components["schemas"]["LinkageStep"][];
             leafOrder: number[];
-            /** @description Length n; position i is the id of the document behind observation i, in the order of corpus.json (the same order GET /corpus lists). idx1/idx2 (< n) and leafOrder index into this same order (TRD 1.3.9). */
+            /** @description Length n; position i is the id of the document behind observation i, in the order of corpus.json (the same order GET /corpus lists). idx1/idx2 (< n) and leafOrder index into this same order. */
             documentIds: string[];
             evaluation: components["schemas"]["ClusteringEvaluation"];
         };
@@ -518,7 +518,7 @@ export interface components {
         ClusterAssignment: {
             labels: number[];
             k: number;
-            /** @description Length n, aligned with labels: documentIds[i] is the document whose cluster is labels[i], in the order of corpus.json (the same order GET /corpus lists, TRD 1.3.9). */
+            /** @description Length n, aligned with labels: documentIds[i] is the document whose cluster is labels[i], in the order of corpus.json (the same order GET /corpus lists). */
             documentIds: string[];
         };
         EmbeddingLocalStatus: {
@@ -527,7 +527,7 @@ export interface components {
             dimension: number;
             corpusSha256: string;
             matchesCorpus: boolean;
-            /** @description Fixed literal "cpu" today (TRD §14.2, CPU-only default). */
+            /** @description Fixed literal "cpu" today (CPU-only default). */
             device: string;
         };
         EmbeddingApiStatus: {
@@ -537,7 +537,7 @@ export interface components {
             corpusSha256: string;
             matchesCorpus: boolean;
             /**
-             * @description The only capability with a live-update path (NFR-QA-12).
+             * @description The only capability with a live-update path.
              * @enum {string}
              */
             mode: "cached" | "live";
@@ -546,7 +546,7 @@ export interface components {
             embeddingLocal: components["schemas"]["EmbeddingLocalStatus"];
             embeddingApi: components["schemas"]["EmbeddingApiStatus"];
         };
-        /** @description The reference-harness metadata recorded in jmh-results.csv's header at JMH run time (NFR-QA-10). Every field is always present: the harness sidecar the export reads from fails closed on a missing key (TRD §6.6/§9). */
+        /** @description The reference-harness metadata recorded in jmh-results.csv's header at JMH run time. Every field is always present: the harness sidecar the export reads from fails closed on a missing key. */
         BenchmarkHarness: {
             cpuModel: string;
             logicalCores: number;
@@ -557,7 +557,7 @@ export interface components {
             /** @description ISO-8601 instant the JMH run finished (the CSV header's utcDate). */
             measuredAt: string;
         };
-        /** @description One benchmark method at one parameter value, read as-is from jmh-results.csv (TRD §6.6). Includes the slo-* families (NFR-QA-01/ NFR-QA-02) and both embedding-dimension measurements. */
+        /** @description One benchmark method at one parameter value, read as-is from jmh-results.csv. Includes the slo-* families and both embedding-dimension measurements. */
         BenchmarkResult: {
             /** @description Fully qualified JMH benchmark method name. */
             benchmark: string;
@@ -571,7 +571,7 @@ export interface components {
             /** @description JMH throughput/time unit (e.g. ns/op, us/op, ms/op). */
             unit: string;
         };
-        /** @description Least-squares log-log slope of one curve family next to its documented theoretical exponent (TRD §6.3/§6.4/§6.5, TAC-18), read as-is from slopes.csv. A fixed-n SLO family is not a curve and never appears here. */
+        /** @description Least-squares log-log slope of one curve family next to its documented theoretical exponent, read as-is from slopes.csv. A fixed-n SLO family is not a curve and never appears here. */
         BenchmarkSlope: {
             family: string;
             points: number;
@@ -585,7 +585,7 @@ export interface components {
         };
     };
     responses: {
-        /** @description NFR-QA-12: a network failure, timeout, rejection, or missing API key from the live `embedding-api` provider. Applies to every endpoint that can use the `embedding-api` capability/representation (TRD §6.3). As of this contract's authoring (feature task A6), the live path is not yet wired to any production call site (task A8 does that); the mapping already exists in `ProblemDetailExceptionHandler` and is documented here because the TRD fixes it as part of this endpoint's error contract. */
+        /** @description A network failure, timeout, rejection, missing API key, or dimension mismatch from the live `embedding-api` provider. Applies to every endpoint that can use the `embedding-api` capability/representation. In live mode, the server fetches missing vectors from the configured OpenAI-compatible embeddings endpoint at request time; any failure of that call is mapped to this response by `ProblemDetailExceptionHandler`. */
         EmbeddingApiUnavailable: {
             headers: {
                 [name: string]: unknown;
@@ -669,7 +669,7 @@ export interface operations {
                     "application/json": components["schemas"]["CorpusDocument"];
                 };
             };
-            /** @description No corpus document with this id (TRD §6.6 error table: 404 because `id` is a path segment). */
+            /** @description No corpus document with this id (404 because `id` is a path segment). */
             404: {
                 headers: {
                     [name: string]: unknown;
@@ -732,7 +732,7 @@ export interface operations {
                     "application/json": components["schemas"]["AlgorithmSimilarity"][];
                 };
             };
-            /** @description An unknown `algorithmIds` entry (`unknown-algorithm`), an unknown `documentIdA`/`documentIdB` (`unknown-document`), or a blank required field (`about:blank`, framework-detected) — TRD §6.6 error table: 400 because these values arrive in the request body. */
+            /** @description An unknown `algorithmIds` entry (`unknown-algorithm`), an unknown `documentIdA`/`documentIdB` (`unknown-document`), or a blank required field (`about:blank`, framework-detected) — 400 because these values arrive in the request body. */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -804,7 +804,7 @@ export interface operations {
                     "application/json": components["schemas"]["AlgorithmTrace"];
                 };
             };
-            /** @description An unknown `documentIdA`/`documentIdB` query value (`unknown-document`) — TRD §6.6 error table: 400 because these are query parameters, not the path segment. */
+            /** @description An unknown `documentIdA`/`documentIdB` query value (`unknown-document`) — 400 because these are query parameters, not the path segment. */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -813,7 +813,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
-            /** @description An unknown `algorithmId` path segment (`unknown-algorithm`) — TRD §6.6 error table: 404 because this value is a path segment. */
+            /** @description An unknown `algorithmId` path segment (`unknown-algorithm`) — 404 because this value is a path segment. */
             404: {
                 headers: {
                     [name: string]: unknown;

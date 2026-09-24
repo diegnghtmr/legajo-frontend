@@ -4,9 +4,9 @@ import { useNavigate } from 'react-router';
 import { useSelectionStore } from './selectionStore';
 
 /**
- * Sticky primary CTA (DESIGN.md §6.1): disabled until ≥2 articles are
+ * Sticky primary CTA: disabled until ≥2 articles are
  * selected, with the disabled reason shown as text right under the button
- * (DESIGN.md §7.2 "Disabled: opacity ~0.45 + reason text nearby").
+ * ("Disabled: opacity ~0.45 + reason text nearby").
  */
 export function CompareCta() {
   const { t } = useTranslation();

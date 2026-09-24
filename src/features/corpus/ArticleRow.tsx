@@ -12,13 +12,13 @@ export interface ArticleRowProps {
 
 /**
  * One corpus article: a native checkbox drives selection (fully accessible
- * and keyboard-operable on its own — DESIGN.md §7.6, task W4), the title
+ * and keyboard-operable on its own), the title
  * links to `/corpus/:id` for the full abstract. Meta (mono id, authors) is
- * stacked on its own lines, never joined by `·` (DESIGN.md §6.1/§7.1).
+ * stacked on its own lines, never joined by `·`.
  *
  * Colocated in `features/corpus` rather than `shared/`: today it has exactly
  * one importer (this feature's article list). The Scope Rule promotes on
- * actual second use, not anticipated reuse — when `similarity` (W5) also
+ * actual second use, not anticipated reuse — when `similarity` also
  * needs to render selected articles, move it to `shared/components/` then.
  */
 export function ArticleRow({ id, title, authors, selected, onToggle }: ArticleRowProps) {

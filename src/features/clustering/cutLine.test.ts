@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import { computeCutDistance, CutLineError, tryComputeCutDistance } from './cutLine';
 
-/** n = 5 (4 rows), distances already in ascending merge order (TRD §6.4). */
+/** n = 5 (4 rows), distances already in ascending merge order. */
 const ROWS = [
   { mergeDistance: 1 },
   { mergeDistance: 2 },

@@ -3,10 +3,10 @@ import { describe, expect, it } from 'vitest';
 import { matrixHeatClassName } from './matrixHeat';
 
 /**
- * Boundary-exact bucket assertions (task requirement): 0, just below/at each
+ * Boundary-exact bucket assertions: 0, just below/at each
  * threshold, and 1. Unlike `DpMatrix`'s relative min/max heat (raw DP values
  * have no fixed range), `normalizedScore` is already contract-guaranteed to
- * [0, 1] (TRD §6.3 `SimilarityResultSchema`), so the buckets are absolute
+ * [0, 1] (`SimilarityResultSchema`), so the buckets are absolute
  * thresholds over that fixed range, not min/max-relative.
  */
 describe('matrixHeatClassName', () => {

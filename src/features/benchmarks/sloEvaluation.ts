@@ -5,18 +5,19 @@ type BenchmarkResult = BenchmarkReportResponse['results'][number];
 
 export interface SloEvaluation {
   family: string;
-  /** The result's own `size` (fixed at 20 for every `slo-*` family, TAC-07), kept for a unique row key. */
+  /** The result's own `size` (fixed at 20 for every `slo-*` family), kept for a unique row key. */
   size: number;
   valueMs: number;
   thresholdMs: number;
-  /** Strictly under the threshold, matching TAC-07's own "< 5 s" / "< 1 s" wording. */
+  /** Strictly under the threshold ("< 5 s" / "< 1 s" wording). */
   withinThreshold: boolean;
 }
 
 /**
- * Reads one `slo-*` result against its fixed TAC-07 threshold (NFR-QA-01
- * < 5000 ms per classic algorithm; NFR-QA-02 < 1000 ms for the four
- * linkages). The comparison never recomputes the measurement — it only
+ * Reads one `slo-*` result against its fixed threshold (the classic
+ * threshold is < 5000 ms per classic algorithm; the clustering threshold is
+ * < 1000 ms for the four linkages). The comparison never recomputes the
+ * measurement — it only
  * converts the reported score to milliseconds (`toNanoseconds`) and compares.
  */
 export function evaluateSlo(result: BenchmarkResult, thresholdMs: number): SloEvaluation {

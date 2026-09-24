@@ -2,7 +2,7 @@ import type { DendrogramLeafLabel } from '../../shared/components/Dendrogram';
 
 /**
  * Builds one dendrogram leaf label per observation straight from a
- * `POST /clustering` linkage result's own `documentIds` (TRD 1.3.9):
+ * `POST /clustering` linkage result's own `documentIds`:
  * position *i* is always the document behind observation *i*, the same
  * index `idx1`/`idx2` and `leafOrder` use — never assumed from `GET
  * /corpus`'s own list order or length. `titleById` supplies the display

@@ -14,16 +14,16 @@ import { useSelectionStore } from '../corpus/selectionStore';
 import { MatrixTable } from './matrix/MatrixTable';
 
 /**
- * The six fixed capability ids, same fixed list W5's compare screen already
- * uses for its default selection (`AlgorithmIdSchema`, TRD §6.3) — no
+ * The six fixed capability ids, the same fixed list the compare screen already
+ * uses for its default selection (`AlgorithmIdSchema`) — no
  * dependency on the `/similarity/algorithms` catalogue fetch, so the matrix
  * request can fire immediately without waiting on a second, unrelated query.
  */
 const ALGORITHM_IDS = [...AlgorithmIdSchema.options];
 
 /** `levenshtein` (the first fixed id) is the default: a deterministic,
- * always-available classic capability, consistent with W5's "no catalogue
- * dependency" default reasoning. */
+ * always-available classic capability, consistent with the compare screen's
+ * "no catalogue dependency" default reasoning. */
 const DEFAULT_ALGORITHM_ID: AlgorithmId = ALGORITHM_IDS[0];
 
 const ALGORITHM_OPTIONS: readonly SegmentedOption<AlgorithmId>[] = ALGORITHM_IDS.map((id) => ({
@@ -32,7 +32,7 @@ const ALGORITHM_OPTIONS: readonly SegmentedOption<AlgorithmId>[] = ALGORITHM_IDS
 }));
 
 /**
- * The m×m similarity matrix screen (PRD HU-1.4): reads the shared corpus
+ * The m×m similarity matrix screen: reads the shared corpus
  * `selectionStore`, requires at least three selected articles (`canMatrix`),
  * and lets the user pick exactly one algorithm via a `radiogroup` (reusing
  * `SegmentedControl`, widened to accept a mono `ReactNode` label instead of

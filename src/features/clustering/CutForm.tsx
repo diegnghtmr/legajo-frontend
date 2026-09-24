@@ -19,9 +19,9 @@ export interface CutFormValues {
 }
 
 export interface CutFormProps {
-  /** Only the linkages currently shown on the page (TRD §6.6: `linkage` must be one conforming value). */
+  /** Only the linkages currently shown on the page (`linkage` must be one conforming value). */
   linkages: readonly CutFormLinkageOption[];
-  /** Sample size of the loaded corpus; bounds the free cut to k ∈ [2, n-1] (TRD §6.6). */
+  /** Sample size of the loaded corpus; bounds the free cut to k ∈ [2, n-1]. */
   n: number;
   defaultLinkage: LinkageId;
   onSubmit: (values: CutFormValues) => void;
@@ -30,7 +30,7 @@ export interface CutFormProps {
 }
 
 /**
- * `k` is validated purely against the contract's own bound (TRD §6.6); the
+ * `k` is validated purely against the contract's own bound; the
  * exact rejection reason is not surfaced from Zod's own message (it would
  * need `t()` inside the schema), so the form always shows the same
  * translated range message for any `k` failure — there is only one way `k`
@@ -48,7 +48,7 @@ function buildCutSchema(n: number) {
 }
 
 /**
- * The free cut form (DESIGN.md §6 item 4, §7.3, TRD §6.6/§6.7): reuses
+ * The free cut form: reuses
  * `SegmentedControl` (already accessible + arrow-key tested) for the
  * single-select linkage choice instead of hand-rolling a new radiogroup.
  * Submits `{linkage, k}`; the caller supplies `representation` since this

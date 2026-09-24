@@ -2,9 +2,9 @@ import { AxeBuilder } from '@axe-core/playwright';
 import { expect, test, type Page } from '@playwright/test';
 
 /**
- * Contract-shaped payloads (TRD §6.6 `GET /corpus`, `GET /corpus/{id}`) —
+ * Contract-shaped payloads (`GET /corpus`, `GET /corpus/{id}`) —
  * no live backend: `page.route` intercepts every request so this suite runs
- * fully offline, per the task's e2e instructions.
+ * fully offline.
  */
 const CORPUS_SUMMARIES = [
   { id: 'doc-01', title: 'A survey of string similarity', authors: ['A. One', 'B. Two'] },
@@ -83,7 +83,7 @@ test.describe('corpus screen', () => {
     await expect(compareButton).toBeEnabled();
   });
 
-  test('shows the embeddings status panel with both families (TAC-13)', async ({ page }) => {
+  test('shows the embeddings status panel with both families', async ({ page }) => {
     await page.goto('/');
 
     await expect(page.getByRole('heading', { name: 'Estado de los embeddings' })).toBeVisible();

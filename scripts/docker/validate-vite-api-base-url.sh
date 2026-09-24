@@ -73,7 +73,7 @@ trimmed="${value}"
 
 if [ -z "${trimmed}" ]; then
   echo "ERROR: VITE_API_BASE_URL is required and must not be empty or whitespace-only." >&2
-  echo "  Vite inlines it into the bundle at build time (TRD Appendix A); an" >&2
+  echo "  Vite inlines it into the bundle at build time; an" >&2
   echo "  unset/blank value would silently ship a bundle pointing at the wrong API." >&2
   echo "  Docker/Compose build: --build-arg VITE_API_BASE_URL=http://localhost:8080" >&2
   echo "  Vercel: set VITE_API_BASE_URL as a Project Environment Variable instead —" >&2

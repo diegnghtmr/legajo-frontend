@@ -1,7 +1,7 @@
 import { defineConfig, devices } from '@playwright/test';
 
 /**
- * Full-stack e2e config (F3, TRD §14.3/1.3.11): a completely separate
+ * Full-stack e2e config: a completely separate
  * Playwright project from `playwright.config.ts`. Two things keep the two
  * suites from ever mixing:
  *
@@ -19,7 +19,7 @@ import { defineConfig, devices } from '@playwright/test';
  *     "webServer" timeout instead of the real error.
  *
  * `baseURL` is the frontend origin the browser navigates to — the Compose
- * stack's published `:80` (TRD §14.2) by default, overridable via
+ * stack's published `:80` by default, overridable via
  * `E2E_BASE_URL` for a non-default `LEGAJO_FRONTEND_PORT`. The real backend
  * origin the specs call directly (`GET /api/v1/corpus`, etc., to fetch real
  * ids/titles and cross-check UI values) is a separate constant,

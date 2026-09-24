@@ -3,9 +3,9 @@ const VISIBLE_SUFFIX = 6;
 const MIN_LENGTH_TO_SHORTEN = VISIBLE_PREFIX + VISIBLE_SUFFIX + 1;
 
 /**
- * Shortens a `corpusSha256` digest (TRD §9) for display: the full value
- * stays available via `title`/sr-only text wherever this is used (TAC-13
- * UI), this only trims the visible glyph count. A digest at or below the
+ * Shortens a `corpusSha256` digest for display: the full value
+ * stays available via `title`/sr-only text wherever this is used,
+ * this only trims the visible glyph count. A digest at or below the
  * combined prefix+suffix length is returned verbatim — shortening it would
  * not save any characters.
  */

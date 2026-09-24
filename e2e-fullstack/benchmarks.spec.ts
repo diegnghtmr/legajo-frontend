@@ -37,7 +37,7 @@ async function expectPlottedLine(group: Locator) {
 
 /**
  * Benchmarks screen, full stack, no mocks: renders the real, versioned JMH
- * CSV data the backend serves (TRD §6.6 `GET /benchmarks`), not the
+ * CSV data the backend serves from `GET /benchmarks`, not the
  * hand-shaped fixture the mocked `e2e/benchmarks.spec.ts` uses.
  * `no-mocks.guard.spec.ts` enforces there is no `page.route` anywhere in
  * this directory.
@@ -74,7 +74,7 @@ test.describe('benchmarks (full stack)', () => {
     await expectPlottedLine(classicGroup);
 
     // The other two curve chart groups (real CSV data has HAC-linkage and
-    // internal-metric families too, TRD §6.5/§6.6) are present as real
+    // internal-metric families too) are present as real
     // charts WITH plotted data as well, not just counted or checked for the
     // `data-scale` attribute alone (which an empty chart could also carry).
     for (const name of ['Enlaces jerárquicos (HAC)', 'Métricas internas de agrupamiento']) {
@@ -84,8 +84,8 @@ test.describe('benchmarks (full stack)', () => {
       await expectPlottedLine(group);
     }
 
-    // Both embedding dimensions from the fixed local/API providers (ADR
-    // pinned in TRD §8: MiniLM 384, Gemini 1536).
+    // Both embedding dimensions from the fixed local/API providers
+    // (MiniLM 384, Gemini 1536).
     await expect(page.getByTestId('embedding-tile-384')).toBeVisible();
     await expect(page.getByTestId('embedding-tile-1536')).toBeVisible();
 

@@ -1,5 +1,5 @@
 /**
- * Nanoseconds per JMH throughput/time unit (TRD §6.6's `BenchmarkResult.unit`).
+ * Nanoseconds per JMH throughput/time unit (`BenchmarkResult.unit`).
  * A `Map`, not a plain object: a plain object's lookup would silently resolve
  * an unrecognized unit like `"constructor"` or `"toString"` to an inherited
  * `Object.prototype` value instead of `undefined`, turning a malformed unit

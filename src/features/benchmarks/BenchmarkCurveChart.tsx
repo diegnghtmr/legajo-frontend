@@ -63,7 +63,7 @@ function seriesForPlotting(
   }));
 }
 
-/** Renders one grayscale marker shape per series (DESIGN.md §7.6, color is not the only channel). */
+/** Renders one grayscale marker shape per series (color is never the only channel). */
 function seriesDot(shape: MarkerShape) {
   return function SeriesDot(props: DotItemDotProps) {
     const { cx, cy } = props;
@@ -113,7 +113,7 @@ function seriesDot(shape: MarkerShape) {
 }
 
 /**
- * One curve group (DESIGN.md §6 item 6): grayscale series distinguished by
+ * One curve group: grayscale series distinguished by
  * dash pattern and marker shape, the theoretical curve overlaid per series
  * (dotted), a linear/log–log scale, a visible empirical-vs-theoretical slope
  * table, and an sr-only data table so every measured value is available

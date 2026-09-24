@@ -16,8 +16,8 @@ const NUMERIC_TH_CLASS =
 const NUMERIC_TD_CLASS = 'p-2 font-mono text-mono text-ink';
 
 /**
- * TF-IDF / cosine trace panel (PRD HU-1.3): term-by-term frequencies and
- * weights over the union of the two documents' tokens (TRD §6.3's "scope of
+ * TF-IDF / cosine trace panel: term-by-term frequencies and
+ * weights over the union of the two documents' tokens (the "scope of
  * the trace" rule — not the full corpus vocabulary), then the dot product,
  * both raw norms, cosine and angle. Every number is the backend's own value,
  * rendered verbatim.

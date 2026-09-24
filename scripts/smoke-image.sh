@@ -1,6 +1,5 @@
 #!/bin/sh
-# Image smoke test for the Legajo frontend container (TRD §14.2/§14.3,
-# CI job `image-smoke`).
+# Image smoke test for the Legajo frontend container (CI job `image-smoke`).
 #
 # Verifies, against a running container's published port:
 #   0. Waits (bounded, wall-clock) for the container to start responding at
@@ -21,7 +20,7 @@
 # forever; every assertion fails loudly on an empty or missing value
 # instead of silently treating it as passing.
 #
-# This script itself must run inside a container (TRD §14.2: nothing is
+# This script itself must run inside a container (nothing is
 # verified on the host), e.g. with the pinned curl image and the repo
 # bind-mounted read-only:
 #
