@@ -1,0 +1,6 @@
+#!/usr/local/bin/bash
+# Fake `uname` for identity-derivation-case.sh's "readlink AND uname both
+# fail" section: always fails, with no output. Kept in its own directory,
+# separate from identity-derivation-shims/, because every other section
+# there relies on the REAL `uname -s` still reporting "Linux".
+exit 1

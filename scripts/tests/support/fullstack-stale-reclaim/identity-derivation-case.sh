@@ -127,3 +127,26 @@ if [ "${pidns_status}" -eq 0 ]; then
 else
   echo "PIDNS_ABORTED=yes"
 fi
+
+echo "=== pidns: readlink AND uname both fail (kernel unknown) ==="
+# An unknown kernel is NOT a confirmed non-Linux kernel: "none" is only
+# safe where pid namespaces cannot exist, so a failing `uname -s` must
+# still yield an EMPTY value (reclaim disabled), never the shared "none"
+# sentinel two separate namespaces could both end up matching on.
+set +e
+PATH="/support/identity-derivation-shims-no-uname:${PATH}" bash -c '
+  set -euo pipefail
+  OWNER_PIDNS="$(current_owner_pidns)"
+  if [ -z "${OWNER_PIDNS}" ]; then
+    echo "UNKNOWN_KERNEL_PIDNS_EMPTY=yes"
+  else
+    echo "UNKNOWN_KERNEL_PIDNS_EMPTY=no (got: ${OWNER_PIDNS})"
+  fi
+'
+unknown_kernel_status=$?
+set -e
+if [ "${unknown_kernel_status}" -eq 0 ]; then
+  echo "UNKNOWN_KERNEL_ABORTED=no"
+else
+  echo "UNKNOWN_KERNEL_ABORTED=yes"
+fi

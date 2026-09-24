@@ -181,6 +181,10 @@ check_result "the production WARNING block fires for an empty pidns" \
   "${identity_output}" "WARNING_PRINTED" "yes"
 check_result "the pidns chain still reaches its own end after the warning" \
   "${identity_output}" "PIDNS_CHAIN_REACHED" "yes"
+check_result "current_owner_pidns does not abort when readlink and uname both fail" \
+  "${identity_output}" "UNKNOWN_KERNEL_ABORTED" "no"
+check_result "an unknown kernel (uname failing) yields an EMPTY pidns, never 'none'" \
+  "${identity_output}" "UNKNOWN_KERNEL_PIDNS_EMPTY" "yes"
 
 echo "== real cross-user case: owner alive, OTHER user (the EPERM case) =="
 other_user_output=""

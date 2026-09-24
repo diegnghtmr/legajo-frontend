@@ -66,11 +66,15 @@ current_owner_pidns() {
     return
   fi
   kernel="$(uname -s 2>/dev/null)" || true
-  if [ "${kernel}" != "Linux" ]; then
+  # "none" only for a kernel `uname -s` positively reports as non-Linux:
+  # an empty or failing `uname` is an UNKNOWN kernel, not a confirmed
+  # non-Linux one, so it gets the same empty value as Linux below.
+  if [ -n "${kernel}" ] && [ "${kernel}" != "Linux" ]; then
     printf '%s' "none"
   fi
-  # else: empty/unreadable pidns ON LINUX — print nothing (empty), on
-  # purpose; see this function's own comment above for why.
+  # else: empty/unreadable pidns ON LINUX (or on a kernel `uname` could
+  # not name) — print nothing (empty), on purpose; see this function's
+  # own comment above for why.
 }
 
 # True (exit 0) when owner_host/owner_pidns positively match
