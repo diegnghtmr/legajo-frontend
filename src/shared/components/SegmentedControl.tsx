@@ -8,7 +8,7 @@ export interface SegmentedOption<TValue extends string> {
   /**
    * A plain string for most Segmented uses (e.g. the family filter); a
    * `ReactNode` is accepted so a caller needing a mono machine id inside an
-   * option (DESIGN.md's "always mono for machine ids") can wrap it, e.g. the
+   * option (machine ids are always shown in mono) can wrap it, e.g. the
    * similarity matrix's single-algorithm selector.
    */
   label: ReactNode;
@@ -23,7 +23,7 @@ export interface SegmentedControlProps<TValue extends string> {
 }
 
 /**
- * DESIGN.md pattern B family/representation switch (§7.1, §7.6): a
+ * Pattern B family/representation switch: a
  * `radiogroup` track of `radio` options with roving tabindex and
  * ArrowLeft/ArrowRight/Home/End navigation, wrapping at the ends.
  */

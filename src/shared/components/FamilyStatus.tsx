@@ -7,7 +7,7 @@ export interface FamilyStatusProps {
 }
 
 /**
- * Read-only family indicator for table rows (DESIGN.md §6.2, §7.1, §7.6):
+ * Read-only family indicator for table rows:
  * a 6px status dot plus a visible text label — the dot alone is never the
  * only channel.
  */

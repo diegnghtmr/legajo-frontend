@@ -11,7 +11,7 @@ type JaccardTrace = components['schemas']['JaccardTrace'];
  * Contract-level test: fails to typecheck (not just to run) when
  * `npm run api:types` regenerates a shape that drops or renames a field the
  * rest of the app depends on. Keeps the OpenAPI -> TS generation honest
- * without duplicating Zod runtime validation (added in task W3).
+ * without duplicating Zod runtime validation.
  */
 describe('generated OpenAPI contract types (src/shared/types/api.ts)', () => {
   it('SimilarityResult requires cached, degenerate and computedNanos', () => {

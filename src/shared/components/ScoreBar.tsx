@@ -9,8 +9,8 @@ export interface ScoreBarProps {
 }
 
 /**
- * Mono score value + fill bar (DESIGN.md §6.2, §9.3). The backend guarantees
- * `value` is within [0, 1] (TRD §6.3); this component renders it verbatim,
+ * Mono score value + fill bar. The backend guarantees
+ * `value` is within [0, 1]; this component renders it verbatim,
  * never clamps, and throws on a value outside that range. `role="meter"` fits a scalar measurement within a known
  * range better than `progressbar` (which implies task completion).
  */

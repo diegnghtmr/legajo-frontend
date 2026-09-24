@@ -7,7 +7,7 @@ export type BenchmarkReportResponse =
   operations['benchmarks']['responses'][200]['content']['application/json'];
 
 /**
- * Reads the versioned JMH reference-run measurements (TRD §6.6, 1.3.10): the
+ * Reads the versioned JMH reference-run measurements: the
  * harness, every classified result (including the `slo-*` families and both
  * embedding-dimension points), and each curve's log-log slope. Never
  * triggers a JMH run and never recalculates anything server-side or here.

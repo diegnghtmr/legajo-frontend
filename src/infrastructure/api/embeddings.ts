@@ -8,7 +8,7 @@ export type EmbeddingsStatusResponse =
 
 /**
  * Both embedding families in one response: each reads its own cache and can
- * drift from the corpus independently (TRD §6.6, TAC-13).
+ * drift from the corpus independently.
  */
 export async function fetchEmbeddingsStatus(): Promise<EmbeddingsStatusResponse> {
   const { data } = await httpClient.get<EmbeddingsStatusResponse>('/api/v1/embeddings/status');

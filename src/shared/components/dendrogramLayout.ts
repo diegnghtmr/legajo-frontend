@@ -1,7 +1,7 @@
 import { scaleLinear } from 'd3-scale';
 
 /**
- * One row of a linkage matrix (TRD §6.4): the observation ids are `0..n-1`;
+ * One row of a linkage matrix: the observation ids are `0..n-1`;
  * the cluster created by row `i` (0-based) receives id `n + i`; `idx1 <
  * idx2` always; distances are non-decreasing across rows. This shape mirrors
  * `LinkageStepSchema` (`infrastructure/schemas/clustering.ts`) but is kept
@@ -53,7 +53,7 @@ export interface DendrogramLayoutResult {
 }
 
 /**
- * Thrown for any linkage matrix that does not satisfy the TRD §6.4
+ * Thrown for any linkage matrix that does not satisfy the fixed
  * conventions this layout depends on — never caught here, so a malformed
  * matrix fails loudly instead of being drawn incorrectly. Callers that must
  * degrade (e.g. `Dendrogram.tsx`) catch this explicitly and show an
@@ -113,7 +113,7 @@ export interface ComputeDendrogramLayoutInput {
 }
 
 /**
- * Pure geometry over the backend's own linkage matrix (TRD §6.4): it never
+ * Pure geometry over the backend's own linkage matrix: it never
  * recomputes a merge, only positions the `rows` and `leafOrder` it is given.
  * Throws `DendrogramLayoutError` on a malformed matrix (wrong row count, a
  * non-increasing or out-of-range `idx1`/`idx2`, or a `leafOrder` that is not

@@ -18,7 +18,7 @@ export function handleResponseError(error: unknown): Promise<never> {
  * The app's single Axios instance. Base URL comes from the validated env
  * (`env.ts`): empty string in development, so requests stay relative and the
  * Vite `/api` proxy (`vite.config.ts`) routes them to `localhost:8080`.
- * 60s timeout absorbs a Render free-tier cold start (TRD Appendix A, §14.4).
+ * 60s timeout absorbs a Render free-tier cold start.
  */
 export const httpClient = axios.create({
   baseURL: loadEnv().apiBaseUrl,

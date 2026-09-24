@@ -31,7 +31,7 @@ describe('AlgoTextButton', () => {
     expect(onToggle).toHaveBeenCalledTimes(1);
   });
 
-  it('shows only the mono algorithm id, with no family marker (DESIGN.md §6, algo-text-button)', () => {
+  it('shows only the mono algorithm id, with no family marker', () => {
     render(<AlgoTextButton id="tfidf-cosine" active={false} onToggle={vi.fn()} />);
 
     expect(screen.getByRole('button', { name: 'tfidf-cosine' })).toHaveTextContent(

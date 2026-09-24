@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { computeDendrogramLayout, DendrogramLayoutError } from './dendrogramLayout';
 
 /**
- * Golden n = 5 linkage matrix (TRD §6.4 conventions): leaves 0..4, the
+ * Golden n = 5 linkage matrix: leaves 0..4, the
  * cluster created by row i (0-based) gets id n + i. `leafOrder` is
  * deliberately not the identity permutation so a bug that positions leaves
  * by `id` instead of by their index in `leafOrder` is caught.

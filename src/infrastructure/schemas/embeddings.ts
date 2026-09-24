@@ -6,7 +6,7 @@ export const EmbeddingLocalStatusSchema = z.object({
   dimension: z.number(),
   corpusSha256: z.string(),
   matchesCorpus: z.boolean(),
-  /** Fixed literal "cpu" today (TRD §14.2, CPU-only default). */
+  /** Fixed literal "cpu" today (CPU-only default). */
   device: z.string(),
 });
 
@@ -16,7 +16,7 @@ export const EmbeddingApiStatusSchema = z.object({
   dimension: z.number(),
   corpusSha256: z.string(),
   matchesCorpus: z.boolean(),
-  /** The only capability with a live-update path (NFR-QA-12). */
+  /** The only capability with a live-update path. */
   mode: z.enum(['cached', 'live']),
 });
 

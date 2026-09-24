@@ -22,8 +22,8 @@ export interface DendrogramCut {
   /**
    * Cluster number per original leaf id (`0..n-1`), from the backend's own
    * `POST /clustering/cut` — never computed here. Callers resolve this array
-   * by document id against the cut response's own `documentIds` (TRD 1.3.9,
-   * `cutLabels.ts`), not by assuming array position; an `undefined` entry
+   * by document id against the cut response's own `documentIds`
+   * (`cutLabels.ts`), not by assuming array position; an `undefined` entry
    * means that leaf's document could not be resolved from the cut result,
    * so no cluster number is shown for it.
    */
@@ -56,7 +56,7 @@ function leafLabelFor(leafLabels: readonly DendrogramLeafLabel[] | undefined, id
 }
 
 /**
- * D3 wrapper (DESIGN.md §6 item 4, §7.5, §9.3): draws only from the
+ * D3 wrapper: draws only from the
  * backend's own linkage matrix and `leafOrder` (`dendrogramLayout.ts`),
  * never recomputes a merge or a cut. A malformed matrix (see
  * `dendrogramLayout.ts`'s own validation) fails loudly with a visible,

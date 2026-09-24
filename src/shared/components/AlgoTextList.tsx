@@ -19,7 +19,7 @@ export interface AlgoTextListProps {
   'aria-label'?: string;
 }
 
-/** Horizontal wrap of `AlgoTextButton`s (DESIGN.md §6.2, §9.3). */
+/** Horizontal wrap of `AlgoTextButton`s. */
 export function AlgoTextList({
   options,
   selectedIds,

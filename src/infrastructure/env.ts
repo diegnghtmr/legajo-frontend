@@ -35,11 +35,11 @@ function isProductionMode(raw: RawEnv): boolean {
 }
 
 /**
- * Validates `VITE_API_BASE_URL` (TRD Appendix A, §14.4). In development an
+ * Validates `VITE_API_BASE_URL`. In development an
  * absent or empty value is not an error: it falls back to same-origin so the
  * Vite `/api` proxy works. In a production build a missing value is a
- * configuration mistake (the deployed bundle would have no backend to call,
- * TAC-11) and must fail loudly instead of silently calling same-origin.
+ * configuration mistake (the deployed bundle would have no backend to call)
+ * and must fail loudly instead of silently calling same-origin.
  */
 export function resolveEnv(raw: RawEnv): AppEnv {
   const rawValue = raw.VITE_API_BASE_URL;
@@ -47,7 +47,7 @@ export function resolveEnv(raw: RawEnv): AppEnv {
   if (rawValue === undefined || rawValue === '') {
     if (isProductionMode(raw)) {
       throw new EnvValidationError(
-        'VITE_API_BASE_URL must be set for a production build (TRD §14.4): set it in the ' +
+        'VITE_API_BASE_URL must be set for a production build: set it in the ' +
           'Vercel build environment to the deployed Render API URL.',
       );
     }

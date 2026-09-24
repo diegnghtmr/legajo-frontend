@@ -7,7 +7,7 @@ export interface PanelProps {
   className?: string;
 }
 
-/** Card surface (DESIGN.md `components.card`, §9.3): hairline border, one quiet shadow, no glassmorphism. */
+/** Card surface (the `components.card` token): hairline border, one quiet shadow, no glassmorphism. */
 export function Panel({ children, className }: PanelProps) {
   return (
     <section
@@ -27,7 +27,7 @@ export interface PanelHeaderProps {
   subtitle?: string;
 }
 
-/** Eyebrow + title + subtitle stack (DESIGN.md §9.3), e.g. `Traza` / DP algorithm name / subtitle. */
+/** Eyebrow + title + subtitle stack, e.g. `Traza` / DP algorithm name / subtitle. */
 export function PanelHeader({ eyebrow, title, subtitle }: PanelHeaderProps) {
   return (
     <header className="mb-3 flex flex-col gap-1">

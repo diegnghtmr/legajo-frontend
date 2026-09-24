@@ -7,7 +7,7 @@ export interface AlgoTextButtonProps {
 }
 
 /**
- * Mono, selectable algorithm id (DESIGN.md §6 `algo-text-button`, §9.3): ink-secondary
+ * Mono, selectable algorithm id: ink-secondary
  * text, active = ink with a 1.5px ink bottom border. It carries no family colour, so
  * nothing here depends on colour alone; family is shown by the Segmented filter and by
  * `FamilyStatus` in read-only views.

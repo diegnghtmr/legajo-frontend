@@ -2,13 +2,13 @@ export interface MetricTileProps {
   label: string;
   value: string;
   eyebrow?: string;
-  /** True when this tile's value is the leader for the metrics strip's ranking rule (TRD §6.5). */
+  /** True when this tile's value is the leader for the metrics strip's ranking rule. */
   leader?: boolean;
-  /** Marker text for the leader, e.g. `Tree` / `Árbol` or `Partition` / `Partición` (DESIGN.md §6.4). */
+  /** Marker text for the leader, e.g. `Tree` / `Árbol` or `Partition` / `Partición`. */
   leaderLabel?: string;
 }
 
-/** Eyebrow + mono value tile for the clustering metrics strip (DESIGN.md §6.4, §9.3). */
+/** Eyebrow + mono value tile for the clustering metrics strip. */
 export function MetricTile({
   label,
   value,

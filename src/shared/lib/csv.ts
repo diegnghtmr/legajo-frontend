@@ -15,7 +15,7 @@ function escapeCsvField(value: string): string {
  * (formatting, not computation — the interface never recomputes a value it
  * did not already receive from the backend). Used by `DpMatrix`'s download
  * button so the exported file always contains every cell, never a windowed
- * or virtualized subset (PRD HU-1.2, TRD §6.3: no DP truncation).
+ * or virtualized subset (no DP truncation).
  */
 export function toCsv(
   headers: readonly string[],

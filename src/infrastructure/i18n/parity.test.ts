@@ -39,7 +39,7 @@ function flattenLeaves(value: Record<string, unknown>, prefix = ''): Record<stri
   return leaves;
 }
 
-describe('i18n resource parity (TAC-16)', () => {
+describe('i18n resource parity', () => {
   it('ES and EN expose exactly the same non-empty key set', () => {
     const esKeys = flattenKeys(es).sort();
     const enKeys = flattenKeys(en).sort();

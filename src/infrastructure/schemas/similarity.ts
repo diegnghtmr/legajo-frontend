@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-/** The six fixed similarity capability ids (TRD §6.3). Never translated. */
+/** The six fixed similarity capability ids. Never translated. */
 export const AlgorithmIdSchema = z.enum([
   'levenshtein',
   'needleman-wunsch',
@@ -21,8 +21,8 @@ export const AlgorithmSummarySchema = z.object({
 });
 
 /**
- * TRD §6.3 common result envelope. Scores are constrained to [0, 1]
- * (TAC-05: every exposed similarity is normalized into that range).
+ * The common result envelope. Scores are constrained to [0, 1]
+ * (every exposed similarity is normalized into that range).
  */
 export const SimilarityResultSchema = z.object({
   normalizedScore: z.number().min(0).max(1),
@@ -59,7 +59,7 @@ const DpTraceStepSchema = z.object({
   operation: DpOperationKindSchema,
 });
 
-/** Shared by `levenshtein` and `needleman-wunsch` (TRD §6.3). */
+/** Shared by `levenshtein` and `needleman-wunsch`. */
 export const DpMatrixTraceSchema = z.object({
   algorithmId: z.enum(['levenshtein', 'needleman-wunsch']),
   rowLabels: z.array(z.string()),
@@ -140,7 +140,7 @@ export const EmbeddingApiTraceSchema = z.object({
 });
 
 /**
- * One variant per similarity capability (TRD §6.3, NFR-QA-03). Routed by the
+ * One variant per similarity capability. Routed by the
  * `algorithmId` discriminator; `levenshtein`/`needleman-wunsch` share
  * `DpMatrixTraceSchema`, whose discriminator is a two-value enum rather than
  * a single literal (Zod 4's `discriminatedUnion` supports that).
