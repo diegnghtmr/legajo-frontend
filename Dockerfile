@@ -40,55 +40,23 @@ COPY . .
 # backend on :8080), the `image-smoke` CI job, and any manual build (see
 # README "Running with Docker").
 ARG VITE_API_BASE_URL
-# The guard and the build run in the SAME shell (one RUN), not a guard RUN
-# followed by a separate `ENV VITE_API_BASE_URL=${VITE_API_BASE_URL}`: an
-# `ENV` instruction can only read the original ARG, not a shell variable a
-# prior RUN computed, so a previous version of this check validated
-# `trimmed` but then still exported the untrimmed `$VITE_API_BASE_URL` to
-# the build — a value with surrounding whitespace (e.g.
+# The trim-and-validate guard lives in its own file,
+# scripts/docker/validate-vite-api-base-url.sh (see that file's comments for
+# why it trims the way it does, and why it stopped using `awk`), not inline
+# here — so scripts/tests/api-base-url-guard.test.sh can run the exact same
+# code this build runs, never a hand-copied reimplementation that could
+# drift out of sync with it. The guard and the build still run in the SAME
+# shell (one RUN), not a guard RUN followed by a separate
+# `ENV VITE_API_BASE_URL=${VITE_API_BASE_URL}`: an `ENV` instruction can
+# only read the original ARG, not a shell variable a prior RUN computed, so
+# a previous version of this check validated `trimmed` but then still
+# exported the untrimmed `$VITE_API_BASE_URL` to the build — a value with
+# surrounding whitespace (e.g.
 # `--build-arg 'VITE_API_BASE_URL= http://localhost:8080 '`) passed the
 # guard yet still reached Vite with the whitespace intact. Prefixing `npm
 # run build` with `VITE_API_BASE_URL="$trimmed"` guarantees the exact value
 # that was validated is the exact value Vite inlines into the bundle.
-#
-# Only LEADING/TRAILING whitespace is trimmed (`awk`, not `tr -d`): an
-# earlier version of this guard used `tr -d '[:space:]'`, which removes
-# EVERY whitespace character, including in the middle of the value — a typo
-# like `--build-arg 'VITE_API_BASE_URL=http://local host:8080'` silently
-# became the working-looking `http://localhost:8080` instead of failing
-# loudly, defeating the entire point of this guard (never silently correct
-# a value that might not be what the caller meant). Any whitespace still
-# left after trimming only the ends is therefore rejected outright, not
-# repaired.
-#
-# `awk` (with `RS="\0"` so it reads the whole value as one record), not a
-# line-oriented `sed`: `sed`'s `^`/`$` anchors match the start/end of EACH
-# LINE, not the whole value, so a `--build-arg` value with a leading or
-# trailing NEWLINE (e.g. from a YAML block scalar) passed through unstripped
-# under the old `sed` form — not silently accepted (the leftover newline
-# still tripped the interior-whitespace check below and failed the build),
-# but for the wrong stated reason, and a value that was ONLY newline-padded
-# was rejected instead of cleanly trimmed the way pure-space padding already
-# was. `awk`'s `RS="\0"` slurps the value as a single record, so `gsub` on a
-# leading/trailing run of any whitespace class (including `\n`) actually
-# trims it, the same way the surrounding-space case already worked.
-RUN trimmed="$(printf '%s' "$VITE_API_BASE_URL" | awk 'BEGIN{RS="\0"} {gsub(/^[ \t\r\n]+|[ \t\r\n]+$/, ""); printf "%s", $0}')"; \
-    if [ -z "$trimmed" ]; then \
-      echo "ERROR: --build-arg VITE_API_BASE_URL is required and must not be empty or whitespace-only." >&2; \
-      echo "  Vite inlines it into the bundle at build time (TRD Appendix A); an" >&2; \
-      echo "  unset/blank value would silently ship a bundle pointing at the wrong API." >&2; \
-      echo "  Docker/Compose build: --build-arg VITE_API_BASE_URL=http://localhost:8080" >&2; \
-      echo "  Vercel: set VITE_API_BASE_URL as a Project Environment Variable instead —" >&2; \
-      echo "  Vercel builds this app with Vite directly, not through this Dockerfile." >&2; \
-      exit 1; \
-    fi; \
-    case "$trimmed" in \
-      *[[:space:]]*) \
-        echo "ERROR: --build-arg VITE_API_BASE_URL must not contain whitespace inside the value (surrounding whitespace is trimmed; interior whitespace is rejected, never silently removed)." >&2; \
-        echo "  got: '$VITE_API_BASE_URL'" >&2; \
-        exit 1; \
-        ;; \
-    esac; \
+RUN trimmed="$(sh scripts/docker/validate-vite-api-base-url.sh "$VITE_API_BASE_URL")" && \
     VITE_API_BASE_URL="$trimmed" npm run build
 
 ##### Runtime stage ###########################################################
