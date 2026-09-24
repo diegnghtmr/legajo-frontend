@@ -65,12 +65,15 @@ else
   status=$?
 fi
 
-if [ "${status}" -eq 0 ]; then
-  cat "${log}"
-elif grep -q "^HIDEPID_MOUNT_UNAVAILABLE=" "${log}"; then
+mount_unavailable="$(grep -m1 "^HIDEPID_MOUNT_UNAVAILABLE=" "${log}" || true)"
+if [ "${status}" -eq 0 ] && [ -n "${mount_unavailable}" ]; then
   # Case 2 above: hidepid-inner-root.sh itself detected and reported that
-  # the mount is denied in this runtime — still a recognized skip, even
-  # though the namespace-creation probe above succeeded.
+  # the mount is denied in this runtime (it exits 0 after printing its
+  # marker) — still a recognized skip, even though the namespace-creation
+  # probe above succeeded. The caller only recognizes HIDEPID_SKIPPED=, so
+  # the marker is translated here instead of being passed through as-is.
+  echo "HIDEPID_SKIPPED=${mount_unavailable#HIDEPID_MOUNT_UNAVAILABLE=}"
+elif [ "${status}" -eq 0 ]; then
   cat "${log}"
 else
   # The probe already proved unshare/CAP_SYS_ADMIN works, and
