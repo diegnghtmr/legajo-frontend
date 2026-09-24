@@ -124,12 +124,12 @@ echo "==> full-stack e2e: compose project ${COMPOSE_PROJECT}"
 # project this script itself created (name prefix) AND can positively
 # identify as dead — its own ownership label, from
 # scripts/docker/fullstack-e2e-labels.override.yml, names a PID that no
-# longer EXISTS on this host, checked by existence (`/proc/$pid`, never
-# `kill -0`: see that file's own comment for why `kill -0` is the wrong
-# check here) rather than by whether this process may signal it. Anything
-# else — unlabeled, on a different host, or still alive (including a live
-# process owned by a DIFFERENT user, which `kill -0` cannot tell apart
-# from dead) — is left untouched. PID reuse by the OS is a known, accepted
+# longer EXISTS on this host, judged by `kill -0`'s own error TEXT (see
+# lib/fullstack-stale-reclaim.sh's own comment for why a bare exit code,
+# or a `/proc/$pid` existence check, both get this wrong) rather than by
+# whether this process may signal it. Anything else — unlabeled, on a
+# different host, or still alive (including a live process owned by a
+# DIFFERENT user) — is left untouched. PID reuse by the OS is a known, accepted
 # limitation of a liveness check like this one: it would take another
 # process landing on the exact freed PID inside this narrow window, and
 # the failure mode is the safe direction (treating a genuinely dead run as

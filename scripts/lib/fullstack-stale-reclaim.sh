@@ -13,33 +13,41 @@
 COMPOSE_PROJECT_PREFIX="legajo-frontend-fullstack-e2e-"
 
 # True (exit 0) when a process with this PID currently exists on THIS
-# host — regardless of which user owns it. The PREVIOUS check here was
-# `kill -0 "$pid"`, which is wrong for this purpose: `kill -0` asks the
-# kernel "may I send this PID a signal", which fails with EPERM for a PID
-# that DOES exist but is owned by a different user — indistinguishable,
-# from the exit code alone, from the PID not existing at all (ESRCH). A
-# stale-project reclaim that treats EPERM the same as ESRCH would tear
-# down a LIVE concurrent run started by another user on a shared runner or
-# dev box: the destructive bug this helper exists to fix.
+# host — regardless of which user owns it, and regardless of whether
+# `/proc` reflects it at all. Two previous versions of this check were
+# both wrong about that: `kill -0 "$pid"`'s bare EXIT CODE conflates "no
+# such process" (ESRCH) with "exists, but I may not signal it" (EPERM) —
+# a live process owned by a different user reads as dead. Reading
+# `/proc/$pid` existence instead fixed that specific case, but is ALSO
+# wrong on a host where `/proc` is mounted with `hidepid=1`/`hidepid=2`/
+# `hidepid=invisible` (a real, supported Linux mount option): under that
+# option, a process an unprivileged viewer may not `ptrace` has NO visible
+# `/proc/<pid>` entry at all, even though it is very much alive — the
+# exact same destructive outcome, through a different mechanism. (Some
+# systems, e.g. macOS, have no `/proc` at all.)
 #
-# `/proc/$pid` existing is a direct, permission-free existence check on
-# Linux: `/proc/<pid>` directories are world-readable+searchable
-# (`dr-xr-xr-x`) regardless of who owns the process, so `[ -d ... ]`
-# answers "does it exist" without ever touching the "may I signal it"
-# question `kill -0` actually asks. `ps -p` is the portable fallback for a
-# system with no `/proc` — this project only ever runs these scripts
-# inside Linux containers (this repo's own rule), where `/proc` always
-# exists, so that branch is a defensive guard, never exercised in
-# practice; it too can see another user's processes, it only restricts
-# some of the DETAILS `ps` would otherwise print about them, never bare
-# existence.
+# The one signal that actually distinguishes "no such process" from every
+# OTHER reason a signal could fail is `kill -0`'s own error TEXT: the
+# kernel reports ESRCH ("No such process") only when the PID genuinely
+# does not exist, and a different error (most commonly EPERM, "Operation
+# not permitted") when it exists but this caller may not signal it — and
+# that distinction is read straight from kill(2)'s own errno, never
+# through `/proc`, so `hidepid` cannot hide it. `LC_ALL=C` keeps the
+# message in the one language this case match checks for, regardless of
+# the caller's own locale. Any failure OTHER than a confirmed "No such
+# process" — EPERM, or a message this check does not recognize at all —
+# is treated as ALIVE: the safe direction when this check cannot
+# positively prove the process is gone.
 pid_is_alive() {
   local pid="$1"
-  if [ -d /proc ]; then
-    [ -d "/proc/${pid}" ]
-  else
-    ps -p "${pid}" >/dev/null 2>&1
+  local kill_stderr
+  if kill_stderr="$(LC_ALL=C kill -0 "${pid}" 2>&1 1>/dev/null)"; then
+    return 0
   fi
+  case "${kill_stderr}" in
+    *"No such process"*) return 1 ;;
+    *) return 0 ;;
+  esac
 }
 
 # True (exit 0) when the stale-project candidate identified by
@@ -55,13 +63,19 @@ should_reclaim_stale_project() {
   if [ -z "${owner_pid}" ]; then
     return 1 # no ownership label at all: not something this check can safely judge
   fi
-  # A positive integer only. Anything else — empty, non-numeric, a
-  # negative number — is either a corrupted label or a value
-  # `pid_is_alive` was never meant to receive; treating it as "unknown"
-  # (never reclaimed) is the safe direction for a label this check cannot
-  # trust.
+  # Accept only a positive integer with no leading zero — "0" never names
+  # a real process (PID 0 is not a real process id the kernel would ever
+  # report as this run's OWN owner), and a leading zero ("007") is either
+  # a corrupted label or a value this check has no business parsing as a
+  # PID at all. Checked in two passes because a single case pattern like
+  # "[1-9][0-9]*" only anchors its first couple of characters — its own
+  # trailing "*" still matches any remaining characters, digits or not.
   case "${owner_pid}" in
-    '' | *[!0-9]*) return 1 ;;
+    [1-9]*) ;;
+    *) return 1 ;;
+  esac
+  case "${owner_pid}" in
+    *[!0-9]*) return 1 ;;
   esac
   if [ -z "${owner_host}" ]; then
     return 1 # an empty owner host can never be positively matched to this host
