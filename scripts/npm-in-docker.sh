@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Runs an `npm` command against the pinned Node 24 image so no check ever
-# needs a host install of Node/npm (TRD §14.2: nothing is verified on the
+# needs a host install of Node/npm (nothing is verified on the
 # host). The repo is bind-mounted; node_modules lives in its own named
 # Docker volume so the container never writes into — or fights over — a
 # host-installed node_modules directory.

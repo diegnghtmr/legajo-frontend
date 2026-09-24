@@ -2,9 +2,9 @@ import { AxeBuilder } from '@axe-core/playwright';
 import { expect, test, type Page } from '@playwright/test';
 
 /**
- * Contract-shaped payloads (TRD §6.6 `GET /corpus`, `GET /similarity/algorithms`,
+ * Contract-shaped payloads (`GET /corpus`, `GET /similarity/algorithms`,
  * `POST /similarity/compare`) — no live backend: `page.route` intercepts every
- * request so this suite runs fully offline, per the task's e2e instructions.
+ * request so this suite runs fully offline.
  */
 const CORPUS_SUMMARIES = [
   { id: 'doc-01', title: 'A survey of string similarity', authors: ['A. One', 'B. Two'] },
@@ -52,7 +52,7 @@ const COMPARE_RESULTS = [
     },
   },
   {
-    // Degenerate TF-IDF case (PRD HU-1.1): one empty preprocessed token stream,
+    // Degenerate TF-IDF case: one empty preprocessed token stream,
     // rawValue is null and degenerate is true.
     algorithmId: 'tfidf-cosine',
     result: {
@@ -74,7 +74,7 @@ const COMPARE_RESULTS = [
     },
   },
   {
-    // Served from cache (PRD HU-1.1: the `cached` marker).
+    // Served from cache (the `cached` marker).
     algorithmId: 'embedding-api',
     result: {
       normalizedScore: 0.79,

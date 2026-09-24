@@ -2,9 +2,9 @@ import { AxeBuilder } from '@axe-core/playwright';
 import { expect, test, type Page } from '@playwright/test';
 
 /**
- * Contract-shaped payloads (TRD §6.6 `GET /corpus`, `POST /clustering`) — no
+ * Contract-shaped payloads (`GET /corpus`, `POST /clustering`) — no
  * live backend: `page.route` intercepts every request so this suite runs
- * fully offline, per the task's e2e instructions. 6 documents -> k_ref =
+ * fully offline. 6 documents -> k_ref =
  * min(4, 6-1) = 4, so every fixed cut k ∈ {2,3,4,5} is present.
  */
 const CORPUS_SUMMARIES = Array.from({ length: 6 }, (_unused, index) => ({
@@ -13,7 +13,7 @@ const CORPUS_SUMMARIES = Array.from({ length: 6 }, (_unused, index) => ({
   authors: ['A. Author'],
 }));
 
-/** Same order as `CORPUS_SUMMARIES` (TRD 1.3.9: documentIds[i] is the document behind observation i). */
+/** Same order as `CORPUS_SUMMARIES` (documentIds[i] is the document behind observation i). */
 const DOCUMENT_IDS = CORPUS_SUMMARIES.map((document) => document.id);
 
 function evaluation(cophenetic: number, silhouetteAtKRef: number, dbAtKRef: number | null) {
@@ -25,11 +25,11 @@ function evaluation(cophenetic: number, silhouetteAtKRef: number, dbAtKRef: numb
 }
 
 /**
- * Golden n = 6 linkage matrix (TRD §6.4 conventions: 5 rows, `idx1 < idx2`,
+ * Golden n = 6 linkage matrix (5 rows, `idx1 < idx2`,
  * the cluster created by row i gets id 6 + i, non-decreasing distances) —
  * same shape `dendrogramLayout.test.ts` and `ClusteringPage.test.tsx`
  * validate on their own, so every mocked linkage here has a real dendrogram
- * to draw instead of `rows: []` (which W8b's `Dendrogram` would now reject
+ * to draw instead of `rows: []` (which `Dendrogram` would now reject
  * as malformed).
  */
 const GOLDEN_ROWS_N6 = [
@@ -41,7 +41,7 @@ const GOLDEN_ROWS_N6 = [
 ];
 
 /**
- * `single` wins cophenetic alone (no tie, TRD §6.5); `complete` has the
+ * `single` wins cophenetic alone (no tie); `complete` has the
  * highest silhouette at k_ref=4, so the two leaders differ and both the
  * "Árbol"/Tree and "Partición"/Partition eyebrows are exercised.
  */
@@ -116,7 +116,7 @@ test.describe('clustering screen', () => {
     await expect(page.getByText('Árbol')).toBeVisible();
     await expect(page.getByText('Partición')).toBeVisible();
 
-    // Ward's k_ref Davies-Bouldin is null (TRD §6.5).
+    // Ward's k_ref Davies-Bouldin is null.
     await expect(page.getByText('no definido').first()).toBeVisible();
 
     // Sample-size caveat states n = |corpus| (6 documents mocked above).

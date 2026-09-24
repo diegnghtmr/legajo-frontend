@@ -2,9 +2,9 @@ import { AxeBuilder } from '@axe-core/playwright';
 import { expect, test, type Page } from '@playwright/test';
 
 /**
- * Contract-shaped payloads (TRD §6.6 `GET /corpus`, `POST /similarity/matrix`)
+ * Contract-shaped payloads (`GET /corpus`, `POST /similarity/matrix`)
  * — no live backend: `page.route` intercepts every request so this suite
- * runs fully offline, per the task's e2e instructions.
+ * runs fully offline.
  */
 const CORPUS_SUMMARIES = [
   { id: 'doc-01', title: 'A survey of string similarity', authors: ['A. One'] },

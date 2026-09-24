@@ -5,9 +5,9 @@ import type { APIRequestContext, Page } from '@playwright/test';
  * runtime `VITE_API_BASE_URL` bundle constant, which the browser under test
  * already uses on its own) — to fetch the real corpus ids/titles a test
  * needs to drive the UI, and to cross-check a UI-rendered value against the
- * backend's own response for the same request (F3: "check a few against the
- * backend directly, e.g. NW(d01,d02) ~= 0.0707"). Defaults to the Compose
- * stack's published backend port (TRD §14.2); overridable for a non-default
+ * backend's own response for the same request (check a few against the
+ * backend directly, e.g. NW(d01,d02) ~= 0.0707). Defaults to the Compose
+ * stack's published backend port; overridable for a non-default
  * `docker-compose.yml` port mapping.
  */
 export const BACKEND_BASE_URL = (
@@ -24,7 +24,7 @@ export interface CorpusSummary {
 
 /**
  * Fetches the real, versioned corpus straight from the backend
- * (`GET /api/v1/corpus`, TRD §6.1: 20 documents, ids `d01..d20`). Used to
+ * (`GET /api/v1/corpus`: 20 documents, ids `d01..d20`). Used to
  * resolve real document titles for driving the UI, instead of hardcoding a
  * long title string a corpus content change would silently break.
  */
@@ -42,7 +42,7 @@ export function titleOf(corpus: readonly CorpusSummary[], id: string): string {
   const document = corpus.find((candidate) => candidate.id === id);
   if (!document) {
     throw new Error(
-      `document '${id}' was not found in the real corpus (expected the versioned d01..d20 corpus, TRD §6.1)`,
+      `document '${id}' was not found in the real corpus (expected the versioned d01..d20 corpus)`,
     );
   }
   return document.title;

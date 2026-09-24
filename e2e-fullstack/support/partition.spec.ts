@@ -31,7 +31,7 @@ test.describe('isProperRefinement', () => {
     expect(isProperRefinement(finer, coarser)).toBe(true);
   });
 
-  // This is the RED proof for the review advisory this function replaced: a
+  // Proves why a naive comparison is not enough: a
   // plain inequality compare (`canonicalizePartition(a) !==
   // canonicalizePartition(b)`) can never catch this, because the two
   // arrays below already have a different number of distinct labels (3 vs

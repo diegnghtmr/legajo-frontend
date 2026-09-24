@@ -5,7 +5,7 @@ import { AXE_TAGS, hasSuccessfulResponse, trackBackendResponses } from './suppor
 import { isProperRefinement } from './support/partition.js';
 
 /**
- * Flow B (PRD §7, TAC-15), full stack, no mocks: the Ward dendrogram over
+ * Flow B, full stack, no mocks: the Ward dendrogram over
  * the real 20-document corpus, its evaluation metrics, and a k-cut that
  * updates the drawn clusters. `no-mocks.guard.spec.ts` enforces there is no
  * `page.route` anywhere in this directory.
@@ -22,10 +22,10 @@ test.describe('clustering (full stack, Flow B)', () => {
     const wardDendrogram = page.getByTestId('linkage-dendrogram-ward');
     await expect(wardDendrogram).toBeVisible();
     // One `<g data-leaf-id>` per observation (Dendrogram.tsx) — the real
-    // 20-document corpus (TRD §6.1), not a mocked 6-document fixture.
+    // 20-document corpus, not a mocked 6-document fixture.
     await expect(wardDendrogram.locator('[data-leaf-id]')).toHaveCount(20);
     // 19 merge rows for 20 leaves (n - 1), same invariant the backend's own
-    // smoke script checks (TAC-03) — read from the accessible merge table
+    // smoke script checks — read from the accessible merge table
     // (`table.sr-only` in Dendrogram.tsx), not recomputed here.
     await expect(wardDendrogram.locator('table tbody tr')).toHaveCount(19);
 
@@ -113,8 +113,8 @@ test.describe('clustering (full stack, Flow B)', () => {
     // applyCutAndReadPartition's own poll (above) already proves each
     // partition covers all 20 documents exactly once and has exactly k
     // distinct labels — asserting that again here would only repeat it.
-    // The backend never promises label ids form a particular set (TRD §6.6
-    // `POST /clustering/cut` returns `labels: number[]`, not a contiguous
+    // The backend never promises label ids form a particular set
+    // (`POST /clustering/cut` returns `labels: number[]`, not a contiguous
     // 0..k-1 range), so nothing here checks for specific ids either.
     const k3Partition = await applyCutAndReadPartition(3);
     const k2Partition = await applyCutAndReadPartition(2);

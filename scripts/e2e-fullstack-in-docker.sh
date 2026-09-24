@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
-# Runs the full-stack e2e suite (F3, TRD §14.3/1.3.11: no `page.route`
+# Runs the full-stack e2e suite (no `page.route`
 # mocks anywhere) against a real Compose stack: brings up `backend` +
-# `frontend` from the sibling backend repository's `docker-compose.yml`
-# (task K4), building the frontend from THIS checkout, runs
+# `frontend` from the sibling backend repository's `docker-compose.yml`,
+# building the frontend from THIS checkout, runs
 # `npm run e2e:fullstack` inside the same pinned Playwright image
 # scripts/e2e-in-docker.sh uses, always tears the stack down (trap, so a
 # failure never leaks containers), and propagates Playwright's own exit
@@ -18,7 +18,7 @@
 #                          against this repo's root, not the caller's cwd).
 #   E2E_BASE_URL           frontend origin Playwright navigates to
 #                          (default: http://localhost:${LEGAJO_FRONTEND_PORT
-#                          :-80}, TRD §14.2 Compose `frontend` port).
+#                          :-80}, the Compose `frontend` port).
 #   LEGAJO_FRONTEND_PORT   host port the backend Compose file publishes
 #                          `frontend` on (default: 80, read by that file
 #                          directly — this script only reads it to check the
@@ -78,7 +78,7 @@ COMPOSE_FILE="${BACKEND_DIR}/docker-compose.yml"
 # scoping mechanism doesn't change, only the value fed into it does.
 COMPOSE_PROJECT="${LEGAJO_FULLSTACK_E2E_PROJECT:-${COMPOSE_PROJECT_PREFIX}$$}"
 # The backend Compose file's `frontend` service builds from
-# `${LEGAJO_FRONTEND_DIR:-../frontend}` (task K4); pointing it at THIS
+# `${LEGAJO_FRONTEND_DIR:-../frontend}`; pointing it at THIS
 # checkout is what makes the full-stack stack test the frontend under
 # review, not whatever `../frontend` happens to resolve to relative to the
 # backend checkout.
@@ -358,7 +358,7 @@ echo "==> running the full-stack Playwright suite against ${E2E_BASE_URL}"
 # `--network host` (not a port mapping): the browser inside this container
 # needs to reach BOTH the frontend and the backend exactly as
 # E2E_BASE_URL/E2E_BACKEND_BASE_URL name them (http://localhost[:8080]),
-# which are the Compose stack's own published host ports (TRD §14.2) — the
+# which are the Compose stack's own published host ports — the
 # same reason scripts/smoke-image.sh and the backend's own smoke.sh run
 # their curl/HTTP checks with `--network host` instead of a published port
 # of their own. No `--ipc=host`: `--shm-size=1gb` below already gives
