@@ -34,7 +34,7 @@ VOLUME="legajo-frontend-node-modules-noble"
 
 # shellcheck source=lib/playwright-image.sh
 source "${SCRIPT_DIR}/lib/playwright-image.sh"
-PLAYWRIGHT_VERSION="$(resolve_playwright_image "${REPO_DIR}")"
+PLAYWRIGHT_VERSION="$(resolve_playwright_version "${REPO_DIR}")"
 IMAGE="mcr.microsoft.com/playwright:v${PLAYWRIGHT_VERSION}-noble"
 
 # shellcheck source=lib/docker-volume.sh
