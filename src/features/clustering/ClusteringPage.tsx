@@ -43,7 +43,7 @@ const REPRESENTATION_OPTIONS: readonly SegmentedOption<RepresentationId>[] = REP
   (id) => ({ value: id, label: <span className="font-mono">{id}</span> }),
 );
 
-/** The four fixed linkage criteria (TRD §6.4); no family concept for linkages. */
+/** The four fixed linkage criteria; no family concept for linkages. */
 const LINKAGE_IDS = [...LinkageIdSchema.options];
 const LINKAGE_OPTIONS: readonly AlgoOption[] = LINKAGE_IDS.map((id) => ({ id }));
 
@@ -59,18 +59,19 @@ function sortedCuts<TValue>(record: Record<string, TValue>): Array<[string, TVal
 }
 
 /**
- * Clustering screen (DESIGN.md §6.4, PRD HU-2.2, TAC-04): representation and
+ * Clustering screen: representation and
  * linkage selection, `POST /clustering`, and the metrics strip applying the
- * TRD §6.5 ranking rule over the backend's own numbers (`ranking.ts`).
+ * fixed ranking rule over the backend's own numbers (`ranking.ts`).
  * The sample size `n` (the sample-size caveat and `k_ref`) is derived from
- * the clustering response itself (every linkage's `leafOrder` length, TRD
- * §6.4) rather than from the separately cached corpus-list query, so a stale
+ * the clustering response itself (every linkage's `leafOrder` length)
+ * rather than from the separately cached corpus-list query, so a stale
  * corpus size can never silently mark leaders at the wrong cut. Ranking also
  * requires the linkages to agree on `n` and to be exactly the canonical set
  * `{single, complete, average, ward}`; either violation degrades to no
- * leader marks rather than guessing, same reasoning as W7's matrix headers.
+ * leader marks rather than guessing, the same "don't guess" reasoning the
+ * matrix headers use.
  *
- * The four dendrograms (`Dendrogram`, W8b) render one per linkage, each from
+ * The four dendrograms (`Dendrogram`) render one per linkage, each from
  * its own `rows`/`leafOrder` — D3 only draws, it never computes a merge. The
  * free cut (`POST /clustering/cut`) is a `CutForm` below them; a successful
  * cut's cluster labels and dashed cut line are shown only on the cut
@@ -103,7 +104,7 @@ export function ClusteringPage() {
         linkageId: LinkageId;
         k: number;
         labels: readonly number[];
-        /** This cut's own `documentIds` (TRD 1.3.9) — `labels[i]` is the
+        /** This cut's own `documentIds` — `labels[i]` is the
          * cluster of `documentIds[i]`. Joined with a linkage's own
          * `documentIds` by id, never by array position (`cutLabels.ts`). */
         documentIds: readonly string[];
@@ -140,9 +141,9 @@ export function ClusteringPage() {
   // Display-only: supplies each dendrogram leaf's title. Never used for
   // `k_ref`/ranking (see the doc comment above) and never used to derive a
   // leaf's identity — that comes from each linkage result's own
-  // `documentIds` (TRD 1.3.9, `leafLabels.ts`). A fetch failure here just
-  // means no title, same "don't block on secondary data" reasoning W7 used
-  // for the matrix headers; the document id itself is always shown.
+  // `documentIds` (`leafLabels.ts`). A fetch failure here just
+  // means no title, the same "don't block on secondary data" reasoning the
+  // matrix headers use; the document id itself is always shown.
   const corpusQuery = useQuery<ListCorpusResponse, ApiError>({
     queryKey: CORPUS_LIST_QUERY_KEY,
     queryFn: fetchCorpus,
@@ -211,7 +212,7 @@ export function ClusteringPage() {
       return rankClusteringLinkages(metricsAtKRef(clusteringQuery.data, kRef));
     } catch {
       // The ranking rule requires exactly the four canonical linkages with
-      // finite metrics (TRD §6.4/§6.5). A non-conforming response (e.g.
+      // finite metrics. A non-conforming response (e.g.
       // malformed data) just means no leader is marked — every metric tile
       // is still shown from the raw response.
       return undefined;

@@ -17,7 +17,7 @@ describe('formatComputedNanos', () => {
 });
 
 describe('formatRawValue', () => {
-  it('returns null for a null raw value (degenerate case, TAC-05)', () => {
+  it('returns null for a null raw value (degenerate case)', () => {
     expect(formatRawValue(null)).toBeNull();
   });
 

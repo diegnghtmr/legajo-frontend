@@ -21,10 +21,10 @@ function Field({ testId, label, value }: { testId: string; label: string; value:
 }
 
 /**
- * `embedding-api` trace panel (PRD HU-1.6): dimension + an 8-value excerpt
+ * `embedding-api` trace panel: dimension + an 8-value excerpt
  * of each unit vector, the `preNormL2` provenance value, sum of squared
  * differences, Euclidean distance, the mapped normalized score and the
- * provider status (`cached`/`live`, TRD §6.3 "Modo en vivo").
+ * provider status (`cached`/`live`, "Modo en vivo").
  */
 export function EmbeddingApiTracePanel({ trace }: EmbeddingApiTracePanelProps) {
   const { t } = useTranslation();

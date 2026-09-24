@@ -5,11 +5,11 @@ export interface CurvePoint {
 
 /**
  * The theoretical curve `c * size^exponent`, anchored so it passes exactly
- * through the series' own smallest strictly positive size (the task's own
- * rule: "the theoretical curve overlaid for each series as c·size^exponent
+ * through the series' own smallest strictly positive size (the rule is
+ * "the theoretical curve overlaid for each series as c·size^exponent
  * anchored at the series' first point" — "first" means smallest size, not
  * array position: callers are not guaranteed to hand points pre-sorted).
- * `exponent` is each family's own `theoreticalExponent` (TAC-18's
+ * `exponent` is each family's own `theoreticalExponent` (from
  * `BenchmarkSlope`), never derived here.
  *
  * A size of zero or less is never a valid anchor (it would divide by zero

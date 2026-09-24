@@ -131,8 +131,8 @@ describe('BenchmarksPage', () => {
     expect(screen.getByTestId('embedding-tile-384')).toBeInTheDocument();
     expect(screen.getByTestId('embedding-tile-1536')).toBeInTheDocument();
 
-    expect(screen.getByRole('table', { name: /NFR-QA-01/ })).toBeInTheDocument();
-    expect(screen.getByRole('table', { name: /NFR-QA-02/ })).toBeInTheDocument();
+    expect(screen.getByRole('table', { name: /clásicas por pares/ })).toBeInTheDocument();
+    expect(screen.getByRole('table', { name: /cuatro enlaces/ })).toBeInTheDocument();
   });
 
   it('offers a linear/log–log Segmented scale toggle applied to the curve charts', async () => {

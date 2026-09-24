@@ -8,9 +8,9 @@ export interface CutLabelSource {
  * Maps a `POST /clustering/cut` result onto one linkage's own leaf order —
  * by document id, never by array position. The cut response computes its
  * own `documentIds`/`labels` pair for its own request; nothing guarantees
- * (and this task's own decision explicitly refuses to assume, TRD 1.3.9)
  * that they share array positions with whichever linkage's dendrogram is
- * currently displaying the cut. A leaf whose document is not present in the
+ * currently displaying the cut, and this deliberately refuses to assume so.
+ * A leaf whose document is not present in the
  * cut's own `documentIds` resolves to `undefined` — never a cluster number
  * read from the wrong position.
  */

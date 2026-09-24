@@ -9,7 +9,7 @@ import { formatDuration } from './units';
 type BenchmarkResult = BenchmarkReportResponse['results'][number];
 
 /**
- * One tile per embedding dimension, no curve (DESIGN.md §6 item 6): the
+ * One tile per embedding dimension, no curve: the
  * embedding-primitive O(d) measurement is a single timing per dimension,
  * not a curve over sizes, so it never joins the `BenchmarkCurveChart`
  * groups above.

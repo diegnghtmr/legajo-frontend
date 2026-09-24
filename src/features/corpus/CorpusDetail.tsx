@@ -12,7 +12,7 @@ import { Panel, PanelHeader } from '../../shared/components/Panel';
 export const corpusDocumentQueryKey = (id: string) => ['corpus', 'document', id] as const;
 
 /**
- * Full article detail (PRD HU-1.1, `GET /corpus/{id}`), rendered at the
+ * Full article detail (`GET /corpus/{id}`), rendered at the
  * `/corpus/:id` route. Reads its id from the route params rather than a
  * prop, since it only ever renders as a route element (see `CorpusPage`).
  */

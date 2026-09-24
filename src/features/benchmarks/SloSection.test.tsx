@@ -33,7 +33,7 @@ describe('SloSection', () => {
     expect(container).toBeEmptyDOMElement();
   });
 
-  it('shows only the n = 20 SLO result per family (TRD NFR-QA-01/02 fixed n)', () => {
+  it('shows only the n = 20 SLO result per family (fixed n)', () => {
     render(
       <SloSection
         results={[
@@ -43,7 +43,7 @@ describe('SloSection', () => {
       />,
     );
 
-    const classicTable = screen.getByRole('table', { name: /NFR-QA-01/ });
+    const classicTable = screen.getByRole('table', { name: /clásicas por pares/ });
     expect(within(classicTable).getAllByText('levenshtein')).toHaveLength(1);
     expect(within(classicTable).getByText('11.6 ms')).toBeInTheDocument();
   });
@@ -58,45 +58,45 @@ describe('SloSection', () => {
       />,
     );
 
-    const classicTable = screen.getByRole('table', { name: /NFR-QA-01/ });
+    const classicTable = screen.getByRole('table', { name: /clásicas por pares/ });
     expect(within(classicTable).getAllByRole('row')).toHaveLength(3);
   });
 
-  it('marks a result exactly at the threshold as exceeding, not within (TAC-07 "< 5 s"/"< 1 s")', () => {
+  it('marks a result exactly at the threshold as exceeding, not within ("< 5 s"/"< 1 s")', () => {
     render(<SloSection results={[result({ family: 'slo-classic-levenshtein', score: 5_000 })]} />);
 
     expect(screen.getByText('Excede el umbral')).toBeInTheDocument();
   });
 
-  it('labels an exceeded NFR-QA-02 clustering threshold in text', () => {
+  it('labels an exceeded clustering threshold in text', () => {
     render(<SloSection results={[result({ family: 'slo-clustering', score: 1_500 })]} />);
 
-    const clusteringTable = screen.getByRole('table', { name: /NFR-QA-02/ });
+    const clusteringTable = screen.getByRole('table', { name: /cuatro enlaces/ });
     expect(within(clusteringTable).getByText('Excede el umbral')).toBeInTheDocument();
   });
 
   it('shows the measured and threshold values formatted as durations', () => {
     render(<SloSection results={[result({ family: 'slo-classic-levenshtein', score: 11.6 })]} />);
 
-    const classicTable = screen.getByRole('table', { name: /NFR-QA-01/ });
+    const classicTable = screen.getByRole('table', { name: /clásicas por pares/ });
     expect(within(classicTable).getByText('11.6 ms')).toBeInTheDocument();
     expect(within(classicTable).getByText('5 s')).toBeInTheDocument();
   });
 
-  it('shows NFR-QA-01 per classic algorithm, each within its 5 s threshold', () => {
+  it('shows the classic SLO table per classic algorithm, each within its 5 s threshold', () => {
     render(<SloSection results={RESULTS} />);
 
-    const classicTable = screen.getByRole('table', { name: /NFR-QA-01/ });
+    const classicTable = screen.getByRole('table', { name: /clásicas por pares/ });
     expect(within(classicTable).getByText('levenshtein')).toBeInTheDocument();
     expect(within(classicTable).getByText('needleman-wunsch')).toBeInTheDocument();
     expect(within(classicTable).getAllByText('Dentro del umbral')).toHaveLength(4);
     expect(within(classicTable).queryByText('Excede el umbral')).not.toBeInTheDocument();
   });
 
-  it('shows NFR-QA-02 for the four linkages, within its 1 s threshold', () => {
+  it('shows the clustering SLO table for the four linkages, within its 1 s threshold', () => {
     render(<SloSection results={RESULTS} />);
 
-    const clusteringTable = screen.getByRole('table', { name: /NFR-QA-02/ });
+    const clusteringTable = screen.getByRole('table', { name: /cuatro enlaces/ });
     expect(within(clusteringTable).getByText('Dentro del umbral')).toBeInTheDocument();
   });
 

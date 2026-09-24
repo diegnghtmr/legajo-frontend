@@ -21,13 +21,13 @@ import { CompareTable } from './CompareTable';
 
 const ALGORITHMS_QUERY_KEY = ['similarity', 'algorithms'] as const;
 
-/** The six fixed capability ids (TAC-01), independent of the catalogue fetch. */
+/** The six fixed capability ids, independent of the catalogue fetch. */
 const DEFAULT_ALGORITHM_IDS = [...AlgorithmIdSchema.options];
 
 type FamilyFilter = 'all' | 'classic' | 'ai';
 
 /**
- * Similarity compare screen (DESIGN.md §6.2, PRD HU-1.1). Reads the two
+ * Similarity compare screen. Reads the two
  * selected articles from the shared corpus `selectionStore`; exactly two are
  * required and never auto-picked.
  *

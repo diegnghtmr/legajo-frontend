@@ -1,4 +1,4 @@
-/** `totalRamBytes` (TRD §6.6) formatted as binary gigabytes, one decimal. */
+/** `totalRamBytes` formatted as binary gigabytes, one decimal. */
 export function formatRamBytes(totalRamBytes: number): string {
   const gb = totalRamBytes / 1024 ** 3;
   return `${gb.toFixed(1)} GB`;

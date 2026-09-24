@@ -7,7 +7,7 @@ export interface KatexFormulaProps {
 }
 
 /**
- * Renders one formula with real KaTeX (DESIGN.md `typography.formula`,
+ * Renders one formula with real KaTeX (the `typography.formula` token,
  * `--font-formula`). Split into its own module so `FormulaCaption` can
  * `React.lazy()`-load it: KaTeX ships its own font files and is meaningful
  * extra weight for a caption that only appears once a trace panel is open.

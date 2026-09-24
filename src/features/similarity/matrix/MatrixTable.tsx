@@ -9,15 +9,15 @@ export interface MatrixTableProps {
   documentIds: readonly string[];
   /** Title lookup for the sr-only text next to each mono id header; missing ids degrade to id-only. */
   titleById: ReadonlyMap<string, string>;
-  /** The backend's own m x m grid (TRD §6.6) — this component computes nothing, only formats and buckets. */
+  /** The backend's own m x m grid — this component computes nothing, only formats and buckets. */
   cells: readonly (readonly SimilarityResult[])[];
 }
 
 /**
- * The m×m similarity matrix (PRD HU-1.4, DESIGN.md `matrix-*` heat ladder).
+ * The m×m similarity matrix (a `matrix-*` heat ladder).
  * Every cell always shows its own `normalizedScore` in mono text (3
  * decimals) — the heat fill is presentation on top of that number, never a
- * replacement for it (DESIGN.md §7.6 "color is not the only channel"), and
+ * replacement for it (color is never the only channel), and
  * `cached`/`degenerate` get both a small visible glyph and sr-only text for
  * the same reason.
  */

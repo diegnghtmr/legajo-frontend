@@ -2,15 +2,15 @@ import type { z } from 'zod';
 
 import type { LinkageId, LinkageResultSchema } from '../../infrastructure/schemas/clustering';
 
-/** TRD §6.5 "Regla de ordenación (fijada)": the cophenetic tie set is every
+/** The fixed ordering rule: the cophenetic tie set is every
  * linkage whose correlation is within this tolerance of the highest — the
  * comparison is inclusive (`<=`), matching the backend's own
  * `ClusteringRanking.TIE_TOLERANCE` (`backend/domain/.../evaluation/
  * ClusteringRanking.java`). */
 export const COPHENETIC_TIE_TOLERANCE = 1e-3;
 
-/** TRD §6.5's fixed declaration order, used as the final, deterministic
- * tie-break for both leaders (NFR-QA-04 / TAC-10). */
+/** The fixed declaration order, used as the final, deterministic
+ * tie-break for both leaders. */
 export const LINKAGE_DECLARATION_ORDER: readonly LinkageId[] = [
   'single',
   'complete',
@@ -18,8 +18,8 @@ export const LINKAGE_DECLARATION_ORDER: readonly LinkageId[] = [
   'ward',
 ];
 
-/** One linkage's three metrics read at the fixed reference cut `k_ref`
- * (TRD §6.5). `daviesBouldinAtKRef` is `null` only when the backend itself
+/** One linkage's three metrics read at the fixed reference cut `k_ref`.
+ * `daviesBouldinAtKRef` is `null` only when the backend itself
  * reports an undefined Davies–Bouldin for that cut (coincident centroids) —
  * never a stand-in for a missing/malformed value, which is guarded against
  * explicitly (see `metricsAtKRef`). */
@@ -30,7 +30,7 @@ export interface LinkageMetricsAtKRef {
   daviesBouldinAtKRef: number | null;
 }
 
-/** The two leaders the interface must always point to (TRD §6.5): the
+/** The two leaders the interface must always point to: the
  * resolved cophenetic winner ("mejor fidelidad del árbol" / tree fidelity)
  * and the plain silhouette leader at `k_ref` ("mejor partición en k_ref" /
  * partition at k_ref). */
@@ -47,7 +47,7 @@ function declarationOrder(id: LinkageId): number {
   const index = LINKAGE_DECLARATION_ORDER.indexOf(id);
   if (index === -1) {
     throw new RangeError(
-      `unknown linkage id "${id}" — TRD §6.4/§6.5 fix exactly single, complete, average, ward`,
+      `unknown linkage id "${id}" — expected exactly single, complete, average, ward`,
     );
   }
   return index;
@@ -67,7 +67,7 @@ function requireFiniteMetric(value: number, description: string): void {
 function validateMetrics(metrics: readonly LinkageMetricsAtKRef[]): void {
   if (metrics.length !== 4) {
     throw new RangeError(
-      `the ranking rule requires exactly the four fixed linkages (TRD §6.4/§6.5), was ${metrics.length}`,
+      `the ranking rule requires exactly the four fixed linkages, was ${metrics.length}`,
     );
   }
 
@@ -93,7 +93,7 @@ function validateMetrics(metrics: readonly LinkageMetricsAtKRef[]): void {
 }
 
 /**
- * Applies TRD §6.5's fixed ranking rule to exactly the four canonical
+ * Applies the fixed ranking rule to exactly the four canonical
  * linkages' metrics at `k_ref`, ported 1:1 from the backend's own
  * `ClusteringRanking.of` (`backend/domain/src/main/java/co/edu/uniquindio/
  * legajo/evaluation/ClusteringRanking.java`) so both implementations agree —
@@ -102,7 +102,7 @@ function validateMetrics(metrics: readonly LinkageMetricsAtKRef[]): void {
  * computed numbers; it never recomputes cophenetic correlation, silhouette
  * or Davies–Bouldin themselves.
  *
- * Two tie-break rules the TRD leaves open (author decisions, same ones the
+ * Two tie-break rules left open by design (author decisions, same ones the
  * backend documents): an undefined ("null") Davies–Bouldin loses the
  * cophenetic tie-break's second step to any defined, finite value — it
  * carries no evidence of a well-separated partition. And the plain
@@ -152,16 +152,16 @@ export function rankClusteringLinkages(
 }
 
 /**
- * `k_ref = min(4, n - 1)` (TRD §6.5), the reference cut used both in the
+ * `k_ref = min(4, n - 1)`, the reference cut used both in the
  * narrative and as the ranking rule's tie-breaker. `verify-corpus` requires
- * `n >= 3` (TRD §6.1) so the fixed-cut set `{2,3,4,5} ∩ [2, n-1]` is never
+ * `n >= 3` so the fixed-cut set `{2,3,4,5} ∩ [2, n-1]` is never
  * empty and `k_ref >= 2`; this throws rather than returning a `k_ref` the
  * backend could never have actually evaluated.
  */
 export function kRefForSampleSize(sampleSize: number): number {
   if (!Number.isInteger(sampleSize) || sampleSize < 3) {
     throw new RangeError(
-      `sampleSize must be an integer >= 3 for k_ref to be defined (TRD §6.1/§6.5), was ${sampleSize}`,
+      `sampleSize must be an integer >= 3 for k_ref to be defined, was ${sampleSize}`,
     );
   }
   return Math.min(4, sampleSize - 1);
@@ -169,7 +169,7 @@ export function kRefForSampleSize(sampleSize: number): number {
 
 /**
  * True only when `ids` is exactly the canonical set `{single, complete,
- * average, ward}` (TRD §6.4) — same length, no duplicates, no stray value.
+ * average, ward}` — same length, no duplicates, no stray value.
  * `LinkageId` is itself a closed enum, so the only way a schema-valid
  * response can fail this is a duplicate id standing in for a missing one
  * (e.g. two `"ward"` entries and no `"single"`); ranking must refuse that
@@ -200,7 +200,7 @@ type LinkageResultForSampleSize = Pick<z.infer<typeof LinkageResultSchema>, 'lea
  * Derives the corpus sample size `n` straight from the `POST /clustering`
  * response itself, rather than from the separately cached corpus-list query:
  * a stale/mismatched corpus size must never silently mark leaders at the
- * wrong cut. Per TRD §6.4, every linkage's `leafOrder` has exactly `n`
+ * wrong cut. Every linkage's `leafOrder` has exactly `n`
  * entries (its matrix has `n - 1` rows, so `leafOrder` — not `rows` — is the
  * field that carries `n`). Returns `undefined` when the response is empty or
  * when the linkages disagree on `n`, which can only mean a malformed/
@@ -219,7 +219,7 @@ export function sampleSizeFromResponse(
 /**
  * Reads each linkage's three metrics at the fixed cut `k_ref` out of a
  * `POST /clustering` response. `meanSilhouette`/`daviesBouldin` are keyed by
- * the cut as a string (TRD §6.6); a genuinely **missing** key (as opposed to
+ * the cut as a string; a genuinely **missing** key (as opposed to
  * an explicit `null` in `daviesBouldin`) means `k_ref` was not among the
  * cuts the backend actually returned — a contract violation this function
  * refuses to paper over by guessing a value.
