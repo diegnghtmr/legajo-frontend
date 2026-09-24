@@ -2,11 +2,11 @@ import { AxeBuilder } from '@axe-core/playwright';
 import { expect, test, type Page } from '@playwright/test';
 
 /**
- * TAC-15: one Playwright journey walking Flujo A (PRD §7) — select two
+ * One Playwright journey walking Flujo A — select two
  * articles, compare the six capabilities, open the Needleman–Wunsch trace —
  * and Flujo B — clustering, the Ward dendrogram, the Davies–Bouldin metric,
- * and a free cut drawn on the dendrogram — with axe AA at every major step
- * (TAC-20). No live backend: `page.route` intercepts every request, the same
+ * and a free cut drawn on the dendrogram — with axe AA at every major step.
+ * No live backend: `page.route` intercepts every request, the same
  * offline pattern every other spec in this suite uses.
  */
 
@@ -17,7 +17,7 @@ async function assertNoAxeViolations(page: Page) {
   expect(results.violations).toEqual([]);
 }
 
-// ---- Flujo A fixtures (TRD §6.6 `GET /corpus`, `GET /similarity/algorithms`,
+// ---- Flujo A fixtures (`GET /corpus`, `GET /similarity/algorithms`,
 // `POST /similarity/compare`, `GET /similarity/{algorithmId}/trace`) ----
 
 const CORPUS_SUMMARIES_A = [
@@ -135,7 +135,7 @@ async function mockFlowA(page: Page) {
   });
 }
 
-// ---- Flujo B fixtures (TRD §6.4/§6.6 `POST /clustering`, `POST /clustering/cut`) ----
+// ---- Flujo B fixtures (`POST /clustering`, `POST /clustering/cut`) ----
 
 const CORPUS_SUMMARIES_B = Array.from({ length: 6 }, (_unused, index) => ({
   id: `doc-0${index + 1}`,
@@ -143,11 +143,11 @@ const CORPUS_SUMMARIES_B = Array.from({ length: 6 }, (_unused, index) => ({
   authors: ['A. Author'],
 }));
 
-/** Same order as `CORPUS_SUMMARIES_B` (TRD 1.3.9: documentIds[i] is the document behind observation i). */
+/** Same order as `CORPUS_SUMMARIES_B` (documentIds[i] is the document behind observation i). */
 const DOCUMENT_IDS_B = CORPUS_SUMMARIES_B.map((document) => document.id);
 
 /**
- * Golden n = 6 linkage matrix (TRD §6.4 conventions: 5 rows, `idx1 < idx2`,
+ * Golden n = 6 linkage matrix (5 rows, `idx1 < idx2`,
  * the cluster created by row i gets id 6 + i, non-decreasing distances) —
  * same shape the `clustering.spec.ts` suite and the unit tests validate.
  */
@@ -218,7 +218,7 @@ async function mockFlowB(page: Page) {
   });
 }
 
-test.describe('TAC-15 journey', () => {
+test.describe('end-to-end journey', () => {
   test('Flujo A: select two articles, compare, and open the Needleman–Wunsch trace, axe-clean at each step', async ({
     page,
   }) => {
@@ -294,7 +294,7 @@ test.describe('TAC-15 journey', () => {
     await assertNoAxeViolations(page);
   });
 
-  test('TAC-16: switching to English changes the nav, page title, and compare CTA, and switching back restores Spanish', async ({
+  test('switching to English changes the nav, page title, and compare CTA, and switching back restores Spanish', async ({
     page,
   }) => {
     await mockFlowA(page);

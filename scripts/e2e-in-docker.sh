@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Runs the mocked Playwright + axe suite (`npm run e2e`) inside the official
 # Playwright image, using ITS bundled Chromium and Node — never a host
-# browser or a temporary config pointing at one (TRD §14.2: nothing is
+# browser or a temporary config pointing at one (nothing is
 # verified on the host).
 #
 # The image tag is derived from package-lock.json's resolved

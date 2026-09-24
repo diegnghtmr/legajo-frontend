@@ -10,7 +10,7 @@ const CURRENT_FILE = fileURLToPath(import.meta.url);
 const CURRENT_DIR = dirname(CURRENT_FILE);
 
 /**
- * F3's core promise is "zero mocks": every request in this suite must reach
+ * This suite's core promise is "zero mocks": every request in it must reach
  * the real backend over real HTTP, never an interception or a fake response
  * source (that pattern is exactly what every spec in the *mocked* `e2e/`
  * suite uses instead, on purpose). This guard is a static, structural
@@ -230,7 +230,7 @@ test('the full-stack suite never intercepts a request with page.route/context.ro
 
   expect(
     offenders,
-    'e2e-fullstack/ must never mock an API response (F3: zero mocks, real backend only) — ' +
+    'e2e-fullstack/ must never mock an API response (zero mocks, real backend only) — ' +
       'found response interception in:\n' +
       offenders.join('\n'),
   ).toEqual([]);

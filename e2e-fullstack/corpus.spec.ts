@@ -8,12 +8,12 @@ import {
   trackBackendResponses,
 } from './support/backend.js';
 
-/** TRD §6.1: the versioned reference corpus has exactly 20 documents (d01..d20). */
+/** The versioned reference corpus has exactly 20 documents (d01..d20). */
 const EXPECTED_CORPUS_SIZE = 20;
 
 /**
- * Full-stack corpus screen (F3, no mocks): against the real backend and the
- * real, versioned 20-document corpus (TRD §6.1) — no `page.route` anywhere
+ * Full-stack corpus screen (no mocks): against the real backend and the
+ * real, versioned 20-document corpus — no `page.route` anywhere
  * in this suite (enforced by `no-mocks.guard.spec.ts`).
  */
 test.describe('corpus screen (full stack)', () => {

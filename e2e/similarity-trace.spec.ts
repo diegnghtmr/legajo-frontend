@@ -2,7 +2,7 @@ import { AxeBuilder } from '@axe-core/playwright';
 import { expect, test, type Page } from '@playwright/test';
 
 /**
- * Contract-shaped trace payloads (TRD §6.3 `GET /similarity/{algorithmId}/trace`)
+ * Contract-shaped trace payloads (`GET /similarity/{algorithmId}/trace`)
  * — no live backend: `page.route` intercepts every request, per the other
  * suites' offline pattern.
  */
@@ -171,8 +171,8 @@ test.describe('similarity trace view', () => {
     expect(results.violations).toEqual([]);
   });
 
-  // Every non-DP trace panel gets its own axe pass, not only Jaccard: the
-  // `role="region"`-inside-`dl` defect (R3-jaccard-dl-region-a11y-untested)
+  // Every non-DP trace panel gets its own axe pass, not only Jaccard: a
+  // `role="region"`-inside-`dl` defect
   // was only caught because one of these panels had an axe-detectable
   // structural violation, so the other `dl`-using panels get the same check.
   const AXE_TRACES: ReadonlyArray<{

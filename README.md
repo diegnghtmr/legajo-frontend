@@ -6,16 +6,13 @@ metrics and cut, embeddings status, bilingual ES/EN, WCAG 2.1 AA. Consumes the
 backend's OpenAPI contract; never computes similarity, linkages, cuts or
 metrics itself.
 
-Product and visual rules live outside this repository, in the private
-workspace `docs/` (PRD, TRD, `DESIGN.md`) and in `AGENTS.md`. This README only
-covers what an engineer needs to run and build the app.
+This README only covers what an engineer needs to run and build the app.
 
 ## Stack
 
 React 19.2, Vite 8, TypeScript 5.9 (strict), Tailwind CSS 4 (CSS-first
 `@theme`, no `tailwind.config`), Vitest 4 + Testing Library, Playwright with
-axe, `openapi-typescript` for generated API types. See `frontend/AGENTS.md`
-for the full pile and folder map.
+axe, `openapi-typescript` for generated API types.
 
 ## Requirements
 
@@ -38,7 +35,7 @@ rejected outright, never silently stripped — a typo like `http://local
 host:8080` must fail, not quietly become `http://localhost:8080`), rather
 than silently shipping a bundle pointing at the wrong API. Every caller
 passes it explicitly — this command, the `image-smoke` CI job, and the
-backend repository's Compose `frontend` service (task K4), which defaults
+backend repository's Compose `frontend` service, which defaults
 this same argument to `http://localhost:8080`:
 
 ```sh
@@ -47,7 +44,7 @@ docker build --build-arg VITE_API_BASE_URL=http://localhost:8080 \
 ```
 
 Run it. The container listens on `:8080` (it runs as a non-root user, so it
-cannot bind `:80` itself); publish it on host `:80` per TRD §14.2:
+cannot bind `:80` itself); publish it on host `:80`:
 
 ```sh
 docker run --rm -p 80:8080 legajo-frontend:local
@@ -59,7 +56,7 @@ The image ships a `HEALTHCHECK` that polls `/`; `docker ps` shows
 ## Checks run in containers
 
 Nothing in this repo is verified on the host — every check below runs inside
-a container (TRD §14.2). `scripts/npm-in-docker.sh` runs an `npm` command
+a container. `scripts/npm-in-docker.sh` runs an `npm` command
 against the pinned `node:24-alpine` image, with the repo bind-mounted and
 `node_modules` kept in its own named Docker volume (so the container and any
 host-installed `node_modules` never collide). `scripts/e2e-in-docker.sh` uses
@@ -135,7 +132,7 @@ empty or missing value rather than treating it as a pass.
 
 `npm run e2e` / `scripts/e2e-in-docker.sh` (above) mock every API response
 with `page.route`. A separate suite, `e2e-fullstack/`, runs the same Flow
-A/Flow B journeys (TAC-15) against a **real, already-running backend** —
+A/Flow B journeys against a **real, already-running backend** —
 zero interception anywhere (a static guard spec,
 `e2e-fullstack/no-mocks.guard.spec.ts`, fails the suite if one is ever
 added) — with the real, versioned 20-document corpus (ids `d01..d20`) and
@@ -151,7 +148,7 @@ scripts/e2e-fullstack-in-docker.sh
 ```
 
 This brings up the full stack from the sibling backend repository's
-`docker-compose.yml` (task K4: `backend` + `frontend`, the latter built from
+`docker-compose.yml` (`backend` + `frontend`, the latter built from
 THIS checkout), runs `npm run e2e:fullstack` inside the same pinned
 Playwright image `scripts/e2e-in-docker.sh` uses, always tears the stack
 down afterwards, and dumps Compose logs on failure. It looks for the backend
@@ -189,7 +186,7 @@ without reaching into the private, sibling `backend/` repo:
 2. Run `npm run api:types` to regenerate `src/shared/types/api.ts`. Commit the
    regenerated file — it is generated but versioned, and CI fails on
    `git diff --exit-code src/shared/types/api.ts` after regenerating (contract
-   drift check, TAC-12).
+   drift check).
 3. Never hand-edit `src/shared/types/api.ts`.
 
 ## Environment
@@ -209,10 +206,10 @@ VITE_API_BASE_URL=...` for the Docker image, where a missing or empty value
 Static Vercel deployment of the Vite build; `vercel.json` rewrites every route
 to `/index.html` (SPA fallback). The `nginx.conf`/`try_files` fallback in this
 repo's Docker image is the equivalent for the local Compose stack and any
-other container-based host. See TRD §14.4 for the Render/Vercel pairing and
-CORS origins.
+other container-based host. The backend runs on Render and allows this
+frontend's deployed origin through CORS.
 
-**Public URLs (TAC-11, pending deploy):**
+**Public URLs (pending deploy):**
 
 - Frontend (Vercel): _pending — not deployed yet_
 - Backend API base (Render): _pending — not deployed yet_
@@ -221,4 +218,4 @@ CORS origins.
 service when idle; the first request after a period of inactivity can take
 tens of seconds while the instance wakes up. Before a live demo, poll
 `GET <backend URL>/actuator/health` until it returns 200 so the instance is
-already warm when the audience watches (TRD §14.4 point 4).
+already warm when the audience watches.

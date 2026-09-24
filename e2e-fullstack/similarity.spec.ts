@@ -12,7 +12,7 @@ import {
 } from './support/backend.js';
 
 /**
- * Flow A (PRD §7, TAC-15), full stack, no mocks: pick two real documents
+ * Flow A, full stack, no mocks: pick two real documents
  * (d01, d02) resolved from the real backend via `support/backend.ts`'s
  * `fetchCorpus`/`titleOf` (added alongside this suite's harness), run the
  * comparison against the real backend, see all six algorithms with real
@@ -30,7 +30,7 @@ const ALGORITHM_IDS = [
   'embedding-api',
 ] as const;
 
-// TRD smoke fixture (backend `scripts/smoke.sh`): needleman-wunsch(d01, d02)
+// Smoke fixture (backend `scripts/smoke.sh`): needleman-wunsch(d01, d02)
 // = 0.07075471698113207 for the versioned corpus. A tight tolerance still
 // tolerates float-formatting/serialization differences without pinning the
 // exact digit string.

@@ -2,7 +2,7 @@ import { AxeBuilder } from '@axe-core/playwright';
 import { expect, test, type Page } from '@playwright/test';
 
 /**
- * Contract-shaped payload (TRD §6.6 `GET /benchmarks`, 1.3.10) — no live
+ * Contract-shaped payload (`GET /benchmarks`) — no live
  * backend: `page.route` intercepts the request, same offline pattern every
  * other spec in this suite uses. Shaped after the real reference-run CSVs
  * (`benchmarks/results/jmh-results.csv`/`slopes.csv`), trimmed to two sizes
@@ -145,7 +145,7 @@ test.describe('benchmarks screen', () => {
       page.getByRole('heading', { name: 'Benchmarks de rendimiento (JMH)' }),
     ).toBeVisible();
 
-    // Harness (NFR-QA-10).
+    // Harness metadata.
     await expect(page.getByText('12th Gen Intel(R) Core(TM) i9-12900H')).toBeVisible();
     await expect(page.getByText('Eclipse Adoptium 25.0.4')).toBeVisible();
 
@@ -160,9 +160,9 @@ test.describe('benchmarks screen', () => {
     await expect(page.getByTestId('embedding-tile-384')).toBeVisible();
     await expect(page.getByTestId('embedding-tile-1536')).toBeVisible();
 
-    // TAC-07 SLO evidence, text label not color alone.
-    await expect(page.getByRole('table', { name: /NFR-QA-01/ })).toBeVisible();
-    await expect(page.getByRole('table', { name: /NFR-QA-02/ })).toBeVisible();
+    // SLO evidence, text label not color alone.
+    await expect(page.getByRole('table', { name: /clásicas por pares/ })).toBeVisible();
+    await expect(page.getByRole('table', { name: /cuatro enlaces/ })).toBeVisible();
     expect(await page.getByText('Dentro del umbral').count()).toBeGreaterThan(0);
     await expect(page.getByText('Excede el umbral')).toHaveCount(0);
   });

@@ -11,8 +11,8 @@
  * Groups item indices by cluster label and normalizes the result so two
  * partitions compare equal exactly when they group the SAME items together,
  * independent of which arbitrary integer label each group happens to carry.
- * The backend's contract only promises `labels: number[]` for a cut (TRD
- * §6.6 `POST /clustering/cut`), never that the values form a contiguous
+ * The backend's contract only promises `labels: number[]` for a cut
+ * (`POST /clustering/cut`), never that the values form a contiguous
  * 0..k-1 range, so nothing here — or in any caller — may assume specific
  * label ids.
  */

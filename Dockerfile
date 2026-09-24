@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1
 #
-# Legajo frontend image (TRD §14.2): a multi-stage build that compiles the
+# Legajo frontend image: a multi-stage build that compiles the
 # Vite bundle with Node 24, then serves the static output with nginx. The
 # local Compose stack (backend repo) runs this same image, as would any
 # other Docker-based host; no runtime Node ships in the final image.
@@ -31,13 +31,13 @@ RUN npm ci
 # .git and any .env* file out of this build context.
 COPY . .
 
-# Build-time API base URL (TRD §14.2, Appendix A): Vite inlines it into the
+# Build-time API base URL: Vite inlines it into the
 # bundle at build time (src/infrastructure/env.ts requires an absolute URL
 # for a production build), so it cannot be changed after `npm run build`.
 # There is no default: a silently-applied default could ship a bundle that
 # points at the wrong API without anyone noticing, so every caller passes
-# it explicitly — the default-profile Compose stack (TRD §14.1/§14.2:
-# backend on :8080), the `image-smoke` CI job, and any manual build (see
+# it explicitly — the default-profile Compose stack (backend on :8080),
+# the `image-smoke` CI job, and any manual build (see
 # README "Running with Docker").
 ARG VITE_API_BASE_URL
 # The trim-and-validate guard lives in its own file,
@@ -62,7 +62,7 @@ RUN trimmed="$(sh scripts/docker/validate-vite-api-base-url.sh "$VITE_API_BASE_U
 ##### Runtime stage ###########################################################
 # nginx-unprivileged (not the official nginx image) so the container never
 # runs as root. It listens on :8080 (unprivileged ports only) instead of
-# :80 — the host-facing :80 that TRD §14.2/Compose expects is a port
+# :80 — the host-facing :80 that Compose expects is a port
 # *mapping* applied by the caller (e.g. `docker run -p 80:8080 ...`, or the
 # backend repo's Compose `ports:`), not something this image does itself.
 FROM nginxinc/nginx-unprivileged:1.27-alpine AS runtime
