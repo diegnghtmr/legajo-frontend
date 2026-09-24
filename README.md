@@ -88,6 +88,14 @@ all, only a `curl`-based check that runs in a separate, minimal pinned image
 | `VITE_API_BASE_URL` trim/validate guard       | `scripts/tests/api-base-url-guard.test.sh`                                                   |
 | Stale full-stack e2e project reclaim decision | `scripts/tests/fullstack-stale-reclaim.test.sh`                                              |
 
+`scripts/tests/fullstack-stale-reclaim.test.sh` includes a real `hidepid=2`
+case (a `/proc` mount option that hides another user's processes from an
+unprivileged viewer) that reports itself skipped, rather than failed, on a
+runtime that can't create a private mount namespace or mount `/proc` that
+way at all — set `LEGAJO_STALE_RECLAIM_REQUIRE_HIDEPID=1` to turn that skip
+into a failure instead (CI's own `script-tests` job sets it, since GitHub's
+Ubuntu runners are expected to always support it).
+
 ### Image smoke test
 
 Needs a container already running (see "Running with Docker" above):

@@ -2,32 +2,85 @@
 # Entry point for the hidepid=2 regression case: starts a real, long-lived
 # root-owned process, then (if this runtime allows it) proves the
 # unprivileged-viewer liveness check sees it as alive even when `/proc`
-# hides it entirely. `unshare --mount` + `mount -t proc -o hidepid=2` need
-# CAP_SYS_ADMIN in a fresh mount namespace — available on most CI runners
-# and local Docker (verified interactively while writing this test), but
-# not guaranteed on every runtime (e.g. some restricted/rootless container
-# setups). Reports HIDEPID_SKIPPED=<reason> rather than failing outright
-# when it's unavailable; the calling test treats that as a reported skip,
-# not a hard failure. Invoked by
-# scripts/tests/fullstack-stale-reclaim.test.sh via
-# `docker run --cap-add SYS_ADMIN ... bash:5.2 /support/hidepid-case.sh`.
+# hides it entirely.
+#
+# Exactly TWO things are ever reported as HIDEPID_SKIPPED rather than
+# failed outright:
+#   1. `unshare --mount` itself cannot create a private mount namespace at
+#      all (e.g. missing CAP_SYS_ADMIN) — checked FIRST, by a minimal
+#      no-op probe entirely separate from the real check below, so a
+#      LATER failure can never be misread as "this capability is
+#      missing" when the probe already proved it is not.
+#   2. hidepid-inner-root.sh's own `mount -t proc -o hidepid=2` is denied
+#      (e.g. Docker's default AppArmor profile blocking mount(2) even
+#      with CAP_SYS_ADMIN, as on GitHub's Ubuntu runners) — recognized
+#      here ONLY by hidepid-inner-root.sh's own HIDEPID_MOUNT_UNAVAILABLE
+#      marker, never by exit code alone and never by "no assertion
+#      markers were printed": that heuristic would also swallow a real
+#      `su`/sourcing/assertion bug as a false skip, exactly what this
+#      design exists to avoid.
+# Any OTHER non-zero exit from hidepid-inner-root.sh is a real test
+# failure: this script propagates it with `exit`, never `|| true`.
+#
+# Invoked by scripts/tests/fullstack-stale-reclaim.test.sh via
+# `docker run --cap-add SYS_ADMIN --security-opt apparmor=unconfined ...
+# bash:5.2 /support/hidepid-case.sh`.
 set -euo pipefail
 
 sleep 100 &
 root_pid=$!
 
-if ! command -v unshare >/dev/null 2>&1 || ! command -v mount >/dev/null 2>&1; then
-  echo "HIDEPID_SKIPPED=unshare or mount not available in this image"
+if command -v unshare >/dev/null 2>&1; then
+  have_unshare=1
+else
+  have_unshare=0
+fi
+if [ "${have_unshare}" -eq 0 ]; then
+  echo "HIDEPID_SKIPPED=unshare not available in this image"
   kill "${root_pid}" 2>/dev/null || true
   exit 0
 fi
 
+# The probe (case 1 above): a bare `unshare --mount ... true`, entirely
+# separate from the real invocation below, so THIS is the only place a
+# missing CAP_SYS_ADMIN can ever be recognized as a skip.
+probe_err="$(mktemp)"
+if unshare --mount --propagation private true 2>"${probe_err}"; then
+  probe_ok=1
+else
+  probe_ok=0
+fi
+if [ "${probe_ok}" -eq 0 ]; then
+  echo "HIDEPID_SKIPPED=unshare --mount is not permitted in this runtime: $(tr '\n' ' ' <"${probe_err}")"
+  rm -f "${probe_err}"
+  kill "${root_pid}" 2>/dev/null || true
+  exit 0
+fi
+rm -f "${probe_err}"
+
 log="$(mktemp)"
 if unshare --mount --propagation private /support/hidepid-inner-root.sh "${root_pid}" >"${log}" 2>&1; then
-  cat "${log}"
+  status=0
 else
   status=$?
-  echo "HIDEPID_SKIPPED=unshare/mount failed with status ${status}: $(tr '\n' ' ' <"${log}")"
+fi
+
+if [ "${status}" -eq 0 ]; then
+  cat "${log}"
+elif grep -q "^HIDEPID_MOUNT_UNAVAILABLE=" "${log}"; then
+  # Case 2 above: hidepid-inner-root.sh itself detected and reported that
+  # the mount is denied in this runtime — still a recognized skip, even
+  # though the namespace-creation probe above succeeded.
+  cat "${log}"
+else
+  # The probe already proved unshare/CAP_SYS_ADMIN works, and
+  # hidepid-inner-root.sh never reported a recognized mount failure
+  # either: whatever broke here (`su`, sourcing the lib, an assertion) is
+  # a REAL bug this test must not silently swallow as "unavailable".
+  cat "${log}" >&2
+  rm -f "${log}"
+  kill "${root_pid}" 2>/dev/null || true
+  exit "${status}"
 fi
 rm -f "${log}"
 kill "${root_pid}" 2>/dev/null || true

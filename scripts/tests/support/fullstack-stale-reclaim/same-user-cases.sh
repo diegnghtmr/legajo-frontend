@@ -2,9 +2,10 @@
 # Runs (as root, the container's default user) every should_reclaim_stale_project
 # case that needs no privilege drop and no second host label: a dead
 # owner, a live owner checked by the SAME user, a live owner on a
-# DIFFERENT host label, several malformed owner-PID/host labels, and two
-# direct pid_is_alive classification checks (a confirmed success and a
-# confirmed ESRCH). Invoked by scripts/tests/fullstack-stale-reclaim.test.sh
+# DIFFERENT host label, several malformed owner-PID/host labels, and
+# direct pid_is_alive classification checks (a confirmed success, a
+# confirmed ESRCH, and an out-of-range PID that fails for neither
+# reason). Invoked by scripts/tests/fullstack-stale-reclaim.test.sh
 # via `docker run ... bash:5.2 /support/same-user-cases.sh`.
 set -euo pipefail
 
@@ -91,4 +92,18 @@ if should_reclaim_stale_project "1" "" "host-a"; then
   echo "EMPTY_HOST=reclaimed"
 else
   echo "EMPTY_HOST=untouched"
+fi
+
+# Classification: an out-of-range PID (2^31, one past the signed 32-bit
+# range bash's own `kill` builtin represents a PID in) fails with neither
+# ESRCH nor EPERM — bash itself rejects the argument as unparseable
+# ("arguments must be process or job IDs", verified empirically in this
+# exact image while writing this test), a message pid_is_alive's case
+# match does not recognize at all. This proves the check's own
+# fail-safe direction for real: an error it cannot classify as a
+# confirmed "no such process" is still treated as ALIVE, not dead.
+if pid_is_alive 2147483648; then
+  echo "CLASS_UNRECOGNIZED_ERROR=alive"
+else
+  echo "CLASS_UNRECOGNIZED_ERROR=dead"
 fi

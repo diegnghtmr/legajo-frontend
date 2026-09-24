@@ -39,6 +39,14 @@
 # avoids entirely.
 #
 # Usage: scripts/tests/fullstack-stale-reclaim.test.sh
+#
+# Env:
+#   LEGAJO_STALE_RECLAIM_REQUIRE_HIDEPID   when set (to anything
+#                          non-empty), a skipped hidepid=2 case (see
+#                          below) becomes a hard failure instead of a
+#                          reported skip — set in CI's own script-tests
+#                          job (.github/workflows/frontend.yml), where
+#                          this runtime is expected to always support it.
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -73,31 +81,44 @@ check_result() {
 }
 
 # Runs COMMAND (and its args) as the container's entrypoint, with this
-# repo bind-mounted read-only at /workspace and scripts/tests/support/
-# bind-mounted read-only at /support. On success, writes the container's
-# combined stdout+stderr into the variable named by `out_var` and returns
-# 0. On a non-zero container exit, still writes that combined output into
-# `out_var` (so the caller can report it) and returns that same non-zero
-# status — the caller decides whether that's a hard test failure or an
-# expected, reported "unavailable in this runtime" case (see the hidepid
-# case below). This function is called directly, never through `$(...)`:
-# assigning inside a command substitution would run it in a SUBSHELL,
-# where a `fail` call could never update this script's own FAILURES
-# counter once that subshell exits.
+# repo bind-mounted read-only at /workspace and this SUITE's own
+# SUPPORT_DIR (scripts/tests/support/fullstack-stale-reclaim/, NOT the
+# broader scripts/tests/support/) bind-mounted read-only at /support.
+# Extra `docker run` flags, if any, are given as plain arguments between
+# `out_var` and a literal `--` separator marking where COMMAND begins — a
+# real positional array, never a space-joined string split back apart
+# with `read -ra`: that split breaks the moment a flag's own VALUE
+# contains a space, and `"${extra_docker_args[@]}"` on an EMPTY array
+# aborts under `set -u` on bash older than 4.4 (e.g. macOS's shipped
+# /bin/bash 3.2) — `${extra_docker_args[@]+"${extra_docker_args[@]}"}`
+# below is the portable idiom that never hits that case regardless of how
+# the array ended up empty.
+#
+# On success, writes the container's combined stdout+stderr into the
+# variable named by `out_var` and returns 0. On a non-zero container
+# exit, still writes that combined output into `out_var` (so the caller
+# can report it) and returns that same non-zero status — the caller
+# decides whether that's a hard test failure or an expected, reported
+# "unavailable in this runtime" case (see the hidepid case below). This
+# function is called directly, never through `$(...)`: assigning inside a
+# command substitution would run it in a SUBSHELL, where a `fail` call
+# could never update this script's own FAILURES counter once that
+# subshell exits.
 run_in_container() {
   local out_var="$1"
-  local extra_docker_args_str="$2"
-  shift 2
+  shift
   local extra_docker_args=()
-  if [ -n "${extra_docker_args_str}" ]; then
-    read -ra extra_docker_args <<<"${extra_docker_args_str}"
-  fi
+  while [ "$1" != "--" ]; do
+    extra_docker_args+=("$1")
+    shift
+  done
+  shift # consume the "--" separator itself; "$@" is now COMMAND and its args
   local output
   local exit_code=0
   output="$(docker run --rm \
     -v "${REPO_DIR}:/workspace:ro" \
     -v "${SUPPORT_DIR}:/support:ro" \
-    "${extra_docker_args[@]}" \
+    "${extra_docker_args[@]+"${extra_docker_args[@]}"}" \
     "${IMAGE}" "$@" 2>&1)" || exit_code=$?
   printf -v "${out_var}" '%s' "${output}"
   return "${exit_code}"
@@ -105,7 +126,7 @@ run_in_container() {
 
 echo "== real-process cases: dead / own-live / other-host / malformed labels / classification =="
 same_user_output=""
-if ! run_in_container same_user_output "" /support/same-user-cases.sh; then
+if ! run_in_container same_user_output -- /support/same-user-cases.sh; then
   fail "same-user cases: container exited non-zero; output:
 ${same_user_output}"
 fi
@@ -119,10 +140,12 @@ check_result "owner PID with a leading zero (007)" "${same_user_output}" "LEADIN
 check_result "empty owner host" "${same_user_output}" "EMPTY_HOST" "untouched"
 check_result "classification: kill -0 success" "${same_user_output}" "CLASS_SUCCESS" "alive"
 check_result "classification: confirmed ESRCH (reaped PID)" "${same_user_output}" "CLASS_ESRCH" "dead"
+check_result "classification: an unrecognized kill -0 error (out-of-range PID) is treated as alive" \
+  "${same_user_output}" "CLASS_UNRECOGNIZED_ERROR" "alive"
 
 echo "== real cross-user case: owner alive, OTHER user (the EPERM case) =="
 other_user_output=""
-if ! run_in_container other_user_output "" /support/other-user-case.sh; then
+if ! run_in_container other_user_output -- /support/other-user-case.sh; then
   fail "other-user case: container exited non-zero; output:
 ${other_user_output}"
 fi
@@ -133,10 +156,33 @@ check_result "should_reclaim_stale_project leaves a live other-user-owned proces
   "${other_user_output}" "OTHER_USER" "untouched"
 
 echo "== real hidepid=2 case: the retired /proc-existence check's own failure mode =="
+# Docker's default AppArmor profile (as shipped on GitHub's Ubuntu
+# runners) denies the mount(2) syscall even with CAP_SYS_ADMIN — this
+# extra flag is scoped to ONLY this one container, never the others in
+# this suite, since it's the narrowest fix for the one case that actually
+# needs to call `mount` itself.
 hidepid_output=""
-run_in_container hidepid_output "--cap-add SYS_ADMIN" /support/hidepid-case.sh || true
+if run_in_container hidepid_output --cap-add SYS_ADMIN --security-opt apparmor=unconfined -- /support/hidepid-case.sh; then
+  hidepid_status=0
+else
+  hidepid_status=$?
+fi
+
+# Only a recognized HIDEPID_SKIPPED marker (see hidepid-case.sh's own
+# comment for exactly the two things that may set it) is ever treated as
+# a skip. A non-zero container exit WITHOUT that marker is a real test
+# failure — `su`, sourcing the lib, or one of hidepid-case.sh's own
+# assertions actually broke — and must never be swallowed the way an
+# earlier version of this case swallowed every non-zero exit here.
 if printf '%s\n' "${hidepid_output}" | grep -q "^HIDEPID_SKIPPED="; then
-  echo "SKIPPED: $(printf '%s\n' "${hidepid_output}" | grep '^HIDEPID_SKIPPED=')"
+  if [ -n "${LEGAJO_STALE_RECLAIM_REQUIRE_HIDEPID:-}" ]; then
+    fail "hidepid case: skipped, but LEGAJO_STALE_RECLAIM_REQUIRE_HIDEPID is set, so this runtime is required to run it; $(printf '%s\n' "${hidepid_output}" | grep '^HIDEPID_SKIPPED=')"
+  else
+    echo "SKIPPED: $(printf '%s\n' "${hidepid_output}" | grep '^HIDEPID_SKIPPED=')"
+  fi
+elif [ "${hidepid_status}" -ne 0 ]; then
+  fail "hidepid case: container exited ${hidepid_status} without a recognized HIDEPID_SKIPPED marker — a real failure, not an unavailable runtime; output:
+${hidepid_output}"
 else
   check_result "the retired /proc-existence check misreads a hidepid=2-hidden live process as dead" \
     "${hidepid_output}" "OLD_PROC_CHECK" "dead"
@@ -154,7 +200,7 @@ echo "== integration: cleanup_stale_fullstack_projects with docker stubbed =="
 # cleanup_stale_fullstack_projects calls `docker compose ... down` for
 # exactly the project whose owner is dead.
 integration_output=""
-if ! run_in_container integration_output "" /support/integration-case.sh; then
+if ! run_in_container integration_output -- /support/integration-case.sh; then
   fail "integration case: container exited non-zero; output:
 ${integration_output}"
 fi
