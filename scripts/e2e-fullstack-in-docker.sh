@@ -50,16 +50,26 @@ if [ -z "${BACKEND_DIR}" ] || [ ! -f "${BACKEND_DIR}/docker-compose.yml" ]; then
 fi
 
 COMPOSE_FILE="${BACKEND_DIR}/docker-compose.yml"
-# An explicit, fixed Compose project name — never Compose's own default
-# (derived from the compose file's directory name, e.g. "backend" for a
-# checkout at .../backend). Without this, a developer's own, independently
-# started `docker compose up` in that same backend checkout (same directory,
-# same default project name) would be the SAME Compose project as this
-# script's own stack: `docker compose down` below would then tear down
-# whatever the developer left running, not just what this run started. A
-# distinct project name keeps this run's containers/network in their own
-# namespace, so teardown can only ever affect this run's own resources.
-COMPOSE_PROJECT="legajo-frontend-fullstack-e2e"
+# An explicit Compose project name — never Compose's own default (derived
+# from the compose file's directory name, e.g. "backend" for a checkout at
+# .../backend). Without this, a developer's own, independently started
+# `docker compose up` in that same backend checkout (same directory, same
+# default project name) would be the SAME Compose project as this script's
+# own stack: `docker compose down` below would then tear down whatever the
+# developer left running, not just what this run started.
+#
+# UNIQUE per run, not a second fixed name, so two overlapping runs of THIS
+# script (two developers, or two CI jobs) don't collide with each other the
+# same way: a fixed name would let the second run's `docker compose down`
+# tear down the first run's still-in-progress stack. The default is this
+# process's own PID, which cannot collide between two processes running at
+# once on the same host/runner; LEGAJO_FULLSTACK_E2E_PROJECT overrides it
+# for a caller that wants a stable, predictable name instead (e.g. to
+# `docker compose logs` a specific run by name). Since `-p` below always
+# scopes teardown to exactly this variable's value, a unique name is also
+# what keeps teardown from ever touching a DIFFERENT run's resources — the
+# scoping mechanism doesn't change, only the value fed into it does.
+COMPOSE_PROJECT="${LEGAJO_FULLSTACK_E2E_PROJECT:-legajo-frontend-fullstack-e2e-$$}"
 # The backend Compose file's `frontend` service builds from
 # `${LEGAJO_FRONTEND_DIR:-../frontend}` (task K4); pointing it at THIS
 # checkout is what makes the full-stack stack test the frontend under
@@ -72,6 +82,41 @@ E2E_BACKEND_BASE_URL="${E2E_BACKEND_BASE_URL:-http://localhost:8080}"
 
 echo "==> full-stack e2e: backend compose at ${COMPOSE_FILE}"
 echo "==> full-stack e2e: frontend built from ${LEGAJO_FRONTEND_DIR}"
+echo "==> full-stack e2e: compose project ${COMPOSE_PROJECT}"
+
+# The stack's host ports (80 for `frontend`, 8080 for `backend`, both fixed
+# by the backend Compose file — see its own comments) are NOT made
+# overridable here, by explicit decision: the backend Compose file exposes
+# LEGAJO_FRONTEND_PORT to move the frontend's host port, but has no
+# equivalent for the backend's fixed "8080:8080" mapping, and this repo
+# never edits the backend's Compose file to add one. Overriding only the
+# frontend port while the backend port stays fixed would still collide on a
+# second concurrent run, so failing fast, the same way, for BOTH ports is
+# the one option that treats them consistently.
+port_in_use() {
+  (exec 3<>"/dev/tcp/127.0.0.1/$1") 2>/dev/null && { exec 3>&- 3<&-; return 0; }
+  return 1
+}
+
+check_port_free() {
+  local port="$1" label="$2"
+  if port_in_use "${port}"; then
+    echo "ERROR: host port ${port} (${label}) is already in use." >&2
+    echo "  scripts/e2e-fullstack-in-docker.sh uses fixed host ports (80 for the" >&2
+    echo "  frontend, 8080 for the backend — see this script's own comments for" >&2
+    echo "  why neither is overridable here) so only one full-stack run can hold" >&2
+    echo "  them at a time. Wait for the other run to finish, or free the port." >&2
+    exit 1
+  fi
+}
+
+check_ports_free() {
+  check_port_free 80 "frontend, LEGAJO_FRONTEND_PORT in the backend Compose file"
+  check_port_free 8080 "backend, fixed in the backend Compose file"
+}
+
+echo "==> checking host ports 80 and 8080 are free before building the stack"
+check_ports_free
 
 # Runs on every exit path (normal, `set -e` abort, or a later `exit`), not
 # just the success path: dumps compose logs only when something actually
@@ -93,8 +138,26 @@ cleanup() {
 }
 trap cleanup EXIT
 
-echo "==> docker compose up --build --wait (project ${COMPOSE_PROJECT})"
-docker compose -p "${COMPOSE_PROJECT}" -f "${COMPOSE_FILE}" up -d --build --wait
+echo "==> docker compose build (project ${COMPOSE_PROJECT})"
+docker compose -p "${COMPOSE_PROJECT}" -f "${COMPOSE_FILE}" build
+
+# Re-checked right BEFORE the containers actually bind a host port, not only
+# once at the top of this script: the check above and the actual bind are
+# necessarily two separate steps (this script cannot both let `docker
+# compose` own the bind AND claim the port itself first), so a second run
+# that passed the first check while this one was still building could still
+# reach `up` at the same time. Checking again here, after the (usually much
+# longer) build step and immediately before `up`, closes most of that
+# window; it does not make the check atomic with the bind — a run that
+# loses even this narrower race still fails, just with Docker's own "port is
+# already allocated" error instead of this script's clearer one, and still
+# only ever tears down its OWN Compose project (COMPOSE_PROJECT is unique
+# per run, set above).
+echo "==> re-checking host ports 80 and 8080 are still free before starting containers"
+check_ports_free
+
+echo "==> docker compose up --wait (project ${COMPOSE_PROJECT})"
+docker compose -p "${COMPOSE_PROJECT}" -f "${COMPOSE_FILE}" up -d --wait
 
 # shellcheck source=lib/playwright-image.sh
 source "${SCRIPT_DIR}/lib/playwright-image.sh"
@@ -110,6 +173,15 @@ IMAGE="mcr.microsoft.com/playwright:v${PLAYWRIGHT_VERSION}-noble"
 # corrupt it non-deterministically. A second, separate volume costs one more
 # full `npm ci` the first time either runner is used, which is cheap next to
 # a flaky, hard-to-reproduce corrupted-install failure.
+#
+# This volume's NAME is fixed (unlike COMPOSE_PROJECT above), so two
+# concurrent runs of THIS script still share it — the port check above
+# already keeps two full stacks from ever running at once, but `npm ci`
+# writing into this volume is a separate, narrower race than the ports one,
+# so it gets its own, separate fix: the INNER_SCRIPT below takes an flock(1)
+# lock on a file inside the volume itself before running `npm ci`, so a
+# second run's install waits for the first run's to finish instead of
+# interleaving writes into the same tree.
 VOLUME="legajo-frontend-node-modules-noble-fullstack"
 
 # shellcheck source=lib/docker-volume.sh
@@ -119,10 +191,37 @@ prepare_host_owned_volume "${VOLUME}" "${IMAGE}"
 INNER_SCRIPT="$(cat <<'INNER'
 set -e
 
+# Serializes npm ci across concurrent containers sharing this same volume
+# (see the VOLUME comment above): the lock file lives INSIDE the volume
+# itself, not in the container's own filesystem, so it is the same file for
+# every container that mounts this volume, whichever run started first.
+# `flock -w` fails fast with a distinct exit code (75) on a timeout instead
+# of hanging forever if a previous holder never released it.
+LOCK_FILE="node_modules/.fullstack-e2e-npm-ci.lock"
+exec 9>"${LOCK_FILE}"
+# `flock` is the direct condition of this `if`, not negated with `!`: bash
+# exempts a command tested that way from `set -e` (above), so a failed lock
+# reaches the `else` branch instead of aborting the script before `$?` can
+# be read there.
+if flock -w 600 -E 75 9; then
+  : # lock acquired, fall through to npm ci
+else
+  lock_status=$?
+  if [ "${lock_status}" -eq 75 ]; then
+    echo "ERROR: timed out after 600s waiting for another concurrent full-stack" >&2
+    echo "  e2e run to finish npm ci on the shared node_modules volume." >&2
+  fi
+  exit "${lock_status}"
+fi
+
 if ! npm ci; then
   echo "ERROR: npm ci failed inside the Playwright full-stack e2e container" >&2
   exit 1
 fi
+# Release the lock as soon as the install itself is done — the test run
+# after it doesn't write into node_modules, so it doesn't need to hold
+# other runs back.
+exec 9>&-
 
 installed="$(sed -n 's/.*"version": *"\([^"]*\)".*/\1/p' node_modules/@playwright/test/package.json | head -n1)"
 if [ "$installed" != "$PLAYWRIGHT_VERSION" ]; then

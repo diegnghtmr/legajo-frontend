@@ -8,15 +8,16 @@
 # host's shell.
 #
 # Background: an earlier version of this guard trimmed surrounding
-# whitespace with `awk 'BEGIN{RS="\0"} ...'`, relying on a NUL record
-# separator to make awk treat the whole value as one record. That happened
-# to work on this exact BusyBox awk build (verified empirically while
-# writing this test), but nothing in the POSIX awk specification defines
-# `RS="\0"` behavior, so a future BusyBox (or a different base image) is
-# free to split on embedded newlines instead. The guard now trims with
-# plain POSIX parameter expansion (`${value#?}` / `${value%?}`), which
-# needs no such assumption — this test is what keeps that guarantee real
-# instead of asserted.
+# whitespace with `awk 'BEGIN{RS="\0"} ...'`, intending a literal NUL byte
+# as the record separator. That happened to trim correctly on this exact
+# BusyBox awk build (verified empirically while writing this test), but only
+# because a C string can't hold an embedded NUL: `RS="\0"` silently becomes
+# `RS=""` (paragraph mode), which reads a blank-line-free value as one
+# record by coincidence, not by design — see
+# scripts/docker/validate-vite-api-base-url.sh's own comment for the full
+# story. The guard now trims with plain POSIX parameter expansion
+# (`${value#?}` / `${value%?}`), which needs no such assumption — this test
+# is what keeps that guarantee real instead of asserted.
 #
 # Usage: scripts/tests/api-base-url-guard.test.sh
 set -euo pipefail
@@ -28,6 +29,11 @@ GUARD_SCRIPT="scripts/docker/validate-vite-api-base-url.sh"
 
 FAILURES=0
 
+# SOH (0x01): a byte none of the guard's own stdout/stderr text can
+# contain, used below to join run_guard's three outputs into one string a
+# single `docker run` round trip can return.
+SEP="$(printf '\1')"
+
 fail() {
   echo "FAIL: $1" >&2
   FAILURES=$((FAILURES + 1))
@@ -38,27 +44,35 @@ pass() {
 }
 
 # Runs the guard against one raw value inside node:24-alpine and prints
-# "<exit-code>|<stdout>" so a single `docker run` gives both signals a case
-# needs to check, without a second round-trip per case.
+# "<exit-code>\x01<stdout>\x01<stderr>" (a byte no shell text below can
+# contain) so a single `docker run` gives every signal a case needs to
+# check, without a second round-trip per case. stderr is captured through a
+# temp file, not `2>&1` merged into the same stream as stdout: the guard's
+# own contract (its own usage comment) is "nothing on stdout" on rejection,
+# and a merge would make that impossible to verify separately.
 run_guard() {
   local raw_value="$1"
   local exit_code=0
-  local stdout
+  local stdout stderr stderr_file
+  stderr_file="$(mktemp)"
   stdout="$(
     docker run --rm -v "${REPO_DIR}:/workspace:ro" -w /workspace "${IMAGE}" \
-      sh "${GUARD_SCRIPT}" "${raw_value}" 2>/dev/null
+      sh "${GUARD_SCRIPT}" "${raw_value}" 2>"${stderr_file}"
   )" || exit_code=$?
-  printf '%s|%s' "${exit_code}" "${stdout}"
+  stderr="$(cat "${stderr_file}")"
+  rm -f "${stderr_file}"
+  printf '%s%s%s%s%s' "${exit_code}" "${SEP}" "${stdout}" "${SEP}" "${stderr}"
 }
 
 expect_trimmed() {
   local label="$1"
   local raw_value="$2"
   local want="$3"
-  local result exit_code stdout
+  local result exit_code rest stdout
   result="$(run_guard "${raw_value}")"
-  exit_code="${result%%|*}"
-  stdout="${result#*|}"
+  exit_code="${result%%"${SEP}"*}"
+  rest="${result#*"${SEP}"}"
+  stdout="${rest%%"${SEP}"*}"
   if [ "${exit_code}" != "0" ]; then
     fail "${label}: expected exit 0, got ${exit_code} (stdout: '${stdout}')"
   elif [ "${stdout}" != "${want}" ]; then
@@ -68,19 +82,38 @@ expect_trimmed() {
   fi
 }
 
+# The guard's own usage comment documents its rejection contract: exit 1,
+# nothing on stdout, a clear message on stderr. An earlier version of this
+# test accepted ANY non-zero exit as "rejected" and never looked at stderr
+# at all — so a guard broken for an unrelated reason (a shell syntax error,
+# for instance, which `sh` reports with its own exit code and its own
+# "syntax error" message, never the guard's documented one) would have
+# still made every case here report PASS. Asserting the exact documented
+# exit code and that stderr actually contains the guard's own expected
+# message is what tells a real rejection apart from an unrelated crash.
 expect_rejected() {
   local label="$1"
   local raw_value="$2"
-  local result exit_code stdout
+  local want_stderr_substring="$3"
+  local result exit_code rest stdout stderr
   result="$(run_guard "${raw_value}")"
-  exit_code="${result%%|*}"
-  stdout="${result#*|}"
-  if [ "${exit_code}" = "0" ]; then
-    fail "${label}: expected a non-zero exit, got 0 (stdout: '${stdout}')"
+  exit_code="${result%%"${SEP}"*}"
+  rest="${result#*"${SEP}"}"
+  stdout="${rest%%"${SEP}"*}"
+  stderr="${rest#*"${SEP}"}"
+  if [ "${exit_code}" != "1" ]; then
+    fail "${label}: expected the documented exit 1, got ${exit_code} (stdout: '${stdout}', stderr: '${stderr}')"
   elif [ -n "${stdout}" ]; then
     fail "${label}: expected no stdout on rejection, got '${stdout}'"
   else
-    pass "${label}: rejected (exit ${exit_code}), no stdout"
+    case "${stderr}" in
+      *"${want_stderr_substring}"*)
+        pass "${label}: rejected (exit 1), stderr carries '${want_stderr_substring}'"
+        ;;
+      *)
+        fail "${label}: expected stderr to contain '${want_stderr_substring}', got '${stderr}'"
+        ;;
+    esac
   fi
 }
 
@@ -110,19 +143,22 @@ mixed_padded="${mixed_padded%x}"
 expect_trimmed "mixed multi-run padding" "${mixed_padded}" "http://localhost:8080"
 
 # 7: an empty value is rejected, not silently accepted.
-expect_rejected "empty value" ""
+expect_rejected "empty value" "" "is required and must not be empty or whitespace-only"
 
 # 8: a whitespace-only value (including a newline) is rejected, not
 # trimmed down to an empty string that then silently passes.
-expect_rejected "whitespace-only value" "$(printf '   \t\r\n  ')"
+expect_rejected "whitespace-only value" "$(printf '   \t\r\n  ')" \
+  "is required and must not be empty or whitespace-only"
 
 # 9: interior whitespace is rejected outright, never silently repaired —
 # the guard's core promise (never guess what a caller meant).
-expect_rejected "interior whitespace" "http://local host:8080"
+expect_rejected "interior whitespace" "http://local host:8080" \
+  "must not contain whitespace inside the value"
 
 # 10: an interior newline (e.g. from a YAML block scalar) is rejected the
 # same way, after surrounding whitespace is trimmed away.
-expect_rejected "interior newline" "$(printf 'http://local\nhost:8080')"
+expect_rejected "interior newline" "$(printf 'http://local\nhost:8080')" \
+  "must not contain whitespace inside the value"
 
 if [ "${FAILURES}" -gt 0 ]; then
   echo "api-base-url-guard.test.sh: ${FAILURES} case(s) failed" >&2

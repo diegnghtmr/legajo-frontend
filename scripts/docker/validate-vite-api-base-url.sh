@@ -18,19 +18,19 @@
 #
 # Trimmed with plain POSIX parameter expansion (`${value#?}` / `${value%?}`
 # in a loop), not `awk`: an earlier version used
-# `awk 'BEGIN{RS="\0"} {gsub(...)}'` to make awk treat the whole value as
-# one record, so a leading/trailing NEWLINE (e.g. from a YAML block scalar)
-# would also be trimmed, not just a leading/trailing space. Proven
-# empirically (this exact base image, `node:24-alpine`, ships BusyBox awk)
-# to already trim every whitespace class correctly — but that correctness
-# rests on undocumented, implementation-specific behavior: nothing in the
-# POSIX awk specification defines what `RS="\0"` does, so a future BusyBox
-# (or a different base image entirely) is free to split on embedded
-# newlines instead, silently truncating the value to whatever precedes its
-# first embedded newline. The parameter-expansion loop below needs no such
-# assumption: `${value#?}` and `${value%?}` remove exactly one character
-# from either end regardless of what that character is, so the same code
-# behaves identically on any POSIX-conforming shell.
+# `awk 'BEGIN{RS="\0"} {gsub(...)}'`, intending a literal NUL byte as the
+# record separator so a leading/trailing NEWLINE (e.g. from a YAML block
+# scalar) would also be trimmed. On this exact base image (`node:24-alpine`,
+# BusyBox awk) it DID trim every whitespace class correctly — but only by
+# accident: a C string can't hold an embedded NUL, so `RS="\0"` silently
+# becomes `RS=""`, which is paragraph mode, not a NUL separator. Paragraph
+# mode happens to read a blank-line-free value as one record (verified
+# empirically), but would silently split on an embedded BLANK line — not on
+# an ordinary single newline, which paragraph mode keeps inside the record.
+# Nothing documents this fallback, so a different awk build is free to
+# behave otherwise. The parameter-expansion loop below needs no such
+# assumption: `${value#?}`/`${value%?}` remove one character at a time
+# regardless of what it is, so it behaves identically on any POSIX shell.
 #
 # A literal newline cannot be written directly as `"$(printf '\n')"` in a
 # `case` pattern: command substitution strips ALL trailing newlines from
