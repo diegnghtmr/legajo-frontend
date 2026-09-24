@@ -1,7 +1,7 @@
 import { AxeBuilder } from '@axe-core/playwright';
 import { expect, test } from '@playwright/test';
 
-import { AXE_TAGS, trackBackendRequests } from './support/backend.js';
+import { AXE_TAGS, hasSuccessfulResponse, trackBackendResponses } from './support/backend.js';
 
 /**
  * Flow B (PRD §7, TAC-15), full stack, no mocks: the Ward dendrogram over
@@ -13,7 +13,7 @@ test.describe('clustering (full stack, Flow B)', () => {
   test('the Ward dendrogram renders 20 real leaves with visible evaluation metrics', async ({
     page,
   }) => {
-    const backendRequests = trackBackendRequests(page);
+    const backendResponses = trackBackendResponses(page);
 
     await page.goto('/clustering');
     await expect(page.getByRole('heading', { name: 'Ward' })).toBeVisible();
@@ -32,10 +32,10 @@ test.describe('clustering (full stack, Flow B)', () => {
     await expect(wardPanel.getByText(/Silueta/i).first()).toBeVisible();
     await expect(wardPanel.getByText(/Davies–Bouldin/).first()).toBeVisible();
 
-    expect(backendRequests.urls.some((url) => url.includes('/api/v1/clustering'))).toBe(true);
+    expect(hasSuccessfulResponse(backendResponses, '/api/v1/clustering')).toBe(true);
   });
 
-  test('applying a k=3 cut on Ward draws the cut line and labels all 20 leaves across 3 clusters', async ({
+  test('applying a k-cut on Ward assigns every document to exactly one of exactly k clusters, and changing k changes the partition', async ({
     page,
   }) => {
     await page.goto('/clustering');
@@ -43,27 +43,68 @@ test.describe('clustering (full stack, Flow B)', () => {
 
     const cutGroup = page.getByRole('radiogroup', { name: 'Enlace a cortar' });
     await cutGroup.getByRole('radio', { name: 'Ward' }).click();
-    // The label's own k range is `(entre 2 y n-1)` (CutForm.tsx), so for the
-    // real 20-document corpus it reads "(entre 2 y 19)", not the mocked
-    // 6-document suite's "(entre 2 y 5)" — matched by prefix instead of the
-    // full, corpus-size-dependent text.
-    await page.getByLabel(/Número de clústeres k/).fill('3');
-    await page.getByRole('button', { name: 'Aplicar corte' }).click();
-
     const wardDendrogram = page.getByTestId('linkage-dendrogram-ward');
-    await expect(wardDendrogram.getByTestId('dendrogram-cut-line')).toBeAttached();
 
-    // Every one of the 20 real leaves gets a cluster label 0..2 after the
-    // cut (labels aren't recomputed here, just counted). Scoped to the
-    // `<svg>` only: the same "Clúster N" text also names internal merge
-    // nodes (id >= n) inside the dendrogram's own sr-only accessible merge
-    // table (Dendrogram.tsx's `memberLabel`), which would otherwise inflate
-    // this count with unrelated matches.
-    const clusterLabelCount = await wardDendrogram
-      .locator('svg')
-      .getByText(/^Clúster \d+$/)
-      .count();
-    expect(clusterLabelCount).toBe(20);
+    // Applies k and reads back the actual per-leaf cluster assignment: one
+    // number per `[data-leaf-id]` leaf, read from THAT leaf's own cluster
+    // label text (Dendrogram.tsx's `memberLabel`), not a directory-wide text
+    // count — a directory-wide count can't tell "20 leaves each labeled a
+    // distinct cluster" apart from "20 leaves all labeled the same cluster"
+    // (a degenerate, wrong partition that would still total 20 matches).
+    async function readPartition(): Promise<number[]> {
+      const leaves = wardDendrogram.locator('[data-leaf-id]');
+      const leafCount = await leaves.count();
+      const partition: number[] = [];
+      for (let index = 0; index < leafCount; index += 1) {
+        const clusterLabel = leaves.nth(index).locator('text', { hasText: /^Clúster \d+$/ });
+        // Exactly one cluster label per leaf — not zero (unassigned) and not
+        // two (e.g. a stale label left over from a previous cut).
+        if ((await clusterLabel.count()) !== 1) {
+          return []; // not settled yet; the caller's poll retries.
+        }
+        const text = await clusterLabel.textContent();
+        partition.push(Number(text?.replace(/\D/g, '')));
+      }
+      return partition;
+    }
+
+    async function applyCutAndReadPartition(k: number): Promise<number[]> {
+      await page.getByLabel(/Número de clústeres k/).fill(String(k));
+      await page.getByRole('button', { name: 'Aplicar corte' }).click();
+      await expect(wardDendrogram.getByTestId('dendrogram-cut-line')).toBeAttached();
+
+      // The cut line being attached proves a NEW cut was drawn, but not
+      // that every leaf's own cluster-label text has re-rendered for it yet
+      // — a real, one-time flake this review caught: reading the labels
+      // immediately after could still see the PREVIOUS cut's assignment for
+      // some leaves. Poll until the partition reflects exactly k distinct
+      // clusters over all 20 leaves before treating it as settled; this
+      // still asserts the exact same thing, just retries while it isn't
+      // true yet instead of only checking once.
+      let partition: number[] = [];
+      await expect(async () => {
+        partition = await readPartition();
+        expect(partition).toHaveLength(20);
+        expect(new Set(partition).size).toBe(k);
+      }).toPass({ timeout: 10_000 });
+      return partition;
+    }
+
+    const k3Partition = await applyCutAndReadPartition(3);
+    // Every one of the 20 real documents assigned exactly once.
+    expect(k3Partition).toHaveLength(20);
+    const k3Distinct = new Set(k3Partition);
+    // Exactly k=3 clusters appear — not "20 matches of some label", which a
+    // degenerate all-same-cluster partition would also satisfy.
+    expect(k3Distinct.size).toBe(3);
+    expect([...k3Distinct].sort((a, b) => a - b)).toEqual([0, 1, 2]);
+
+    const k2Partition = await applyCutAndReadPartition(2);
+    expect(k2Partition).toHaveLength(20);
+    const k2Distinct = new Set(k2Partition);
+    expect(k2Distinct.size).toBe(2);
+    // Changing k actually changes the partition, not just its label count.
+    expect(k2Partition).not.toEqual(k3Partition);
 
     // No cut line leaks onto a linkage that was not cut.
     await expect(

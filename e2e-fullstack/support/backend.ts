@@ -81,21 +81,77 @@ export async function fetchSimilarityCompare(
   return (await response.json()) as SimilarityCompareResult[];
 }
 
+export interface BackendResponse {
+  url: string;
+  status: number;
+}
+
+export interface SimilarityTrace {
+  algorithmId: string;
+  rowLabels: string[];
+  columnLabels: string[];
+  matrix: number[][];
+  optimalPath: Array<{ row: number; col: number }>;
+}
+
 /**
- * Records every request the page makes whose URL starts with the real
- * backend origin. Every flow spec asserts this list is non-empty for its
- * own screen: this suite never intercepts a response (no `page.route`/
- * `context.route` anywhere, enforced separately by `no-mocks.guard.spec.ts`),
- * so a non-empty list here is direct, per-test proof that the browser
- * itself reached the real backend over the network for that screen, not a
- * cached/mocked/same-origin response.
+ * Calls `GET /api/v1/similarity/{algorithmId}/trace` on the real backend
+ * directly, so a spec can assert the UI-rendered DP matrix/optimal-path
+ * against the real matrix dimensions and real path length for the exact
+ * same pair, instead of only asserting "at least one cell/path mark exists"
+ * (which a matrix rendered with a single stray cell would also satisfy).
  */
-export function trackBackendRequests(page: Page): { urls: string[] } {
-  const state = { urls: [] as string[] };
-  page.on('request', (request) => {
-    if (request.url().startsWith(BACKEND_BASE_URL)) {
-      state.urls.push(request.url());
+export async function fetchSimilarityTrace(
+  request: APIRequestContext,
+  algorithmId: string,
+  documentIdA: string,
+  documentIdB: string,
+): Promise<SimilarityTrace> {
+  const url = `${BACKEND_BASE_URL}/api/v1/similarity/${algorithmId}/trace?documentIdA=${encodeURIComponent(documentIdA)}&documentIdB=${encodeURIComponent(documentIdB)}`;
+  const response = await request.get(url);
+  if (!response.ok()) {
+    throw new Error(`GET ${url} (real backend) returned ${response.status()}`);
+  }
+  return (await response.json()) as SimilarityTrace;
+}
+
+/**
+ * Records every RESPONSE the page receives whose URL starts at the real
+ * backend origin — deliberately a `response` listener, not a `request`
+ * listener. `page.on('request')` fires the moment the browser DISPATCHES a
+ * request, before anything comes back: a request that is later aborted,
+ * refused, or times out still fires that event, so a check built on it
+ * (`urls.some(...)`) can report "reached the backend" for a request that
+ * never actually completed — proving only that the browser tried, not that
+ * it succeeded. `response` only fires once an HTTP response has actually
+ * been received, and carries its real status code, so
+ * `hasSuccessfulResponse` below is direct, per-test proof of a completed
+ * round trip with a successful (2xx) status from the real backend origin —
+ * not merely an attempted one. This suite never intercepts a response (no
+ * `page.route`/`context.route` anywhere, enforced separately by
+ * `no-mocks.guard.spec.ts`), so that response can only have come from the
+ * real network.
+ */
+export function trackBackendResponses(page: Page): { responses: BackendResponse[] } {
+  const state = { responses: [] as BackendResponse[] };
+  page.on('response', (response) => {
+    if (response.url().startsWith(BACKEND_BASE_URL)) {
+      state.responses.push({ url: response.url(), status: response.status() });
     }
   });
   return state;
+}
+
+/**
+ * True when at least one recorded response's URL contains `urlSubstring`
+ * and its status is a successful (2xx) one.
+ */
+export function hasSuccessfulResponse(
+  state: { responses: readonly BackendResponse[] },
+  urlSubstring: string,
+): boolean {
+  return state.responses.some(
+    (response) =>
+      response.url.includes(urlSubstring) && response.status >= 200 && response.status < 300,
+  );
 }

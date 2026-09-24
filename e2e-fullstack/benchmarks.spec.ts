@@ -1,7 +1,12 @@
 import { AxeBuilder } from '@axe-core/playwright';
 import { expect, test } from '@playwright/test';
 
-import { AXE_TAGS, BACKEND_BASE_URL, trackBackendRequests } from './support/backend.js';
+import {
+  AXE_TAGS,
+  BACKEND_BASE_URL,
+  hasSuccessfulResponse,
+  trackBackendResponses,
+} from './support/backend.js';
 
 interface BenchmarkHarness {
   cpuModel: string;
@@ -20,8 +25,11 @@ interface BenchmarkReport {
  * this directory.
  */
 test.describe('benchmarks (full stack)', () => {
-  test('renders the real harness info and at least one chart', async ({ page, request }) => {
-    const backendRequests = trackBackendRequests(page);
+  test('renders the real harness info and a real chart with plotted data', async ({
+    page,
+    request,
+  }) => {
+    const backendResponses = trackBackendResponses(page);
 
     const backendResponse = await request.get(`${BACKEND_BASE_URL}/api/v1/benchmarks`);
     expect(backendResponse.ok()).toBe(true);
@@ -39,18 +47,38 @@ test.describe('benchmarks (full stack)', () => {
     await expect(page.getByText(report.harness.cpuModel)).toBeVisible();
     await expect(page.getByText(report.harness.jdk)).toBeVisible();
 
-    // At least one curve chart group actually rendered (real CSV data has
-    // pairwise/HAC/internal-metric families, TRD §6.5/§6.6).
-    const chartGroups = page.getByRole('group');
-    expect(await chartGroups.count()).toBeGreaterThan(0);
-    await expect(chartGroups.first()).toBeVisible();
+    // A generic `role=group` count only proves SOME element with that role
+    // exists, not that a chart actually rendered — an empty placeholder div
+    // could carry the same role. Target the real chart group
+    // (BenchmarkCurveChart.tsx: `role="group"` with the app's own
+    // `data-scale` attribute) and require an actual plotted Recharts line
+    // inside it, with real (non-empty) path geometry.
+    const classicGroup = page.getByRole('group', { name: 'Algoritmos clásicos por pares' });
+    await expect(classicGroup).toBeVisible();
+    await expect(classicGroup).toHaveAttribute('data-scale', 'linear');
+    const plottedLine = classicGroup
+      .locator('svg.recharts-surface path.recharts-line-curve')
+      .first();
+    await expect(plottedLine).toBeVisible();
+    const pathGeometry = await plottedLine.getAttribute('d');
+    expect(pathGeometry).toBeTruthy();
+    expect(pathGeometry!.length).toBeGreaterThan(0);
+
+    // The other two curve chart groups (real CSV data has HAC-linkage and
+    // internal-metric families too, TRD §6.5/§6.6) are present as real
+    // charts as well, not just counted.
+    for (const name of ['Enlaces jerárquicos (HAC)', 'Métricas internas de agrupamiento']) {
+      const group = page.getByRole('group', { name });
+      await expect(group).toBeVisible();
+      await expect(group).toHaveAttribute('data-scale', 'linear');
+    }
 
     // Both embedding dimensions from the fixed local/API providers (ADR
     // pinned in TRD §8: MiniLM 384, Gemini 1536).
     await expect(page.getByTestId('embedding-tile-384')).toBeVisible();
     await expect(page.getByTestId('embedding-tile-1536')).toBeVisible();
 
-    expect(backendRequests.urls.some((url) => url.includes('/api/v1/benchmarks'))).toBe(true);
+    expect(hasSuccessfulResponse(backendResponses, '/api/v1/benchmarks')).toBe(true);
   });
 
   test('has no automatically detectable WCAG 2.1 AA violations on the benchmarks screen', async ({

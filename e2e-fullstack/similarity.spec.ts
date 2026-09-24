@@ -5,16 +5,21 @@ import {
   AXE_TAGS,
   fetchCorpus,
   fetchSimilarityCompare,
+  fetchSimilarityTrace,
+  hasSuccessfulResponse,
   titleOf,
-  trackBackendRequests,
+  trackBackendResponses,
 } from './support/backend.js';
 
 /**
  * Flow A (PRD §7, TAC-15), full stack, no mocks: pick two real documents
- * (d01, d02), run the comparison against the real backend, see all six
- * algorithms with real values, and open the Needleman–Wunsch trace/DP
- * matrix. `no-mocks.guard.spec.ts` enforces there is no `page.route`
- * anywhere in this directory.
+ * (d01, d02) resolved from the real backend via `support/backend.ts`'s
+ * `fetchCorpus`/`titleOf` (added alongside this suite's harness), run the
+ * comparison against the real backend, see all six algorithms with real
+ * values cross-checked via `fetchSimilarityCompare`, and open the
+ * Needleman–Wunsch trace/DP matrix, cross-checked via `fetchSimilarityTrace`.
+ * `no-mocks.guard.spec.ts` enforces there is no `page.route` anywhere in
+ * this directory.
  */
 const ALGORITHM_IDS = [
   'levenshtein',
@@ -37,7 +42,7 @@ test.describe('similarity compare + trace (full stack, Flow A)', () => {
     page,
     request,
   }) => {
-    const backendRequests = trackBackendRequests(page);
+    const backendResponses = trackBackendResponses(page);
     const corpus = await fetchCorpus(request);
     const titleA = titleOf(corpus, 'd01');
     const titleB = titleOf(corpus, 'd02');
@@ -76,9 +81,7 @@ test.describe('similarity compare + trace (full stack, Flow A)', () => {
     expect(uiValueNow).not.toBeNull();
     expect(Math.abs(Number(uiValueNow) - (backendScore as number))).toBeLessThan(1e-9);
 
-    expect(backendRequests.urls.some((url) => url.includes('/api/v1/similarity/compare'))).toBe(
-      true,
-    );
+    expect(hasSuccessfulResponse(backendResponses, '/api/v1/similarity/compare')).toBe(true);
   });
 
   test('opening the needleman-wunsch trace shows a real DP matrix with a drawn optimal path', async ({
@@ -106,13 +109,25 @@ test.describe('similarity compare + trace (full stack, Flow A)', () => {
     // actually waits for that fetch to resolve, not just the navigation.
     const firstCell = page.locator('table').first().locator('td').first();
     await expect(firstCell).toBeVisible({ timeout: 15_000 });
-    const cellCount = await page.locator('table').first().locator('td').count();
-    expect(cellCount).toBeGreaterThan(0);
 
-    const firstOptimalPathCell = page.locator('[data-optimal-path="true"]').first();
-    await expect(firstOptimalPathCell).toBeVisible();
+    // Cross-checked against the same trace fetched directly from the
+    // backend, so the assertion is an EXACT match against real data, not
+    // just "greater than zero" (which a matrix rendered with a single stray
+    // cell, or a single stray optimal-path mark, would also satisfy).
+    const trace = await fetchSimilarityTrace(request, 'needleman-wunsch', 'd01', 'd02');
+    const expectedCellCount = trace.matrix.length * trace.matrix[0].length;
+    const cellCount = await page.locator('table').first().locator('td').count();
+    expect(cellCount).toBe(expectedCellCount);
+
     const optimalPathCount = await page.locator('[data-optimal-path="true"]').count();
+    expect(optimalPathCount).toBe(trace.optimalPath.length);
     expect(optimalPathCount).toBeGreaterThan(0);
+
+    // At least one cell shows a real, non-empty score value (not a blank
+    // or placeholder cell).
+    const firstCellText = (await firstCell.textContent())?.trim();
+    expect(firstCellText).not.toBe('');
+    expect(firstCellText).not.toBeUndefined();
   });
 
   test('has no automatically detectable WCAG 2.1 AA violations on the compare results or the trace view', async ({
