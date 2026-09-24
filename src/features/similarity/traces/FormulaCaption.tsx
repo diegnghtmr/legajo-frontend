@@ -36,8 +36,8 @@ class KatexErrorBoundary extends Component<KatexErrorBoundaryProps, KatexErrorBo
 }
 
 /**
- * KaTeX formula caption below a trace panel, never inside a matrix cell
- * (DESIGN.md §6 item 3). Lazy-loads the KaTeX chunk (`KatexFormula.tsx`) so
+ * KaTeX formula caption below a trace panel, never inside a matrix cell.
+ * Lazy-loads the KaTeX chunk (`KatexFormula.tsx`) so
  * its font/JS weight only ships once a trace view actually renders one; the
  * raw TeX source is shown as a plain-text fallback while it loads, and again
  * if the chunk fails to load, so a network error never crashes the page.

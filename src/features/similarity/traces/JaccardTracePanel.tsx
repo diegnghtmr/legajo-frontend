@@ -26,7 +26,7 @@ function SizeLabel({ label, value }: { label: string; value: number }) {
 }
 
 /**
- * Jaccard trace panel (PRD HU-1.6): the two token sets, their intersection
+ * Jaccard trace panel: the two token sets, their intersection
  * and union (both listed, not only sized), and the coefficient — every
  * field the backend sends, rendered verbatim.
  */

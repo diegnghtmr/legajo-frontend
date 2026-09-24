@@ -4,10 +4,9 @@ import { useNavigate } from 'react-router';
 import { useSelectionStore } from './selectionStore';
 
 /**
- * Secondary CTA (PRD HU-1.4) for the ≥3-selected similarity matrix,
+ * Secondary CTA for the ≥3-selected similarity matrix,
  * alongside the primary `CompareCta` (≥2). A second, less prominent
- * button rather than a mode switch: DESIGN.md §6.1 already fixes the
- * corpus screen's one sticky primary CTA slot for "Comparar" and defines
+ * button rather than a mode switch: the corpus screen's one sticky primary CTA slot is already fixed for "Comparar" and defines
  * no mode-switch control there, so adding a quieter secondary button (the
  * same outline style as `DpMatrix`'s CSV download button) keeps both
  * actions independently reachable without redesigning that screen or

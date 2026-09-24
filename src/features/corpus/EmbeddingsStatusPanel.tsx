@@ -207,12 +207,11 @@ function EmbeddingsStatusContent({ data }: { data: EmbeddingsStatusResponse }) {
 }
 
 /**
- * TAC-13 UI: status of both embedding families (`embedding-local`,
+ * Status of both embedding families (`embedding-local`,
  * `embedding-api`) in one panel on the corpus screen. Independent
  * `useQuery` from the article list — a failure here is shown only inside
  * this panel and never blocks or hides the corpus list (author decision,
- * 2026-09-22, since TRD §6.7/DESIGN.md §6 do not fix this panel's
- * placement).
+ * 2026-09-22, since this panel's placement is not otherwise fixed).
  */
 export function EmbeddingsStatusPanel() {
   const { t } = useTranslation();

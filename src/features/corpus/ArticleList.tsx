@@ -9,7 +9,7 @@ import { useSelectionStore } from './selectionStore';
 export const CORPUS_LIST_QUERY_KEY = ['corpus', 'list'] as const;
 
 /**
- * The corpus article list (PRD HU-1.1): TanStack Query owns the server data,
+ * The corpus article list: TanStack Query owns the server data,
  * the shared `useSelectionStore` (Zustand) owns which ids are checked. No
  * loose HTTP call here — `fetchCorpus` lives in `infrastructure/`.
  */

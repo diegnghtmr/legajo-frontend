@@ -19,7 +19,7 @@ function result(overrides: Partial<BenchmarkResult>): BenchmarkResult {
 }
 
 describe('evaluateSlo', () => {
-  it('marks a result within the NFR-QA-01 threshold (< 5000 ms)', () => {
+  it('marks a result within the classic threshold (< 5000 ms)', () => {
     const evaluation = evaluateSlo(result({ score: 11.6, unit: 'ms/op' }), 5_000);
     expect(evaluation).toEqual({
       family: 'slo-classic-levenshtein',
@@ -30,7 +30,7 @@ describe('evaluateSlo', () => {
     });
   });
 
-  it('marks a result exceeding the NFR-QA-02 threshold (< 1000 ms)', () => {
+  it('marks a result exceeding the clustering threshold (< 1000 ms)', () => {
     const evaluation = evaluateSlo(
       result({ family: 'slo-clustering', score: 1_500, unit: 'ms/op' }),
       1_000,

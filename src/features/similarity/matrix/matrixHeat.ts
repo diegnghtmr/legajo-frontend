@@ -1,6 +1,6 @@
 /**
  * Absolute bucket thresholds over `normalizedScore`'s contract-fixed [0, 1]
- * range (TRD §6.3 `SimilarityResultSchema`), unlike `DpMatrix`'s heat, which
+ * range (`SimilarityResultSchema`), unlike `DpMatrix`'s heat, which
  * is relative to that trace's own min/max because a raw DP value has no
  * fixed range. Presentation only — the interface never computes similarity,
  * only buckets the backend's own already-normalized number for a heat fill.
@@ -12,8 +12,8 @@ const MATRIX_HEAT_THRESHOLDS = {
 } as const;
 
 /**
- * `matrix-low`/`matrix-mid-low`/`matrix-mid` use `ink` text (contrast ≥ 6.4:1
- * per DESIGN.md); `matrix-high` uses `paper` text (17:1) — same cell-contrast
+ * `matrix-low`/`matrix-mid-low`/`matrix-mid` use `ink` text (contrast ≥ 6.4:1);
+ * `matrix-high` uses `paper` text (17:1) — same cell-contrast
  * rule `DpMatrix` already applies to its own grayscale ladder.
  */
 export function matrixHeatClassName(normalizedScore: number): string {

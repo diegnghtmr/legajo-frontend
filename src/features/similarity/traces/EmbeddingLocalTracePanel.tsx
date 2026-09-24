@@ -21,7 +21,7 @@ function Field({ testId, label, value }: { testId: string; label: string; value:
 }
 
 /**
- * `embedding-local` trace panel (PRD HU-1.6): dimension + an 8-value excerpt
+ * `embedding-local` trace panel: dimension + an 8-value excerpt
  * of each stored unit vector (never the full 384-dimension vector), the
  * `preNormL2` provenance value recorded at precompute time (not recomputed
  * here), dot product, cosine, angle and the mapped normalized score.

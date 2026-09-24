@@ -8,7 +8,7 @@ import { EmbeddingsStatusPanel } from './EmbeddingsStatusPanel';
 import { MatrixCta } from './MatrixCta';
 
 /**
- * Corpus / selection screen (DESIGN.md §6.1): a list of abstracts on the
+ * Corpus / selection screen: a list of abstracts on the
  * left (desktop) or top (narrow) with the sticky compare CTA, and the
  * selected article's full abstract on the right via the nested route
  * (`CorpusDetailPlaceholder` or `CorpusDetail`, rendered through `Outlet`).

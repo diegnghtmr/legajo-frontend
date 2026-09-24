@@ -9,9 +9,9 @@ import { formatDuration } from './units';
 
 type BenchmarkResult = BenchmarkReportResponse['results'][number];
 
-/** NFR-QA-01: all C(n,2) classic comparisons per algorithm, < 5 s. */
+/** All C(n,2) classic comparisons per algorithm, < 5 s. */
 const CLASSIC_THRESHOLD_MS = 5_000;
-/** NFR-QA-02: all four linkages from cached matrices/vectors, < 1 s. */
+/** All four linkages from cached matrices/vectors, < 1 s. */
 const CLUSTERING_THRESHOLD_MS = 1_000;
 
 /**
@@ -97,13 +97,14 @@ function SloTable({
   );
 }
 
-/** TAC-07's fixed measurement size for every `slo-*` family (NFR-QA-01/02, "n = 20"). */
+/** The fixed measurement size for every `slo-*` family ("n = 20"). */
 const SLO_FIXED_SIZE = 20;
 
 /**
- * TAC-07 evidence in the UI (DESIGN.md §6 item 6): NFR-QA-01 per classic
- * algorithm and NFR-QA-02 for the four linkages, each value against its
- * fixed threshold with a text within/exceeds label — never color alone.
+ * SLO evidence in the UI: the classic comparisons table per classic
+ * algorithm and the clustering table for the four linkages, each value
+ * against its fixed threshold with a text within/exceeds label — never
+ * color alone.
  */
 export function SloSection({ results }: { results: readonly BenchmarkResult[] }) {
   const { t } = useTranslation();

@@ -37,11 +37,10 @@ function slopesByFamily(
 }
 
 /**
- * Benchmarks screen (DESIGN.md §6 item 6, TRD §6.6 `GET /benchmarks`,
- * TAC-18): the reference harness, one curve chart per group (pairwise
- * classic, HAC linkages, internal metrics), one tile per embedding
- * dimension, and TAC-07's SLO evidence. Reads the versioned JMH numbers
- * as-is — this screen never runs a benchmark or recomputes a slope.
+ * Benchmarks screen (`GET /benchmarks`): the reference harness, one curve
+ * chart per group (pairwise classic, HAC linkages, internal metrics), one
+ * tile per embedding dimension, and SLO evidence. Reads the versioned JMH
+ * numbers as-is — this screen never runs a benchmark or recomputes a slope.
  */
 export function BenchmarksPage() {
   const { t } = useTranslation();
