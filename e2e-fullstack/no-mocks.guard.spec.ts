@@ -31,9 +31,14 @@ const CURRENT_DIR = dirname(CURRENT_FILE);
  * `'msw/browser'`, a CommonJS `require('msw')`, or a dynamic
  * `import('msw')` — an earlier fix of this same pattern only caught the
  * static form), or a hand-rolled Service Worker mock
- * (`serviceWorker.register(...)`). `PATTERN_COVERAGE` below documents and
- * tests each of these forms individually, so a regression in any one of
- * them fails its own named test, not just a generic "the guard broke".
+ * (`serviceWorker.register(...)`), or an MSW SIDE-EFFECT import with no
+ * binding at all (`import 'msw'`/`import 'msw/node'` — legal ES module
+ * syntax that runs the package's module-initialization code purely for its
+ * side effects, with nothing to the left of the string for the `from`/
+ * `require`/`import(` alternatives above to catch on). `PATTERN_COVERAGE`
+ * below documents and tests each of these forms individually, so a
+ * regression in any one of them fails its own named test, not just a
+ * generic "the guard broke".
  *
  * The FORBIDDEN_PATTERNS regular expressions below deliberately do NOT
  * spell out "page.route(" or "context.route(" as a contiguous substring —
@@ -61,9 +66,10 @@ const FORBIDDEN_PATTERNS: readonly RegExp[] = [
   /\.\s*setExtraHTTPHeaders\s*\(/,
   // Any import from the "msw" (Mock Service Worker) package, browser or
   // node build — a static `from '...'` import, a CommonJS `require(...)`,
-  // or a dynamic `import(...)` (a bare `from '...'` pattern alone misses
-  // both of the latter two forms).
-  /(?:from\s+|require\s*\(\s*|import\s*\(\s*)['"]msw(\/[^'"]*)?['"]/,
+  // a dynamic `import(...)`, or a bare side-effect import with no `from`
+  // clause at all (`import 'msw'`) — a `from '...'` pattern alone misses
+  // all three of the others.
+  /(?:from\s+|require\s*\(\s*|import\s*\(\s*|import\s+)['"]msw(\/[^'"]*)?['"]/,
   // The browser Service Worker API a hand-rolled service-worker mock would
   // register through.
   /\bserviceWorker\s*\.\s*register\s*\(/,
@@ -132,6 +138,16 @@ const PATTERN_COVERAGE: ReadonlyArray<{
     shouldMatch: true,
   },
   {
+    label: 'an MSW bare side-effect import',
+    sample: "import 'msw';",
+    shouldMatch: true,
+  },
+  {
+    label: 'an MSW/node bare side-effect import',
+    sample: 'import "msw/node";',
+    shouldMatch: true,
+  },
+  {
     label: 'a service-worker mock registration',
     sample: "navigator.serviceWorker.register('/mock-sw.js');",
     shouldMatch: true,
@@ -144,6 +160,18 @@ const PATTERN_COVERAGE: ReadonlyArray<{
   {
     label: 'an unrelated variable named routeInfo (must NOT match)',
     sample: 'const routeInfo = getRouteInfo();',
+    shouldMatch: false,
+  },
+  {
+    label:
+      'a side-effect import of an unrelated local module merely starting with "msw" (must NOT match)',
+    sample: "import './msw-mock-helpers.ts';",
+    shouldMatch: false,
+  },
+  {
+    label:
+      'a side-effect import of an unrelated package whose name only starts with "msw" (must NOT match)',
+    sample: "import 'msw-testing-utils';",
     shouldMatch: false,
   },
 ];
@@ -179,8 +207,8 @@ test('the full-stack suite never intercepts a request with page.route/context.ro
   // regressed (wrong directory, an overly broad exclusion, all files
   // filtered out) without anyone noticing. Bounded below by the suite's own
   // known minimum: this file is excluded from its own scan, so the count is
-  // the other five (corpus/similarity/clustering/benchmarks specs plus
-  // support/backend.ts).
+  // the other seven (corpus/similarity/clustering/benchmarks specs plus
+  // support/backend.ts, support/partition.ts, support/partition.spec.ts).
   expect(
     scannedFiles.length,
     'the guard scanned zero .ts files under e2e-fullstack/ — that proves nothing about mocking; check collectSourceFiles',
