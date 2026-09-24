@@ -1,9 +1,13 @@
 #!/usr/local/bin/bash
 # Fake `docker` for integration-case.sh, prepended onto PATH so
 # cleanup_stale_fullstack_projects never touches a real Docker daemon:
-# only prints back canned data the test controls via DEAD_PID, and
-# records every reclaim ("down") call on stdout as RECLAIMED:<project> so
-# the test can assert on it afterwards.
+# only prints back canned (pid|host|pidns) data the test controls via
+# DEAD_PID, and records every reclaim ("down") call on stdout as
+# RECLAIMED:<project> so the test can assert on it afterwards. Two of the
+# fake projects below (other-pidns, missing-pidns) exist ONLY to exercise
+# the pidns dimension of should_reclaim_stale_project: same dead PID and
+# matching host as the reclaimed "dead" project, but a mismatched or
+# missing pidns label — both must stay untouched.
 set -euo pipefail
 case "$1" in
   compose)
@@ -13,6 +17,8 @@ case "$1" in
         "legajo-frontend-fullstack-e2e-dead" \
         "legajo-frontend-fullstack-e2e-live-self" \
         "legajo-frontend-fullstack-e2e-other-host" \
+        "legajo-frontend-fullstack-e2e-other-pidns" \
+        "legajo-frontend-fullstack-e2e-missing-pidns" \
         "legajo-frontend-fullstack-e2e-current" \
         "not-our-prefix-project"
       exit 0
@@ -50,10 +56,12 @@ case "$1" in
       esac
     done
     case "${filter}" in
-      legajo-frontend-fullstack-e2e-dead) echo "${DEAD_PID}|test-host" ;;
-      legajo-frontend-fullstack-e2e-live-self) echo "1|test-host" ;;
-      legajo-frontend-fullstack-e2e-other-host) echo "1|some-other-host" ;;
-      *) echo "|" ;;
+      legajo-frontend-fullstack-e2e-dead) echo "${DEAD_PID}|test-host|test-pidns" ;;
+      legajo-frontend-fullstack-e2e-live-self) echo "1|test-host|test-pidns" ;;
+      legajo-frontend-fullstack-e2e-other-host) echo "1|some-other-host|test-pidns" ;;
+      legajo-frontend-fullstack-e2e-other-pidns) echo "${DEAD_PID}|test-host|a-different-pidns" ;;
+      legajo-frontend-fullstack-e2e-missing-pidns) echo "${DEAD_PID}|test-host|" ;;
+      *) echo "||" ;;
     esac
     ;;
   *)

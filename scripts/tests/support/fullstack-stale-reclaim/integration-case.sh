@@ -22,5 +22,6 @@ COMPOSE_PROJECT="legajo-frontend-fullstack-e2e-current"
 COMPOSE_FILE="/dummy/docker-compose.yml"
 COMPOSE_LABEL_FILE="/dummy/labels.yml"
 LEGAJO_FULLSTACK_E2E_OWNER_HOST="test-host"
+LEGAJO_FULLSTACK_E2E_OWNER_PIDNS="test-pidns"
 
 cleanup_stale_fullstack_projects

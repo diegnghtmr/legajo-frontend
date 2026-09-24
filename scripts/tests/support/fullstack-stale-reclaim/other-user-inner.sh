@@ -28,7 +28,11 @@ if pid_is_alive "${root_pid}"; then
 else
   echo "CLASS_EPERM=dead"
 fi
-if should_reclaim_stale_project "${root_pid}" host-a host-a; then
+this_pidns="$(readlink /proc/self/ns/pid 2>/dev/null || true)"
+if [ -z "${this_pidns}" ]; then
+  this_pidns="none"
+fi
+if should_reclaim_stale_project "${root_pid}" host-a "${this_pidns}" host-a "${this_pidns}"; then
   echo "OTHER_USER=reclaimed"
 else
   echo "OTHER_USER=untouched"

@@ -85,12 +85,57 @@ COMPOSE_PROJECT="${LEGAJO_FULLSTACK_E2E_PROJECT:-${COMPOSE_PROJECT_PREFIX}$$}"
 export LEGAJO_FRONTEND_DIR="${REPO_DIR}"
 
 # Consumed by scripts/docker/fullstack-e2e-labels.override.yml (see its own
-# comment): stamps every container THIS run creates with its owning PID and
-# host, so a LATER run can tell a stale project (owner gone) apart from a
-# live concurrent one (owner still running) — see
+# comment): stamps every container THIS run creates with its owning PID,
+# host, and pid namespace, so a LATER run can tell a stale project (owner
+# gone) apart from a live concurrent one (owner still running) — see
 # cleanup_stale_fullstack_projects below.
 export LEGAJO_FULLSTACK_E2E_OWNER_PID="$$"
-export LEGAJO_FULLSTACK_E2E_OWNER_HOST="$(hostname)"
+
+# Assigned in a PLAIN statement, never `export VAR="$(cmd)"` directly:
+# `export`'s OWN exit status always succeeds regardless of whether the
+# command substitution assigned to it failed, so a failing or empty
+# `hostname` would silently export an EMPTY label instead of being caught
+# here — and cleanup_stale_fullstack_projects's own
+# should_reclaim_stale_project treats an empty owner/this host as "can
+# never be positively matched," which would quietly disable reclaim for
+# every future run on this host, not loudly fail this one. `uname -n` is
+# the fallback when `hostname` itself is missing or fails; if BOTH come up
+# empty, this is a hard, loud failure, not a silent empty label.
+OWNER_HOST="$(hostname 2>/dev/null)"
+if [ -z "${OWNER_HOST}" ]; then
+  OWNER_HOST="$(uname -n 2>/dev/null)"
+fi
+if [ -z "${OWNER_HOST}" ]; then
+  echo "ERROR: could not determine this host's own hostname (both 'hostname'" >&2
+  echo "  and 'uname -n' failed or returned empty)." >&2
+  echo "  scripts/e2e-fullstack-in-docker.sh needs a non-empty host identity to" >&2
+  echo "  label this run's Compose containers, so a LATER run can tell a dead" >&2
+  echo "  run's project apart from a live one — see" >&2
+  echo "  lib/fullstack-stale-reclaim.sh's own should_reclaim_stale_project" >&2
+  echo "  comment for why an empty host label is never trusted." >&2
+  exit 1
+fi
+export LEGAJO_FULLSTACK_E2E_OWNER_HOST="${OWNER_HOST}"
+
+# The PID NAMESPACE this process itself belongs to. Hostname (a UTS
+# identity) alone is NOT enough to say two runs share the same VIEW of
+# process ids: two containers sharing this host's Docker socket, with the
+# SAME hostname label (nothing here randomizes it) but SEPARATE pid
+# namespaces, would each see the OTHER's live owner PID as ESRCH ("no such
+# process" — IN THIS NAMESPACE) and reclaim a live run out from under it.
+# `readlink /proc/self/ns/pid` (e.g. "pid:[4026531836]") is this process's
+# own pid-namespace identity, and this must NEVER be empty: a system with
+# no `/proc/self/ns/pid` at all (no Linux pid namespaces, e.g. macOS) falls
+# back to the literal "none" — like an empty/missing label,
+# should_reclaim_stale_project never trusts an empty one, but "none" is
+# non-empty and self-consistent on a system where the concept doesn't
+# apply at all (there is only one flat pid space there, so "none" == "none"
+# is exactly as correct as pidns matching is everywhere else).
+OWNER_PIDNS="$(readlink /proc/self/ns/pid 2>/dev/null)"
+if [ -z "${OWNER_PIDNS}" ]; then
+  OWNER_PIDNS="none"
+fi
+export LEGAJO_FULLSTACK_E2E_OWNER_PIDNS="${OWNER_PIDNS}"
 COMPOSE_LABEL_FILE="${SCRIPT_DIR}/docker/fullstack-e2e-labels.override.yml"
 # Every `docker compose` call for OUR OWN project goes through this array
 # (both compose files together), so the ownership labels above are applied
@@ -123,14 +168,16 @@ echo "==> full-stack e2e: compose project ${COMPOSE_PROJECT}"
 # (sourced above from lib/fullstack-stale-reclaim.sh) reclaims only a
 # project this script itself created (name prefix) AND can positively
 # identify as dead — its own ownership label, from
-# scripts/docker/fullstack-e2e-labels.override.yml, names a PID that no
-# longer EXISTS on this host, judged by `kill -0`'s own error TEXT (see
+# scripts/docker/fullstack-e2e-labels.override.yml, names a (host, pid
+# namespace, PID) IDENTITY that no longer EXISTS on this host, in this pid
+# namespace, judged by `kill -0`'s own error TEXT (see
 # lib/fullstack-stale-reclaim.sh's own comment for why a bare exit code,
 # or a `/proc/$pid` existence check, both get this wrong) rather than by
 # whether this process may signal it. Anything else — unlabeled, on a
-# different host, or still alive (including a live process owned by a
-# DIFFERENT user) — is left untouched. PID reuse by the OS is a known, accepted
-# limitation of a liveness check like this one: it would take another
+# different host, in a different pid namespace, or still alive (including
+# a live process owned by a DIFFERENT user) — is left untouched. PID reuse
+# by the OS is a known, accepted limitation of a liveness check like this
+# one: it would take another
 # process landing on the exact freed PID inside this narrow window, and
 # the failure mode is the safe direction (treating a genuinely dead run as
 # still alive, never the reverse).

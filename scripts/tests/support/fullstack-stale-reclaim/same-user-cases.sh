@@ -2,15 +2,26 @@
 # Runs (as root, the container's default user) every should_reclaim_stale_project
 # case that needs no privilege drop and no second host label: a dead
 # owner, a live owner checked by the SAME user, a live owner on a
-# DIFFERENT host label, several malformed owner-PID/host labels, and
-# direct pid_is_alive classification checks (a confirmed success, a
-# confirmed ESRCH, and an out-of-range PID that fails for neither
-# reason). Invoked by scripts/tests/fullstack-stale-reclaim.test.sh
-# via `docker run ... bash:5.2 /support/same-user-cases.sh`.
+# DIFFERENT host label, a dead owner in a DIFFERENT pid namespace, a dead
+# owner with no pidns label at all (a legacy/unlabeled project), several
+# malformed owner-PID/host labels, and direct pid_is_alive classification
+# checks (a confirmed success, a confirmed ESRCH, and an out-of-range PID
+# that fails for neither reason). Invoked by
+# scripts/tests/fullstack-stale-reclaim.test.sh via
+# `docker run ... bash:5.2 /support/same-user-cases.sh`.
 set -euo pipefail
 
 # shellcheck source=../../../lib/fullstack-stale-reclaim.sh
 . /workspace/scripts/lib/fullstack-stale-reclaim.sh
+
+# This container's own REAL pid-namespace identity, read the same way
+# scripts/e2e-fullstack-in-docker.sh reads it — used as THIS_PIDNS below,
+# and (unmodified) as a MATCHING owner_pidns in every case that should
+# behave exactly as it did before pidns existed as a concept.
+THIS_PIDNS="$(readlink /proc/self/ns/pid 2>/dev/null || true)"
+if [ -z "${THIS_PIDNS}" ]; then
+  THIS_PIDNS="none"
+fi
 
 # Case: owner dead. A real PID, started and then killed and `wait`-ed on
 # inside THIS container. `wait` on a shell's own background job both
@@ -22,7 +33,7 @@ sleep 100 &
 dead_pid=$!
 kill "${dead_pid}"
 wait "${dead_pid}" 2>/dev/null || true
-if should_reclaim_stale_project "${dead_pid}" "host-a" "host-a"; then
+if should_reclaim_stale_project "${dead_pid}" "host-a" "${THIS_PIDNS}" "host-a" "${THIS_PIDNS}"; then
   echo "DEAD=reclaimed"
 else
   echo "DEAD=untouched"
@@ -37,6 +48,31 @@ else
   echo "CLASS_ESRCH=dead"
 fi
 
+# Case: the SAME dead PID and host as above, but the label names a
+# DIFFERENT pid namespace than this checker's own — must be left
+# untouched. This is the destructive scenario a hostname-only identity
+# gets wrong: two containers sharing this host's Docker socket, with the
+# SAME hostname but SEPARATE pid namespaces, would otherwise see each
+# other's live PID as ESRCH (dead, in THIS namespace) and reclaim it. The
+# owner PID is genuinely dead HERE, so this case isolates the pidns
+# check itself from liveness: reclaim must be blocked by the pidns
+# mismatch alone, not merely coincide with a dead PID's own outcome.
+if should_reclaim_stale_project "${dead_pid}" "host-a" "${THIS_PIDNS}-different" "host-a" "${THIS_PIDNS}"; then
+  echo "DIFFERENT_PIDNS=reclaimed"
+else
+  echo "DIFFERENT_PIDNS=untouched"
+fi
+
+# Case: the SAME dead PID and host again, but NO pidns label at all — a
+# legacy project from before this label existed, or a Compose project
+# whose labels were otherwise never applied. Must be left untouched, the
+# same as an unlabeled/legacy project with no host label already was.
+if should_reclaim_stale_project "${dead_pid}" "host-a" "" "host-a" "${THIS_PIDNS}"; then
+  echo "MISSING_PIDNS_LABEL=reclaimed"
+else
+  echo "MISSING_PIDNS_LABEL=untouched"
+fi
+
 # Case: owner alive, same (root) user as the checker. Also doubles as the
 # "kill -0 succeeds outright" classification case.
 sleep 100 &
@@ -46,7 +82,7 @@ if pid_is_alive "${live_pid}"; then
 else
   echo "CLASS_SUCCESS=dead"
 fi
-if should_reclaim_stale_project "${live_pid}" "host-a" "host-a"; then
+if should_reclaim_stale_project "${live_pid}" "host-a" "${THIS_PIDNS}" "host-a" "${THIS_PIDNS}"; then
   echo "OWN_LIVE=reclaimed"
 else
   echo "OWN_LIVE=untouched"
@@ -57,7 +93,7 @@ kill "${live_pid}" 2>/dev/null || true
 # this one — must be left untouched regardless of liveness.
 sleep 100 &
 other_host_pid=$!
-if should_reclaim_stale_project "${other_host_pid}" "some-other-host" "host-a"; then
+if should_reclaim_stale_project "${other_host_pid}" "some-other-host" "${THIS_PIDNS}" "host-a" "${THIS_PIDNS}"; then
   echo "OTHER_HOST=reclaimed"
 else
   echo "OTHER_HOST=untouched"
@@ -66,29 +102,29 @@ kill "${other_host_pid}" 2>/dev/null || true
 
 # Cheap malformed-label cases: none of these should ever reach a liveness
 # check at all, so no real PID is needed for them.
-if should_reclaim_stale_project "" "host-a" "host-a"; then
+if should_reclaim_stale_project "" "host-a" "${THIS_PIDNS}" "host-a" "${THIS_PIDNS}"; then
   echo "EMPTY_PID=reclaimed"
 else
   echo "EMPTY_PID=untouched"
 fi
-if should_reclaim_stale_project "not-a-pid" "host-a" "host-a"; then
+if should_reclaim_stale_project "not-a-pid" "host-a" "${THIS_PIDNS}" "host-a" "${THIS_PIDNS}"; then
   echo "NON_NUMERIC_PID=reclaimed"
 else
   echo "NON_NUMERIC_PID=untouched"
 fi
 # PID 0 never names a real process; a leading zero ("007") is either a
 # corrupted label or a value never meant to be parsed as a PID.
-if should_reclaim_stale_project "0" "host-a" "host-a"; then
+if should_reclaim_stale_project "0" "host-a" "${THIS_PIDNS}" "host-a" "${THIS_PIDNS}"; then
   echo "ZERO_PID=reclaimed"
 else
   echo "ZERO_PID=untouched"
 fi
-if should_reclaim_stale_project "007" "host-a" "host-a"; then
+if should_reclaim_stale_project "007" "host-a" "${THIS_PIDNS}" "host-a" "${THIS_PIDNS}"; then
   echo "LEADING_ZERO_PID=reclaimed"
 else
   echo "LEADING_ZERO_PID=untouched"
 fi
-if should_reclaim_stale_project "1" "" "host-a"; then
+if should_reclaim_stale_project "1" "" "${THIS_PIDNS}" "host-a" "${THIS_PIDNS}"; then
   echo "EMPTY_HOST=reclaimed"
 else
   echo "EMPTY_HOST=untouched"

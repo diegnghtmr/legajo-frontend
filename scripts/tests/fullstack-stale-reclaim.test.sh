@@ -22,6 +22,17 @@
 # "hidepid" case below each reproduce one of the two retired bugs for
 # real, not as a reimplementation asserted to behave a certain way.
 #
+# A THIRD identity dimension matters beyond who owns a PID and on which
+# host: the PID NAMESPACE it was assigned in. Hostname (a UTS identity)
+# says nothing about that — two containers sharing this host's Docker
+# socket, with the SAME hostname label but SEPARATE pid namespaces, would
+# each see the OTHER's live owner PID as ESRCH (no such process — IN THIS
+# NAMESPACE) and reclaim a live run out from under it. The
+# "DIFFERENT_PIDNS"/"MISSING_PIDNS_LABEL" cases below prove that
+# `should_reclaim_stale_project` requires the pid namespace to match too,
+# and is never fooled into reclaiming a same-host project with no (or a
+# mismatched) pidns label.
+#
 # Runs every real-process case inside the pinned `bash:5.2` image (Alpine
 # + real bash, `su`, a `nobody` user, and (for the hidepid case) `unshare`/
 # `mount` — all verified interactively while writing this test), the same
@@ -131,6 +142,9 @@ if ! run_in_container same_user_output -- /support/same-user-cases.sh; then
 ${same_user_output}"
 fi
 check_result "owner dead" "${same_user_output}" "DEAD" "reclaimed"
+check_result "owner dead, same host, DIFFERENT pid namespace" "${same_user_output}" "DIFFERENT_PIDNS" "untouched"
+check_result "owner dead, same host, NO pidns label at all (legacy project)" \
+  "${same_user_output}" "MISSING_PIDNS_LABEL" "untouched"
 check_result "owner alive, same user" "${same_user_output}" "OWN_LIVE" "untouched"
 check_result "owner alive, different host label" "${same_user_output}" "OTHER_HOST" "untouched"
 check_result "empty owner PID" "${same_user_output}" "EMPTY_PID" "untouched"
@@ -213,6 +227,8 @@ fi
 for untouched_project in \
   legajo-frontend-fullstack-e2e-live-self \
   legajo-frontend-fullstack-e2e-other-host \
+  legajo-frontend-fullstack-e2e-other-pidns \
+  legajo-frontend-fullstack-e2e-missing-pidns \
   legajo-frontend-fullstack-e2e-current \
   not-our-prefix-project; do
   if printf '%s\n' "${integration_output}" | grep -qx "RECLAIMED:${untouched_project}"; then
