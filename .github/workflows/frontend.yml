@@ -67,6 +67,22 @@ jobs:
             test-results/
           retention-days: 7
 
+  # Regression tests for the helper SCRIPTS themselves (scripts/tests/),
+  # previously documented in README.md as container checks but never
+  # actually wired into CI. Independent of `ci`/`image-smoke`/`fullstack-e2e`:
+  # it never touches host Node, only Docker (each script runs the exact
+  # shipped shell code inside a pinned image, per its own header comment).
+  script-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: VITE_API_BASE_URL trim/validate guard
+        run: scripts/tests/api-base-url-guard.test.sh
+
+      - name: docker-volume.sh volume-ownership helper
+        run: scripts/tests/docker-volume.test.sh
+
   # Builds the shipped container image and checks that it actually serves the
   # SPA correctly (TRD §14.2/§14.3): root document, SPA fallback on a deep
   # route, and the cache headers on index.html vs. hashed assets. Independent
@@ -148,7 +164,20 @@ jobs:
   # secret with a more specific message.
   fullstack-e2e:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    # Covers a COLD run with real margin, not just the happy path: every
+    # step here starts from a fresh GitHub-hosted runner with no Docker
+    # layer cache, so `docker compose up --build` builds BOTH images from
+    # scratch (backend: Gradle dependency resolution plus a Java 25/Spring
+    # Boot 4 compile; frontend: npm install plus a Vite production build),
+    # `--wait` then polls both healthchecks, the Playwright container runs
+    # its own `npm ci` into a volume that is also empty on a fresh runner,
+    # and only then does the full-stack suite itself run (a handful of
+    # specs with axe scans, with CI's own `retries: 2` in
+    # playwright.fullstack.config.ts able to re-run a flaky one). Each of
+    # those steps is minutes, not seconds, on a shared runner; 20 minutes
+    # left too little room for a genuinely cold run plus a slow runner, so
+    # this is padded to 30 rather than tuned to a single measured run.
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
 
