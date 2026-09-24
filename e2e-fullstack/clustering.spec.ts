@@ -51,21 +51,60 @@ test.describe('clustering (full stack, Flow B)', () => {
     // count — a directory-wide count can't tell "20 leaves each labeled a
     // distinct cluster" apart from "20 leaves all labeled the same cluster"
     // (a degenerate, wrong partition that would still total 20 matches).
+    //
+    // Every leaf's label is read in ONE `evaluateAll` call, not one
+    // Playwright round-trip per leaf: several separate locator reads (the
+    // previous version's per-index `.count()`/`.textContent()` awaits) can
+    // straddle a re-render — the first few leaves could still show the
+    // PREVIOUS cut's labels while the rest already show the new ones,
+    // producing a "partition" that never existed in any single paint.
+    // `evaluateAll` runs entirely inside the page in one synchronous pass
+    // over the current DOM, so every leaf's label reflects the exact same
+    // render.
     async function readPartition(): Promise<number[]> {
       const leaves = wardDendrogram.locator('[data-leaf-id]');
-      const leafCount = await leaves.count();
-      const partition: number[] = [];
-      for (let index = 0; index < leafCount; index += 1) {
-        const clusterLabel = leaves.nth(index).locator('text', { hasText: /^Clúster \d+$/ });
-        // Exactly one cluster label per leaf — not zero (unassigned) and not
-        // two (e.g. a stale label left over from a previous cut).
-        if ((await clusterLabel.count()) !== 1) {
-          return []; // not settled yet; the caller's poll retries.
-        }
-        const text = await clusterLabel.textContent();
-        partition.push(Number(text?.replace(/\D/g, '')));
+      // `evaluateAll`'s callback runs in the browser, but this project's
+      // `tsconfig.node.json` (which governs e2e-fullstack/) has no "dom"
+      // lib, so global DOM type names like `Element`/`HTMLElement` don't
+      // resolve here — a minimal structural type stands in for them
+      // instead of widening this file's lib just for one callback.
+      type LabelledNode = { querySelectorAll(selectors: string): { textContent: string | null }[] };
+      const labels = await leaves.evaluateAll((elements) =>
+        (elements as LabelledNode[]).map((element) => {
+          const texts = Array.from(element.querySelectorAll('text')).map(
+            (node) => node.textContent?.trim() ?? '',
+          );
+          // Exactly one cluster label per leaf — not zero (unassigned) and
+          // not two (e.g. a stale label left over from a previous cut).
+          const matches = texts.filter((text) => /^Clúster \d+$/.test(text));
+          return matches.length === 1 ? matches[0] : null;
+        }),
+      );
+      if (labels.length === 0 || labels.some((label) => label === null)) {
+        return []; // not settled yet; the caller's poll retries.
       }
-      return partition;
+      return labels.map((label) => Number((label as string).replace(/\D/g, '')));
+    }
+
+    // Groups leaf indices by cluster label and normalizes the result so two
+    // partitions compare equal exactly when they group the SAME documents
+    // together, independent of which arbitrary integer label each cluster
+    // happens to carry (sorted member indices per group, groups sorted by
+    // their own first member). Comparing raw label arrays instead (e.g.
+    // `expect(a).not.toEqual(b)`) is tautological here: it can report
+    // "changed" purely because the backend/UI assigned different label
+    // integers to an otherwise IDENTICAL grouping, which proves nothing
+    // about whether the actual partition changed.
+    function canonicalizePartition(partition: readonly number[]): number[][] {
+      const groups = new Map<number, number[]>();
+      partition.forEach((label, leafIndex) => {
+        const group = groups.get(label) ?? [];
+        group.push(leafIndex);
+        groups.set(label, group);
+      });
+      return [...groups.values()]
+        .map((group) => [...group].sort((a, b) => a - b))
+        .sort((a, b) => a[0] - b[0]);
     }
 
     async function applyCutAndReadPartition(k: number): Promise<number[]> {
@@ -103,8 +142,13 @@ test.describe('clustering (full stack, Flow B)', () => {
     expect(k2Partition).toHaveLength(20);
     const k2Distinct = new Set(k2Partition);
     expect(k2Distinct.size).toBe(2);
-    // Changing k actually changes the partition, not just its label count.
-    expect(k2Partition).not.toEqual(k3Partition);
+    // Changing k actually regroups the documents, not just relabels the
+    // same grouping — compared as a canonical set of sets (which document
+    // indices are together), not as raw label arrays: two partitions with
+    // the same real grouping but different arbitrary label integers would
+    // still make `expect(a).not.toEqual(b)` report "changed", proving
+    // nothing about the actual clustering.
+    expect(canonicalizePartition(k2Partition)).not.toEqual(canonicalizePartition(k3Partition));
 
     // No cut line leaks onto a linkage that was not cut.
     await expect(
