@@ -1,8 +1,7 @@
 import { z } from 'zod';
 
 /**
- * The seven fixed `urn:legajo:problem:*` URNs (TRD §6.6, "Códigos de estado
- * de error (fijados)"). A framework-detected error carries no `type` at all
+ * The seven fixed `urn:legajo:problem:*` URNs. A framework-detected error carries no `type` at all
  * (Spring's `about:blank` is the implicit default and never appears in the
  * serialized body) rather than one of these values.
  */
@@ -18,7 +17,7 @@ export const ProblemTypeSchema = z.enum([
 
 export type ProblemType = z.infer<typeof ProblemTypeSchema>;
 
-/** RFC 9457 Problem Detail, as Spring Framework 7 serializes it (TRD §6.6). */
+/** RFC 9457 Problem Detail, as Spring Framework 7 serializes it. */
 export const ProblemDetailSchema = z.object({
   type: ProblemTypeSchema.optional(),
   title: z.string(),

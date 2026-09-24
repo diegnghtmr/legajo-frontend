@@ -7,7 +7,7 @@ import {
 } from './schemas/problemDetail';
 
 /**
- * The seven fixed URNs (TRD §6.6) mapped to i18n keys the UI can render
+ * The seven fixed URNs mapped to i18n keys the UI can render
  * directly. An unknown or absent `type` (Spring's `about:blank` handling)
  * falls back by HTTP status instead.
  */
@@ -31,8 +31,8 @@ const STATUS_FALLBACK_I18N_KEYS: Record<number, string> = {
 export const DEFAULT_UNEXPECTED_I18N_KEY = 'errors.unexpected';
 
 /**
- * Render's free tier suspends the backend when idle (TRD §14.4): the first
- * request after inactivity can legitimately take up to 60s (Appendix A). A
+ * Render's free tier suspends the backend when idle: the first
+ * request after inactivity can legitimately take up to 60s. A
  * timeout or a response that never arrives must say so, not read as a
  * generic outage.
  */

@@ -5,9 +5,9 @@
 @import '@fontsource/geist-mono/400.css';
 
 /*
- * Design tokens — DESIGN.md §9.2 (normative sketch). Every value here comes
- * verbatim from the DESIGN.md YAML front matter; do not add or invent a
- * value. Change tokens in DESIGN.md first, then mirror the change here.
+ * Design tokens. Every value here comes verbatim from the project's design
+ * system source; do not add or invent a value here directly — change the
+ * token in its source definition first, then mirror the change here.
  */
 @theme {
   --color-paper: #fafafa;

@@ -13,7 +13,7 @@ export interface DpMatrixProps {
   rowLabels: readonly string[];
   /** One label per matrix column, same length as each row of `matrix`. */
   columnLabels: readonly string[];
-  /** The complete DP matrix — never a windowed or truncated subset (PRD HU-1.2). */
+  /** The complete DP matrix — never a windowed or truncated subset. */
   matrix: readonly (readonly number[])[];
   optimalPath: readonly DpMatrixCell[];
   /** Accessible caption for the table (e.g. "Levenshtein matrix"). */
@@ -25,8 +25,8 @@ export interface DpMatrixProps {
 }
 
 /**
- * Proportional grayscale bucket over the matrix's own [min, max] range
- * (DESIGN.md §6 item 3 / §7.5): `matrix-low`/`matrix-mid-low`/`matrix-mid`
+ * Proportional grayscale bucket over the matrix's own [min, max] range:
+ * `matrix-low`/`matrix-mid-low`/`matrix-mid`
  * use `ink` text (contrast ≥ 6.4:1), `matrix-high` uses `paper` text (17:1).
  */
 function heatClassName(value: number, min: number, max: number): string {
@@ -51,11 +51,10 @@ function pathKey(row: number, col: number): string {
 
 /**
  * Complete DP trace matrix (Levenshtein / Needleman–Wunsch), rendered in a
- * scrollable viewport (DESIGN.md §6 item 3, §9.3 `DpMatrix`). Lives in
- * `shared/` per DESIGN.md §9.3's own component inventory and AGENTS.md's
- * repository map, which both list `DpMatrix` as a shared component — not
+ * scrollable viewport. Lives in
+ * `shared/` because it is used by more than one feature — not
  * re-derived from the "second importer" scope-rule heuristic used for
- * feature-local components, since the documents already fix its location.
+ * feature-local components, since its location is already fixed.
  * No virtualization library: the reference corpus's abstracts are short
  * (at most a few hundred tokens), so a plain scrollable `<table>` renders
  * every cell directly without the indirection of a windowing dependency

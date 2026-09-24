@@ -78,7 +78,7 @@ describe('DpMatrix', () => {
 
   it('makes the scrollable matrix viewport itself keyboard-focusable (WCAG 2.1.1 scrollable-region-focusable)', () => {
     // The mocked e2e fixtures (4x4) never overflow max-h-[420px], so this
-    // never surfaced there; F3's full-stack e2e suite hit it for real
+    // never surfaced there; the full-stack e2e suite hit it for real
     // against a real, longer document pair, where the container genuinely
     // scrolls and axe's scrollable-region-focusable rule flags a
     // non-focusable overflow container as unreachable by keyboard.

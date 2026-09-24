@@ -3,7 +3,7 @@ export type ClassValue =
 
 /**
  * Minimal class-name joiner: no `clsx`/`tailwind-merge` dependency, since
- * neither is part of the frontend's fixed stack (TRD §5.2). It never
+ * neither is part of the frontend's fixed stack. It never
  * deduplicates or resolves Tailwind conflicts — components here never pass
  * conflicting utility classes for the same property.
  */

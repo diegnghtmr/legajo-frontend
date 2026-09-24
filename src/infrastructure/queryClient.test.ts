@@ -5,7 +5,7 @@ import { queryClient } from './queryClient';
 import { shouldRetryQuery } from './queryRetry';
 
 describe('queryClient', () => {
-  it('defaults staleTime to Infinity (the corpus and its derived results are static, TRD §6.7)', () => {
+  it('defaults staleTime to Infinity (the corpus and its derived results are static)', () => {
     expect(queryClient.getDefaultOptions().queries?.staleTime).toBe(Infinity);
   });
 

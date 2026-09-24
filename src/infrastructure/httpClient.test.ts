@@ -5,7 +5,7 @@ import { handleResponseError, httpClient } from './httpClient';
 import { NETWORK_ERROR_I18N_KEY } from './apiError';
 
 describe('httpClient', () => {
-  it('sets a 60s timeout (Render free-tier cold start, TRD Appendix A)', () => {
+  it('sets a 60s timeout (Render free-tier cold start)', () => {
     expect(httpClient.defaults.timeout).toBe(60_000);
   });
 

@@ -13,8 +13,8 @@ export type ClusteringResponse =
 
 /**
  * `representation`/`linkages` omitted or null default to `tfidf-cosine` and
- * all four linkages (TRD §6.6). Evaluation is always computed at the fixed
- * cuts k ∈ {2,3,4,5} ∩ [2, n-1] — there is no `ks` parameter (TAC-04).
+ * all four linkages. Evaluation is always computed at the fixed
+ * cuts k ∈ {2,3,4,5} ∩ [2, n-1] — there is no `ks` parameter.
  */
 export async function runClustering(body?: ClusteringRequestBody): Promise<ClusteringResponse> {
   const { data } = await httpClient.post<ClusteringResponse>('/api/v1/clustering', body ?? {});

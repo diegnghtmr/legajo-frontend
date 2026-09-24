@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import i18n, { DEFAULT_LANGUAGE, setLanguage, SUPPORTED_LANGUAGES } from './index';
 
 describe('i18n setup', () => {
-  it('defaults to Spanish (the course and document language; unspecified by PRD/TRD)', () => {
+  it('defaults to Spanish (the course language; no default is otherwise specified)', () => {
     expect(DEFAULT_LANGUAGE).toBe('es');
     expect(i18n.language).toBe('es');
   });

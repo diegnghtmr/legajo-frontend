@@ -15,7 +15,7 @@ export type CompareRequestBody =
 export type CompareResponse =
   operations['compareSimilarity']['responses'][200]['content']['application/json'];
 
-/** `algorithmIds` omitted or null defaults to all six capabilities (TAC-01, HU-1.1). */
+/** `algorithmIds` omitted or null defaults to all six capabilities. */
 export async function compareSimilarity(body: CompareRequestBody): Promise<CompareResponse> {
   const { data } = await httpClient.post<CompareResponse>('/api/v1/similarity/compare', body);
   return parseResponse(z.array(AlgorithmSimilaritySchema), data, 'POST /similarity/compare');
@@ -37,7 +37,7 @@ export type SimilarityTraceParams = operations['similarityTrace']['parameters'][
 export type SimilarityTraceResponse =
   operations['similarityTrace']['responses'][200]['content']['application/json'];
 
-/** Always the complete trace: NFR-QA-03 forbids a truncation parameter. */
+/** Always the complete trace: there is no truncation parameter. */
 export async function fetchSimilarityTrace(
   params: SimilarityTraceParams,
 ): Promise<SimilarityTraceResponse> {

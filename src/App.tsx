@@ -14,12 +14,9 @@ import { NotFoundPage } from './NotFoundPage';
 /**
  * Top-level route table. `AppLayout` is the layout route (header, section
  * nav, language switch) that every screen renders inside via `Outlet`.
- * `/clustering` is a real, i18n-titled route with a placeholder screen until
- * W8; `/similarity/:algorithmId/trace` is a real, i18n-titled placeholder
- * route until W6 builds its trace panels. `/similarity/matrix` (W7, HU-1.4)
- * is a real screen from the start — no catalogue/algorithm-id path segment,
- * since the matrix reads the shared corpus selection instead of two fixed
- * document ids.
+ * `/similarity/matrix` is a real screen from the start — no
+ * catalogue/algorithm-id path segment, since the matrix reads the shared
+ * corpus selection instead of two fixed document ids.
  */
 export function App() {
   return (

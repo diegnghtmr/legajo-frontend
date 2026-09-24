@@ -1,7 +1,7 @@
 import { z } from 'zod';
 
 /**
- * Reference-harness metadata (TRD §6.6, 1.3.10): every field is always
+ * Reference-harness metadata: every field is always
  * present, since the export fails closed on a missing harness key.
  */
 export const BenchmarkHarnessSchema = z.object({
@@ -15,7 +15,7 @@ export const BenchmarkHarnessSchema = z.object({
 
 /**
  * One benchmark method at one parameter value, read as-is from
- * `jmh-results.csv` (TRD §6.6). Includes the `slo-*` families and both
+ * `jmh-results.csv`. Includes the `slo-*` families and both
  * embedding-dimension measurements.
  */
 export const BenchmarkResultSchema = z.object({
@@ -28,7 +28,7 @@ export const BenchmarkResultSchema = z.object({
   unit: z.string(),
 });
 
-/** Least-squares log-log slope of one curve family (TAC-18); no `slo-*` entries. */
+/** Least-squares log-log slope of one curve family; no `slo-*` entries. */
 export const BenchmarkSlopeSchema = z.object({
   family: z.string(),
   points: z.number().int(),

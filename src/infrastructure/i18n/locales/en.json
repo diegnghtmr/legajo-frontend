@@ -245,7 +245,7 @@
     "scaleLogLog": "Log–log",
     "harness": {
       "eyebrow": "Reference harness",
-      "title": "Reference machine (NFR-QA-10)",
+      "title": "Reference machine",
       "cpuModelLabel": "CPU",
       "logicalCoresLabel": "Logical cores",
       "ramLabel": "RAM",
@@ -276,8 +276,8 @@
     },
     "slo": {
       "title": "Performance targets (SLO)",
-      "classicTitle": "NFR-QA-01 — classic pairwise comparisons (n = 20)",
-      "clusteringTitle": "NFR-QA-02 — all four linkages (n = 20)",
+      "classicTitle": "Classic pairwise comparisons (n = 20)",
+      "clusteringTitle": "All four linkages (n = 20)",
       "algorithmLabel": "Algorithm",
       "familyLabel": "Family",
       "valueLabel": "Measured",
