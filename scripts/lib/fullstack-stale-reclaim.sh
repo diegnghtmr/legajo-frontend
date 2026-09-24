@@ -12,6 +12,87 @@
 # never drift apart the way two independently written literals could.
 COMPOSE_PROJECT_PREFIX="legajo-frontend-fullstack-e2e-"
 
+# Prints this process's own hostname to stdout (`hostname`, falling back
+# to `uname -n` when that command is missing or fails), or nothing at all
+# if BOTH fail — the caller decides what an empty result means (this
+# file's own callers never abort on it; scripts/e2e-fullstack-in-docker.sh
+# treats it as a hard, loud failure since it is the one place that
+# EXPORTS this run's identity for everyone else to trust). Defined ONCE
+# here so the production script and every test helper that needs "this
+# run's own host label" for real derive it the SAME way, instead of three
+# independently written copies drifting apart.
+#
+# Every internal assignment below is deliberately allowed to fail
+# (`|| true`): under the caller's OWN `set -e` (this function runs in the
+# CALLER's shell, not a subshell, since it is sourced, not `$(...)`'d), a
+# plain `var="$(cmd)"` assignment that fails aborts the WHOLE script right
+# there — before this function could ever reach its own fallback. `|| true`
+# is what keeps this function's own fallback chain reachable regardless of
+# the caller's shell options.
+current_owner_host() {
+  local host
+  host="$(hostname 2>/dev/null)" || true
+  if [ -z "${host}" ]; then
+    host="$(uname -n 2>/dev/null)" || true
+  fi
+  printf '%s' "${host}"
+}
+
+# Prints this process's own pid-namespace identity to stdout: the real
+# `readlink /proc/self/ns/pid` value (e.g. "pid:[4026531836]") on a system
+# that has one, or nothing at all when it's unreadable/empty — EXCEPT on a
+# non-Linux kernel (`uname -s` != "Linux", e.g. macOS), which has no pid
+# namespaces at all, where it prints the literal "none" instead: there is
+# only one flat pid space on such a system, so every process's identity is
+# trivially the SAME one, and "none" == "none" is exactly as correct there
+# as a real pidns match is everywhere else.
+#
+# On LINUX, an unreadable/empty pidns is NEVER papered over with "none":
+# two containers in SEPARATE, real pid namespaces on a system where
+# `/proc/self/ns/pid` happens to be unreadable for either of them would
+# otherwise both collapse to the SAME sentinel and start matching each
+# other — reintroducing exactly the destructive bug pidns matching exists
+# to prevent, just moved one level up. Printing nothing here is what lets
+# should_reclaim_stale_project's own "this run's own pidns identity is
+# unknown" check (see its comment) refuse to reclaim ANYTHING for a run
+# whose identity it cannot positively establish — the safe direction,
+# never a silent, incorrect match. Same fallback-reachability reasoning as
+# current_owner_host above: every internal assignment is `|| true`-guarded.
+current_owner_pidns() {
+  local pidns kernel
+  pidns="$(readlink /proc/self/ns/pid 2>/dev/null)" || true
+  if [ -n "${pidns}" ]; then
+    printf '%s' "${pidns}"
+    return
+  fi
+  kernel="$(uname -s 2>/dev/null)" || true
+  if [ "${kernel}" != "Linux" ]; then
+    printf '%s' "none"
+  fi
+  # else: empty/unreadable pidns ON LINUX — print nothing (empty), on
+  # purpose; see this function's own comment above for why.
+}
+
+# True (exit 0) when owner_host/owner_pidns positively match
+# this_host/this_pidns — every one of the four must be non-empty, and
+# both pairs must be equal. False (exit 1) in every other case, including
+# when either side of either pair is empty. Shared by
+# should_reclaim_stale_project (as part of its full reclaim decision) and
+# cleanup_stale_fullstack_projects (to tell a genuinely alive-and-matched
+# project apart from one skipped specifically for an identity mismatch,
+# worth its own explanatory log line, without re-deriving this same
+# comparison a second, independent way).
+owner_identity_matches() {
+  local owner_host="$1" owner_pidns="$2" this_host="$3" this_pidns="$4"
+  if [ -z "${owner_host}" ] || [ -z "${this_host}" ] || [ "${owner_host}" != "${this_host}" ]; then
+    return 1
+  fi
+  if [ -z "${owner_pidns}" ] || [ -z "${this_pidns}" ] || [ "${owner_pidns}" != "${this_pidns}" ]; then
+    return 1
+  fi
+  return 0
+}
+
 # True (exit 0) when a process with this PID currently exists on THIS
 # host — regardless of which user owns it, and regardless of whether
 # `/proc` reflects it at all. Two previous versions of this check were
@@ -93,20 +174,11 @@ should_reclaim_stale_project() {
   case "${owner_pid}" in
     *[!0-9]*) return 1 ;;
   esac
-  if [ -z "${owner_host}" ]; then
-    return 1 # an empty owner host can never be positively matched to this host
-  fi
-  if [ "${owner_host}" != "${this_host}" ]; then
-    return 1 # a PID only means something on the host that assigned it
-  fi
-  if [ -z "${owner_pidns}" ]; then
-    return 1 # no pidns label at all (unlabeled or a project from before this label existed): never reclaimed
-  fi
-  if [ -z "${this_pidns}" ]; then
-    return 1 # this run's own pidns identity is unknown: nothing can be positively matched against it
-  fi
-  if [ "${owner_pidns}" != "${this_pidns}" ]; then
-    return 1 # a PID only means something within the pid namespace that assigned it
+  # A PID only means something within the exact (host, pid namespace)
+  # that assigned it: an unknown identity — on either side — is never
+  # positively matched.
+  if ! owner_identity_matches "${owner_host}" "${owner_pidns}" "${this_host}" "${this_pidns}"; then
+    return 1
   fi
   if pid_is_alive "${owner_pid}"; then
     return 1 # owner still running: a live concurrent run, never touched
@@ -149,6 +221,18 @@ cleanup_stale_fullstack_projects() {
 
     if ! should_reclaim_stale_project "${owner_pid}" "${owner_host}" "${owner_pidns}" \
       "${LEGAJO_FULLSTACK_E2E_OWNER_HOST}" "${LEGAJO_FULLSTACK_E2E_OWNER_PIDNS}"; then
+      # A project with OUR OWN prefix that is being left untouched
+      # specifically because its host/pidns identity is missing or
+      # doesn't match this run's own (as opposed to: it's genuinely still
+      # alive, which needs no explanation) would otherwise just silently
+      # keep sitting there, holding its ports, with no clue why THIS run
+      # never reclaimed it. `owner_identity_matches` is the exact same
+      # check `should_reclaim_stale_project` itself just used, so this
+      # never disagrees with the reclaim decision above it explains.
+      if ! owner_identity_matches "${owner_host}" "${owner_pidns}" \
+        "${LEGAJO_FULLSTACK_E2E_OWNER_HOST}" "${LEGAJO_FULLSTACK_E2E_OWNER_PIDNS}"; then
+        echo "==> leaving full-stack e2e project '${project}' untouched: its host/pidns identity is missing or does not match this run's own — if it is a genuine leftover from an old run, remove it manually: docker compose -p ${project} down --remove-orphans"
+      fi
       continue
     fi
 

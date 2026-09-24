@@ -145,6 +145,8 @@ check_result "owner dead" "${same_user_output}" "DEAD" "reclaimed"
 check_result "owner dead, same host, DIFFERENT pid namespace" "${same_user_output}" "DIFFERENT_PIDNS" "untouched"
 check_result "owner dead, same host, NO pidns label at all (legacy project)" \
   "${same_user_output}" "MISSING_PIDNS_LABEL" "untouched"
+check_result "owner dead, same host, a genuine owner pidns, but THIS run's own pidns is empty" \
+  "${same_user_output}" "EMPTY_THIS_PIDNS" "untouched"
 check_result "owner alive, same user" "${same_user_output}" "OWN_LIVE" "untouched"
 check_result "owner alive, different host label" "${same_user_output}" "OTHER_HOST" "untouched"
 check_result "empty owner PID" "${same_user_output}" "EMPTY_PID" "untouched"
@@ -156,6 +158,29 @@ check_result "classification: kill -0 success" "${same_user_output}" "CLASS_SUCC
 check_result "classification: confirmed ESRCH (reaped PID)" "${same_user_output}" "CLASS_ESRCH" "dead"
 check_result "classification: an unrecognized kill -0 error (out-of-range PID) is treated as alive" \
   "${same_user_output}" "CLASS_UNRECOGNIZED_ERROR" "alive"
+
+echo "== identity derivation: hostname/readlink genuinely failing under set -e =="
+identity_output=""
+if ! run_in_container identity_output -- /support/identity-derivation-case.sh; then
+  fail "identity-derivation case: container exited non-zero; output:
+${identity_output}"
+fi
+check_result "the retired bare hostname assignment aborts before its own fallback" \
+  "${identity_output}" "OLD_ABORTED" "yes"
+check_result "current_owner_host does not abort on the same failing hostname" \
+  "${identity_output}" "NEW_ABORTED" "no"
+check_result "current_owner_host reaches its own fallback logic" \
+  "${identity_output}" "NEW_REACHED_FALLBACK" "yes"
+check_result "current_owner_host's fallback (uname -n) yields a real, non-empty value" \
+  "${identity_output}" "NEW_OWNER_HOST_NONEMPTY" "yes"
+check_result "current_owner_pidns does not abort when readlink fails on Linux" \
+  "${identity_output}" "PIDNS_ABORTED" "no"
+check_result "current_owner_pidns yields an EMPTY value on Linux (never 'none')" \
+  "${identity_output}" "PIDNS_EMPTY" "yes"
+check_result "the production WARNING block fires for an empty pidns" \
+  "${identity_output}" "WARNING_PRINTED" "yes"
+check_result "the pidns chain still reaches its own end after the warning" \
+  "${identity_output}" "PIDNS_CHAIN_REACHED" "yes"
 
 echo "== real cross-user case: owner alive, OTHER user (the EPERM case) =="
 other_user_output=""
@@ -238,6 +263,32 @@ ${integration_output}"
     pass "integration: '${untouched_project}' left untouched"
   fi
 done
+
+# The skip-log line (cleanup_stale_fullstack_projects's own explanatory
+# "==> leaving ... untouched" message) must appear for every project
+# skipped BECAUSE its host/pidns identity is missing or mismatched — so a
+# legacy leftover holding the ports is explainable, not just silently
+# never reclaimed — and must NOT appear for one skipped merely because
+# it's genuinely still alive (its identity matches fine; there's nothing
+# to explain).
+for mismatched_project in \
+  legajo-frontend-fullstack-e2e-other-host \
+  legajo-frontend-fullstack-e2e-other-pidns \
+  legajo-frontend-fullstack-e2e-missing-pidns; do
+  if printf '%s\n' "${integration_output}" \
+    | grep -q "leaving full-stack e2e project '${mismatched_project}'.*docker compose -p ${mismatched_project} down --remove-orphans"; then
+    pass "integration: skip-log line explains '${mismatched_project}' (identity mismatch)"
+  else
+    fail "integration: expected a skip-log line naming '${mismatched_project}' and its manual-fix command; output:
+${integration_output}"
+  fi
+done
+if printf '%s\n' "${integration_output}" | grep -q "leaving full-stack e2e project 'legajo-frontend-fullstack-e2e-live-self'"; then
+  fail "integration: 'legajo-frontend-fullstack-e2e-live-self' matches this run's own identity and is only skipped for being alive — it must NOT get the identity-mismatch skip-log line; output:
+${integration_output}"
+else
+  pass "integration: no identity-mismatch skip-log line for the genuinely-alive, identity-matched project"
+fi
 
 if [ "${FAILURES}" -gt 0 ]; then
   echo "fullstack-stale-reclaim.test.sh: ${FAILURES} case(s) failed" >&2

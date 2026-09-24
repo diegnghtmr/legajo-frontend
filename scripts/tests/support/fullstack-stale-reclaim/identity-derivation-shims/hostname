@@ -1,0 +1,7 @@
+#!/usr/local/bin/bash
+# Fake `hostname` for identity-derivation-case.sh: always fails, with no
+# output at all — a REAL failure (this command genuinely cannot resolve a
+# hostname), not a simulated one, so a caller's own error handling is
+# exercised against the exact same shape of failure the real command
+# could produce.
+exit 1

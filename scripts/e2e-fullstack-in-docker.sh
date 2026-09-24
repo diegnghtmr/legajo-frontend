@@ -91,20 +91,20 @@ export LEGAJO_FRONTEND_DIR="${REPO_DIR}"
 # cleanup_stale_fullstack_projects below.
 export LEGAJO_FULLSTACK_E2E_OWNER_PID="$$"
 
-# Assigned in a PLAIN statement, never `export VAR="$(cmd)"` directly:
-# `export`'s OWN exit status always succeeds regardless of whether the
-# command substitution assigned to it failed, so a failing or empty
-# `hostname` would silently export an EMPTY label instead of being caught
-# here — and cleanup_stale_fullstack_projects's own
-# should_reclaim_stale_project treats an empty owner/this host as "can
-# never be positively matched," which would quietly disable reclaim for
-# every future run on this host, not loudly fail this one. `uname -n` is
-# the fallback when `hostname` itself is missing or fails; if BOTH come up
-# empty, this is a hard, loud failure, not a silent empty label.
-OWNER_HOST="$(hostname 2>/dev/null)"
-if [ -z "${OWNER_HOST}" ]; then
-  OWNER_HOST="$(uname -n 2>/dev/null)"
-fi
+# Derived by lib/fullstack-stale-reclaim.sh's own current_owner_host (see
+# its comment for the full reasoning): a bare `OWNER_HOST="$(hostname)"`
+# here would be wrong TWICE over — `export`'s OWN exit status always
+# succeeds regardless of whether the command substitution assigned to it
+# failed, so a failing/empty `hostname` would silently export an EMPTY
+# label; and even split into its own assignment, a PLAIN
+# `var="$(cmd)"` that fails aborts this whole script right there under
+# `set -e` (above), before any fallback or error message could ever run.
+# `current_owner_host` itself always ends by `printf`-ing its result (an
+# empty string on total failure, never a non-zero exit), which is exactly
+# what makes THIS assignment safe under `set -e` without its own guard —
+# the fallback chain that actually needed guarding lives inside the
+# helper itself, where every internal command IS `|| true`-guarded.
+OWNER_HOST="$(current_owner_host)"
 if [ -z "${OWNER_HOST}" ]; then
   echo "ERROR: could not determine this host's own hostname (both 'hostname'" >&2
   echo "  and 'uname -n' failed or returned empty)." >&2
@@ -117,23 +117,33 @@ if [ -z "${OWNER_HOST}" ]; then
 fi
 export LEGAJO_FULLSTACK_E2E_OWNER_HOST="${OWNER_HOST}"
 
-# The PID NAMESPACE this process itself belongs to. Hostname (a UTS
-# identity) alone is NOT enough to say two runs share the same VIEW of
-# process ids: two containers sharing this host's Docker socket, with the
-# SAME hostname label (nothing here randomizes it) but SEPARATE pid
+# Derived by lib/fullstack-stale-reclaim.sh's own current_owner_pidns (see
+# its comment for the full reasoning): the PID NAMESPACE this process
+# itself belongs to — hostname (a UTS identity) alone is NOT enough to say
+# two runs share the same VIEW of process ids; two containers sharing this
+# host's Docker socket, with the SAME hostname but SEPARATE pid
 # namespaces, would each see the OTHER's live owner PID as ESRCH ("no such
 # process" — IN THIS NAMESPACE) and reclaim a live run out from under it.
-# `readlink /proc/self/ns/pid` (e.g. "pid:[4026531836]") is this process's
-# own pid-namespace identity, and this must NEVER be empty: a system with
-# no `/proc/self/ns/pid` at all (no Linux pid namespaces, e.g. macOS) falls
-# back to the literal "none" — like an empty/missing label,
-# should_reclaim_stale_project never trusts an empty one, but "none" is
-# non-empty and self-consistent on a system where the concept doesn't
-# apply at all (there is only one flat pid space there, so "none" == "none"
-# is exactly as correct as pidns matching is everywhere else).
-OWNER_PIDNS="$(readlink /proc/self/ns/pid 2>/dev/null)"
+#
+# UNLIKE the host identity above, an empty result here is NEVER a hard
+# failure: on Linux (where pid namespaces are real), current_owner_pidns
+# deliberately prints nothing when it cannot positively establish this
+# process's own pidns, rather than papering over that with a shared "none"
+# sentinel two SEPARATE, genuinely different namespaces could otherwise
+# both collapse to. should_reclaim_stale_project already refuses to
+# reclaim ANYTHING when this run's own pidns is empty (see its own
+# comment), so the safe consequence of that is simply: THIS run's
+# stale-project reclaim is disabled for its own duration — never that it
+# aborts, and never that it silently, incorrectly matches another run.
+OWNER_PIDNS="$(current_owner_pidns)"
 if [ -z "${OWNER_PIDNS}" ]; then
-  OWNER_PIDNS="none"
+  echo "WARNING: could not determine this process's own pid-namespace identity" >&2
+  echo "  (readlink /proc/self/ns/pid was unreadable or empty on a Linux kernel," >&2
+  echo "  where pid namespaces are real and this must never be papered over)." >&2
+  echo "  Stale full-stack e2e project reclaim is DISABLED for this run only —" >&2
+  echo "  it will not tear down a live concurrent run by mistake, but a" >&2
+  echo "  genuinely stale project from an earlier run may need manual cleanup:" >&2
+  echo "  docker compose -p <project> down --remove-orphans." >&2
 fi
 export LEGAJO_FULLSTACK_E2E_OWNER_PIDNS="${OWNER_PIDNS}"
 COMPOSE_LABEL_FILE="${SCRIPT_DIR}/docker/fullstack-e2e-labels.override.yml"

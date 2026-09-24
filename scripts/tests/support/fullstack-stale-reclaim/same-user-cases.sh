@@ -3,7 +3,8 @@
 # case that needs no privilege drop and no second host label: a dead
 # owner, a live owner checked by the SAME user, a live owner on a
 # DIFFERENT host label, a dead owner in a DIFFERENT pid namespace, a dead
-# owner with no pidns label at all (a legacy/unlabeled project), several
+# owner with no pidns label at all (a legacy/unlabeled project), a dead
+# owner whose label HAS a pidns but THIS run's own pidns is empty, several
 # malformed owner-PID/host labels, and direct pid_is_alive classification
 # checks (a confirmed success, a confirmed ESRCH, and an out-of-range PID
 # that fails for neither reason). Invoked by
@@ -14,14 +15,13 @@ set -euo pipefail
 # shellcheck source=../../../lib/fullstack-stale-reclaim.sh
 . /workspace/scripts/lib/fullstack-stale-reclaim.sh
 
-# This container's own REAL pid-namespace identity, read the same way
-# scripts/e2e-fullstack-in-docker.sh reads it — used as THIS_PIDNS below,
-# and (unmodified) as a MATCHING owner_pidns in every case that should
-# behave exactly as it did before pidns existed as a concept.
-THIS_PIDNS="$(readlink /proc/self/ns/pid 2>/dev/null || true)"
-if [ -z "${THIS_PIDNS}" ]; then
-  THIS_PIDNS="none"
-fi
+# This container's own REAL pid-namespace identity, derived the SAME way
+# scripts/e2e-fullstack-in-docker.sh derives it — via the shared helper,
+# never a second, independently written copy of the same
+# readlink/uname logic — used as THIS_PIDNS below, and (unmodified) as a
+# MATCHING owner_pidns in every case that should behave exactly as it did
+# before pidns existed as a concept.
+THIS_PIDNS="$(current_owner_pidns)"
 
 # Case: owner dead. A real PID, started and then killed and `wait`-ed on
 # inside THIS container. `wait` on a shell's own background job both
@@ -71,6 +71,18 @@ if should_reclaim_stale_project "${dead_pid}" "host-a" "" "host-a" "${THIS_PIDNS
   echo "MISSING_PIDNS_LABEL=reclaimed"
 else
   echo "MISSING_PIDNS_LABEL=untouched"
+fi
+
+# Case: the SAME dead PID, matching host, and a genuine (non-empty) owner
+# pidns label — but THIS run's OWN pidns is empty (e.g.
+# current_owner_pidns couldn't read /proc/self/ns/pid on Linux; see its
+# own comment). Must be left untouched: a run that cannot positively
+# establish its OWN identity has nothing safe to match anything against,
+# regardless of how well-formed the OTHER project's label looks.
+if should_reclaim_stale_project "${dead_pid}" "host-a" "${THIS_PIDNS}" "host-a" ""; then
+  echo "EMPTY_THIS_PIDNS=reclaimed"
+else
+  echo "EMPTY_THIS_PIDNS=untouched"
 fi
 
 # Case: owner alive, same (root) user as the checker. Also doubles as the
