@@ -1,0 +1,26 @@
+# Compose override for scripts/e2e-fullstack-in-docker.sh ONLY: adds an
+# ownership label (this run's PID and hostname) to the backend/frontend
+# containers, without touching the backend repository's own
+# docker-compose.yml (this repo never edits it). `docker compose` merges
+# this file on top of that one via a second `-f`.
+#
+# The label is what lets a LATER run of this script find and reclaim a
+# stale Compose project — one whose PID-suffixed name (see
+# scripts/e2e-fullstack-in-docker.sh's COMPOSE_PROJECT comment) is still
+# sitting there after its owning process was hard-killed (SIGKILL, a closed
+# CI runner, an OOM) and never reached its own `docker compose down` trap —
+# instead of that stale project's ports blocking every future run forever.
+# LEGAJO_FULLSTACK_E2E_OWNER_PID/_HOST are set by that script before every
+# `docker compose` call that uses this file; Compose reads them from this
+# process's own environment to fill in the labels below, the same way it
+# already reads LEGAJO_FRONTEND_DIR/VITE_API_BASE_URL/LEGAJO_FRONTEND_PORT
+# for the base compose file.
+services:
+  backend:
+    labels:
+      legajo.fullstack-e2e.owner-pid: '${LEGAJO_FULLSTACK_E2E_OWNER_PID}'
+      legajo.fullstack-e2e.owner-host: '${LEGAJO_FULLSTACK_E2E_OWNER_HOST}'
+  frontend:
+    labels:
+      legajo.fullstack-e2e.owner-pid: '${LEGAJO_FULLSTACK_E2E_OWNER_PID}'
+      legajo.fullstack-e2e.owner-host: '${LEGAJO_FULLSTACK_E2E_OWNER_HOST}'

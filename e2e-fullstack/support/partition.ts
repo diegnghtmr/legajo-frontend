@@ -49,6 +49,11 @@ export function canonicalizePartition(partition: readonly number[]): number[][] 
  * happens to use a different number of labels.
  */
 export function isProperRefinement(finer: readonly number[], coarser: readonly number[]): boolean {
+  // Every real caller compares two partitions of the SAME 20-document
+  // corpus, so this never actually fires today — kept as a defensive
+  // guard against a future caller passing mismatched partitions (e.g. two
+  // different corpora), since indexing past the shorter array below would
+  // otherwise silently compare unrelated positions instead of failing.
   if (finer.length !== coarser.length) {
     return false;
   }
