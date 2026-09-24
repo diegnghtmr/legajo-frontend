@@ -85,6 +85,7 @@ all, only a `curl`-based check that runs in a separate, minimal pinned image
 | Full-stack end-to-end, no mocks (see below) | `scripts/e2e-fullstack-in-docker.sh`                                                         |
 | Image smoke test                            | needs a running container — see "Image smoke test" below                                     |
 | `docker-volume.sh` volume-ownership helper  | `scripts/tests/docker-volume.test.sh`                                                        |
+| `VITE_API_BASE_URL` trim/validate guard     | `scripts/tests/api-base-url-guard.test.sh`                                                   |
 
 ### Image smoke test
 
