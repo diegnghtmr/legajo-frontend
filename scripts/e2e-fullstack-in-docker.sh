@@ -53,6 +53,9 @@ if [ -z "${BACKEND_DIR}" ] || [ ! -f "${BACKEND_DIR}/docker-compose.yml" ]; then
   exit 1
 fi
 
+# shellcheck source=lib/fullstack-stale-reclaim.sh
+source "${SCRIPT_DIR}/lib/fullstack-stale-reclaim.sh"
+
 COMPOSE_FILE="${BACKEND_DIR}/docker-compose.yml"
 # An explicit Compose project name — never Compose's own default (derived
 # from the compose file's directory name, e.g. "backend" for a checkout at
@@ -73,7 +76,7 @@ COMPOSE_FILE="${BACKEND_DIR}/docker-compose.yml"
 # scopes teardown to exactly this variable's value, a unique name is also
 # what keeps teardown from ever touching a DIFFERENT run's resources — the
 # scoping mechanism doesn't change, only the value fed into it does.
-COMPOSE_PROJECT="${LEGAJO_FULLSTACK_E2E_PROJECT:-legajo-frontend-fullstack-e2e-$$}"
+COMPOSE_PROJECT="${LEGAJO_FULLSTACK_E2E_PROJECT:-${COMPOSE_PROJECT_PREFIX}$$}"
 # The backend Compose file's `frontend` service builds from
 # `${LEGAJO_FRONTEND_DIR:-../frontend}` (task K4); pointing it at THIS
 # checkout is what makes the full-stack stack test the frontend under
@@ -116,47 +119,21 @@ echo "==> full-stack e2e: compose project ${COMPOSE_PROJECT}"
 # CI runner that got torn down mid-job) never reaches its own `cleanup`
 # trap below, so its containers stay up and its ports stay bound forever —
 # every later run's port check would then fail permanently, not just while
-# a real concurrent run is in progress. Reclaim only a project this script
-# itself created (name prefix) AND can positively identify as dead (its own
-# ownership label, from scripts/docker/fullstack-e2e-labels.override.yml,
-# names a PID that is no longer running on this host); anything else —
-# unlabeled, on a different host, or still alive — is left untouched. PID
-# reuse by the OS is a known, accepted limitation of a liveness check like
-# this one: it would take another process landing on the exact freed PID
-# inside this narrow window, and the failure mode is the safe direction
-# (treating a genuinely dead run as still alive, never the reverse).
-cleanup_stale_fullstack_projects() {
-  local project
-  while IFS= read -r project; do
-    [ -z "${project}" ] && continue
-    case "${project}" in
-      legajo-frontend-fullstack-e2e-*) ;;
-      *) continue ;;
-    esac
-    [ "${project}" = "${COMPOSE_PROJECT}" ] && continue
-
-    local labels owner_pid owner_host
-    labels="$(docker ps -a --filter "label=com.docker.compose.project=${project}" \
-      --format '{{.Label "legajo.fullstack-e2e.owner-pid"}}|{{.Label "legajo.fullstack-e2e.owner-host"}}' \
-      | head -n1)"
-    owner_pid="${labels%%|*}"
-    owner_host="${labels#*|}"
-
-    if [ -z "${owner_pid}" ]; then
-      continue # no ownership label: not something this check can safely judge
-    fi
-    if [ "${owner_host}" != "${LEGAJO_FULLSTACK_E2E_OWNER_HOST}" ]; then
-      continue # a PID only means something on the host that assigned it
-    fi
-    if kill -0 "${owner_pid}" 2>/dev/null; then
-      continue # owner still running: a live concurrent run, never touched
-    fi
-
-    echo "==> reclaiming stale full-stack e2e project '${project}' (owner PID ${owner_pid} on ${owner_host} is no longer running)"
-    docker compose -p "${project}" -f "${COMPOSE_FILE}" -f "${COMPOSE_LABEL_FILE}" down --remove-orphans || true
-  done < <(docker compose ls --all -q 2>/dev/null)
-}
-
+# a real concurrent run is in progress. `cleanup_stale_fullstack_projects`
+# (sourced above from lib/fullstack-stale-reclaim.sh) reclaims only a
+# project this script itself created (name prefix) AND can positively
+# identify as dead — its own ownership label, from
+# scripts/docker/fullstack-e2e-labels.override.yml, names a PID that no
+# longer EXISTS on this host, checked by existence (`/proc/$pid`, never
+# `kill -0`: see that file's own comment for why `kill -0` is the wrong
+# check here) rather than by whether this process may signal it. Anything
+# else — unlabeled, on a different host, or still alive (including a live
+# process owned by a DIFFERENT user, which `kill -0` cannot tell apart
+# from dead) — is left untouched. PID reuse by the OS is a known, accepted
+# limitation of a liveness check like this one: it would take another
+# process landing on the exact freed PID inside this narrow window, and
+# the failure mode is the safe direction (treating a genuinely dead run as
+# still alive, never the reverse).
 echo "==> checking for stale full-stack e2e projects left by a killed run"
 cleanup_stale_fullstack_projects
 
