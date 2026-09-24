@@ -18,20 +18,15 @@ interface BenchmarkReport {
 }
 
 /**
- * Benchmarks screen, full stack, no mocks: renders the real, versioned JMH
- * CSV data the backend serves (TRD §6.6 `GET /benchmarks`), not the
- * hand-shaped fixture the mocked `e2e/benchmarks.spec.ts` uses.
- * `no-mocks.guard.spec.ts` enforces there is no `page.route` anywhere in
- * this directory.
+ * Requires an actual plotted Recharts line inside a `role=group` chart
+ * container, with real (non-empty) path geometry — a generic `role=group`
+ * count only proves SOME element with that role exists, not that a chart
+ * actually rendered, since an empty placeholder div could carry the same
+ * role. Shared by all three chart groups in the test below: checking only
+ * the first group, or asserting just `data-scale` (which a chart with zero
+ * plotted points could still carry) on the other two, would let a
+ * regression that emptied their data go unnoticed.
  */
-// A generic `role=group` count only proves SOME element with that role
-// exists, not that a chart actually rendered — an empty placeholder div
-// could carry the same role. Requires an actual plotted Recharts line
-// inside the group, with real (non-empty) path geometry. Shared by all
-// three chart groups below: an earlier version only ran this check on the
-// first group and merely asserted `data-scale` (which a chart with zero
-// plotted points could still carry) on the other two, so a regression that
-// emptied their data would have gone unnoticed.
 async function expectPlottedLine(group: Locator) {
   const plottedLine = group.locator('svg.recharts-surface path.recharts-line-curve').first();
   await expect(plottedLine).toBeVisible();
@@ -40,6 +35,13 @@ async function expectPlottedLine(group: Locator) {
   expect(pathGeometry!.length).toBeGreaterThan(0);
 }
 
+/**
+ * Benchmarks screen, full stack, no mocks: renders the real, versioned JMH
+ * CSV data the backend serves (TRD §6.6 `GET /benchmarks`), not the
+ * hand-shaped fixture the mocked `e2e/benchmarks.spec.ts` uses.
+ * `no-mocks.guard.spec.ts` enforces there is no `page.route` anywhere in
+ * this directory.
+ */
 test.describe('benchmarks (full stack)', () => {
   test('renders the real harness info and a real chart with plotted data', async ({
     page,

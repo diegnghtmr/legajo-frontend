@@ -2,6 +2,7 @@ import { AxeBuilder } from '@axe-core/playwright';
 import { expect, test } from '@playwright/test';
 
 import { AXE_TAGS, hasSuccessfulResponse, trackBackendResponses } from './support/backend.js';
+import { isProperRefinement } from './support/partition.js';
 
 /**
  * Flow B (PRD §7, TAC-15), full stack, no mocks: the Ward dendrogram over
@@ -86,40 +87,20 @@ test.describe('clustering (full stack, Flow B)', () => {
       return labels.map((label) => Number((label as string).replace(/\D/g, '')));
     }
 
-    // Groups leaf indices by cluster label and normalizes the result so two
-    // partitions compare equal exactly when they group the SAME documents
-    // together, independent of which arbitrary integer label each cluster
-    // happens to carry (sorted member indices per group, groups sorted by
-    // their own first member). Comparing raw label arrays instead (e.g.
-    // `expect(a).not.toEqual(b)`) is tautological here: it can report
-    // "changed" purely because the backend/UI assigned different label
-    // integers to an otherwise IDENTICAL grouping, which proves nothing
-    // about whether the actual partition changed.
-    function canonicalizePartition(partition: readonly number[]): number[][] {
-      const groups = new Map<number, number[]>();
-      partition.forEach((label, leafIndex) => {
-        const group = groups.get(label) ?? [];
-        group.push(leafIndex);
-        groups.set(label, group);
-      });
-      return [...groups.values()]
-        .map((group) => [...group].sort((a, b) => a - b))
-        .sort((a, b) => a[0] - b[0]);
-    }
-
     async function applyCutAndReadPartition(k: number): Promise<number[]> {
       await page.getByLabel(/Número de clústeres k/).fill(String(k));
       await page.getByRole('button', { name: 'Aplicar corte' }).click();
       await expect(wardDendrogram.getByTestId('dendrogram-cut-line')).toBeAttached();
 
-      // The cut line being attached proves a NEW cut was drawn, but not
-      // that every leaf's own cluster-label text has re-rendered for it yet
-      // — a real, one-time flake this review caught: reading the labels
-      // immediately after could still see the PREVIOUS cut's assignment for
-      // some leaves. Poll until the partition reflects exactly k distinct
-      // clusters over all 20 leaves before treating it as settled; this
-      // still asserts the exact same thing, just retries while it isn't
-      // true yet instead of only checking once.
+      // The cut line being attached proves a NEW cut was drawn, but not that
+      // every leaf's own cluster-label text has re-rendered for it yet:
+      // React can commit the cut line and the per-leaf labels in separate
+      // paints, so reading the labels immediately after could still observe
+      // the PREVIOUS cut's assignment for some leaves. Poll until the
+      // partition reflects exactly k distinct clusters over all 20 leaves
+      // before treating it as settled; this still asserts the exact same
+      // thing, just retries while it isn't true yet instead of only
+      // checking once.
       let partition: number[] = [];
       await expect(async () => {
         partition = await readPartition();
@@ -129,26 +110,24 @@ test.describe('clustering (full stack, Flow B)', () => {
       return partition;
     }
 
+    // applyCutAndReadPartition's own poll (above) already proves each
+    // partition covers all 20 documents exactly once and has exactly k
+    // distinct labels — asserting that again here would only repeat it.
+    // The backend never promises label ids form a particular set (TRD §6.6
+    // `POST /clustering/cut` returns `labels: number[]`, not a contiguous
+    // 0..k-1 range), so nothing here checks for specific ids either.
     const k3Partition = await applyCutAndReadPartition(3);
-    // Every one of the 20 real documents assigned exactly once.
-    expect(k3Partition).toHaveLength(20);
-    const k3Distinct = new Set(k3Partition);
-    // Exactly k=3 clusters appear — not "20 matches of some label", which a
-    // degenerate all-same-cluster partition would also satisfy.
-    expect(k3Distinct.size).toBe(3);
-    expect([...k3Distinct].sort((a, b) => a - b)).toEqual([0, 1, 2]);
-
     const k2Partition = await applyCutAndReadPartition(2);
-    expect(k2Partition).toHaveLength(20);
-    const k2Distinct = new Set(k2Partition);
-    expect(k2Distinct.size).toBe(2);
-    // Changing k actually regroups the documents, not just relabels the
-    // same grouping — compared as a canonical set of sets (which document
-    // indices are together), not as raw label arrays: two partitions with
-    // the same real grouping but different arbitrary label integers would
-    // still make `expect(a).not.toEqual(b)` report "changed", proving
-    // nothing about the actual clustering.
-    expect(canonicalizePartition(k2Partition)).not.toEqual(canonicalizePartition(k3Partition));
+
+    // The one meaningful check left: k=3 must be a genuine refinement of
+    // k=2 — every k=3 group nested inside exactly one k=2 group — which is
+    // what cutting the SAME Ward dendrogram at a larger k always produces.
+    // See partition.ts for why comparing the two partitions for plain
+    // inequality instead would be tautological (they already have a
+    // different distinct-label count by construction) and partition.spec.ts
+    // for the isolated proof that this check does reject a non-nested or
+    // identically-grouped pair.
+    expect(isProperRefinement(k3Partition, k2Partition)).toBe(true);
 
     // No cut line leaks onto a linkage that was not cut.
     await expect(
