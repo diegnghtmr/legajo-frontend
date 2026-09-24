@@ -199,20 +199,24 @@ function collectSourceFiles(dir: string, self: string, out: string[] = []): stri
   return out;
 }
 
+// The suite's own known minimum file count, excluding this guard file
+// itself (it is excluded from its own scan): corpus/similarity/clustering/
+// benchmarks specs plus support/backend.ts, support/partition.ts, and
+// support/partition.spec.ts — seven files today. Named so a future file
+// added to (or removed from) that list only has to update one place.
+const MIN_SCANNED_SOURCE_FILES = 7;
+
 test('the full-stack suite never intercepts a request with page.route/context.route', () => {
   const scannedFiles = collectSourceFiles(CURRENT_DIR, CURRENT_FILE);
   // A guard that scans zero files proves nothing — it would pass just as
   // "cleanly" as a guard that scanned every real spec and found no
   // offenders, silently turning into a no-op if `collectSourceFiles` ever
   // regressed (wrong directory, an overly broad exclusion, all files
-  // filtered out) without anyone noticing. Bounded below by the suite's own
-  // known minimum: this file is excluded from its own scan, so the count is
-  // the other seven (corpus/similarity/clustering/benchmarks specs plus
-  // support/backend.ts, support/partition.ts, support/partition.spec.ts).
+  // filtered out) without anyone noticing.
   expect(
     scannedFiles.length,
     'the guard scanned zero .ts files under e2e-fullstack/ — that proves nothing about mocking; check collectSourceFiles',
-  ).toBeGreaterThanOrEqual(7);
+  ).toBeGreaterThanOrEqual(MIN_SCANNED_SOURCE_FILES);
 
   const offenders: string[] = [];
   for (const file of scannedFiles) {

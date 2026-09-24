@@ -83,6 +83,9 @@ jobs:
       - name: docker-volume.sh volume-ownership helper
         run: scripts/tests/docker-volume.test.sh
 
+      - name: fullstack-stale-reclaim.sh stale-project reclaim decision
+        run: scripts/tests/fullstack-stale-reclaim.test.sh
+
   # Builds the shipped container image and checks that it actually serves the
   # SPA correctly (TRD §14.2/§14.3): root document, SPA fallback on a deep
   # route, and the cache headers on index.html vs. hashed assets. Independent

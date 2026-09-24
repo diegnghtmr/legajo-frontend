@@ -71,21 +71,22 @@ is unrelated to either volume — it has no Node/`node_modules` of its own at
 all, only a `curl`-based check that runs in a separate, minimal pinned image
 (see the comment at the top of that script for why).
 
-| Check                                       | Container command                                                                            |
-| ------------------------------------------- | -------------------------------------------------------------------------------------------- |
-| Install dependencies                        | `scripts/npm-in-docker.sh ci`                                                                |
-| Format check                                | `scripts/npm-in-docker.sh run format:check`                                                  |
-| Lint                                        | `scripts/npm-in-docker.sh run lint`                                                          |
-| Typecheck                                   | `scripts/npm-in-docker.sh run typecheck`                                                     |
-| Design token conformance                    | `scripts/npm-in-docker.sh run check:tokens`                                                  |
-| Unit/contract tests with coverage           | `scripts/npm-in-docker.sh run test:coverage`                                                 |
-| Production build                            | `scripts/npm-in-docker.sh run build`                                                         |
-| API types drift (after `npm run api:types`) | `scripts/npm-in-docker.sh run api:types` then `git diff --exit-code src/shared/types/api.ts` |
-| Mocked end-to-end (Playwright + axe)        | `scripts/e2e-in-docker.sh`                                                                   |
-| Full-stack end-to-end, no mocks (see below) | `scripts/e2e-fullstack-in-docker.sh`                                                         |
-| Image smoke test                            | needs a running container — see "Image smoke test" below                                     |
-| `docker-volume.sh` volume-ownership helper  | `scripts/tests/docker-volume.test.sh`                                                        |
-| `VITE_API_BASE_URL` trim/validate guard     | `scripts/tests/api-base-url-guard.test.sh`                                                   |
+| Check                                         | Container command                                                                            |
+| --------------------------------------------- | -------------------------------------------------------------------------------------------- |
+| Install dependencies                          | `scripts/npm-in-docker.sh ci`                                                                |
+| Format check                                  | `scripts/npm-in-docker.sh run format:check`                                                  |
+| Lint                                          | `scripts/npm-in-docker.sh run lint`                                                          |
+| Typecheck                                     | `scripts/npm-in-docker.sh run typecheck`                                                     |
+| Design token conformance                      | `scripts/npm-in-docker.sh run check:tokens`                                                  |
+| Unit/contract tests with coverage             | `scripts/npm-in-docker.sh run test:coverage`                                                 |
+| Production build                              | `scripts/npm-in-docker.sh run build`                                                         |
+| API types drift (after `npm run api:types`)   | `scripts/npm-in-docker.sh run api:types` then `git diff --exit-code src/shared/types/api.ts` |
+| Mocked end-to-end (Playwright + axe)          | `scripts/e2e-in-docker.sh`                                                                   |
+| Full-stack end-to-end, no mocks (see below)   | `scripts/e2e-fullstack-in-docker.sh`                                                         |
+| Image smoke test                              | needs a running container — see "Image smoke test" below                                     |
+| `docker-volume.sh` volume-ownership helper    | `scripts/tests/docker-volume.test.sh`                                                        |
+| `VITE_API_BASE_URL` trim/validate guard       | `scripts/tests/api-base-url-guard.test.sh`                                                   |
+| Stale full-stack e2e project reclaim decision | `scripts/tests/fullstack-stale-reclaim.test.sh`                                              |
 
 ### Image smoke test
 
