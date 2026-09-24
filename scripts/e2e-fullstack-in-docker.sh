@@ -85,12 +85,67 @@ COMPOSE_PROJECT="${LEGAJO_FULLSTACK_E2E_PROJECT:-${COMPOSE_PROJECT_PREFIX}$$}"
 export LEGAJO_FRONTEND_DIR="${REPO_DIR}"
 
 # Consumed by scripts/docker/fullstack-e2e-labels.override.yml (see its own
-# comment): stamps every container THIS run creates with its owning PID and
-# host, so a LATER run can tell a stale project (owner gone) apart from a
-# live concurrent one (owner still running) — see
+# comment): stamps every container THIS run creates with its owning PID,
+# host, and pid namespace, so a LATER run can tell a stale project (owner
+# gone) apart from a live concurrent one (owner still running) — see
 # cleanup_stale_fullstack_projects below.
 export LEGAJO_FULLSTACK_E2E_OWNER_PID="$$"
-export LEGAJO_FULLSTACK_E2E_OWNER_HOST="$(hostname)"
+
+# Derived by lib/fullstack-stale-reclaim.sh's own current_owner_host (see
+# its comment for the full reasoning): a bare `OWNER_HOST="$(hostname)"`
+# here would be wrong TWICE over — `export`'s OWN exit status always
+# succeeds regardless of whether the command substitution assigned to it
+# failed, so a failing/empty `hostname` would silently export an EMPTY
+# label; and even split into its own assignment, a PLAIN
+# `var="$(cmd)"` that fails aborts this whole script right there under
+# `set -e` (above), before any fallback or error message could ever run.
+# `current_owner_host` itself always ends by `printf`-ing its result (an
+# empty string on total failure, never a non-zero exit), which is exactly
+# what makes THIS assignment safe under `set -e` without its own guard —
+# the fallback chain that actually needed guarding lives inside the
+# helper itself, where every internal command IS `|| true`-guarded.
+OWNER_HOST="$(current_owner_host)"
+if [ -z "${OWNER_HOST}" ]; then
+  echo "ERROR: could not determine this host's own hostname (both 'hostname'" >&2
+  echo "  and 'uname -n' failed or returned empty)." >&2
+  echo "  scripts/e2e-fullstack-in-docker.sh needs a non-empty host identity to" >&2
+  echo "  label this run's Compose containers, so a LATER run can tell a dead" >&2
+  echo "  run's project apart from a live one — see" >&2
+  echo "  lib/fullstack-stale-reclaim.sh's own should_reclaim_stale_project" >&2
+  echo "  comment for why an empty host label is never trusted." >&2
+  exit 1
+fi
+export LEGAJO_FULLSTACK_E2E_OWNER_HOST="${OWNER_HOST}"
+
+# Derived by lib/fullstack-stale-reclaim.sh's own current_owner_pidns (see
+# its comment for the full reasoning): the PID NAMESPACE this process
+# itself belongs to — hostname (a UTS identity) alone is NOT enough to say
+# two runs share the same VIEW of process ids; two containers sharing this
+# host's Docker socket, with the SAME hostname but SEPARATE pid
+# namespaces, would each see the OTHER's live owner PID as ESRCH ("no such
+# process" — IN THIS NAMESPACE) and reclaim a live run out from under it.
+#
+# UNLIKE the host identity above, an empty result here is NEVER a hard
+# failure: on Linux (where pid namespaces are real), current_owner_pidns
+# deliberately prints nothing when it cannot positively establish this
+# process's own pidns, rather than papering over that with a shared "none"
+# sentinel two SEPARATE, genuinely different namespaces could otherwise
+# both collapse to. should_reclaim_stale_project already refuses to
+# reclaim ANYTHING when this run's own pidns is empty (see its own
+# comment), so the safe consequence of that is simply: THIS run's
+# stale-project reclaim is disabled for its own duration — never that it
+# aborts, and never that it silently, incorrectly matches another run.
+OWNER_PIDNS="$(current_owner_pidns)"
+if [ -z "${OWNER_PIDNS}" ]; then
+  echo "WARNING: could not determine this process's own pid-namespace identity" >&2
+  echo "  (readlink /proc/self/ns/pid was unreadable or empty on a Linux kernel," >&2
+  echo "  where pid namespaces are real and this must never be papered over)." >&2
+  echo "  Stale full-stack e2e project reclaim is DISABLED for this run only —" >&2
+  echo "  it will not tear down a live concurrent run by mistake, but a" >&2
+  echo "  genuinely stale project from an earlier run may need manual cleanup:" >&2
+  echo "  docker compose -p <project> down --remove-orphans." >&2
+fi
+export LEGAJO_FULLSTACK_E2E_OWNER_PIDNS="${OWNER_PIDNS}"
 COMPOSE_LABEL_FILE="${SCRIPT_DIR}/docker/fullstack-e2e-labels.override.yml"
 # Every `docker compose` call for OUR OWN project goes through this array
 # (both compose files together), so the ownership labels above are applied
@@ -123,14 +178,16 @@ echo "==> full-stack e2e: compose project ${COMPOSE_PROJECT}"
 # (sourced above from lib/fullstack-stale-reclaim.sh) reclaims only a
 # project this script itself created (name prefix) AND can positively
 # identify as dead — its own ownership label, from
-# scripts/docker/fullstack-e2e-labels.override.yml, names a PID that no
-# longer EXISTS on this host, checked by existence (`/proc/$pid`, never
-# `kill -0`: see that file's own comment for why `kill -0` is the wrong
-# check here) rather than by whether this process may signal it. Anything
-# else — unlabeled, on a different host, or still alive (including a live
-# process owned by a DIFFERENT user, which `kill -0` cannot tell apart
-# from dead) — is left untouched. PID reuse by the OS is a known, accepted
-# limitation of a liveness check like this one: it would take another
+# scripts/docker/fullstack-e2e-labels.override.yml, names a (host, pid
+# namespace, PID) IDENTITY that no longer EXISTS on this host, in this pid
+# namespace, judged by `kill -0`'s own error TEXT (see
+# lib/fullstack-stale-reclaim.sh's own comment for why a bare exit code,
+# or a `/proc/$pid` existence check, both get this wrong) rather than by
+# whether this process may signal it. Anything else — unlabeled, on a
+# different host, in a different pid namespace, or still alive (including
+# a live process owned by a DIFFERENT user) — is left untouched. PID reuse
+# by the OS is a known, accepted limitation of a liveness check like this
+# one: it would take another
 # process landing on the exact freed PID inside this narrow window, and
 # the failure mode is the safe direction (treating a genuinely dead run as
 # still alive, never the reverse).

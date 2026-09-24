@@ -1,0 +1,70 @@
+#!/usr/local/bin/bash
+# Fake `docker` for integration-case.sh, prepended onto PATH so
+# cleanup_stale_fullstack_projects never touches a real Docker daemon:
+# only prints back canned (pid|host|pidns) data the test controls via
+# DEAD_PID, and records every reclaim ("down") call on stdout as
+# RECLAIMED:<project> so the test can assert on it afterwards. Two of the
+# fake projects below (other-pidns, missing-pidns) exist ONLY to exercise
+# the pidns dimension of should_reclaim_stale_project: same dead PID and
+# matching host as the reclaimed "dead" project, but a mismatched or
+# missing pidns label — both must stay untouched.
+set -euo pipefail
+case "$1" in
+  compose)
+    shift
+    if [ "${1:-}" = "ls" ]; then
+      printf '%s\n' \
+        "legajo-frontend-fullstack-e2e-dead" \
+        "legajo-frontend-fullstack-e2e-live-self" \
+        "legajo-frontend-fullstack-e2e-other-host" \
+        "legajo-frontend-fullstack-e2e-other-pidns" \
+        "legajo-frontend-fullstack-e2e-missing-pidns" \
+        "legajo-frontend-fullstack-e2e-current" \
+        "not-our-prefix-project"
+      exit 0
+    fi
+    # The real invocation this stands in for is `compose -p PROJECT -f F1
+    # -f F2 down --remove-orphans`: "down" is not at a fixed position (it
+    # comes after a variable number of `-p`/`-f` pairs), so this scans
+    # every argument for it instead of assuming a position, rather than
+    # reimplementing Compose's actual argument parser for a fake that
+    # only needs to recognize this one shape.
+    project=""
+    while [ "$#" -gt 0 ]; do
+      case "$1" in
+        -p)
+          project="$2"
+          shift 2
+          ;;
+        down)
+          echo "RECLAIMED:${project}"
+          exit 0
+          ;;
+        *)
+          shift
+          ;;
+      esac
+    done
+    ;;
+  ps)
+    filter=""
+    for arg in "$@"; do
+      case "${arg}" in
+        label=com.docker.compose.project=*)
+          filter="${arg#label=com.docker.compose.project=}"
+          ;;
+      esac
+    done
+    case "${filter}" in
+      legajo-frontend-fullstack-e2e-dead) echo "${DEAD_PID}|test-host|test-pidns" ;;
+      legajo-frontend-fullstack-e2e-live-self) echo "1|test-host|test-pidns" ;;
+      legajo-frontend-fullstack-e2e-other-host) echo "1|some-other-host|test-pidns" ;;
+      legajo-frontend-fullstack-e2e-other-pidns) echo "${DEAD_PID}|test-host|a-different-pidns" ;;
+      legajo-frontend-fullstack-e2e-missing-pidns) echo "${DEAD_PID}|test-host|" ;;
+      *) echo "||" ;;
+    esac
+    ;;
+  *)
+    exit 0
+    ;;
+esac

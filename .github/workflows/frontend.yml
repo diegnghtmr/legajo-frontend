@@ -84,6 +84,12 @@ jobs:
         run: scripts/tests/docker-volume.test.sh
 
       - name: fullstack-stale-reclaim.sh stale-project reclaim decision
+        # Requires the hidepid=2 case (see that test's own comment) to
+        # actually run here rather than report itself skipped: GitHub's
+        # Ubuntu runners are expected to always support the CAP_SYS_ADMIN
+        # + apparmor=unconfined that one case's own container asks for.
+        env:
+          LEGAJO_STALE_RECLAIM_REQUIRE_HIDEPID: '1'
         run: scripts/tests/fullstack-stale-reclaim.test.sh
 
   # Builds the shipped container image and checks that it actually serves the

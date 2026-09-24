@@ -88,6 +88,25 @@ all, only a `curl`-based check that runs in a separate, minimal pinned image
 | `VITE_API_BASE_URL` trim/validate guard       | `scripts/tests/api-base-url-guard.test.sh`                                                   |
 | Stale full-stack e2e project reclaim decision | `scripts/tests/fullstack-stale-reclaim.test.sh`                                              |
 
+`scripts/tests/fullstack-stale-reclaim.test.sh` includes a real `hidepid=2`
+case (a `/proc` mount option that hides another user's processes from an
+unprivileged viewer) that reports itself skipped, rather than failed, on a
+runtime that can't create a private mount namespace or mount `/proc` that
+way at all — set `LEGAJO_STALE_RECLAIM_REQUIRE_HIDEPID=1` to turn that skip
+into a failure instead (CI's own `script-tests` job sets it, since GitHub's
+Ubuntu runners are expected to always support it).
+
+`scripts/e2e-fullstack-in-docker.sh` identifies the owner of a Compose
+project it might reclaim as a stale leftover by a THREE-part identity —
+host, pid namespace, and PID (`scripts/docker/fullstack-e2e-labels.override.yml`
+labels every container with it) — never host and PID alone: two containers
+sharing this host's Docker socket can report the same hostname while
+running in separate pid namespaces, where the same PID number names a
+completely different (or nonexistent) process. A project is only ever
+reclaimed when host AND pid namespace both match this run's own and the
+labelled PID is confirmed gone; an unlabelled or legacy project (from
+before the pid-namespace label existed) is always left untouched.
+
 ### Image smoke test
 
 Needs a container already running (see "Running with Docker" above):

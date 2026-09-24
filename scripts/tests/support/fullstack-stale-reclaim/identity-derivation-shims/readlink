@@ -1,0 +1,9 @@
+#!/usr/local/bin/bash
+# Fake `readlink` for identity-derivation-case.sh: always fails, with no
+# output at all — reproducing an unreadable /proc/self/ns/pid for real,
+# not a simulated stand-in. `uname` is deliberately NOT shimmed here: it
+# must keep reporting the real kernel ("Linux" inside this pinned image),
+# since current_owner_pidns's own "none" fallback is reserved for a
+# NON-Linux kernel, and this case exists specifically to prove the OPPOSITE
+# — an unreadable pidns on Linux must yield an EMPTY value, never "none".
+exit 1
