@@ -27,18 +27,24 @@ const CURRENT_DIR = dirname(CURRENT_FILE);
  * bracket-notation call (`page['route'](...)`), `.routeFromHAR(...)` (HAR
  * replay — the same "fake the response" intent under a different method
  * name), `.setExtraHTTPHeaders(...)` (a common way to smuggle a header a
- * dev proxy/mock server keys off of), an MSW import (`from 'msw'`/
- * `'msw/browser'`), or a hand-rolled Service Worker mock
+ * dev proxy/mock server keys off of), an MSW import (a static `from 'msw'`/
+ * `'msw/browser'`, a CommonJS `require('msw')`, or a dynamic
+ * `import('msw')` — an earlier fix of this same pattern only caught the
+ * static form), or a hand-rolled Service Worker mock
  * (`serviceWorker.register(...)`). `PATTERN_COVERAGE` below documents and
  * tests each of these forms individually, so a regression in any one of
  * them fails its own named test, not just a generic "the guard broke".
  *
- * Deliberately does NOT literally spell out "page.route(" or
- * "context.route(" as a contiguous substring in this file's own source —
- * the patterns below are built with `\s*` gaps around the object/method
- * boundary so this file never matches its own guard (it is excluded from
- * the scan below anyway, but keeping the source itself clean of the
- * literal text is a second, independent safeguard).
+ * The FORBIDDEN_PATTERNS regular expressions below deliberately do NOT
+ * spell out "page.route(" or "context.route(" as a contiguous substring —
+ * they are built with `\s*` gaps around the object/method boundary — so
+ * that, on its own, a plain-text scan of THIS file for those two literal
+ * substrings finds nothing in the pattern definitions themselves (this
+ * file is excluded from the scan below anyway; that is the first,
+ * independent safeguard). This does NOT mean the file contains neither
+ * substring anywhere: PATTERN_COVERAGE further below deliberately DOES
+ * spell them out, in its own literal sample strings, because it exists to
+ * prove those exact forms are caught.
  */
 const FORBIDDEN_PATTERNS: readonly RegExp[] = [
   // `.route(...)` on ANY receiver, not just `page`/`context` — a renamed or
@@ -54,8 +60,10 @@ const FORBIDDEN_PATTERNS: readonly RegExp[] = [
   // suite has no legitimate reason to touch request headers at all.
   /\.\s*setExtraHTTPHeaders\s*\(/,
   // Any import from the "msw" (Mock Service Worker) package, browser or
-  // node build.
-  /from\s+['"]msw(\/[^'"]*)?['"]/,
+  // node build — a static `from '...'` import, a CommonJS `require(...)`,
+  // or a dynamic `import(...)` (a bare `from '...'` pattern alone misses
+  // both of the latter two forms).
+  /(?:from\s+|require\s*\(\s*|import\s*\(\s*)['"]msw(\/[^'"]*)?['"]/,
   // The browser Service Worker API a hand-rolled service-worker mock would
   // register through.
   /\bserviceWorker\s*\.\s*register\s*\(/,
@@ -111,6 +119,16 @@ const PATTERN_COVERAGE: ReadonlyArray<{
   {
     label: 'an MSW browser import',
     sample: "import { setupWorker } from 'msw/browser';",
+    shouldMatch: true,
+  },
+  {
+    label: 'an MSW CommonJS require',
+    sample: "const { rest } = require('msw');",
+    shouldMatch: true,
+  },
+  {
+    label: 'an MSW dynamic import',
+    sample: "const msw = await import('msw');",
     shouldMatch: true,
   },
   {

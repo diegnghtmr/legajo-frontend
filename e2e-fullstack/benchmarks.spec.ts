@@ -1,5 +1,5 @@
 import { AxeBuilder } from '@axe-core/playwright';
-import { expect, test } from '@playwright/test';
+import { expect, type Locator, test } from '@playwright/test';
 
 import {
   AXE_TAGS,
@@ -24,6 +24,22 @@ interface BenchmarkReport {
  * `no-mocks.guard.spec.ts` enforces there is no `page.route` anywhere in
  * this directory.
  */
+// A generic `role=group` count only proves SOME element with that role
+// exists, not that a chart actually rendered — an empty placeholder div
+// could carry the same role. Requires an actual plotted Recharts line
+// inside the group, with real (non-empty) path geometry. Shared by all
+// three chart groups below: an earlier version only ran this check on the
+// first group and merely asserted `data-scale` (which a chart with zero
+// plotted points could still carry) on the other two, so a regression that
+// emptied their data would have gone unnoticed.
+async function expectPlottedLine(group: Locator) {
+  const plottedLine = group.locator('svg.recharts-surface path.recharts-line-curve').first();
+  await expect(plottedLine).toBeVisible();
+  const pathGeometry = await plottedLine.getAttribute('d');
+  expect(pathGeometry).toBeTruthy();
+  expect(pathGeometry!.length).toBeGreaterThan(0);
+}
+
 test.describe('benchmarks (full stack)', () => {
   test('renders the real harness info and a real chart with plotted data', async ({
     page,
@@ -47,30 +63,23 @@ test.describe('benchmarks (full stack)', () => {
     await expect(page.getByText(report.harness.cpuModel)).toBeVisible();
     await expect(page.getByText(report.harness.jdk)).toBeVisible();
 
-    // A generic `role=group` count only proves SOME element with that role
-    // exists, not that a chart actually rendered — an empty placeholder div
-    // could carry the same role. Target the real chart group
-    // (BenchmarkCurveChart.tsx: `role="group"` with the app's own
-    // `data-scale` attribute) and require an actual plotted Recharts line
-    // inside it, with real (non-empty) path geometry.
+    // Target the real chart group (BenchmarkCurveChart.tsx: `role="group"`
+    // with the app's own `data-scale` attribute) and require an actual
+    // plotted line with real geometry, not just the group's presence.
     const classicGroup = page.getByRole('group', { name: 'Algoritmos clásicos por pares' });
     await expect(classicGroup).toBeVisible();
     await expect(classicGroup).toHaveAttribute('data-scale', 'linear');
-    const plottedLine = classicGroup
-      .locator('svg.recharts-surface path.recharts-line-curve')
-      .first();
-    await expect(plottedLine).toBeVisible();
-    const pathGeometry = await plottedLine.getAttribute('d');
-    expect(pathGeometry).toBeTruthy();
-    expect(pathGeometry!.length).toBeGreaterThan(0);
+    await expectPlottedLine(classicGroup);
 
     // The other two curve chart groups (real CSV data has HAC-linkage and
     // internal-metric families too, TRD §6.5/§6.6) are present as real
-    // charts as well, not just counted.
+    // charts WITH plotted data as well, not just counted or checked for the
+    // `data-scale` attribute alone (which an empty chart could also carry).
     for (const name of ['Enlaces jerárquicos (HAC)', 'Métricas internas de agrupamiento']) {
       const group = page.getByRole('group', { name });
       await expect(group).toBeVisible();
       await expect(group).toHaveAttribute('data-scale', 'linear');
+      await expectPlottedLine(group);
     }
 
     // Both embedding dimensions from the fixed local/API providers (ADR

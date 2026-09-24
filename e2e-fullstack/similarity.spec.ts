@@ -114,14 +114,27 @@ test.describe('similarity compare + trace (full stack, Flow A)', () => {
     // backend, so the assertion is an EXACT match against real data, not
     // just "greater than zero" (which a matrix rendered with a single stray
     // cell, or a single stray optimal-path mark, would also satisfy).
+    //
+    // The exact cell count assumes the WHOLE matrix is rendered, which only
+    // holds because DpMatrix.tsx is verified to render every cell directly
+    // (a plain scrollable `<table>`, its own comment: "never a windowed or
+    // truncated subset" — no virtualization library, since the reference
+    // corpus's abstracts are short); it would be wrong to assert this exact
+    // number against a component that only renders a visible window.
+    //
+    // Both counts use `toHaveCount`, a web-first assertion that polls until
+    // it holds (or times out), instead of a one-shot `.count()` read: a
+    // one-shot count taken right after the heading/status appears can still
+    // race the trace fetch that fills the table, reading zero or a partial
+    // row before the real content has painted.
     const trace = await fetchSimilarityTrace(request, 'needleman-wunsch', 'd01', 'd02');
     const expectedCellCount = trace.matrix.length * trace.matrix[0].length;
-    const cellCount = await page.locator('table').first().locator('td').count();
-    expect(cellCount).toBe(expectedCellCount);
+    await expect(page.locator('table').first().locator('td')).toHaveCount(expectedCellCount);
 
-    const optimalPathCount = await page.locator('[data-optimal-path="true"]').count();
-    expect(optimalPathCount).toBe(trace.optimalPath.length);
-    expect(optimalPathCount).toBeGreaterThan(0);
+    // `trace.optimalPath.length` comes straight from the backend response
+    // fetched above, not from the UI, so it needs no polling of its own.
+    expect(trace.optimalPath.length).toBeGreaterThan(0);
+    await expect(page.locator('[data-optimal-path="true"]')).toHaveCount(trace.optimalPath.length);
 
     // At least one cell shows a real, non-empty score value (not a blank
     // or placeholder cell).
