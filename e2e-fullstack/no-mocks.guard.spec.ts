@@ -212,7 +212,7 @@ test('the full-stack suite never intercepts a request with page.route/context.ro
   expect(
     scannedFiles.length,
     'the guard scanned zero .ts files under e2e-fullstack/ — that proves nothing about mocking; check collectSourceFiles',
-  ).toBeGreaterThanOrEqual(5);
+  ).toBeGreaterThanOrEqual(7);
 
   const offenders: string[] = [];
   for (const file of scannedFiles) {

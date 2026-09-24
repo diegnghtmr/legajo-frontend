@@ -7,7 +7,11 @@ import { canonicalizePartition, isProperRefinement } from './partition.js';
  * relies on to prove a k-cut actually regrouped the real documents. No
  * browser or backend involved — these run the comparison functions
  * directly, so the comparison's own correctness is proven independently of
- * the e2e flow that consumes it.
+ * the e2e flow that consumes it. Written with `@playwright/test`'s
+ * `test`/`expect`, not Vitest: `vitest.config.ts` excludes `e2e-fullstack/**`
+ * entirely (that suite's TypeScript project has no "dom" lib and is meant
+ * to run only through Playwright, e2e-fullstack-in-docker.sh/e2e-in-docker.sh),
+ * so a Vitest test file here would never actually run.
  */
 test.describe('canonicalizePartition', () => {
   test('normalizes equivalent groupings under different label integers to the same shape', () => {
@@ -61,5 +65,14 @@ test.describe('isProperRefinement', () => {
     const coarser = [0, 0, 1, 1, 2, 2];
     const notActuallyFiner = [0, 0, 1, 1, 1, 1]; // 2 groups, not more than coarser's 3
     expect(isProperRefinement(notActuallyFiner, coarser)).toBe(false);
+  });
+
+  // Covers the defensive length guard (see its own comment in partition.ts):
+  // no real caller ever hits this today, but the guard itself should stay
+  // proven rather than silently untested.
+  test('rejects two partitions of different lengths', () => {
+    const coarser = [0, 0, 1, 1];
+    const wrongLengthFiner = [0, 1, 2];
+    expect(isProperRefinement(wrongLengthFiner, coarser)).toBe(false);
   });
 });

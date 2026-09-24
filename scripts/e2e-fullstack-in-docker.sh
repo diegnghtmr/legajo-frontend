@@ -17,8 +17,12 @@
 #                          docker-compose.yml (default: ../backend, resolved
 #                          against this repo's root, not the caller's cwd).
 #   E2E_BASE_URL           frontend origin Playwright navigates to
-#                          (default: http://localhost, TRD §14.2 Compose
-#                          `frontend` port).
+#                          (default: http://localhost:${LEGAJO_FRONTEND_PORT
+#                          :-80}, TRD §14.2 Compose `frontend` port).
+#   LEGAJO_FRONTEND_PORT   host port the backend Compose file publishes
+#                          `frontend` on (default: 80, read by that file
+#                          directly — this script only reads it to check the
+#                          port and build the E2E_BASE_URL default).
 #   E2E_BACKEND_BASE_URL   backend origin the specs call directly
 #                          (default: http://localhost:8080).
 set -euo pipefail
@@ -77,45 +81,114 @@ COMPOSE_PROJECT="${LEGAJO_FULLSTACK_E2E_PROJECT:-legajo-frontend-fullstack-e2e-$
 # backend checkout.
 export LEGAJO_FRONTEND_DIR="${REPO_DIR}"
 
-E2E_BASE_URL="${E2E_BASE_URL:-http://localhost}"
-E2E_BACKEND_BASE_URL="${E2E_BACKEND_BASE_URL:-http://localhost:8080}"
+# Consumed by scripts/docker/fullstack-e2e-labels.override.yml (see its own
+# comment): stamps every container THIS run creates with its owning PID and
+# host, so a LATER run can tell a stale project (owner gone) apart from a
+# live concurrent one (owner still running) — see
+# cleanup_stale_fullstack_projects below.
+export LEGAJO_FULLSTACK_E2E_OWNER_PID="$$"
+export LEGAJO_FULLSTACK_E2E_OWNER_HOST="$(hostname)"
+COMPOSE_LABEL_FILE="${SCRIPT_DIR}/docker/fullstack-e2e-labels.override.yml"
+# Every `docker compose` call for OUR OWN project goes through this array
+# (both compose files together), so the ownership labels above are applied
+# consistently everywhere — build, up, logs, and this run's own teardown.
+COMPOSE=(docker compose -p "${COMPOSE_PROJECT}" -f "${COMPOSE_FILE}" -f "${COMPOSE_LABEL_FILE}")
+
+# The frontend's host port DOES have a documented override
+# (LEGAJO_FRONTEND_PORT, read by the backend Compose file itself); the
+# backend's "8080:8080" mapping does not, and this repo never edits the
+# backend's Compose file to add one. Reading the SAME variable here that the
+# backend Compose file reads (rather than hardcoding 80) is what keeps the
+# check honest: checking a port this run isn't actually about to bind would
+# both miss a real conflict on the overridden port and report a false
+# conflict on 80 when nothing here is going to touch 80 at all.
+FRONTEND_PORT="${LEGAJO_FRONTEND_PORT:-80}"
+BACKEND_PORT=8080
+
+E2E_BASE_URL="${E2E_BASE_URL:-http://localhost:${FRONTEND_PORT}}"
+E2E_BACKEND_BASE_URL="${E2E_BACKEND_BASE_URL:-http://localhost:${BACKEND_PORT}}"
 
 echo "==> full-stack e2e: backend compose at ${COMPOSE_FILE}"
 echo "==> full-stack e2e: frontend built from ${LEGAJO_FRONTEND_DIR}"
 echo "==> full-stack e2e: compose project ${COMPOSE_PROJECT}"
 
-# The stack's host ports (80 for `frontend`, 8080 for `backend`, both fixed
-# by the backend Compose file — see its own comments) are NOT made
-# overridable here, by explicit decision: the backend Compose file exposes
-# LEGAJO_FRONTEND_PORT to move the frontend's host port, but has no
-# equivalent for the backend's fixed "8080:8080" mapping, and this repo
-# never edits the backend's Compose file to add one. Overriding only the
-# frontend port while the backend port stays fixed would still collide on a
-# second concurrent run, so failing fast, the same way, for BOTH ports is
-# the one option that treats them consistently.
+# A project from a run whose OWNER PROCESS is gone (SIGKILL, an OOM kill, a
+# CI runner that got torn down mid-job) never reaches its own `cleanup`
+# trap below, so its containers stay up and its ports stay bound forever —
+# every later run's port check would then fail permanently, not just while
+# a real concurrent run is in progress. Reclaim only a project this script
+# itself created (name prefix) AND can positively identify as dead (its own
+# ownership label, from scripts/docker/fullstack-e2e-labels.override.yml,
+# names a PID that is no longer running on this host); anything else —
+# unlabeled, on a different host, or still alive — is left untouched. PID
+# reuse by the OS is a known, accepted limitation of a liveness check like
+# this one: it would take another process landing on the exact freed PID
+# inside this narrow window, and the failure mode is the safe direction
+# (treating a genuinely dead run as still alive, never the reverse).
+cleanup_stale_fullstack_projects() {
+  local project
+  while IFS= read -r project; do
+    [ -z "${project}" ] && continue
+    case "${project}" in
+      legajo-frontend-fullstack-e2e-*) ;;
+      *) continue ;;
+    esac
+    [ "${project}" = "${COMPOSE_PROJECT}" ] && continue
+
+    local labels owner_pid owner_host
+    labels="$(docker ps -a --filter "label=com.docker.compose.project=${project}" \
+      --format '{{.Label "legajo.fullstack-e2e.owner-pid"}}|{{.Label "legajo.fullstack-e2e.owner-host"}}' \
+      | head -n1)"
+    owner_pid="${labels%%|*}"
+    owner_host="${labels#*|}"
+
+    if [ -z "${owner_pid}" ]; then
+      continue # no ownership label: not something this check can safely judge
+    fi
+    if [ "${owner_host}" != "${LEGAJO_FULLSTACK_E2E_OWNER_HOST}" ]; then
+      continue # a PID only means something on the host that assigned it
+    fi
+    if kill -0 "${owner_pid}" 2>/dev/null; then
+      continue # owner still running: a live concurrent run, never touched
+    fi
+
+    echo "==> reclaiming stale full-stack e2e project '${project}' (owner PID ${owner_pid} on ${owner_host} is no longer running)"
+    docker compose -p "${project}" -f "${COMPOSE_FILE}" -f "${COMPOSE_LABEL_FILE}" down --remove-orphans || true
+  done < <(docker compose ls --all -q 2>/dev/null)
+}
+
+echo "==> checking for stale full-stack e2e projects left by a killed run"
+cleanup_stale_fullstack_projects
+
+# The stack's host ports (FRONTEND_PORT for `frontend`, BACKEND_PORT for
+# `backend`) are both checked the same way: BACKEND_PORT has no override to
+# read (see its own comment above), so checking it unconditionally, exactly
+# like FRONTEND_PORT, is the one option that treats both ports consistently
+# instead of trusting one and guessing at the other.
 port_in_use() {
-  (exec 3<>"/dev/tcp/127.0.0.1/$1") 2>/dev/null && { exec 3>&- 3<&-; return 0; }
-  return 1
+  (exec 3<>"/dev/tcp/127.0.0.1/$1") 2>/dev/null
 }
 
 check_port_free() {
   local port="$1" label="$2"
   if port_in_use "${port}"; then
     echo "ERROR: host port ${port} (${label}) is already in use." >&2
-    echo "  scripts/e2e-fullstack-in-docker.sh uses fixed host ports (80 for the" >&2
-    echo "  frontend, 8080 for the backend — see this script's own comments for" >&2
-    echo "  why neither is overridable here) so only one full-stack run can hold" >&2
-    echo "  them at a time. Wait for the other run to finish, or free the port." >&2
+    echo "  scripts/e2e-fullstack-in-docker.sh checks the exact host ports this" >&2
+    echo "  run is about to bind (FRONTEND_PORT=${FRONTEND_PORT}," >&2
+    echo "  BACKEND_PORT=${BACKEND_PORT}) so only one full-stack run can hold" >&2
+    echo "  them at a time. Wait for the other run to finish, free the port, or" >&2
+    echo "  set LEGAJO_FRONTEND_PORT to a free one (BACKEND_PORT has no override" >&2
+    echo "  — see this script's own comments for why)." >&2
     exit 1
   fi
 }
 
 check_ports_free() {
-  check_port_free 80 "frontend, LEGAJO_FRONTEND_PORT in the backend Compose file"
-  check_port_free 8080 "backend, fixed in the backend Compose file"
+  check_port_free "${FRONTEND_PORT}" "frontend, LEGAJO_FRONTEND_PORT in the backend Compose file"
+  check_port_free "${BACKEND_PORT}" "backend, fixed in the backend Compose file"
 }
 
-echo "==> checking host ports 80 and 8080 are free before building the stack"
+echo "==> checking host ports ${FRONTEND_PORT} and ${BACKEND_PORT} are free before building the stack"
 check_ports_free
 
 # Runs on every exit path (normal, `set -e` abort, or a later `exit`), not
@@ -130,16 +203,16 @@ cleanup() {
   local status=$?
   if [ "${status}" -ne 0 ]; then
     echo "==> full-stack e2e failed (exit ${status}); dumping compose logs" >&2
-    docker compose -p "${COMPOSE_PROJECT}" -f "${COMPOSE_FILE}" logs --no-color || true
+    "${COMPOSE[@]}" logs --no-color || true
   fi
   echo "==> tearing down the Compose stack (project ${COMPOSE_PROJECT})"
-  docker compose -p "${COMPOSE_PROJECT}" -f "${COMPOSE_FILE}" down --remove-orphans || true
+  "${COMPOSE[@]}" down --remove-orphans || true
   exit "${status}"
 }
 trap cleanup EXIT
 
 echo "==> docker compose build (project ${COMPOSE_PROJECT})"
-docker compose -p "${COMPOSE_PROJECT}" -f "${COMPOSE_FILE}" build
+"${COMPOSE[@]}" build
 
 # Re-checked right BEFORE the containers actually bind a host port, not only
 # once at the top of this script: the check above and the actual bind are
@@ -153,11 +226,11 @@ docker compose -p "${COMPOSE_PROJECT}" -f "${COMPOSE_FILE}" build
 # already allocated" error instead of this script's clearer one, and still
 # only ever tears down its OWN Compose project (COMPOSE_PROJECT is unique
 # per run, set above).
-echo "==> re-checking host ports 80 and 8080 are still free before starting containers"
+echo "==> re-checking host ports ${FRONTEND_PORT} and ${BACKEND_PORT} are still free before starting containers"
 check_ports_free
 
 echo "==> docker compose up --wait (project ${COMPOSE_PROJECT})"
-docker compose -p "${COMPOSE_PROJECT}" -f "${COMPOSE_FILE}" up -d --wait
+"${COMPOSE[@]}" up -d --wait
 
 # shellcheck source=lib/playwright-image.sh
 source "${SCRIPT_DIR}/lib/playwright-image.sh"
@@ -178,26 +251,37 @@ IMAGE="mcr.microsoft.com/playwright:v${PLAYWRIGHT_VERSION}-noble"
 # concurrent runs of THIS script still share it — the port check above
 # already keeps two full stacks from ever running at once, but `npm ci`
 # writing into this volume is a separate, narrower race than the ports one,
-# so it gets its own, separate fix: the INNER_SCRIPT below takes an flock(1)
-# lock on a file inside the volume itself before running `npm ci`, so a
-# second run's install waits for the first run's to finish instead of
-# interleaving writes into the same tree.
+# so it gets its own, separate fix below.
 VOLUME="legajo-frontend-node-modules-noble-fullstack"
+
+# A SEPARATE, dedicated volume for the flock(1) lock file that serializes
+# npm ci below — NOT a file inside VOLUME itself. `npm ci` removes
+# node_modules' existing CONTENTS before reinstalling (that is the whole
+# point of `ci` over `install`), which would delete a lock file living
+# inside it out from under whichever run's fd still has it locked: a second
+# run starting its own `exec 9>` against that now-missing path would just
+# create a brand new file (a new inode) and lock THAT instead, acquiring
+# instantly with no contention at all — while the first run's `npm ci` is
+# still in progress. A lock has to live somewhere `npm ci` never touches to
+# mean anything; this volume, mounted at its own path below, is that place.
+LOCK_VOLUME="legajo-frontend-fullstack-e2e-npm-ci-lock"
+LOCK_MOUNT="/legajo-lock"
 
 # shellcheck source=lib/docker-volume.sh
 source "${SCRIPT_DIR}/lib/docker-volume.sh"
 prepare_host_owned_volume "${VOLUME}" "${IMAGE}"
+prepare_host_owned_volume "${LOCK_VOLUME}" "${IMAGE}"
 
 INNER_SCRIPT="$(cat <<'INNER'
 set -e
 
-# Serializes npm ci across concurrent containers sharing this same volume
-# (see the VOLUME comment above): the lock file lives INSIDE the volume
-# itself, not in the container's own filesystem, so it is the same file for
-# every container that mounts this volume, whichever run started first.
-# `flock -w` fails fast with a distinct exit code (75) on a timeout instead
-# of hanging forever if a previous holder never released it.
-LOCK_FILE="node_modules/.fullstack-e2e-npm-ci.lock"
+# Serializes npm ci across concurrent containers sharing the node_modules
+# volume: the lock file lives on ITS OWN volume (mounted at $LOCK_MOUNT,
+# passed in via -e below), not inside node_modules — see the LOCK_VOLUME
+# comment above for why that distinction is the whole fix. `flock -w` fails
+# fast with a distinct exit code (75) on a timeout instead of hanging
+# forever if a previous holder never released it.
+LOCK_FILE="${LOCK_MOUNT}/npm-ci.lock"
 exec 9>"${LOCK_FILE}"
 # `flock` is the direct condition of this `if`, not negated with `!`: bash
 # exempts a command tested that way from `set -e` (above), so a failed lock
@@ -257,8 +341,10 @@ docker run --rm \
   -e PLAYWRIGHT_VERSION="${PLAYWRIGHT_VERSION}" \
   -e E2E_BASE_URL="${E2E_BASE_URL}" \
   -e E2E_BACKEND_BASE_URL="${E2E_BACKEND_BASE_URL}" \
+  -e LOCK_MOUNT="${LOCK_MOUNT}" \
   -v "${REPO_DIR}:/workspace" \
   -v "${VOLUME}:/workspace/node_modules" \
+  -v "${LOCK_VOLUME}:${LOCK_MOUNT}" \
   -w /workspace \
   "${IMAGE}" \
   sh -c "${INNER_SCRIPT}"
