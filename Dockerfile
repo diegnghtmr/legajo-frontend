@@ -51,7 +51,7 @@ ARG VITE_API_BASE_URL
 # run build` with `VITE_API_BASE_URL="$trimmed"` guarantees the exact value
 # that was validated is the exact value Vite inlines into the bundle.
 #
-# Only LEADING/TRAILING whitespace is trimmed (`sed`, not `tr -d`): an
+# Only LEADING/TRAILING whitespace is trimmed (`awk`, not `tr -d`): an
 # earlier version of this guard used `tr -d '[:space:]'`, which removes
 # EVERY whitespace character, including in the middle of the value — a typo
 # like `--build-arg 'VITE_API_BASE_URL=http://local host:8080'` silently
@@ -60,7 +60,19 @@ ARG VITE_API_BASE_URL
 # a value that might not be what the caller meant). Any whitespace still
 # left after trimming only the ends is therefore rejected outright, not
 # repaired.
-RUN trimmed="$(printf '%s' "$VITE_API_BASE_URL" | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')"; \
+#
+# `awk` (with `RS="\0"` so it reads the whole value as one record), not a
+# line-oriented `sed`: `sed`'s `^`/`$` anchors match the start/end of EACH
+# LINE, not the whole value, so a `--build-arg` value with a leading or
+# trailing NEWLINE (e.g. from a YAML block scalar) passed through unstripped
+# under the old `sed` form — not silently accepted (the leftover newline
+# still tripped the interior-whitespace check below and failed the build),
+# but for the wrong stated reason, and a value that was ONLY newline-padded
+# was rejected instead of cleanly trimmed the way pure-space padding already
+# was. `awk`'s `RS="\0"` slurps the value as a single record, so `gsub` on a
+# leading/trailing run of any whitespace class (including `\n`) actually
+# trims it, the same way the surrounding-space case already worked.
+RUN trimmed="$(printf '%s' "$VITE_API_BASE_URL" | awk 'BEGIN{RS="\0"} {gsub(/^[ \t\r\n]+|[ \t\r\n]+$/, ""); printf "%s", $0}')"; \
     if [ -z "$trimmed" ]; then \
       echo "ERROR: --build-arg VITE_API_BASE_URL is required and must not be empty or whitespace-only." >&2; \
       echo "  Vite inlines it into the bundle at build time (TRD Appendix A); an" >&2; \

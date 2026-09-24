@@ -43,12 +43,23 @@ if [ -z "${BACKEND_DIR}" ] || [ ! -f "${BACKEND_DIR}/docker-compose.yml" ]; then
   echo "ERROR: could not find the backend checkout's docker-compose.yml." >&2
   echo "  LEGAJO_BACKEND_DIR='${RAW_BACKEND_DIR}' (resolved against '${REPO_DIR}')." >&2
   echo "  Set LEGAJO_BACKEND_DIR to the sibling backend repository's path" >&2
-  echo "  (default: ../backend). In CI this is the checked-out" >&2
-  echo "  diegnghtmr/legajo-backend path (see .github/workflows/frontend.yml)." >&2
+  echo "  (default: ../backend). In CI, the fullstack-e2e job in" >&2
+  echo "  .github/workflows/frontend.yml checks out diegnghtmr/legajo-backend" >&2
+  echo "  to the local path 'legajo-backend' and points this script at it." >&2
   exit 1
 fi
 
 COMPOSE_FILE="${BACKEND_DIR}/docker-compose.yml"
+# An explicit, fixed Compose project name — never Compose's own default
+# (derived from the compose file's directory name, e.g. "backend" for a
+# checkout at .../backend). Without this, a developer's own, independently
+# started `docker compose up` in that same backend checkout (same directory,
+# same default project name) would be the SAME Compose project as this
+# script's own stack: `docker compose down` below would then tear down
+# whatever the developer left running, not just what this run started. A
+# distinct project name keeps this run's containers/network in their own
+# namespace, so teardown can only ever affect this run's own resources.
+COMPOSE_PROJECT="legajo-frontend-fullstack-e2e"
 # The backend Compose file's `frontend` service builds from
 # `${LEGAJO_FRONTEND_DIR:-../frontend}` (task K4); pointing it at THIS
 # checkout is what makes the full-stack stack test the frontend under
@@ -74,26 +85,32 @@ cleanup() {
   local status=$?
   if [ "${status}" -ne 0 ]; then
     echo "==> full-stack e2e failed (exit ${status}); dumping compose logs" >&2
-    docker compose -f "${COMPOSE_FILE}" logs --no-color || true
+    docker compose -p "${COMPOSE_PROJECT}" -f "${COMPOSE_FILE}" logs --no-color || true
   fi
-  echo "==> tearing down the Compose stack"
-  docker compose -f "${COMPOSE_FILE}" down --remove-orphans || true
+  echo "==> tearing down the Compose stack (project ${COMPOSE_PROJECT})"
+  docker compose -p "${COMPOSE_PROJECT}" -f "${COMPOSE_FILE}" down --remove-orphans || true
   exit "${status}"
 }
 trap cleanup EXIT
 
-echo "==> docker compose up --build --wait"
-docker compose -f "${COMPOSE_FILE}" up -d --build --wait
+echo "==> docker compose up --build --wait (project ${COMPOSE_PROJECT})"
+docker compose -p "${COMPOSE_PROJECT}" -f "${COMPOSE_FILE}" up -d --build --wait
 
 # shellcheck source=lib/playwright-image.sh
 source "${SCRIPT_DIR}/lib/playwright-image.sh"
-PLAYWRIGHT_VERSION="$(resolve_playwright_image "${REPO_DIR}")"
+PLAYWRIGHT_VERSION="$(resolve_playwright_version "${REPO_DIR}")"
 IMAGE="mcr.microsoft.com/playwright:v${PLAYWRIGHT_VERSION}-noble"
 
-# Same named volume scripts/e2e-in-docker.sh uses (same image family/libc,
-# same package-lock.json in this one repo), so a developer who already ran
-# the mocked suite doesn't pay for a second full `npm ci` here.
-VOLUME="legajo-frontend-node-modules-noble"
+# A DEDICATED volume, not scripts/e2e-in-docker.sh's
+# "legajo-frontend-node-modules-noble" one: CI runs the mocked `ci` job and
+# this script's own `fullstack-e2e` job in parallel (no `needs:` between
+# them, .github/workflows/frontend.yml), and `npm ci` writing into the same
+# named volume from two containers at once is a real race — concurrent
+# installs into one node_modules tree can interleave partial writes and
+# corrupt it non-deterministically. A second, separate volume costs one more
+# full `npm ci` the first time either runner is used, which is cheap next to
+# a flaky, hard-to-reproduce corrupted-install failure.
+VOLUME="legajo-frontend-node-modules-noble-fullstack"
 
 # shellcheck source=lib/docker-volume.sh
 source "${SCRIPT_DIR}/lib/docker-volume.sh"

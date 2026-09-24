@@ -121,24 +121,31 @@ else
 fi
 
 echo "== case 3: correct owner but wrong GROUP anywhere -> chown runs =="
+# WRONG_GID is picked to differ from WANT_GID no matter what WANT_GID is —
+# an earlier version of this case used a hardcoded wrong-group id of 0 and
+# SKIPPED THE ENTIRE CASE whenever the host's own gid happened to be 0,
+# while still letting the script's own final summary print "all cases
+# passed": a silent false pass that proved nothing about this case whenever
+# it triggered. Constructing the mismatch relative to WANT_GID removes the
+# skip path entirely, so this case always actually runs.
+WRONG_GID=0
 if [ "${WANT_GID}" = "0" ]; then
-  echo "SKIP: case 3 needs a non-root host gid to construct a group mismatch (got gid 0)"
+  WRONG_GID=1
+fi
+volume="$(new_test_volume wrong-group)"
+TEST_VOLUMES+=("${volume}")
+# Same uid (correct owner), a deliberately wrong group — the case an
+# owner-only check would miss.
+docker run --rm -v "${volume}:/vol" "${IMAGE}" \
+  sh -c "touch /vol/marker && chown ${WANT_UID}:${WRONG_GID} /vol/marker"
+
+prepare_host_owned_volume "${volume}" "${IMAGE}"
+
+after_owner="$(owner_of "${volume}" marker)"
+if [ "${after_owner}" = "${WANT_UID}:${WANT_GID}" ]; then
+  pass "case 3: correct-owner/wrong-group file -> chown -R ran (now ${after_owner})"
 else
-  volume="$(new_test_volume wrong-group)"
-  TEST_VOLUMES+=("${volume}")
-  # Same uid (correct owner), group 0 (wrong group) — the case an owner-only
-  # check would miss.
-  docker run --rm -v "${volume}:/vol" "${IMAGE}" \
-    sh -c "touch /vol/marker && chown ${WANT_UID}:0 /vol/marker"
-
-  prepare_host_owned_volume "${volume}" "${IMAGE}"
-
-  after_owner="$(owner_of "${volume}" marker)"
-  if [ "${after_owner}" = "${WANT_UID}:${WANT_GID}" ]; then
-    pass "case 3: correct-owner/wrong-group file -> chown -R ran (now ${after_owner})"
-  else
-    fail "case 3: expected the wrong-group file to become ${WANT_UID}:${WANT_GID}, got ${after_owner}"
-  fi
+  fail "case 3: expected the wrong-group file to become ${WANT_UID}:${WANT_GID}, got ${after_owner}"
 fi
 
 if [ "${FAILURES}" -gt 0 ]; then

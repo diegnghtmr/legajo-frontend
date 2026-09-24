@@ -138,13 +138,17 @@ jobs:
   # docker-compose.yml (task K4), and runs e2e-fullstack/ against them.
   # Independent of `ci` and `image-smoke` above.
   #
-  # A pull request from a fork cannot read this repository's secrets, so
-  # LEGAJO_BACKEND_DEPLOY_KEY would be empty for one — this repository is
-  # private, so GitHub does not accept fork PRs against it at all, but the
-  # explicit check below stays regardless, so a future visibility change
-  # never turns "no secret" into a silent skip.
+  # A pull request from a FORK cannot read this repository's secrets, so
+  # LEGAJO_BACKEND_DEPLOY_KEY would be empty for one — GitHub restricts, but
+  # does not categorically forbid, forking a private repository (an org can
+  # explicitly allow it for members with access), so this is a real,
+  # reachable case here, not a theoretical one for a public repository. The
+  # verify step below still fails the job either way (never a silent skip),
+  # but distinguishes that expected case from an actually missing/misspelled
+  # secret with a more specific message.
   fullstack-e2e:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
 
@@ -156,11 +160,20 @@ jobs:
       - name: Verify LEGAJO_BACKEND_DEPLOY_KEY is set
         env:
           DEPLOY_KEY: ${{ secrets.LEGAJO_BACKEND_DEPLOY_KEY }}
+          IS_FORK_PR: ${{ github.event.pull_request.head.repo.fork }}
         run: |
           if [ -z "$DEPLOY_KEY" ]; then
-            echo "ERROR: the LEGAJO_BACKEND_DEPLOY_KEY secret is empty or missing." >&2
-            echo "  This job needs it to check out diegnghtmr/legajo-backend read-only" >&2
-            echo "  (TRD §14.3/1.3.11); it must never be skipped silently." >&2
+            if [ "$IS_FORK_PR" = "true" ]; then
+              echo "FAILING: this run is a pull request from a fork, so GitHub does not" >&2
+              echo "  expose repository secrets to it — LEGAJO_BACKEND_DEPLOY_KEY is" >&2
+              echo "  unavailable here by design, not by misconfiguration. The full-stack" >&2
+              echo "  e2e job cannot run for a fork PR; it runs on push to main and on a" >&2
+              echo "  same-repository PR." >&2
+            else
+              echo "ERROR: the LEGAJO_BACKEND_DEPLOY_KEY secret is empty or missing." >&2
+              echo "  This job needs it to check out diegnghtmr/legajo-backend read-only" >&2
+              echo "  (TRD §14.3/1.3.11); it must never be skipped silently." >&2
+            fi
             exit 1
           fi
 
@@ -171,6 +184,12 @@ jobs:
           ssh-key: ${{ secrets.LEGAJO_BACKEND_DEPLOY_KEY }}
           path: legajo-backend
           ref: main
+          # No later step needs continued git/SSH access to legajo-backend —
+          # only its checked-out FILES, for `docker compose`. Least
+          # privilege: don't leave the deploy key wired into git config for
+          # the rest of the job (e.g. reachable to whatever `docker build`
+          # runs next), when nothing after this step uses it.
+          persist-credentials: false
 
       # scripts/e2e-fullstack-in-docker.sh brings the Compose stack up,
       # builds this checkout's own frontend image into it, runs the
@@ -180,11 +199,15 @@ jobs:
         run: LEGAJO_BACKEND_DIR=legajo-backend scripts/e2e-fullstack-in-docker.sh
 
       - name: Upload full-stack Playwright report
-        if: failure()
+        if: failure() || cancelled()
         uses: actions/upload-artifact@v4
         with:
           name: playwright-report-fullstack
           path: |
             playwright-report-fullstack/
             test-results-fullstack/
+          # A failure before Playwright ever ran (e.g. `docker compose up`
+          # itself failing) leaves neither directory on disk; warn instead
+          # of failing the upload step itself and masking the real error.
+          if-no-files-found: warn
           retention-days: 7

@@ -18,11 +18,14 @@
 # `set -euo pipefail`, a `grep` that matches nothing exits the whole caller
 # script right there, before any later `if` ever runs.
 #
-# Usage: resolve_playwright_image <repo-dir>
-# Prints the resolved version (e.g. "1.63.0") to stdout; the caller builds
-# its own "mcr.microsoft.com/playwright:v<version>-noble" tag from it.
+# Usage: resolve_playwright_version <repo-dir>
+# Prints the resolved VERSION ONLY (e.g. "1.63.0") to stdout, never a full
+# image reference — named resolve_playwright_version, not
+# resolve_playwright_image, precisely because of that: the caller still has
+# to build its own "mcr.microsoft.com/playwright:v<version>-noble" tag from
+# the returned string.
 
-resolve_playwright_image() {
+resolve_playwright_version() {
   local repo_dir="$1"
   local lockfile_image="node:24-alpine" # tiny, already used by scripts/npm-in-docker.sh
 
