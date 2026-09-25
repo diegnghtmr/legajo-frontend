@@ -19,6 +19,7 @@ import { FamilyStatus } from '../../shared/components/FamilyStatus';
 import { ScoreBar } from '../../shared/components/ScoreBar';
 import { algoFamilyFromKind } from './algorithmFamily';
 import { formatComputedNanos, formatRawValue } from './formatters';
+import { rememberTraceTrigger } from './traceFocusReturn';
 
 type AlgorithmSummary = ListSimilarityAlgorithmsResponse[number];
 
@@ -95,7 +96,11 @@ export function CompareTable({
             <TableRow
               key={algorithmId}
               aria-current={isOpen ? 'true' : undefined}
-              onClick={() => onOpenTrace(algorithmId)}
+              onClick={(event) => {
+                const trigger = event.currentTarget.querySelector<HTMLButtonElement>('button');
+                rememberTraceTrigger(trigger);
+                onOpenTrace(algorithmId);
+              }}
               className={cn(
                 'relative cursor-pointer',
                 isOpen &&
