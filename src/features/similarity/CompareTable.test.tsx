@@ -107,17 +107,28 @@ describe('CompareTable', () => {
     }
   });
 
-  it('gives the row’s hit area the full row width, not only the algorithm cell', () => {
+  it('opens the row’s trace from a click on a cell far from the algorithm button, not only the button itself', async () => {
+    const user = userEvent.setup();
+    const { onOpenTrace } = renderTable();
+
+    const row = screen.getByRole('row', { name: /^levenshtein/i });
+    // The raw-value cell — nowhere near the algorithm button — still opens
+    // this row's trace: the hit area is the row, not the algorithm cell the
+    // button's own box happens to sit in.
+    await user.click(within(row).getByText('12'));
+
+    expect(onOpenTrace).toHaveBeenCalledWith('levenshtein');
+    expect(onOpenTrace).toHaveBeenCalledTimes(1);
+  });
+
+  it('exposes exactly one accessible button per row, the row’s single trace trigger', () => {
     renderTable();
 
-    const button = screen.getByRole('button', { name: 'levenshtein' });
-    // The stretched-hit-area pattern: the button covers its row's full box
-    // (`absolute inset-0`) while the row itself is the positioned ancestor
-    // (`relative`), not just the algorithm cell.
-    const row = button.closest('tr');
-    expect(row?.className).toContain('relative');
-    expect(button.className).toContain('absolute');
-    expect(button.className).toContain('inset-0');
+    const [headerRow, ...resultRows] = screen.getAllByRole('row');
+    expect(within(headerRow).queryAllByRole('button')).toHaveLength(0);
+    for (const row of resultRows) {
+      expect(within(row).getAllByRole('button')).toHaveLength(1);
+    }
   });
 
   it('shows a dash and accessible text for a null raw value, and the degenerate indicator', () => {

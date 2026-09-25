@@ -136,6 +136,28 @@ test.describe('similarity compare screen', () => {
     await expect(nonCachedRow.getByText('en caché')).toHaveCount(0);
   });
 
+  test("opens a row's trace from a click on a cell other than the algorithm one", async ({
+    page,
+  }) => {
+    await page.goto('/');
+
+    await page.getByRole('checkbox', { name: 'A survey of string similarity' }).check();
+    await page.getByRole('checkbox', { name: 'Embeddings for scientific text' }).check();
+    await page.getByRole('button', { name: 'Comparar doc-01 y doc-02' }).click();
+
+    await expect(page.getByRole('row')).toHaveCount(7);
+
+    const row = page.getByRole('row', { name: /^levenshtein/ });
+    // The time column, the fourth of the row's own `cell`s (family, score,
+    // raw, time, degenerate) — nowhere near the algorithm button — proves
+    // the row itself is the trace trigger, not only the box the button
+    // visually sits in.
+    await row.getByRole('cell').nth(3).click();
+
+    await expect(page).toHaveURL(/\/similarity\/levenshtein\/trace/);
+    await expect(row).toHaveAttribute('aria-current', 'true');
+  });
+
   test('has no automatically detectable WCAG 2.1 AA violations on the compare results', async ({
     page,
   }) => {

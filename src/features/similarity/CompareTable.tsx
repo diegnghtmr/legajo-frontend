@@ -45,13 +45,20 @@ export interface CompareTableProps {
  * anything here — it would only add indirection over a table that never
  * needs it.
  *
- * Each row is its own trace trigger: one `<button>` whose accessible name is
- * the mono algorithm id, stretched to the row's full hit area (`relative` on
- * `TableRow`, `absolute inset-0` on the button — the button's positioned
- * ancestor is the row, not just the cell it visually sits in, per CSS
- * containing-block resolution through static ancestors). Activating it opens
- * the trace in the detail panel and keeps this table mounted — the row
- * never navigates away from it. The catalogue's `displayName` sits in a
+ * Each row is its own trace trigger. The accessible control is a single
+ * `<button>` whose accessible name is the mono algorithm id, but the hit area
+ * is the whole row: `TableRow` itself carries the `onClick`, so a click
+ * anywhere in the row — including the button, whose own activation click
+ * bubbles there like any other — opens that one row's trace exactly once.
+ * This never relies on a `position: relative`/`absolute inset-0` pair to
+ * make a cell's box cover the row (that only works when nothing between the
+ * two is itself accidentally positioned, and does not need verifying across
+ * browsers to begin with — plain DOM event bubbling always does). Keyboard
+ * and assistive-technology users still act on the button alone; the row's
+ * own `onClick` is a mouse/pointer convenience layered on top, never a
+ * second way anything is exposed to accessibility tooling. Activating it
+ * opens the trace in the detail panel and keeps this table mounted — the
+ * row never navigates away from it. The catalogue's `displayName` sits in a
  * decorative paragraph next to the button, not inside its accessible name.
  */
 export function CompareTable({
@@ -88,8 +95,9 @@ export function CompareTable({
             <TableRow
               key={algorithmId}
               aria-current={isOpen ? 'true' : undefined}
+              onClick={() => onOpenTrace(algorithmId)}
               className={cn(
-                'relative',
+                'relative cursor-pointer',
                 isOpen &&
                   "before:absolute before:inset-y-0 before:left-0 before:w-[2px] before:bg-ink before:content-['']",
               )}
@@ -98,10 +106,13 @@ export function CompareTable({
                 scope="row"
                 className="relative text-left text-body font-normal normal-case tracking-normal text-ink"
               >
-                {/* The row's single trace trigger: a stretched hit area
-                 * (`absolute inset-0`, sized against the `relative` row
-                 * above, not just this cell) per §6.2 ("the hit area spans
-                 * the row"). It carries no text of its own — `aria-labelledby`
+                {/* The row's single accessible trigger: keyboard and
+                 * assistive-technology users tab to and activate this
+                 * button directly. A mouse click anywhere else in the row
+                 * reaches the exact same outcome through the `TableRow`'s
+                 * own `onClick` above (this button's own click bubbles
+                 * there too, so only that one handler ever runs — never
+                 * both). It carries no text of its own — `aria-labelledby`
                  * borrows the mono id span's name instead, the same pattern
                  * `SelectionRail`'s checkbox uses for its title — so the
                  * visible id and `displayName` stay normal, unhidden text
@@ -110,7 +121,6 @@ export function CompareTable({
                  * underneath them (`pointer-events-none` on both). */}
                 <button
                   type="button"
-                  onClick={() => onOpenTrace(algorithmId)}
                   aria-labelledby={`compare-row-algo-${algorithmId}`}
                   className="absolute inset-0 z-0 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus"
                 />
