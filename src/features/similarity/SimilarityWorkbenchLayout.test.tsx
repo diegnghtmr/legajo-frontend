@@ -406,6 +406,126 @@ describe('SimilarityWorkbenchLayout', () => {
     });
   });
 
+  describe('below lg, before any comparison, on the plain compare route', () => {
+    beforeEach(() => {
+      stubNarrowViewport();
+    });
+
+    afterEach(() => {
+      vi.unstubAllGlobals();
+    });
+
+    it('shows the corpus list itself as the main content instead of the "select 2" message, and hides the lg+ rail', async () => {
+      renderLayoutAtRoute('/similarity');
+
+      expect(
+        await screen.findByRole('checkbox', { name: 'A survey of string similarity' }),
+      ).toBeInTheDocument();
+      expect(
+        screen.queryByRole('heading', { name: 'Comparación de similitud' }),
+      ).not.toBeInTheDocument();
+      expect(screen.queryByTestId('workbench-rail')).not.toBeInTheDocument();
+    });
+
+    it('docks the selection tray at the bottom, with the CTA disabled below two selected', async () => {
+      renderLayoutAtRoute('/similarity');
+
+      await screen.findByRole('checkbox', { name: 'A survey of string similarity' });
+      expect(screen.getByTestId('selection-tray')).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Comparar' })).toBeDisabled();
+    });
+
+    it('a basic comparison takes exactly three interactions: select, select, compare', async () => {
+      const user = userEvent.setup();
+      vi.spyOn(corpusApi, 'fetchCorpus').mockResolvedValue([
+        { id: 'doc-01', title: 'A survey of string similarity', authors: ['A. One'] },
+        { id: 'doc-02', title: 'A second article', authors: ['B. Two'] },
+      ]);
+      renderLayoutAtRoute('/similarity');
+
+      // Interaction 1: select the first article.
+      await user.click(
+        await screen.findByRole('checkbox', { name: 'A survey of string similarity' }),
+      );
+      // Interaction 2: select the second article.
+      await user.click(screen.getByRole('checkbox', { name: 'A second article' }));
+
+      const cta = screen.getByRole('button', { name: 'Comparar doc-01 y doc-02' });
+      expect(cta).toBeEnabled();
+
+      // Interaction 3: compare.
+      await user.click(cta);
+
+      expect(await screen.findAllByRole('row')).toHaveLength(2);
+      expect(
+        screen.queryByRole('checkbox', { name: 'A survey of string similarity' }),
+      ).not.toBeInTheDocument();
+    });
+
+    it('a pair already selected when this screen first opens (a deep link, a restored selection) shows the pairwise results immediately, with no redundant re-confirmation', async () => {
+      useSelectionStore.setState({
+        selectedIds: ['doc-01', 'doc-02'],
+        canCompare: true,
+        canMatrix: false,
+      });
+      renderLayoutAtRoute('/similarity');
+
+      expect(
+        await screen.findByRole('heading', { name: 'Comparación de similitud' }),
+      ).toBeInTheDocument();
+      expect(
+        screen.queryByRole('checkbox', { name: 'A survey of string similarity' }),
+      ).not.toBeInTheDocument();
+    });
+
+    it('replacing an already-shown pair with a genuinely different one (never through this tray CTA) shows the corpus list again, needing its own fresh confirmation', async () => {
+      useSelectionStore.setState({
+        selectedIds: ['doc-01', 'doc-02'],
+        canCompare: true,
+        canMatrix: false,
+      });
+      renderLayoutAtRoute('/similarity');
+      await screen.findByRole('heading', { name: 'Comparación de similitud' });
+
+      act(() => {
+        useSelectionStore.setState({
+          selectedIds: ['doc-03', 'doc-04'],
+          canCompare: true,
+          canMatrix: false,
+        });
+      });
+
+      expect(
+        await screen.findByRole('checkbox', { name: 'A survey of string similarity' }),
+      ).toBeInTheDocument();
+      expect(
+        screen.queryByRole('heading', { name: 'Comparación de similitud' }),
+      ).not.toBeInTheDocument();
+
+      // Confirming the CTA for that new pair shows its own results.
+      const user = userEvent.setup();
+      await user.click(screen.getByRole('button', { name: 'Comparar doc-03 y doc-04' }));
+
+      expect(
+        await screen.findByRole('heading', { name: 'Comparación de similitud' }),
+      ).toBeInTheDocument();
+    });
+  });
+
+  describe('at lg and above, the corpus-list-as-main-content replacement never applies', () => {
+    it('keeps the "select 2" empty-state message and the persistent rail, with no tray', async () => {
+      renderLayoutAtRoute('/similarity');
+
+      expect(
+        await screen.findByText(
+          'Selecciona 2 artículos en el panel para comparar, o 3 o más para ver la matriz.',
+        ),
+      ).toBeInTheDocument();
+      expect(screen.getByTestId('workbench-rail')).toBeInTheDocument();
+      expect(screen.queryByTestId('selection-tray')).not.toBeInTheDocument();
+    });
+  });
+
   describe('a partial trace URL (the trace path matched, but its document ids are missing)', () => {
     it('normalizes the URL back to plain /similarity instead of leaving a stale trace path over a screen showing no panel', async () => {
       renderLayoutAtRoute('/similarity/levenshtein/trace');

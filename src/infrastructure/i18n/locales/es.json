@@ -61,6 +61,9 @@
         "openLabel": "Ver el estado de los embeddings"
       }
     },
+    "tray": {
+      "openListLabel": "Abrir la lista del corpus"
+    },
     "embeddingsStatus": {
       "eyebrow": "Embeddings",
       "title": "Estado de los embeddings",

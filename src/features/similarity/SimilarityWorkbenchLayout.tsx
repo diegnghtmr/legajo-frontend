@@ -7,10 +7,19 @@ import { WorkbenchLayout } from '../../shared/components/WorkbenchLayout';
 import { Button } from '../../shared/components/ui/button';
 import { Sheet, SheetContent } from '../../shared/components/ui/sheet';
 import { ArticleAbstract } from '../corpus/ArticleAbstract';
+import { CorpusListPanel } from '../corpus/CorpusListPanel';
 import { EmbeddingsStatusPanel } from '../corpus/EmbeddingsStatusPanel';
 import { SelectionRail } from '../corpus/SelectionRail';
+import { SelectionTray } from '../corpus/SelectionTray';
+import { sortedPair, useSelectionStore } from '../corpus/selectionStore';
 import { clearTraceTrigger, restoreTraceTrigger } from './traceFocusReturn';
 import { TraceDetailPanel } from './traces/TraceDetailPanel';
+
+/** The plain pairwise-compare path — never its matrix or trace-deep-link
+ * siblings, which always already name a pair (by selection count or by the
+ * URL itself). Only this exact path ever swaps its routed content for the
+ * corpus list below `lg` (see `showCorpusListAsMainContent` below). */
+const PLAIN_COMPARE_PATH = '/similarity';
 
 type DetailView = { kind: 'abstract'; id: string } | { kind: 'embeddings' } | null;
 
@@ -50,6 +59,40 @@ export function SimilarityWorkbenchLayout() {
   const location = useLocation();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
+  const selectedIds = useSelectionStore((state) => state.selectedIds);
+  // `sortedPair` is the exact same pair-or-null rule `SimilarityPage` itself
+  // uses for the plain path (no trace deep link ever overrides it there),
+  // so the two can never disagree about when a pair exists.
+  const pair = sortedPair(selectedIds);
+  const pairKey = pair ? `${pair[0]}:${pair[1]}` : null;
+  // A pair EXISTING is not the same as a comparison being CONFIRMED: at
+  // exactly two selected, the CTA's own navigation targets this same plain
+  // path (there is nowhere else for it to go), so pair-existence alone
+  // cannot distinguish "just selected the second article" from "activated
+  // the CTA" the way the three-or-more case can (its own CTA navigates to
+  // a genuinely different `/similarity/matrix` route). Below `lg` this
+  // tracks the exact pair the tray's own CTA was last activated for —
+  // `SelectionTray`'s `onCtaActivate` sets it — so selecting a second
+  // article alone never swaps the corpus list out from under the person
+  // mid-tap (DESIGN §6.7: select, select, compare is three interactions,
+  // not two). Seeded from whatever pair already exists the instant this
+  // layout first mounts (a deep link, a restored selection, or simply
+  // already having a pair from an earlier visit): only a pair assembled
+  // interactively AFTER arriving here needs its own explicit confirmation
+  // — DESIGN.md settles the fresh three-interaction flow, not whether
+  // returning to an already-selected pair must redundantly repeat it, so
+  // this mount-time seeding is a conservative, reviewable choice. A
+  // DIFFERENT pair assembled afterwards (or none at all) always needs its
+  // own fresh confirmation, since it no longer matches this remembered key.
+  const [confirmedPairKey, setConfirmedPairKey] = useState<string | null>(() => pairKey);
+  const isPairConfirmed = pairKey !== null && pairKey === confirmedPairKey;
+  // Below `lg`, before any comparison is confirmed on the plain compare path
+  // (never its matrix or trace-deep-link siblings — see
+  // `PLAIN_COMPARE_PATH`), the similarity screen's own main content is the
+  // corpus list itself rather than `SimilarityPage`'s "select 2 to compare"
+  // message.
+  const showCorpusListAsMainContent =
+    !isAtLeastLg && location.pathname === PLAIN_COMPARE_PATH && !isPairConfirmed;
   // The exact control that opened the currently-shown detail view (a rail
   // row's title, or the embeddings status row) — closing it returns focus
   // there instead of dropping it back to the document body, the same way
@@ -245,32 +288,65 @@ export function SimilarityWorkbenchLayout() {
   return (
     <>
       <WorkbenchLayout
-        rail={<SelectionRail onOpenAbstract={openAbstract} onOpenEmbeddings={openEmbeddings} />}
+        // Below `lg` there is no persistent sidebar rail at all — its
+        // replacement is the docked `SelectionTray` plus, before any
+        // comparison, the corpus list rendered as this same region's main
+        // content (both below).
+        rail={
+          isAtLeastLg ? (
+            <SelectionRail onOpenAbstract={openAbstract} onOpenEmbeddings={openEmbeddings} />
+          ) : undefined
+        }
         detail={isAtLeastLg ? (detailContent ?? undefined) : undefined}
       >
-        <Outlet />
+        {showCorpusListAsMainContent ? (
+          // The docked tray below already carries the CTA and, on its own
+          // sheet, this exact same list — this is the screen's own main
+          // content only while no pair exists yet to compare, so the tray
+          // never has to be opened just to make a first selection. `pb-28`
+          // (below) keeps its own last row clear of the docked tray.
+          <CorpusListPanel
+            className="pb-28"
+            onOpenAbstract={openAbstract}
+            onOpenEmbeddings={openEmbeddings}
+          />
+        ) : (
+          // Space for the docked tray below, so its own last row is never
+          // hidden underneath it — only needed below `lg`, where the tray
+          // exists at all.
+          <div className={!isAtLeastLg ? 'pb-28' : undefined}>
+            <Outlet />
+          </div>
+        )}
       </WorkbenchLayout>
       {!isAtLeastLg && (
-        <Sheet
-          open={detailContent !== null}
-          onOpenChange={(open) => {
-            if (!open) {
-              closeDetail();
-            }
-          }}
-        >
-          <SheetContent
-            title={
-              localDetail?.kind === 'abstract'
-                ? t('corpus.detail.sheetTitle', { id: localDetail.id })
-                : localDetail?.kind === 'embeddings'
-                  ? t('corpus.embeddingsStatus.title')
-                  : t('similarity.trace.eyebrow')
-            }
+        <>
+          <SelectionTray
+            onOpenAbstract={openAbstract}
+            onOpenEmbeddings={openEmbeddings}
+            onCtaActivate={() => setConfirmedPairKey(pairKey)}
+          />
+          <Sheet
+            open={detailContent !== null}
+            onOpenChange={(open) => {
+              if (!open) {
+                closeDetail();
+              }
+            }}
           >
-            {detailContent}
-          </SheetContent>
-        </Sheet>
+            <SheetContent
+              title={
+                localDetail?.kind === 'abstract'
+                  ? t('corpus.detail.sheetTitle', { id: localDetail.id })
+                  : localDetail?.kind === 'embeddings'
+                    ? t('corpus.embeddingsStatus.title')
+                    : t('similarity.trace.eyebrow')
+              }
+            >
+              {detailContent}
+            </SheetContent>
+          </Sheet>
+        </>
       )}
     </>
   );

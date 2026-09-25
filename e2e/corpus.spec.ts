@@ -219,7 +219,11 @@ test.describe('corpus selection rail', () => {
 
     await page.setViewportSize({ width: 390, height: 844 });
     await page.goto('/');
-    await expect(page.getByRole('heading', { name: 'Comparación de similitud' })).toBeVisible();
+    // Below `lg`, before any comparison, the corpus list itself is the
+    // screen's own main content (no persistent rail, no "select 2" message).
+    await expect(
+      page.getByRole('checkbox', { name: 'Article number 1', exact: true }),
+    ).toBeVisible();
 
     const lastRow = page.getByRole('checkbox', { name: 'Article number 30' });
     await lastRow.scrollIntoViewIfNeeded();
@@ -227,11 +231,11 @@ test.describe('corpus selection rail', () => {
     await lastRow.check();
     await expect(lastRow).toBeChecked();
 
-    // Below `lg`, `WorkbenchLayout` gives the rail no scroll region of its
-    // own (`lg:h-full lg:overflow-y-auto` only applies from `lg` up): the
-    // rail stacks in normal document flow above the results, so reaching a
-    // row this far down the list is necessarily the PAGE scrolling, not an
-    // internal rail scrollbar. `scrollIntoViewIfNeeded` alone doesn't prove
+    // Below `lg`, the main-content region has no bounded height of its own
+    // (only the `lg:h-full lg:overflow-y-auto` pair applies from `lg` up):
+    // the corpus list stacks in normal document flow, so reaching a row
+    // this far down the list is necessarily the PAGE scrolling, not an
+    // internal scrollbar. `scrollIntoViewIfNeeded` alone doesn't prove
     // that — it scrolls whichever ancestor is scrollable, silently passing
     // even if that ancestor were something other than the page.
     const pageScrollY = await page.evaluate('window.scrollY');
@@ -261,12 +265,15 @@ test.describe('corpus selection rail', () => {
     expect(results.violations).toEqual([]);
   });
 
-  test('the rail stacks above the results with no page-level horizontal overflow and no axe violations at 390px', async ({
+  test('below 1024px, before any comparison, the corpus list is the main content with no page-level horizontal overflow and no axe violations at 390px', async ({
     page,
   }) => {
     await page.setViewportSize({ width: 390, height: 844 });
     await page.goto('/');
-    await expect(page.getByRole('heading', { name: 'Comparación de similitud' })).toBeVisible();
+    await expect(
+      page.getByRole('checkbox', { name: 'A survey of string similarity' }),
+    ).toBeVisible();
+    await expect(page.getByTestId('selection-tray')).toBeVisible();
 
     // "No horizontal overflow" is `scrollWidth <= clientWidth`, not a pinned
     // literal pixel value — a device pixel ratio, a scrollbar-gutter
@@ -289,7 +296,7 @@ test.describe('corpus selection rail', () => {
     expect(results.violations).toEqual([]);
   });
 
-  test('below lg (390px) the rail rows and the adaptive CTA render, are actually visible (the layout never collapses the list), and operate end to end', async ({
+  test('below lg (390px), a basic comparison takes exactly three interactions: select, select, compare', async ({
     page,
   }) => {
     await page.setViewportSize({ width: 390, height: 844 });
@@ -297,26 +304,31 @@ test.describe('corpus selection rail', () => {
 
     const firstRow = page.getByRole('checkbox', { name: 'A survey of string similarity' });
     const secondRow = page.getByRole('checkbox', { name: 'Embeddings for scientific text' });
-    // `toBeVisible()` fails on a zero-size box (e.g. the `h-full` /
-    // `flex-1 overflow-y-auto` rail layout collapsing to 0px because its
-    // ancestor has no bounded height below `lg`), not merely on DOM
-    // presence — a real regression this specific check would catch.
+    // `toBeVisible()` fails on a zero-size box, not merely on DOM presence —
+    // a real regression this specific check would catch.
     await expect(firstRow).toBeVisible();
     await expect(secondRow).toBeVisible();
     const rowBox = await firstRow.boundingBox();
     expect(rowBox).not.toBeNull();
     expect(rowBox!.height).toBeGreaterThan(0);
 
+    // Interaction 1: select the first article.
     await firstRow.check();
+    // Interaction 2: select the second article. The corpus list stays the
+    // main content — selecting the second article alone never navigates.
     await secondRow.check();
+    await expect(firstRow).toBeVisible();
+    await expect(secondRow).toBeVisible();
 
     const compareButton = page.getByRole('button', { name: 'Comparar doc-01 y doc-02' });
     await expect(compareButton).toBeVisible();
     await expect(compareButton).toBeEnabled();
+    // Interaction 3: compare, from the docked selection tray.
     await compareButton.click();
 
     await expect(page.getByRole('heading', { name: 'Comparación de similitud' })).toBeVisible();
     await expect(page.getByText('Comparando doc-01 × doc-02')).toBeVisible();
+    await expect(firstRow).toHaveCount(0);
   });
 
   test('below lg (390px) an article abstract opens as a dialog and closes back to the title', async ({

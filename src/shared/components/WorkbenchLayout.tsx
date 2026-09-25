@@ -50,15 +50,16 @@ const negativeMainPaddingStyle: CSSProperties = {
  * (`min-w-0`) at any breakpoint.
  *
  * Below `lg` there is no persistent side rail and no side panel — the two
- * regions are asymmetric there, on purpose: the rail's own content still
- * stacks above the results in normal document flow (never `hidden`), since
- * it is a corpus's primary, always-relevant selection surface with no
- * narrow-width replacement yet (a dedicated bottom tray is a later
- * addition); the detail region, by contrast, is fully `hidden` below `lg`
- * — showing it as a third full-width stacked block here would bury the
- * results between two unrelated regions, so a consumer instead renders its
- * own detail content inline (within the results) or as a modal sheet for
- * narrow widths, never through this slot.
+ * regions are asymmetric there, on purpose. Neither slot is `hidden` by
+ * this component itself below `lg`; a consumer that has its own narrow-
+ * width replacement (a docked bottom tray for the rail, a modal sheet for
+ * the detail region — the similarity workbench's own pattern) simply omits
+ * that prop below `lg` instead, so this component never needs to know
+ * whether a narrow-width replacement exists. A consumer with no such
+ * replacement may still pass `rail` unconditionally: it then stacks above
+ * the results in normal document flow (never `hidden`) exactly as before,
+ * since that is still a corpus's primary, always-relevant selection
+ * surface.
  *
  * From `lg`, this fills the exact remaining viewport height below the
  * top bar — `AppLayout`'s own `--shell-header-h` custom property, read
