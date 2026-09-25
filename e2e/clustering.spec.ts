@@ -94,7 +94,7 @@ test.describe('clustering screen', () => {
     await mockClusteringApi(page);
   });
 
-  test('the default request (tfidf-cosine, all four linkages) shows four linkage metric groups with the cophenetic leader marked', async ({
+  test('the default request (tfidf-cosine, all four linkages) shows the metrics comparison table and every dendrogram, with the cophenetic leader marked', async ({
     page,
   }) => {
     const requestBodies: unknown[] = [];
@@ -209,6 +209,64 @@ test.describe('clustering screen', () => {
     // A string body (not an arrow function) so this evaluates in the
     // browser without pulling the `dom` lib into this project's Node-typed
     // e2e tsconfig (`tsconfig.node.json`).
+    const scrollWidth = await page.evaluate<number>('document.documentElement.scrollWidth');
+    expect(scrollWidth).toBeLessThanOrEqual(390);
+  });
+
+  test('at 1440px the control bar sits above a 2x2 dendrogram grid; at 390px the grid stacks into one column with no page-level horizontal scroll', async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await page.goto('/clustering');
+
+    const controlBarGroup = page.getByRole('radiogroup', { name: 'Representación' });
+    await expect(controlBarGroup).toBeVisible();
+    const controlBarBox = await controlBarGroup.boundingBox();
+    expect(controlBarBox).not.toBeNull();
+
+    const cardLocators = [
+      page.getByTestId('linkage-dendrogram-single'),
+      page.getByTestId('linkage-dendrogram-complete'),
+      page.getByTestId('linkage-dendrogram-average'),
+      page.getByTestId('linkage-dendrogram-ward'),
+    ];
+    const wideBoxes = [];
+    for (const card of cardLocators) {
+      await expect(card).toBeVisible();
+      const box = await card.boundingBox();
+      expect(box).not.toBeNull();
+      wideBoxes.push(box!);
+    }
+
+    // The control bar sits above every dendrogram card.
+    for (const box of wideBoxes) {
+      expect(controlBarBox!.y).toBeLessThan(box.y);
+    }
+
+    // 2x2: the first two cards share one row (same y, single left of
+    // complete); the last two share a lower row (same y, average left of
+    // ward).
+    expect(Math.abs(wideBoxes[0].y - wideBoxes[1].y)).toBeLessThan(5);
+    expect(wideBoxes[0].x).toBeLessThan(wideBoxes[1].x);
+    expect(Math.abs(wideBoxes[2].y - wideBoxes[3].y)).toBeLessThan(5);
+    expect(wideBoxes[2].x).toBeLessThan(wideBoxes[3].x);
+    expect(wideBoxes[2].y).toBeGreaterThan(wideBoxes[0].y);
+
+    await page.setViewportSize({ width: 390, height: 844 });
+
+    // One column: every card shares (roughly) the same x, and each sits
+    // below the previous one.
+    const narrowBoxes = [];
+    for (const card of cardLocators) {
+      const box = await card.boundingBox();
+      expect(box).not.toBeNull();
+      narrowBoxes.push(box!);
+    }
+    for (let index = 1; index < narrowBoxes.length; index += 1) {
+      expect(Math.abs(narrowBoxes[index].x - narrowBoxes[0].x)).toBeLessThan(5);
+      expect(narrowBoxes[index].y).toBeGreaterThan(narrowBoxes[index - 1].y);
+    }
+
     const scrollWidth = await page.evaluate<number>('document.documentElement.scrollWidth');
     expect(scrollWidth).toBeLessThanOrEqual(390);
   });

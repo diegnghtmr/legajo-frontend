@@ -19,15 +19,14 @@ import {
   type RepresentationId,
 } from '../../infrastructure/schemas/clustering';
 import { AlgoTextList, type AlgoOption } from '../../shared/components/AlgoTextList';
-import { Dendrogram } from '../../shared/components/Dendrogram';
-import { MetricTile } from '../../shared/components/MetricTile';
 import { Panel, PanelHeader } from '../../shared/components/Panel';
 import { SegmentedControl, type SegmentedOption } from '../../shared/components/SegmentedControl';
 import { CORPUS_LIST_QUERY_KEY } from '../corpus/SelectionRail';
+import { ClusteringMetricsTable } from './ClusteringMetricsTable';
 import { resolveCutLabelsForLinkage } from './cutLabels';
 import { tryComputeCutDistance } from './cutLine';
 import { CutForm, type CutFormValues } from './CutForm';
-import { formatMetricValue } from './formatMetricValue';
+import { DendrogramCard } from './DendrogramCard';
 import { leafLabelsFromDocumentIds } from './leafLabels';
 import {
   hasCanonicalLinkageIds,
@@ -50,18 +49,13 @@ const LINKAGE_OPTIONS: readonly AlgoOption[] = LINKAGE_IDS.map((id) => ({ id }))
 const CLUSTERING_QUERY_KEY_PREFIX = 'clustering';
 
 /**
- * Reads the fixed cuts of one linkage's evaluation, sorted ascending by `k`,
- * for a stable, deterministic render order (object key order is not part of
- * the JSON contract).
- */
-function sortedCuts<TValue>(record: Record<string, TValue>): Array<[string, TValue]> {
-  return Object.entries(record).sort(([a], [b]) => Number(a) - Number(b));
-}
-
-/**
- * Clustering screen: representation and
- * linkage selection, `POST /clustering`, and the metrics strip applying the
- * fixed ranking rule over the backend's own numbers (`ranking.ts`).
+ * Clustering screen: one control bar card at the top (representation
+ * Segmented, linkage selection, and the free-cut group — linkage to cut, k,
+ * `Aplicar corte`), the metrics comparison table applying the fixed ranking
+ * rule over the backend's own numbers (`ranking.ts`, `ClusteringMetricsTable`),
+ * and a 2×2 dendrogram grid below (`DendrogramCard`, one card per linkage,
+ * filling its own width).
+ *
  * The sample size `n` (the sample-size caveat and `k_ref`) is derived from
  * the clustering response itself (every linkage's `leafOrder` length)
  * rather than from the separately cached corpus-list query, so a stale
@@ -71,11 +65,10 @@ function sortedCuts<TValue>(record: Record<string, TValue>): Array<[string, TVal
  * leader marks rather than guessing, the same "don't guess" reasoning the
  * matrix headers use.
  *
- * The four dendrograms (`Dendrogram`) render one per linkage, each from
- * its own `rows`/`leafOrder` — D3 only draws, it never computes a merge. The
- * free cut (`POST /clustering/cut`) is a `CutForm` below them; a successful
- * cut's cluster labels and dashed cut line are shown only on the cut
- * linkage's own dendrogram, never on the other three.
+ * The four dendrograms render one per linkage, each from its own
+ * `rows`/`leafOrder` — D3 only draws, it never computes a merge. A
+ * successful free cut's cluster labels and dashed cut line are shown only
+ * on the cut linkage's own dendrogram, never on the other three.
  */
 export function ClusteringPage() {
   const { t } = useTranslation();
@@ -265,23 +258,52 @@ export function ClusteringPage() {
     <div className="flex flex-col gap-6">
       <PanelHeader eyebrow={t('clustering.eyebrow')} title={t('clustering.title')} />
 
-      <SegmentedControl
-        options={REPRESENTATION_OPTIONS}
-        value={representation}
-        onChange={setRepresentation}
-        aria-label={t('clustering.representationGroupLabel')}
-      />
+      {/* One control bar card: representation, linkage selection and the
+          free-cut group sit together and wrap onto new lines as the width
+          shrinks — the bar itself never scrolls horizontally. */}
+      <Panel>
+        <div className="flex flex-wrap items-start gap-6">
+          <SegmentedControl
+            options={REPRESENTATION_OPTIONS}
+            value={representation}
+            onChange={setRepresentation}
+            aria-label={t('clustering.representationGroupLabel')}
+          />
 
-      <AlgoTextList
-        options={LINKAGE_OPTIONS}
-        selectedIds={selectedLinkages}
-        onToggle={toggleLinkage}
-        aria-label={t('clustering.linkageGroupLabel')}
-      />
+          <AlgoTextList
+            options={LINKAGE_OPTIONS}
+            selectedIds={selectedLinkages}
+            onToggle={toggleLinkage}
+            aria-label={t('clustering.linkageGroupLabel')}
+          />
 
-      {!hasLinkagesSelected && (
-        <p className="text-body text-ink-secondary">{t('clustering.noLinkages')}</p>
-      )}
+          <div className="min-w-[260px] flex-1">
+            {clusteringQuery.data && sampleSize !== undefined ? (
+              <CutForm
+                // Remounts (resetting react-hook-form's own default value)
+                // when the set of available linkages actually changes, so a
+                // stale default never lingers after the user deselects one.
+                key={clusteringQuery.data.map((result) => result.linkageId).join(',')}
+                linkages={clusteringQuery.data.map((result) => ({
+                  id: result.linkageId,
+                  displayName: result.linkageDisplayName,
+                }))}
+                n={sampleSize}
+                defaultLinkage={clusteringQuery.data[0]!.linkageId}
+                onSubmit={handleCutSubmit}
+                isPending={cutMutation.isPending}
+                error={activeCutError}
+              />
+            ) : (
+              <p className="text-body text-ink-muted">{t('clustering.cutForm.unavailable')}</p>
+            )}
+          </div>
+        </div>
+
+        {!hasLinkagesSelected && (
+          <p className="mt-3 text-body text-ink-secondary">{t('clustering.noLinkages')}</p>
+        )}
+      </Panel>
 
       {clusteringQuery.isPending && hasLinkagesSelected && (
         <p role="status" className="text-body text-ink-secondary">
@@ -298,142 +320,49 @@ export function ClusteringPage() {
       )}
 
       {clusteringQuery.data && (
-        <div className="flex flex-col gap-4">
-          {clusteringQuery.data.map((linkageResult) => {
-            const isTreeLeader = ranking?.bestTreeFidelity === linkageResult.linkageId;
-            const isPartitionLeader = ranking?.bestPartitionAtKRef === linkageResult.linkageId;
+        <ClusteringMetricsTable
+          results={clusteringQuery.data}
+          kRef={kRef}
+          ranking={ranking}
+          representation={representation}
+          sampleSize={sampleSize}
+        />
+      )}
 
-            return (
-              <div
-                key={linkageResult.linkageId}
-                data-testid={`linkage-panel-${linkageResult.linkageId}`}
-              >
-                <Panel>
-                  <PanelHeader title={linkageResult.linkageDisplayName} />
-
-                  <div className="flex flex-wrap gap-3">
-                    <MetricTile
-                      label={t('clustering.metrics.cophenetic')}
-                      value={formatMetricValue(linkageResult.evaluation.cophenetic)}
-                      leader={isTreeLeader}
-                      leaderLabel={
-                        ranking?.leadersDiffer ? t('clustering.leaderTree') : t('clustering.leader')
-                      }
-                    />
-
-                    {sortedCuts(linkageResult.evaluation.meanSilhouette).map(([k, value]) => (
-                      <MetricTile
-                        key={`silhouette-${k}`}
-                        label={t('clustering.metrics.silhouetteAtK', { k })}
-                        value={formatMetricValue(value)}
-                        leader={Boolean(
-                          ranking?.leadersDiffer &&
-                          isPartitionLeader &&
-                          kRef !== undefined &&
-                          Number(k) === kRef,
-                        )}
-                        leaderLabel={t('clustering.leaderPartition')}
-                      />
-                    ))}
-
-                    {sortedCuts(linkageResult.evaluation.daviesBouldin).map(([k, value]) => (
-                      <MetricTile
-                        key={`db-${k}`}
-                        label={t('clustering.metrics.daviesBouldinAtK', { k })}
-                        value={
-                          value === null
-                            ? t('clustering.metrics.undefinedValue')
-                            : formatMetricValue(value)
-                        }
-                      />
-                    ))}
-                  </div>
-
-                  <div
-                    className="mt-3"
-                    data-testid={`linkage-dendrogram-${linkageResult.linkageId}`}
-                  >
-                    <Dendrogram
-                      rows={linkageResult.rows}
-                      leafOrder={linkageResult.leafOrder}
-                      ariaLabel={t('clustering.dendrogram.ariaLabel', {
-                        linkage: linkageResult.linkageDisplayName,
-                      })}
-                      leafLabels={leafLabelsFromDocumentIds(
+      {clusteringQuery.data && (
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+          {clusteringQuery.data.map((linkageResult) => (
+            <DendrogramCard
+              key={linkageResult.linkageId}
+              linkageId={linkageResult.linkageId}
+              linkageDisplayName={linkageResult.linkageDisplayName}
+              rows={linkageResult.rows}
+              leafOrder={linkageResult.leafOrder}
+              leafLabels={leafLabelsFromDocumentIds(linkageResult.documentIds, corpusTitleById)}
+              cut={
+                activeCutResult?.linkageId === linkageResult.linkageId
+                  ? {
+                      // Derived here, not stored on `cutResult`: it depends
+                      // on whichever `rows` are currently loaded for this
+                      // exact linkage, and it must never throw a successful
+                      // cut into an error state — a distance that can't be
+                      // resolved just means no dashed line, the labels below
+                      // still render (`tryComputeCutDistance`).
+                      distance: tryComputeCutDistance(linkageResult.rows, activeCutResult.k),
+                      // Joined by document id (`cutLabels.ts`), never by
+                      // array position: the cut response's own `documentIds`
+                      // need not share positions with this linkage's own
+                      // `documentIds`.
+                      labels: resolveCutLabelsForLinkage(
+                        activeCutResult,
                         linkageResult.documentIds,
-                        corpusTitleById,
-                      )}
-                      cut={
-                        activeCutResult?.linkageId === linkageResult.linkageId
-                          ? {
-                              // Derived here, not stored on `cutResult`: it
-                              // depends on whichever `rows` are currently
-                              // loaded for this exact linkage, and it must
-                              // never throw a successful cut into an error
-                              // state — a distance that can't be resolved
-                              // just means no dashed line, the labels below
-                              // still render (`tryComputeCutDistance`).
-                              distance: tryComputeCutDistance(
-                                linkageResult.rows,
-                                activeCutResult.k,
-                              ),
-                              // Joined by document id (`cutLabels.ts`), never
-                              // by array position: the cut response's own
-                              // `documentIds` need not share positions with
-                              // this linkage's own `documentIds`.
-                              labels: resolveCutLabelsForLinkage(
-                                activeCutResult,
-                                linkageResult.documentIds,
-                              ),
-                            }
-                          : undefined
-                      }
-                    />
-                  </div>
-                </Panel>
-              </div>
-            );
-          })}
-
-          {ranking ? (
-            ranking.copheneticTieSet.length > 1 && (
-              <p className="text-body text-ink-secondary">
-                {t('clustering.tieSet', { linkages: ranking.copheneticTieSet.join(', ') })}
-              </p>
-            )
-          ) : (
-            <p className="text-body text-ink-secondary">
-              {t('clustering.leadersRequireAllLinkages')}
-            </p>
-          )}
+                      ),
+                    }
+                  : undefined
+              }
+            />
+          ))}
         </div>
-      )}
-
-      {sampleSize !== undefined && (
-        <p className="text-body text-ink-muted">
-          {t('clustering.sampleSizeCaveat', { representation, count: sampleSize })}
-        </p>
-      )}
-
-      {clusteringQuery.data && sampleSize !== undefined && (
-        <Panel>
-          <PanelHeader title={t('clustering.cutForm.title')} />
-          <CutForm
-            // Remounts (resetting react-hook-form's own default value) when
-            // the set of available linkages actually changes, so a stale
-            // default never lingers after the user deselects one.
-            key={clusteringQuery.data.map((result) => result.linkageId).join(',')}
-            linkages={clusteringQuery.data.map((result) => ({
-              id: result.linkageId,
-              displayName: result.linkageDisplayName,
-            }))}
-            n={sampleSize}
-            defaultLinkage={clusteringQuery.data[0]!.linkageId}
-            onSubmit={handleCutSubmit}
-            isPending={cutMutation.isPending}
-            error={activeCutError}
-          />
-        </Panel>
       )}
     </div>
   );

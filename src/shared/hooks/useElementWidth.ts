@@ -3,8 +3,8 @@ import { useEffect, useRef, useState } from 'react';
 /**
  * Tracks one element's own measured content width via `ResizeObserver`, for
  * a component that must fill a responsive container instead of rendering at
- * a fixed pixel width (DESIGN.md §6.4.3's dendrogram grid: "each card's
- * dendrogram fills the card width ... there is no fixed pixel width").
+ * a fixed pixel width (the clustering dendrogram grid: each card's own
+ * dendrogram fills that card's width, with no fixed pixel width).
  *
  * Returns `initialWidth` until the observer's first callback ever fires.
  * jsdom has no real layout engine, so `src/test/setup.ts` installs a no-op

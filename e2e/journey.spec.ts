@@ -280,8 +280,15 @@ test.describe('end-to-end journey', () => {
     await expect(page.getByRole('heading', { name: 'Ward' })).toBeVisible();
     await expect(page.getByRole('img', { name: 'Dendrograma de Ward' })).toBeVisible();
 
-    const wardPanel = page.getByTestId('linkage-panel-ward');
-    await expect(wardPanel.getByText(/Davies–Bouldin/).first()).toBeVisible();
+    // "Davies–Bouldin" is now the metrics comparison table's own column
+    // header (ClusteringMetricsTable), not a per-linkage panel label.
+    await expect(
+      page
+        .getByRole('table')
+        .getByText(/Davies–Bouldin/)
+        .first(),
+    ).toBeVisible();
+    await expect(page.getByTestId('metrics-row-ward')).toBeVisible();
     await assertNoAxeViolations(page);
 
     // Step 2: apply a free cut on Ward at k=3 and confirm the dashed cut line is drawn on its dendrogram.

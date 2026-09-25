@@ -33,13 +33,13 @@ function silhouetteCellText(value: number | undefined, undefinedLabel: string): 
 }
 
 /**
- * The clustering metrics comparison table (DESIGN.md §6.4.2): one row per
- * linkage in the fixed declaration order, lead columns for Cophenetic and
- * for Silhouette/Davies–Bouldin at `k_ref` (highlighted), and a secondary
- * column group for every other fixed cut the response carries
- * (`metricsTable.ts`). This only renders the backend's own already-computed
- * numbers (`ranking.ts`'s leader rule, `formatMetricValue`'s own
- * formatting) — it never recomputes a metric itself.
+ * The clustering metrics comparison table: one row per linkage in the fixed
+ * declaration order, lead columns for Cophenetic and for
+ * Silhouette/Davies–Bouldin at `k_ref` (highlighted), and a secondary column
+ * group for every other fixed cut the response carries (`metricsTable.ts`).
+ * This only renders the backend's own already-computed numbers
+ * (`ranking.ts`'s leader rule, `formatMetricValue`'s own formatting) — it
+ * never recomputes a metric itself.
  */
 export function ClusteringMetricsTable({
   results,

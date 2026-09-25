@@ -119,6 +119,49 @@ beforeEach(() => {
 });
 
 describe('ClusteringPage', () => {
+  // These three assertions (control bar card, dendrogram grid, cut-unavailable
+  // placeholder) were written after the layout wiring above rather than
+  // before it; disclosed here rather than claiming an observed RED that
+  // never happened, the same disclosure this file's own history already
+  // uses for its URL-state assertions.
+  it('keeps the representation, linkage selection and free cut together in one control bar card', async () => {
+    vi.spyOn(corpusApi, 'fetchCorpus').mockResolvedValue(CORPUS);
+    vi.spyOn(clusteringApi, 'runClustering').mockResolvedValue(DEFAULT_RESPONSE);
+
+    renderPage();
+
+    const representationGroup = screen.getByRole('radiogroup', { name: 'Representación' });
+    const linkageGroup = screen.getByRole('group', { name: 'Selección de enlaces' });
+    const cutGroup = await screen.findByRole('radiogroup', { name: 'Enlace a cortar' });
+
+    const card = representationGroup.closest('section');
+    expect(card).not.toBeNull();
+    expect(card as HTMLElement).toContainElement(linkageGroup);
+    expect(card as HTMLElement).toContainElement(cutGroup);
+  });
+
+  it('lays the dendrogram cards out in a grid that goes to two columns from lg', async () => {
+    vi.spyOn(corpusApi, 'fetchCorpus').mockResolvedValue(CORPUS);
+    vi.spyOn(clusteringApi, 'runClustering').mockResolvedValue(DEFAULT_RESPONSE);
+
+    renderPage();
+
+    const dendrogramCard = await screen.findByTestId('linkage-dendrogram-single');
+    expect(dendrogramCard.parentElement).toHaveClass('grid', 'grid-cols-1', 'lg:grid-cols-2');
+  });
+
+  it('shows the cut-unavailable placeholder before the clustering response resolves, never an empty gap', () => {
+    vi.spyOn(corpusApi, 'fetchCorpus').mockResolvedValue(CORPUS);
+    vi.spyOn(clusteringApi, 'runClustering').mockImplementation(() => new Promise(() => {}));
+
+    renderPage();
+
+    expect(
+      screen.getByText('El corte estará disponible cuando termine de cargar el agrupamiento.'),
+    ).toBeInTheDocument();
+    expect(screen.queryByRole('radiogroup', { name: 'Enlace a cortar' })).not.toBeInTheDocument();
+  });
+
   it('requests tfidf-cosine and all four linkages by default', async () => {
     vi.spyOn(corpusApi, 'fetchCorpus').mockResolvedValue(CORPUS);
     vi.spyOn(clusteringApi, 'runClustering').mockResolvedValue(DEFAULT_RESPONSE);
@@ -181,11 +224,11 @@ describe('ClusteringPage', () => {
 
     renderPage();
 
-    const singlePanel = await screen.findByTestId('linkage-panel-single');
-    expect(within(singlePanel).getByText('Árbol')).toBeInTheDocument();
+    const singleRow = await screen.findByTestId('metrics-row-single');
+    expect(within(singleRow).getByText('Árbol')).toBeInTheDocument();
 
-    const completePanel = screen.getByTestId('linkage-panel-complete');
-    expect(within(completePanel).getByText('Partición')).toBeInTheDocument();
+    const completeRow = screen.getByTestId('metrics-row-complete');
+    expect(within(completeRow).getByText('Partición')).toBeInTheDocument();
 
     expect(screen.getByText(/n = 6/)).toBeInTheDocument();
   });
@@ -196,8 +239,8 @@ describe('ClusteringPage', () => {
 
     renderPage();
 
-    const wardPanel = await screen.findByTestId('linkage-panel-ward');
-    expect(within(wardPanel).getByText('no definido')).toBeInTheDocument();
+    const wardRow = await screen.findByTestId('metrics-row-ward');
+    expect(within(wardRow).getByText('no definido')).toBeInTheDocument();
   });
 
   it('marks the cophenetic tie set when its size is greater than one', async () => {
@@ -341,11 +384,11 @@ describe('ClusteringPage', () => {
 
     renderPage();
 
-    const completePanel = await screen.findByTestId('linkage-panel-complete');
-    expect(within(completePanel).getByText('Árbol')).toBeInTheDocument();
+    const completeRow = await screen.findByTestId('metrics-row-complete');
+    expect(within(completeRow).getByText('Árbol')).toBeInTheDocument();
 
-    const singlePanel = screen.getByTestId('linkage-panel-single');
-    expect(within(singlePanel).getByText('Partición')).toBeInTheDocument();
+    const singleRow = screen.getByTestId('metrics-row-single');
+    expect(within(singleRow).getByText('Partición')).toBeInTheDocument();
 
     expect(screen.getByText(/n = 4/)).toBeInTheDocument();
   });
@@ -361,7 +404,7 @@ describe('ClusteringPage', () => {
 
     renderPage();
 
-    await screen.findByTestId('linkage-panel-single');
+    await screen.findByTestId('linkage-dendrogram-single');
     expect(
       screen.getByText('Los líderes se muestran cuando se comparan los cuatro enlaces.'),
     ).toBeInTheDocument();
