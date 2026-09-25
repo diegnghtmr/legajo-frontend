@@ -6,6 +6,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import * as corpusApi from '../../infrastructure/api/corpus';
 import * as embeddingsApi from '../../infrastructure/api/embeddings';
+import es from '../../infrastructure/i18n/locales/es.json';
 import { useSelectionStore } from './selectionStore';
 import { embeddingsSummaryState, SelectionRail } from './SelectionRail';
 
@@ -113,7 +114,12 @@ describe('SelectionRail', () => {
 
     await user.type(screen.getByRole('searchbox', { name: /buscar/i }), 'clustering');
 
-    expect(screen.queryByText('A survey of string similarity')).not.toBeInTheDocument();
+    // Same role+name query the positive assertions below use — a text
+    // query would still report "not found" if the filter branch broke and
+    // left the row's accessible name mangled instead of actually hiding it.
+    expect(
+      screen.queryByRole('checkbox', { name: 'A survey of string similarity' }),
+    ).not.toBeInTheDocument();
     expect(
       screen.getByRole('checkbox', { name: 'Clustering theory refresher' }),
     ).toBeInTheDocument();
@@ -128,7 +134,9 @@ describe('SelectionRail', () => {
     await screen.findByRole('checkbox', { name: 'A survey of string similarity' });
     await user.type(screen.getByRole('searchbox', { name: /buscar/i }), 'DOC-03');
 
-    expect(screen.queryByText('A survey of string similarity')).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole('checkbox', { name: 'A survey of string similarity' }),
+    ).not.toBeInTheDocument();
     expect(
       screen.getByRole('checkbox', { name: 'Clustering theory refresher' }),
     ).toBeInTheDocument();
@@ -141,7 +149,9 @@ describe('SelectionRail', () => {
     await screen.findByRole('checkbox', { name: 'A survey of string similarity' });
     await user.type(screen.getByRole('searchbox', { name: /buscar/i }), 'three');
 
-    expect(screen.queryByText('A survey of string similarity')).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole('checkbox', { name: 'A survey of string similarity' }),
+    ).not.toBeInTheDocument();
     expect(
       screen.getByRole('checkbox', { name: 'Embeddings for scientific text' }),
     ).toBeInTheDocument();
@@ -300,7 +310,7 @@ describe('SelectionRail', () => {
       expect(embeddingsSummaryState(undefined)).toBe('unknown');
     });
 
-    it('contains an embeddings-status failure to its own summary — the article list still renders, with at most one alert', async () => {
+    it('contains an embeddings-status failure to its own summary — the article list still renders, without raising an alert', async () => {
       vi.spyOn(embeddingsApi, 'fetchEmbeddingsStatus').mockRejectedValue({
         kind: 'network',
         cause: 'timeout',
@@ -309,8 +319,13 @@ describe('SelectionRail', () => {
 
       renderRail();
 
-      const row = await screen.findByRole('button', { name: 'Ver el estado de los embeddings' });
-      await expect.poll(() => row.textContent).toContain('Error');
+      // Re-query the row on every poll instead of asserting on one node
+      // captured up front, and assert the exact localized value the
+      // component renders through `t('corpus.rail.embeddings.errorValue')`
+      // — not a hand-typed guess at the copy.
+      await expect
+        .poll(() => screen.getByRole('button', { name: 'Ver el estado de los embeddings' }))
+        .toHaveTextContent(es.corpus.rail.embeddings.errorValue);
 
       expect(
         await screen.findByRole('button', { name: 'A survey of string similarity' }),
