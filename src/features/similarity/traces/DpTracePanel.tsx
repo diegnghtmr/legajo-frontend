@@ -1,9 +1,9 @@
-import { useId } from 'react';
+import { forwardRef, useId } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import type { DpMatrixTrace } from '../../../infrastructure/schemas/similarity';
 import type { AlgoFamily } from '../../../shared/family';
-import { DpMatrix } from '../../../shared/components/DpMatrix';
+import { DpMatrix, type DpMatrixHandle } from '../../../shared/components/DpMatrix';
 import {
   Table,
   TableBody,
@@ -34,6 +34,15 @@ export interface DpTracePanelProps {
    * showing a placeholder value.
    */
   family?: AlgoFamily;
+  /** Set by the trace detail panel, whose own header already renders the
+   * generic Familia/raw-value/score/optimal-path meta row (§6.3) — this
+   * component's own `Familia`/`Camino óptimo` `dl` would otherwise duplicate
+   * it. The standalone full trace view leaves this unset and keeps showing
+   * its own meta row exactly as before. */
+  hideOwnMetaRow?: boolean;
+  /** Set by the trace detail panel, whose own pinned footer renders the CSV
+   * action instead (triggered through the forwarded `DpMatrixHandle`). */
+  hideDownloadButton?: boolean;
 }
 
 /**
@@ -44,8 +53,16 @@ export interface DpTracePanelProps {
  * its optimal path (`DpMatrix`), the algorithm-specific operation legend and
  * the full ordered operations sequence — both required for auditability —
  * plus one KaTeX recurrence caption per algorithm family.
+ *
+ * Forwards a `DpMatrixHandle` (`downloadCsv`) straight from its own
+ * `DpMatrix`, so a caller that hides this panel's download button
+ * (`hideDownloadButton`) can still trigger the identical export from its own
+ * pinned footer.
  */
-export function DpTracePanel({ trace, family }: DpTracePanelProps) {
+export const DpTracePanel = forwardRef<DpMatrixHandle, DpTracePanelProps>(function DpTracePanel(
+  { trace, family, hideOwnMetaRow = false, hideDownloadButton = false }: DpTracePanelProps,
+  matrixRef,
+) {
   const { t } = useTranslation();
   const legendHeadingId = useId();
   const legend = DP_OPERATION_LEGEND[trace.algorithmId];
@@ -60,7 +77,7 @@ export function DpTracePanel({ trace, family }: DpTracePanelProps) {
 
   return (
     <div className="flex flex-col gap-4">
-      {familyLabel !== undefined && optimalPathCost !== undefined && (
+      {!hideOwnMetaRow && familyLabel !== undefined && optimalPathCost !== undefined && (
         <dl className="flex flex-wrap gap-x-8 gap-y-2">
           <div>
             <dt className="text-eyebrow font-semibold uppercase tracking-wide text-ink-secondary">
@@ -85,6 +102,7 @@ export function DpTracePanel({ trace, family }: DpTracePanelProps) {
       )}
 
       <DpMatrix
+        ref={matrixRef}
         rowLabels={trace.rowLabels}
         columnLabels={trace.columnLabels}
         matrix={trace.matrix}
@@ -93,6 +111,7 @@ export function DpTracePanel({ trace, family }: DpTracePanelProps) {
         downloadLabel={t('similarity.trace.dp.downloadCsv')}
         downloadFileName={`${trace.algorithmId}-matrix.csv`}
         pathCellLabel={t('similarity.trace.dp.pathCellSuffix')}
+        showDownloadButton={!hideDownloadButton}
       />
 
       <div>
@@ -162,4 +181,4 @@ export function DpTracePanel({ trace, family }: DpTracePanelProps) {
       />
     </div>
   );
-}
+});
