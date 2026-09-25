@@ -12,9 +12,10 @@ import {
   type ListSimilarityAlgorithmsResponse,
 } from '../../infrastructure/api/similarity';
 import { AlgorithmIdSchema, type AlgorithmId } from '../../infrastructure/schemas/similarity';
-import { PanelHeader } from '../../shared/components/Panel';
+import { Panel, PanelHeader } from '../../shared/components/Panel';
 import { AlgoTextList } from '../../shared/components/AlgoTextList';
 import { SegmentedControl, type SegmentedOption } from '../../shared/components/SegmentedControl';
+import { buttonVariants } from '../../shared/components/ui/button';
 import { useSelectionStore } from '../corpus/selectionStore';
 import { algoFamilyFromKind } from './algorithmFamily';
 import { CompareTable } from './CompareTable';
@@ -105,23 +106,21 @@ export function SimilarityPage() {
     return (
       <div className="flex flex-col gap-4">
         <PanelHeader eyebrow={t('similarity.eyebrow')} title={t('similarity.title')} />
-        <p role="status" className="text-body text-ink-secondary">
-          {t('similarity.selection.wrongCount', { count: selectedArticleIds.length })}
-        </p>
-        <Link
-          to="/corpus"
-          className="text-body font-semibold text-ink underline-offset-2 hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus"
-        >
-          {t('similarity.selection.backToCorpus')}
-        </Link>
-        {canMatrix && (
-          <Link
-            to="/similarity/matrix"
-            className="text-body font-semibold text-ink underline-offset-2 hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus"
-          >
-            {t('similarity.selection.viewMatrix')}
-          </Link>
-        )}
+        <Panel>
+          <p role="status" className="text-body text-ink-secondary">
+            {t('similarity.selection.wrongCount', { count: selectedArticleIds.length })}
+          </p>
+          <div className="mt-3 flex flex-wrap gap-3">
+            <Link to="/corpus" className={buttonVariants({ variant: 'primary' })}>
+              {t('similarity.selection.backToCorpus')}
+            </Link>
+            {canMatrix && (
+              <Link to="/similarity/matrix" className={buttonVariants({ variant: 'secondary' })}>
+                {t('similarity.selection.viewMatrix')}
+              </Link>
+            )}
+          </div>
+        </Panel>
       </div>
     );
   }

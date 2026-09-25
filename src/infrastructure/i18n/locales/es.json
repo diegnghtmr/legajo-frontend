@@ -220,6 +220,7 @@
       "ariaLabel": "Dendrograma de {{linkage}}",
       "malformed": "No se pudo dibujar el dendrograma de este enlace.",
       "clusterLabel": "Clúster {{id}}",
+      "clusterLegend": "Números de clúster (k = {{k}}) debajo de cada hoja",
       "mergeTableCaption": "Orden de fusión del dendrograma de {{linkage}}",
       "mergeTableStep": "Paso",
       "mergeTableLeft": "Miembro A",
