@@ -60,7 +60,7 @@ test.describe('clustering (full stack, Flow B)', () => {
     // PREVIOUS cut's labels while the rest already show the new ones,
     // producing a "partition" that never existed in any single paint.
     // `evaluateAll` runs entirely inside the page in one synchronous pass
-    // over the current DOM, so every leaf's label reflects the exact same
+    // over the current DOM, so every leaf's marker reflects the exact same
     // render.
     async function readPartition(): Promise<number[]> {
       const leaves = wardDendrogram.locator('[data-leaf-id]');
@@ -72,19 +72,19 @@ test.describe('clustering (full stack, Flow B)', () => {
       type LabelledNode = { querySelectorAll(selectors: string): { textContent: string | null }[] };
       const labels = await leaves.evaluateAll((elements) =>
         (elements as LabelledNode[]).map((element) => {
-          const texts = Array.from(element.querySelectorAll('text')).map(
-            (node) => node.textContent?.trim() ?? '',
-          );
-          // Exactly one cluster label per leaf — not zero (unassigned) and
-          // not two (e.g. a stale label left over from a previous cut).
-          const matches = texts.filter((text) => /^Clúster \d+$/.test(text));
-          return matches.length === 1 ? matches[0] : null;
+          // Each leaf shows its cluster as a compact numeric marker. Exactly
+          // one marker per leaf — not zero (unassigned) and not two (e.g. a
+          // stale marker left over from a previous cut).
+          const markers = Array.from(
+            element.querySelectorAll('[data-testid="cluster-marker"]'),
+          ).map((node) => node.textContent?.trim() ?? '');
+          return markers.length === 1 && /^\d+$/.test(markers[0]) ? markers[0] : null;
         }),
       );
       if (labels.length === 0 || labels.some((label) => label === null)) {
         return []; // not settled yet; the caller's poll retries.
       }
-      return labels.map((label) => Number((label as string).replace(/\D/g, '')));
+      return labels.map((label) => Number(label));
     }
 
     async function applyCutAndReadPartition(k: number): Promise<number[]> {
@@ -93,8 +93,8 @@ test.describe('clustering (full stack, Flow B)', () => {
       await expect(wardDendrogram.getByTestId('dendrogram-cut-line')).toBeAttached();
 
       // The cut line being attached proves a NEW cut was drawn, but not that
-      // every leaf's own cluster-label text has re-rendered for it yet:
-      // React can commit the cut line and the per-leaf labels in separate
+      // every leaf's own cluster marker has re-rendered for it yet:
+      // React can commit the cut line and the per-leaf markers in separate
       // paints, so reading the labels immediately after could still observe
       // the PREVIOUS cut's assignment for some leaves. Poll until the
       // partition reflects exactly k distinct clusters over all 20 leaves
