@@ -29,7 +29,10 @@ export interface AlgoTextRadioGroupProps {
  * Arrow-key/Home/End move focus AND select (a native radio group's
  * contract), mirroring `SegmentedControl`'s own capture-phase keydown
  * handling: entering the group by Tab, or a plain programmatic `.focus()`,
- * never selects anything by itself.
+ * never selects anything by itself. Right/Down move forward and Left/Up move
+ * backward, both wrapping at the ends, per the WAI-ARIA radio group pattern
+ * (this list lays out horizontally, but Up/Down are still handled the same
+ * as Left/Right — the pattern does not condition them on orientation).
  */
 export function AlgoTextRadioGroup({
   options,
@@ -51,11 +54,13 @@ export function AlgoTextRadioGroup({
 
     switch (event.key) {
       case 'ArrowRight':
+      case 'ArrowDown':
         event.preventDefault();
         event.stopPropagation();
         moveTo((currentIndex + 1) % options.length);
         break;
       case 'ArrowLeft':
+      case 'ArrowUp':
         event.preventDefault();
         event.stopPropagation();
         moveTo((currentIndex - 1 + options.length) % options.length);

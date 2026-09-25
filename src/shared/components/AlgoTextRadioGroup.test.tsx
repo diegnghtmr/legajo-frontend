@@ -100,6 +100,36 @@ describe('AlgoTextRadioGroup', () => {
     expect(screen.getByRole('radio', { name: 'embedding-api' })).toHaveFocus();
   });
 
+  it('moves selection forward with ArrowDown, wrapping past the last option (WAI-ARIA radio group: Down behaves like Right)', async () => {
+    const user = userEvent.setup();
+    const onChange = vi.fn();
+    render(<ControlledGroup onChange={onChange} />);
+
+    screen.getByRole('radio', { name: 'levenshtein' }).focus();
+    await user.keyboard('{ArrowDown}');
+    expect(onChange).toHaveBeenLastCalledWith('jaccard');
+    expect(screen.getByRole('radio', { name: 'jaccard' })).toHaveFocus();
+
+    await user.keyboard('{ArrowDown}');
+    expect(onChange).toHaveBeenLastCalledWith('embedding-api');
+
+    await user.keyboard('{ArrowDown}');
+    expect(onChange).toHaveBeenLastCalledWith('levenshtein');
+    expect(screen.getByRole('radio', { name: 'levenshtein' })).toHaveFocus();
+  });
+
+  it('moves selection backward with ArrowUp, wrapping before the first option (WAI-ARIA radio group: Up behaves like Left)', async () => {
+    const user = userEvent.setup();
+    const onChange = vi.fn();
+    render(<ControlledGroup onChange={onChange} />);
+
+    screen.getByRole('radio', { name: 'levenshtein' }).focus();
+    await user.keyboard('{ArrowUp}');
+
+    expect(onChange).toHaveBeenLastCalledWith('embedding-api');
+    expect(screen.getByRole('radio', { name: 'embedding-api' })).toHaveFocus();
+  });
+
   it('jumps to the first option on Home and the last option on End', async () => {
     const user = userEvent.setup();
     const onChange = vi.fn();
