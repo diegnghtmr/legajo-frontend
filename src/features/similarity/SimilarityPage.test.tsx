@@ -383,6 +383,39 @@ describe('SimilarityPage — the trace deep link route', () => {
     expect(similarityApi.compareSimilarity).not.toHaveBeenCalled();
   });
 
+  it('follows the rail once it names a different, valid pair, instead of keeping the stale deep-linked comparison', async () => {
+    renderAtRoute('/similarity/levenshtein/trace?documentIdA=doc-01&documentIdB=doc-02');
+
+    expect(await screen.findAllByRole('row')).toHaveLength(7);
+    await waitFor(() =>
+      expect(similarityApi.compareSimilarity).toHaveBeenLastCalledWith({
+        documentIdA: 'doc-01',
+        documentIdB: 'doc-02',
+        algorithmIds: [...ALL_SIX_IDS],
+      }),
+    );
+
+    // Picking an entirely different pair in the rail while the deep link is
+    // still open — the comparison must follow the rail, not keep showing
+    // the pair the link named.
+    act(() => {
+      useSelectionStore.setState({
+        selectedIds: ['doc-03', 'doc-04'],
+        canCompare: true,
+        canMatrix: false,
+      });
+    });
+
+    expect(await screen.findByText('Comparando doc-03 × doc-04')).toBeInTheDocument();
+    await waitFor(() =>
+      expect(similarityApi.compareSimilarity).toHaveBeenLastCalledWith({
+        documentIdA: 'doc-03',
+        documentIdB: 'doc-04',
+        algorithmIds: [...ALL_SIX_IDS],
+      }),
+    );
+  });
+
   it("opens a row's trace by navigating to its deep link, preserving the family filter and algorithm selection already in the URL", async () => {
     useSelectionStore.setState({
       selectedIds: ['doc-01', 'doc-02'],

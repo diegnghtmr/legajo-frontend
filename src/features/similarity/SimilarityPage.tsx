@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useEffect, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router';
@@ -60,14 +60,24 @@ function parseAlgorithmIds(raw: string | null): AlgorithmId[] {
  * `[a, b]` tuple, and only the latter is ever passed down to
  * `SimilarityCompareView`, which is the only place a compare query gets
  * created — there is no blank-id fallback to guard.
+ *
+ * The rail always wins once it names a real, different pair from the one a
+ * trace deep link supplied: the link only drives the compared pair while
+ * nothing else names one, or while the rail still agrees with it, never
+ * after the person has since picked a different pair in the rail. That
+ * switch also leaves the trace route entirely (back to plain `/similarity`,
+ * with this same rail pair carried into the URL) instead of leaving a now
+ *-mismatched trace open next to a different comparison.
  */
 export function SimilarityPage() {
   const { t } = useTranslation();
   const { algorithmId: traceAlgorithmId } = useParams<{ algorithmId?: string }>();
   const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
   const selectedArticleIds = useSelectionStore((state) => state.selectedIds);
   const canMatrix = useSelectionStore((state) => state.canMatrix);
 
+  const isTraceRoute = traceAlgorithmId !== undefined;
   const urlDocumentIdA = searchParams.get('documentIdA');
   const urlDocumentIdB = searchParams.get('documentIdB');
   // Normalized the same way the rail's own pair is (`sortedPair`), so a
@@ -78,13 +88,32 @@ export function SimilarityPage() {
   // itself reject that shape — both its inputs are already known-distinct
   // ids everywhere else it's called).
   const urlPair: readonly [string, string] | null =
-    traceAlgorithmId !== undefined &&
-    urlDocumentIdA &&
-    urlDocumentIdB &&
-    urlDocumentIdA !== urlDocumentIdB
+    isTraceRoute && urlDocumentIdA && urlDocumentIdB && urlDocumentIdA !== urlDocumentIdB
       ? sortedPair([urlDocumentIdA, urlDocumentIdB])
       : null;
-  const pair = urlPair ?? sortedPair(selectedArticleIds);
+  const railPair = sortedPair(selectedArticleIds);
+  const pair = railPair ?? urlPair;
+
+  // The deep link's own pair is stale once the rail names a different, real
+  // one — leave the trace route and drop its now-mismatched document ids,
+  // carrying this same rail pair into the plain `/similarity` URL instead.
+  const staleTracePair =
+    isTraceRoute &&
+    railPair !== null &&
+    urlPair !== null &&
+    (railPair[0] !== urlPair[0] || railPair[1] !== urlPair[1]);
+
+  useEffect(() => {
+    if (!staleTracePair) {
+      return;
+    }
+    const nextParams = new URLSearchParams(searchParams);
+    nextParams.delete('documentIdA');
+    nextParams.delete('documentIdB');
+    const search = nextParams.toString();
+    navigate(`/similarity${search ? `?${search}` : ''}`, { replace: true });
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- re-running this for every render `staleTracePair` stays true is harmless (the navigate below leaves the trace route on its very next commit, which flips the condition false); listing `searchParams`/`navigate` here would only make it re-run for reasons that never change what it does.
+  }, [staleTracePair]);
 
   if (pair === null) {
     return (
