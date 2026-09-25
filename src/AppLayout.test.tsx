@@ -293,6 +293,28 @@ describe('AppLayout', () => {
       expect(hasClassToken(screen.getByRole('navigation'), 'hidden')).toBe(true);
     });
 
+    it('closes and returns focus to the menu button on an outside click that lands on plain routed content', async () => {
+      const user = userEvent.setup();
+      renderLayout('/similarity');
+
+      await user.click(screen.getByRole('button', { name: 'Abrir navegación' }));
+      expect(screen.getByRole('link', { name: 'Similitud' })).toHaveFocus();
+
+      // The routed page content sits inside `<main tabIndex={-1}>` — a
+      // click on its own plain text (never itself interactive) must still
+      // be treated as an outside click on a non-focusable target, not as a
+      // click on `main` itself just because `main` is the nearest ancestor
+      // carrying a `tabindex` attribute.
+      await user.click(screen.getByText('similarity page'));
+
+      expect(screen.getByRole('button', { name: 'Abrir navegación' })).toHaveAttribute(
+        'aria-expanded',
+        'false',
+      );
+      expect(hasClassToken(screen.getByRole('navigation'), 'hidden')).toBe(true);
+      expect(screen.getByRole('button', { name: 'Abrir navegación' })).toHaveFocus();
+    });
+
     it('lets an outside click on a child of a focusable control focus that control', async () => {
       const user = userEvent.setup();
       render(

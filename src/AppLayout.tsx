@@ -63,17 +63,22 @@ const PRIMARY_NAV_ID = 'primary-nav';
  * browser's own default `mousedown` action would move focus onto that
  * control (or, for a link, activate it) once nothing prevents that default
  * action. A click on a control's label text or icon lands on a child node,
- * so the check walks up to the nearest focusable ancestor. Used to decide,
- * for an outside click that closes the mobile nav, whether that click's own
- * control should keep the focus it is about to receive, instead of the
- * panel's close handler yanking focus back to its toggle button. */
+ * so the check walks up to the nearest focusable ancestor. A bare
+ * `[tabindex]` excludes `tabindex="-1"`: that value marks a container that
+ * is only ever focused programmatically (such as this shell's own `<main>`,
+ * the skip link's target) and never by a plain click on its content, so
+ * every routed page's own text would otherwise register as "focusable" for
+ * simply living inside it. Used to decide, for an outside click that closes
+ * the mobile nav, whether that click's own control should keep the focus it
+ * is about to receive, instead of the panel's close handler yanking focus
+ * back to its toggle button. */
 function isFocusableElement(node: Node): boolean {
   if (!(node instanceof Element)) {
     return false;
   }
   return (
     node.closest(
-      'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]',
+      'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [contenteditable], summary, label, [tabindex]:not([tabindex="-1"])',
     ) !== null
   );
 }
