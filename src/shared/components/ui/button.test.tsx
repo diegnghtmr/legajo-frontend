@@ -94,4 +94,37 @@ describe('Button', () => {
     expect(button.className).toContain('motion-safe:transition-colors');
     expect(button.className).not.toMatch(/(?<!motion-safe:)\btransition-colors\b/);
   });
+
+  it('renders the mono algorithm-pick variant with no button chrome, unlike primary/secondary', () => {
+    render(<Button variant="mono">levenshtein</Button>);
+
+    const button = screen.getByRole('button', { name: 'levenshtein' });
+    expect(button.className).toContain('font-mono');
+    expect(button.className).toContain('border-transparent');
+    expect(button.className).not.toContain('bg-primary');
+    expect(button.className).not.toContain('bg-paper-raised');
+  });
+
+  it('widens the mono variant to a 44px tap target on coarse pointers via an invisible pseudo-element, not by resizing the visible text', () => {
+    render(<Button variant="mono">levenshtein</Button>);
+
+    const button = screen.getByRole('button', { name: 'levenshtein' });
+    expect(button.className).toContain('relative');
+    expect(button.className).toContain("pointer-coarse:before:content-['']");
+    expect(button.className).toContain('pointer-coarse:before:inset-[-10px]');
+  });
+
+  it('lets a caller mark the mono variant active with an ink bottom border and ink text, overriding the inactive defaults', () => {
+    render(
+      <Button variant="mono" className="border-ink text-ink">
+        embedding-local
+      </Button>,
+    );
+
+    const button = screen.getByRole('button', { name: 'embedding-local' });
+    expect(button.className).toContain('border-ink');
+    expect(button.className).toContain('text-ink');
+    expect(button.className).not.toContain('border-transparent');
+    expect(button.className).not.toContain('text-ink-secondary');
+  });
 });

@@ -1,7 +1,6 @@
-import type { KeyboardEvent, ReactNode } from 'react';
-import { useRef } from 'react';
+import type { ReactNode } from 'react';
 
-import { cn } from '../lib/cn';
+import { ToggleGroup, ToggleGroupItem } from './ui/toggle-group';
 
 export interface SegmentedOption<TValue extends string> {
   value: TValue;
@@ -23,9 +22,16 @@ export interface SegmentedControlProps<TValue extends string> {
 }
 
 /**
- * Pattern B family/representation switch: a
- * `radiogroup` track of `radio` options with roving tabindex and
- * ArrowLeft/ArrowRight/Home/End navigation, wrapping at the ends.
+ * Pattern B family/representation switch, the shadcn/Radix `ToggleGroup`
+ * (`type="single"`) restyled: the radiogroup/radio markup, roving tabindex
+ * and Home/End/Arrow-key focus movement all come from Radix. Radix's own
+ * keyboard model only moves focus on arrow keys — unlike a native
+ * `<input type="radio">` group, it does not also select the newly focused
+ * item — so each option selects itself on focus, mirroring the native
+ * radiogroup "select follows focus" behavior that both arrow-key navigation
+ * and click rely on. `onValueChange` still ignores an empty `next` (Radix
+ * reports it when the pressed item is clicked again), so the group always
+ * keeps exactly one option selected, as a radiogroup requires.
  */
 export function SegmentedControl<TValue extends string>({
   options,
@@ -34,77 +40,28 @@ export function SegmentedControl<TValue extends string>({
   'aria-label': ariaLabel,
   'aria-labelledby': ariaLabelledBy,
 }: SegmentedControlProps<TValue>) {
-  const optionRefs = useRef<Array<HTMLButtonElement | null>>([]);
-
-  const selectByIndex = (index: number) => {
-    const option = options[index];
-    if (!option) return;
-    onChange(option.value);
-    optionRefs.current[index]?.focus();
-  };
-
-  // With no matching value the first option stands in, so the group stays reachable and
-  // operable by keyboard (WAI-ARIA radiogroup pattern).
-  const matchedIndex = options.findIndex((option) => option.value === value);
-  const focusIndex = matchedIndex === -1 ? 0 : matchedIndex;
-
-  const handleKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
-    const currentIndex = focusIndex;
-
-    switch (event.key) {
-      case 'ArrowRight':
-        event.preventDefault();
-        selectByIndex((currentIndex + 1) % options.length);
-        break;
-      case 'ArrowLeft':
-        event.preventDefault();
-        selectByIndex((currentIndex - 1 + options.length) % options.length);
-        break;
-      case 'Home':
-        event.preventDefault();
-        selectByIndex(0);
-        break;
-      case 'End':
-        event.preventDefault();
-        selectByIndex(options.length - 1);
-        break;
-      default:
-        break;
-    }
-  };
-
   return (
-    <div
-      role="radiogroup"
+    <ToggleGroup
+      type="single"
+      orientation="horizontal"
+      loop
+      value={value}
+      onValueChange={(next) => {
+        if (!next) return;
+        onChange(next as TValue);
+      }}
       aria-label={ariaLabel}
       aria-labelledby={ariaLabelledBy}
-      onKeyDown={handleKeyDown}
-      className="inline-flex items-center gap-0.5 rounded-md border border-hairline bg-paper-sunken p-[3px]"
     >
-      {options.map((option, index) => {
-        const isActive = option.value === value;
-
-        return (
-          <button
-            key={option.value}
-            ref={(node) => {
-              optionRefs.current[index] = node;
-            }}
-            type="button"
-            role="radio"
-            aria-checked={isActive}
-            tabIndex={index === focusIndex ? 0 : -1}
-            onClick={() => onChange(option.value)}
-            className={cn(
-              'rounded-btn px-3 py-1.5 text-label font-medium text-ink-secondary transition-colors',
-              'focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus',
-              isActive && 'bg-paper-raised text-ink shadow-[0_1px_2px_rgb(0_0_0_/_0.06)]',
-            )}
-          >
-            {option.label}
-          </button>
-        );
-      })}
-    </div>
+      {options.map((option) => (
+        <ToggleGroupItem
+          key={option.value}
+          value={option.value}
+          onFocus={() => onChange(option.value)}
+        >
+          {option.label}
+        </ToggleGroupItem>
+      ))}
+    </ToggleGroup>
   );
 }

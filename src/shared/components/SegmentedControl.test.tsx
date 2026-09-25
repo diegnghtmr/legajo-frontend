@@ -43,9 +43,20 @@ describe('SegmentedControl', () => {
     expect(screen.getByRole('radio', { name: 'AI' })).toHaveAttribute('aria-checked', 'false');
   });
 
-  it('uses roving tabindex: only the active option is tab-reachable', () => {
+  it('uses roving tabindex: one Tab stop enters the group and lands focus on the active option', async () => {
+    // Radix's roving-focus group is an "entry point" model: before any
+    // interaction the group root itself holds the single Tab stop
+    // (tabindex 0 on the root, every item at -1); Tab redirects focus to the
+    // current item, which is when its own tabindex flips to 0 and its
+    // siblings' stay at -1. This is a stronger, WAI-ARIA-compliant proof
+    // than asserting a static attribute before any interaction, which was
+    // only true for the previous hand-rolled implementation.
+    const user = userEvent.setup();
     render(<ControlledSegmented />);
 
+    await user.tab();
+
+    expect(screen.getByRole('radio', { name: 'All' })).toHaveFocus();
     expect(screen.getByRole('radio', { name: 'All' })).toHaveAttribute('tabindex', '0');
     expect(screen.getByRole('radio', { name: 'Classic' })).toHaveAttribute('tabindex', '-1');
     expect(screen.getByRole('radio', { name: 'AI' })).toHaveAttribute('tabindex', '-1');
@@ -103,8 +114,11 @@ describe('SegmentedControl', () => {
       />,
     );
 
-    expect(screen.getByRole('radio', { name: 'All' })).toHaveAttribute('tabindex', '0');
+    // With no matching value, Radix's roving-focus group defaults its entry
+    // point to the first item, so one Tab still reaches "All" before moving on.
     await user.tab();
+    expect(screen.getByRole('radio', { name: 'All' })).toHaveFocus();
+
     await user.keyboard('{ArrowRight}');
 
     expect(onChange).toHaveBeenCalledWith('classic');
