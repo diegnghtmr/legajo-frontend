@@ -222,4 +222,62 @@ describe('Dendrogram', () => {
     );
     expect(screen.queryByRole('img')).not.toBeInTheDocument();
   });
+
+  it('wraps the chart in its own focusable, labelled scroll region instead of letting the page scroll', () => {
+    render(<Dendrogram rows={ROWS} leafOrder={LEAF_ORDER} ariaLabel="Single dendrogram" />);
+
+    const region = screen.getByRole('region', { name: 'Single dendrogram' });
+    expect(region).toHaveAttribute('tabIndex', '0');
+    expect(region.className).toContain('overflow-x-auto');
+    expect(region).toContainElement(screen.getByRole('img', { name: 'Single dendrogram' }));
+  });
+
+  it('never shrinks the SVG below its natural size (no CSS scale-down of the rendered text)', () => {
+    const { container } = render(
+      <Dendrogram rows={ROWS} leafOrder={LEAF_ORDER} ariaLabel="Single dendrogram" />,
+    );
+
+    // `max-w-full` is exactly the class that let the browser scale the whole
+    // coordinate system (labels included) down to fit a narrow container;
+    // removing it means the SVG always renders at its own intrinsic size and
+    // only the wrapping region (above) scrolls.
+    const svg = container.querySelector('svg')!;
+    expect(svg.className.baseVal).not.toContain('max-w-full');
+  });
+
+  it('widens the rendered SVG to keep a minimum per-leaf spacing on a corpus too large for the requested width, rather than cramming leaves together', () => {
+    const manyLeaves = Array.from({ length: 10 }, (_unused, index) => ({
+      idx1: index,
+      idx2: index + 1,
+      mergeDistance: index + 1,
+    }));
+
+    const { container } = render(
+      <Dendrogram
+        rows={manyLeaves}
+        leafOrder={Array.from({ length: 11 }, (_unused, index) => index)}
+        ariaLabel="Wide dendrogram"
+        width={200}
+      />,
+    );
+
+    const svg = container.querySelector('svg')!;
+    const renderedWidth = Number(svg.getAttribute('width'));
+    // A 200px request is far too narrow for 11 leaves at a legible spacing;
+    // the component must widen past what was asked for rather than shrink
+    // its labels to fit.
+    expect(renderedWidth).toBeGreaterThan(200);
+    expect(svg.getAttribute('viewBox')).toBe(`0 0 ${renderedWidth} 220`);
+  });
+
+  it('keeps the default width when it already gives every leaf enough room', () => {
+    const { container } = render(
+      <Dendrogram rows={ROWS} leafOrder={LEAF_ORDER} ariaLabel="Single dendrogram" />,
+    );
+
+    const svg = container.querySelector('svg')!;
+    // 5 leaves comfortably fit the 640px default; the fix must not widen a
+    // chart that was already wide enough.
+    expect(svg.getAttribute('width')).toBe('640');
+  });
 });
