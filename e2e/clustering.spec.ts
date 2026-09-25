@@ -183,14 +183,34 @@ test.describe('clustering screen', () => {
     // unit test's own `querySelectorAll` presence check.
     await expect(completeDendrogram.getByTestId('dendrogram-cut-line')).toBeAttached();
     // labels = [0, 0, 1, 1, 2, 2] over 6 leaves -> two leaves per cluster.
-    await expect(completeDendrogram.getByText('Clúster 0')).toHaveCount(2);
-    await expect(completeDendrogram.getByText('Clúster 1')).toHaveCount(2);
-    await expect(completeDendrogram.getByText('Clúster 2')).toHaveCount(2);
+    // A bare, compact number, not the full "Clúster N" word (see
+    // `Dendrogram.tsx`'s own overlap-avoidance comment).
+    await expect(
+      completeDendrogram.getByTestId('cluster-marker').filter({ hasText: /^0$/ }),
+    ).toHaveCount(2);
+    await expect(
+      completeDendrogram.getByTestId('cluster-marker').filter({ hasText: /^1$/ }),
+    ).toHaveCount(2);
+    await expect(
+      completeDendrogram.getByTestId('cluster-marker').filter({ hasText: /^2$/ }),
+    ).toHaveCount(2);
 
     // No cut line leaks onto a linkage that was not cut.
     await expect(
       page.getByTestId('linkage-dendrogram-single').getByTestId('dendrogram-cut-line'),
     ).toHaveCount(0);
+
+    // The per-linkage sr-only merge-order table (one per dendrogram, now
+    // with cut cluster markers rendered too) must never widen the page's
+    // own scrollable area at a narrow width — `table-fixed` is what keeps it
+    // collapsed (see `Dendrogram.tsx`).
+    await page.setViewportSize({ width: 390, height: 844 });
+    await expect(page.getByRole('heading', { name: 'Single' })).toBeVisible();
+    // A string body (not an arrow function) so this evaluates in the
+    // browser without pulling the `dom` lib into this project's Node-typed
+    // e2e tsconfig (`tsconfig.node.json`).
+    const scrollWidth = await page.evaluate<number>('document.documentElement.scrollWidth');
+    expect(scrollWidth).toBeLessThanOrEqual(390);
   });
 
   test('deselecting every linkage shows the reason and no linkage panels', async ({ page }) => {

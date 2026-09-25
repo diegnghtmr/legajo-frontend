@@ -216,6 +216,7 @@
       "ariaLabel": "{{linkage}} dendrogram",
       "malformed": "This linkage's dendrogram could not be drawn.",
       "clusterLabel": "Cluster {{id}}",
+      "clusterLegend": "Cluster numbers (k = {{k}}) below each leaf",
       "mergeTableCaption": "Merge order for the {{linkage}} dendrogram",
       "mergeTableStep": "Step",
       "mergeTableLeft": "Member A",

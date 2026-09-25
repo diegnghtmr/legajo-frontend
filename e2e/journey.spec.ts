@@ -284,7 +284,11 @@ test.describe('end-to-end journey', () => {
     // presence check is the correct assertion, not `toBeVisible()`.
     await expect(wardDendrogram.getByTestId('dendrogram-cut-line')).toBeAttached();
     // labels = [0, 0, 1, 1, 2, 2] over 6 leaves -> two leaves per cluster.
-    await expect(wardDendrogram.getByText('Clúster 0')).toHaveCount(2);
+    // A bare, compact number, not the full "Clúster N" word (see
+    // `Dendrogram.tsx`'s own overlap-avoidance comment).
+    await expect(
+      wardDendrogram.getByTestId('cluster-marker').filter({ hasText: /^0$/ }),
+    ).toHaveCount(2);
 
     // No cut line leaks onto a linkage that was not cut.
     await expect(
