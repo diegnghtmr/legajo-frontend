@@ -240,6 +240,26 @@ describe('SimilarityPage — exactly two selected', () => {
     );
   });
 
+  it('de-duplicates a repeated algorithm id from the URL, never rendering the same row twice', async () => {
+    vi.spyOn(similarityApi, 'fetchSimilarityAlgorithms').mockResolvedValue(CATALOGUE);
+    vi.spyOn(similarityApi, 'compareSimilarity').mockResolvedValue(
+      compareResponseFor(['levenshtein', 'jaccard']),
+    );
+
+    renderAtRoute('/similarity?algorithms=levenshtein%2Clevenshtein%2Cjaccard');
+
+    await waitFor(() =>
+      expect(similarityApi.compareSimilarity).toHaveBeenCalledWith({
+        documentIdA: 'doc-01',
+        documentIdB: 'doc-02',
+        algorithmIds: ['levenshtein', 'jaccard'],
+      }),
+    );
+    // Header + exactly two result rows — a duplicated id never produces a
+    // second row (which would collide on that row's own DOM id).
+    expect(await screen.findAllByRole('row')).toHaveLength(3);
+  });
+
   it('changes the compare request body when an algorithm button is toggled off', async () => {
     vi.spyOn(similarityApi, 'fetchSimilarityAlgorithms').mockResolvedValue(CATALOGUE);
     vi.spyOn(similarityApi, 'compareSimilarity').mockResolvedValue(compareResponseFor(ALL_SIX_IDS));
