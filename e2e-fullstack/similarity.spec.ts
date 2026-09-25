@@ -51,7 +51,7 @@ test.describe('similarity compare + trace (full stack, Flow A)', () => {
     await page.getByRole('checkbox', { name: titleA }).check();
     await page.getByRole('checkbox', { name: titleB }).check();
 
-    const compareButton = page.getByRole('button', { name: 'Comparar' });
+    const compareButton = page.getByRole('button', { name: 'Comparar d01 y d02' });
     await expect(compareButton).toBeEnabled();
     await compareButton.click();
 
@@ -95,7 +95,7 @@ test.describe('similarity compare + trace (full stack, Flow A)', () => {
     await page.goto('/');
     await page.getByRole('checkbox', { name: titleA }).check();
     await page.getByRole('checkbox', { name: titleB }).check();
-    await page.getByRole('button', { name: 'Comparar' }).click();
+    await page.getByRole('button', { name: 'Comparar d01 y d02' }).click();
     await expect(page.getByRole('heading', { name: 'Comparación de similitud' })).toBeVisible();
 
     await page.getByRole('link', { name: 'needleman-wunsch', exact: true }).click();
@@ -154,7 +154,7 @@ test.describe('similarity compare + trace (full stack, Flow A)', () => {
     await page.goto('/');
     await page.getByRole('checkbox', { name: titleA }).check();
     await page.getByRole('checkbox', { name: titleB }).check();
-    await page.getByRole('button', { name: 'Comparar' }).click();
+    await page.getByRole('button', { name: 'Comparar d01 y d02' }).click();
     await expect(page.getByRole('row')).toHaveCount(7);
 
     let results = await new AxeBuilder({ page }).withTags(AXE_TAGS).analyze();

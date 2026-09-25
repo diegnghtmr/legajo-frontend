@@ -1,7 +1,6 @@
 import { useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
-import { Link } from 'react-router';
 
 import { DEFAULT_UNEXPECTED_I18N_KEY, type ApiError } from '../../infrastructure/apiError';
 import { fetchCorpus, type ListCorpusResponse } from '../../infrastructure/api/corpus';
@@ -12,8 +11,7 @@ import {
   type AlgoTextRadioOption,
 } from '../../shared/components/AlgoTextRadioGroup';
 import { Panel, PanelHeader } from '../../shared/components/Panel';
-import { buttonVariants } from '../../shared/components/ui/button';
-import { CORPUS_LIST_QUERY_KEY } from '../corpus/ArticleList';
+import { CORPUS_LIST_QUERY_KEY } from '../corpus/SelectionRail';
 import { useSelectionStore } from '../corpus/selectionStore';
 import { MatrixTable } from './matrix/MatrixTable';
 
@@ -72,13 +70,8 @@ export function SimilarityMatrixPage() {
         />
         <Panel>
           <p role="status" className="text-body text-ink-secondary">
-            {t('similarity.matrix.wrongCount', { count: selectedArticleIds.length })}
+            {t('similarity.selection.emptyState')}
           </p>
-          <div className="mt-3">
-            <Link to="/corpus" className={buttonVariants({ variant: 'primary' })}>
-              {t('similarity.selection.backToCorpus')}
-            </Link>
-          </div>
         </Panel>
       </div>
     );

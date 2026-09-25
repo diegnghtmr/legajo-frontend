@@ -20,6 +20,13 @@ import { useSelectionStore } from '../corpus/selectionStore';
 import { algoFamilyFromKind } from './algorithmFamily';
 import { CompareTable } from './CompareTable';
 
+/**
+ * Below two selected, the rail's own footer already carries the disabled
+ * reason — this empty state only names the next step for the center, never
+ * duplicating that reason text or pointing at a separate corpus screen the
+ * persistent rail already replaces.
+ */
+
 export const ALGORITHMS_QUERY_KEY = ['similarity', 'algorithms'] as const;
 
 /** The six fixed capability ids, independent of the catalogue fetch. */
@@ -108,18 +115,15 @@ export function SimilarityPage() {
         <PanelHeader eyebrow={t('similarity.eyebrow')} title={t('similarity.title')} />
         <Panel>
           <p role="status" className="text-body text-ink-secondary">
-            {t('similarity.selection.wrongCount', { count: selectedArticleIds.length })}
+            {t('similarity.selection.emptyState')}
           </p>
-          <div className="mt-3 flex flex-wrap gap-3">
-            <Link to="/corpus" className={buttonVariants({ variant: 'primary' })}>
-              {t('similarity.selection.backToCorpus')}
-            </Link>
-            {canMatrix && (
+          {canMatrix && (
+            <div className="mt-3">
               <Link to="/similarity/matrix" className={buttonVariants({ variant: 'secondary' })}>
                 {t('similarity.selection.viewMatrix')}
               </Link>
-            )}
-          </div>
+            </div>
+          )}
         </Panel>
       </div>
     );

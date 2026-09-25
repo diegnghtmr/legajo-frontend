@@ -49,28 +49,29 @@ async function mockCorpusApi(page: Page) {
   });
 }
 
-test.describe('corpus screen', () => {
+test.describe('corpus selection rail', () => {
   test.beforeEach(async ({ page }) => {
     await mockCorpusApi(page);
   });
 
-  test('loads the corpus list, shows the compare CTA disabled, and opens an article detail', async ({
+  test('loads the corpus list in the rail, shows the adaptive CTA disabled, and opens an article abstract', async ({
     page,
   }) => {
     await page.goto('/');
 
     await expect(page.getByRole('heading', { level: 1, name: 'Legajo' })).toBeVisible();
-    await expect(page.getByRole('heading', { name: 'Artículos del corpus' })).toBeVisible();
 
-    const firstLink = page.getByRole('link', { name: 'A survey of string similarity' });
-    await expect(firstLink).toBeVisible();
-    await expect(page.getByRole('link', { name: 'Embeddings for scientific text' })).toBeVisible();
+    const firstTitle = page.getByRole('button', { name: 'A survey of string similarity' });
+    await expect(firstTitle).toBeVisible();
+    await expect(
+      page.getByRole('button', { name: 'Embeddings for scientific text' }),
+    ).toBeVisible();
 
     const compareButton = page.getByRole('button', { name: 'Comparar' });
     await expect(compareButton).toBeDisabled();
-    await expect(page.getByText('Selecciona al menos dos artículos para comparar.')).toBeVisible();
+    await expect(page.getByText('Selecciona al menos 2 para comparar.')).toBeVisible();
 
-    await firstLink.click();
+    await firstTitle.click();
     await expect(
       page.getByText('This paper surveys classic and embedding-based similarity measures.'),
     ).toBeVisible();
@@ -80,82 +81,120 @@ test.describe('corpus screen', () => {
     await firstCheckbox.check();
     await secondCheckbox.check();
 
-    await expect(compareButton).toBeEnabled();
+    await expect(page.getByRole('button', { name: 'Comparar doc-01 y doc-02' })).toBeEnabled();
   });
 
-  test('keeps a keyboard-focused row from being obscured by the sticky CTA bar (WCAG 2.4.11)', async ({
+  test('the search filters rows without deselecting a hidden selection', async ({ page }) => {
+    await page.goto('/');
+
+    await page.getByRole('checkbox', { name: 'A survey of string similarity' }).check();
+
+    await page.getByRole('searchbox', { name: /buscar/i }).fill('embeddings');
+    await expect(page.getByText('A survey of string similarity')).toHaveCount(0);
+    await expect(
+      page.getByRole('checkbox', { name: 'Embeddings for scientific text' }),
+    ).toBeVisible();
+
+    await page.getByRole('searchbox', { name: /buscar/i }).fill('');
+    await expect(
+      page.getByRole('checkbox', { name: 'A survey of string similarity' }),
+    ).toBeChecked();
+  });
+
+  test('selecting three or more never lands on a wrong-count dead end: the adaptive CTA opens the matrix directly', async ({
     page,
   }) => {
-    // A long enough list that its last row starts below the fold at a
-    // narrow viewport.
-    const manySummaries = Array.from({ length: 15 }, (_unused, index) => ({
-      id: `doc-${index + 1}`,
-      title: `Article number ${index + 1}`,
-      authors: ['A. Author'],
-    }));
+    const summaries = [
+      ...CORPUS_SUMMARIES,
+      { id: 'doc-03', title: 'Clustering theory refresher', authors: ['D. Four'] },
+    ];
     await page.route('**/api/v1/corpus', async (route) => {
-      await route.fulfill({ json: manySummaries });
+      await route.fulfill({ json: summaries });
+    });
+    function cell(normalizedScore: number) {
+      return {
+        normalizedScore,
+        rawValue: normalizedScore,
+        computedNanos: 4200,
+        cached: false,
+        degenerate: false,
+      };
+    }
+    const matrix = [
+      [cell(1), cell(0.5), cell(0.3)],
+      [cell(0.5), cell(1), cell(0.4)],
+      [cell(0.3), cell(0.4), cell(1)],
+    ];
+    await page.route('**/api/v1/similarity/matrix', async (route) => {
+      await route.fulfill({ json: matrix });
     });
 
-    await page.setViewportSize({ width: 390, height: 700 });
     await page.goto('/');
-    await expect(page.getByRole('heading', { name: 'Artículos del corpus' })).toBeVisible();
+    await page.getByRole('checkbox', { name: 'A survey of string similarity' }).check();
+    await page.getByRole('checkbox', { name: 'Embeddings for scientific text' }).check();
+    await page.getByRole('checkbox', { name: 'Clustering theory refresher' }).check();
 
-    const lastCheckbox = page.getByRole('checkbox', { name: 'Article number 15' });
+    const matrixButton = page.getByRole('button', { name: 'Ver matriz de 3' });
+    await expect(matrixButton).toBeEnabled();
+    await matrixButton.click();
 
-    // The bug this guards against is invisible to a naive "focus an
-    // off-screen element" check: browsers auto-scroll generously (often
-    // centering) when a target is *entirely* outside the viewport, which
-    // already clears the sticky bar by accident. The real WCAG 2.4.11 gap
-    // is the boundary case a plain sequential Tab actually produces — a row
-    // whose geometry the browser already considers "fully visible" (its
-    // whole box fits within the viewport bounds), so it performs *no*
-    // auto-scroll at all, even though the opaque sticky bar paints over it.
-    // Reproduce that boundary directly: scroll so the row's bottom edge
-    // lands exactly flush with the viewport's bottom edge (computed from
-    // its own document-relative position, not a magic constant), then
-    // focus it exactly as Tab would.
-    // String bodies (not arrow functions) so these evaluate in the browser
-    // without pulling the `dom` lib into this project's Node-typed e2e
-    // tsconfig (`tsconfig.node.json`).
-    await page.evaluate('window.scrollTo(0, 0)');
-    const naturalBox = await lastCheckbox.boundingBox();
-    expect(naturalBox).not.toBeNull();
-    const viewportHeight = page.viewportSize()!.height;
-    const flushScrollY = naturalBox!.y + naturalBox!.height - viewportHeight;
-    await page.evaluate(`window.scrollTo(0, ${flushScrollY})`);
-
-    await lastCheckbox.focus();
-    await expect(lastCheckbox).toBeFocused();
-
-    const barBox = await page.locator('.sticky.bottom-0').first().boundingBox();
-    const rowBox = await lastCheckbox.boundingBox();
-    expect(barBox).not.toBeNull();
-    expect(rowBox).not.toBeNull();
-    // The focused checkbox's bottom edge must clear the sticky bar's top
-    // edge — never obscured behind it.
-    expect(rowBox!.y + rowBox!.height).toBeLessThanOrEqual(barBox!.y);
+    await expect(page).toHaveURL(/\/similarity\/matrix$/);
+    await expect(page.getByRole('heading', { name: 'Matriz de similitud' })).toBeVisible();
+    // The dead end this guards against was the old "wrong count" empty
+    // state (an exact string, never a "Comparar" click routing anywhere
+    // else): the matrix itself must render instead, with its real values.
+    await expect(
+      page.getByText(
+        'Selecciona 2 artículos en el panel para comparar, o 3 o más para ver la matriz.',
+      ),
+    ).toHaveCount(0);
+    await expect(page.getByRole('alert')).toHaveCount(0);
+    await expect(page.getByText('1.000').first()).toBeVisible();
   });
 
-  test('shows the embeddings status panel with both families', async ({ page }) => {
+  test('shows a one-line embeddings status in the rail that opens the full detail', async ({
+    page,
+  }) => {
     await page.goto('/');
 
+    const statusRow = page.getByRole('button', { name: 'Ver el estado de los embeddings' });
+    await expect(statusRow).toContainText('Coincide con el corpus');
+
+    await statusRow.click();
     await expect(page.getByRole('heading', { name: 'Estado de los embeddings' })).toBeVisible();
     await expect(page.getByText('embedding-local')).toBeVisible();
     await expect(page.getByText('embedding-api')).toBeVisible();
-    await expect(page.getByText('Coincide con el corpus').first()).toBeVisible();
   });
 
-  test('has no automatically detectable WCAG 2.1 AA violations on the corpus screen', async ({
+  test('has no automatically detectable WCAG 2.1 AA violations on the similarity workbench', async ({
     page,
   }) => {
     await page.goto('/');
-    await expect(page.getByRole('heading', { name: 'Artículos del corpus' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Comparación de similitud' })).toBeVisible();
 
     const results = await new AxeBuilder({ page })
       .withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa'])
       .analyze();
 
+    expect(results.violations).toEqual([]);
+  });
+
+  test('the rail stacks above the results with no page-level horizontal scroll and no axe violations at 390px', async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto('/');
+    await expect(page.getByRole('heading', { name: 'Comparación de similitud' })).toBeVisible();
+
+    // A string body (not an arrow function) evaluates in the browser
+    // without pulling the `dom` lib into this project's Node-typed e2e
+    // tsconfig, the same pattern the WCAG 2.4.11 test above uses.
+    const scrollWidth = await page.evaluate('document.documentElement.scrollWidth');
+    expect(scrollWidth).toBe(390);
+
+    const results = await new AxeBuilder({ page })
+      .withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa'])
+      .analyze();
     expect(results.violations).toEqual([]);
   });
 

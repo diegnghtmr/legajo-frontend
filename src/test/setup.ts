@@ -8,8 +8,8 @@ import '@testing-library/jest-dom/vitest';
 import '../infrastructure/i18n';
 
 // jsdom has no `ResizeObserver`; a no-op default keeps every component that
-// measures its own layout (e.g. `CorpusPage`'s sticky CTA bar) from
-// crashing on mount. A test that needs to observe a real resize installs
+// measures its own layout from crashing on mount. A test that needs to
+// observe a real resize installs
 // its own controllable fake via `vi.stubGlobal('ResizeObserver', ...)`
 // instead of relying on this one, then restores it with
 // `vi.unstubAllGlobals()`.

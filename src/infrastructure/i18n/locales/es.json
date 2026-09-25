@@ -26,22 +26,38 @@
     "empty": "El corpus no tiene artículos cargados.",
     "errorTitle": "No se pudo cargar el corpus",
     "detail": {
-      "selectPrompt": "Selecciona un artículo para ver su resumen completo.",
       "loading": "Cargando el artículo…",
       "errorTitle": "No se pudo cargar el artículo",
       "abstractLabel": "Resumen",
       "authorsLabel": "Autores",
-      "idLabel": "Identificador"
+      "idLabel": "Identificador",
+      "closeLabel": "Cerrar"
     },
-    "selection": {
-      "compareCta": "Comparar",
-      "reasonNone": "Selecciona al menos dos artículos para comparar.",
-      "reasonOne": "Selecciona un artículo más para comparar.",
+    "rail": {
+      "countLabel": "{{count}} documentos",
+      "clear": "Limpiar",
+      "searchLabel": "Buscar en el corpus",
+      "searchPlaceholder": "título, autor o id",
+      "searchNoMatches": "Sin coincidencias",
       "selectedCount": "{{count}} seleccionados",
-      "matrixCta": "Ver matriz",
-      "matrixReasonNone": "Selecciona al menos tres artículos para ver la matriz.",
-      "matrixReasonOne": "Selecciona dos artículos más para ver la matriz.",
-      "matrixReasonTwo": "Selecciona un artículo más para ver la matriz."
+      "mode": {
+        "reason": "Selecciona al menos 2 para comparar.",
+        "pairwise": "Comparación por pares",
+        "matrix": "Matriz de similitud"
+      },
+      "cta": {
+        "compare": "Comparar",
+        "comparePair": "Comparar {{a}} y {{b}}",
+        "viewMatrix": "Ver matriz de {{count}}"
+      },
+      "embeddings": {
+        "label": "Embeddings",
+        "loading": "Cargando…",
+        "errorValue": "Error",
+        "allMatch": "Coincide con el corpus",
+        "mismatch": "Revisar coincidencia",
+        "openLabel": "Ver el estado de los embeddings"
+      }
     },
     "embeddingsStatus": {
       "eyebrow": "Embeddings",
@@ -66,8 +82,7 @@
     "eyebrow": "Similitud",
     "title": "Comparación de similitud",
     "selection": {
-      "wrongCount": "Tienes {{count}} artículos seleccionados; selecciona exactamente dos en el corpus para comparar.",
-      "backToCorpus": "Ir al corpus",
+      "emptyState": "Selecciona 2 artículos en el panel para comparar, o 3 o más para ver la matriz.",
       "comparing": "Comparando {{a}} × {{b}}",
       "noAlgorithms": "Selecciona al menos un algoritmo para comparar.",
       "viewMatrix": "Ver la matriz de similitud"
@@ -190,7 +205,6 @@
     "matrix": {
       "eyebrow": "Matriz",
       "title": "Matriz de similitud",
-      "wrongCount": "Tienes {{count}} artículos seleccionados; selecciona al menos tres en el corpus para ver la matriz.",
       "algorithmGroupLabel": "Algoritmo de la matriz",
       "loading": "Calculando la matriz…",
       "errorTitle": "No se pudo calcular la matriz",
