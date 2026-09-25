@@ -193,6 +193,13 @@ describe('CompareTable', () => {
     expect(within(nonCachedRow).queryByText('en caché')).not.toBeInTheDocument();
   });
 
+  it('never wraps the cached marker onto a second line in the time column', () => {
+    renderTable();
+
+    const cachedRow = screen.getByRole('row', { name: /embedding-api/i });
+    expect(within(cachedRow).getByText('en caché').className).toContain('whitespace-nowrap');
+  });
+
   it('formats computedNanos with locale thousands separators', () => {
     renderTable();
 

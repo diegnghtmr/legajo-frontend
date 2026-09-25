@@ -122,7 +122,7 @@ function CompareResultsListRow({
               {formatComputedNanos(result.computedNanos, i18n.language)}
             </span>
             {result.cached && (
-              <Badge className="rounded-sm border-ink px-1 py-0 text-[10px] font-semibold uppercase tracking-wide text-ink">
+              <Badge className="whitespace-nowrap rounded-sm border-ink px-1 py-0 text-[10px] font-semibold uppercase tracking-wide text-ink">
                 {t('similarity.table.cachedMarker')}
               </Badge>
             )}

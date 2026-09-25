@@ -139,6 +139,37 @@ test.describe('similarity compare screen', () => {
     await expect(nonCachedRow.getByText('en caché')).toHaveCount(0);
   });
 
+  for (const width of [1440, 1024]) {
+    test(`at ${width}px, the cached marker stays on one line in the time column, with no page-level horizontal overflow`, async ({
+      page,
+    }) => {
+      await page.setViewportSize({ width, height: 900 });
+      await page.goto('/');
+
+      await page.getByRole('checkbox', { name: 'A survey of string similarity' }).check();
+      await page.getByRole('checkbox', { name: 'Embeddings for scientific text' }).check();
+      await page.getByRole('button', { name: 'Comparar doc-01 y doc-02' }).click();
+
+      const cachedRow = page.getByRole('row', { name: /embedding-api/ });
+      const cachedMarker = cachedRow.getByText('en caché');
+      await expect(cachedMarker).toBeVisible();
+
+      // A wrapped pill badge turns roughly as tall as it is wide (or
+      // taller); this short label's own single-line box is always
+      // noticeably wider than it is tall.
+      const box = await cachedMarker.boundingBox();
+      expect(box).not.toBeNull();
+      expect(box!.width).toBeGreaterThan(box!.height);
+
+      const overflow = await page.evaluate(
+        '(() => { const el = document.documentElement; return { scrollWidth: el.scrollWidth, clientWidth: el.clientWidth }; })()',
+      );
+      expect(
+        (overflow as { scrollWidth: number; clientWidth: number }).scrollWidth,
+      ).toBeLessThanOrEqual((overflow as { scrollWidth: number; clientWidth: number }).clientWidth);
+    });
+  }
+
   test("opens a row's trace from a click on a cell other than the algorithm one", async ({
     page,
   }) => {
