@@ -361,6 +361,28 @@ describe('SimilarityPage — the trace deep link route', () => {
     expect(row).toHaveAttribute('aria-current', 'true');
   });
 
+  it("normalizes a reversed deep-link pair into the same sorted order the rail's own pair uses", async () => {
+    renderAtRoute('/similarity/levenshtein/trace?documentIdA=doc-02&documentIdB=doc-01');
+
+    expect(await screen.findAllByRole('row')).toHaveLength(7);
+    expect(similarityApi.compareSimilarity).toHaveBeenCalledWith({
+      documentIdA: 'doc-01',
+      documentIdB: 'doc-02',
+      algorithmIds: [...ALL_SIX_IDS],
+    });
+  });
+
+  it('treats a deep link naming the same document twice as no pair, showing the empty state', () => {
+    renderAtRoute('/similarity/levenshtein/trace?documentIdA=doc-01&documentIdB=doc-01');
+
+    expect(
+      screen.getByText(
+        'Selecciona 2 artículos en el panel para comparar, o 3 o más para ver la matriz.',
+      ),
+    ).toBeInTheDocument();
+    expect(similarityApi.compareSimilarity).not.toHaveBeenCalled();
+  });
+
   it("opens a row's trace by navigating to its deep link, preserving the family filter and algorithm selection already in the URL", async () => {
     useSelectionStore.setState({
       selectedIds: ['doc-01', 'doc-02'],

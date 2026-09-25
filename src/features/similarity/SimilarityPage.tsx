@@ -70,9 +70,19 @@ export function SimilarityPage() {
 
   const urlDocumentIdA = searchParams.get('documentIdA');
   const urlDocumentIdB = searchParams.get('documentIdB');
+  // Normalized the same way the rail's own pair is (`sortedPair`), so a
+  // reversed deep link (`documentIdA`/`documentIdB` swapped) still compares
+  // — and labels — the pair in the same order regardless of which query
+  // param named which id. The same document named twice is degenerate, not
+  // a pair, so it is never even handed to `sortedPair` (which does not
+  // itself reject that shape — both its inputs are already known-distinct
+  // ids everywhere else it's called).
   const urlPair: readonly [string, string] | null =
-    traceAlgorithmId !== undefined && urlDocumentIdA && urlDocumentIdB
-      ? [urlDocumentIdA, urlDocumentIdB]
+    traceAlgorithmId !== undefined &&
+    urlDocumentIdA &&
+    urlDocumentIdB &&
+    urlDocumentIdA !== urlDocumentIdB
+      ? sortedPair([urlDocumentIdA, urlDocumentIdB])
       : null;
   const pair = urlPair ?? sortedPair(selectedArticleIds);
 
