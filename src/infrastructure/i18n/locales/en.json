@@ -240,6 +240,11 @@
       "daviesBouldinAtK": "Davies–Bouldin (k={{k}})",
       "undefinedValue": "undefined"
     },
+    "metricsTable": {
+      "linkageHeader": "Linkage",
+      "regionLabel": "Metrics comparison by linkage",
+      "caption": "Comparison of cophenetic correlation, silhouette and Davies–Bouldin across the four linkages"
+    },
     "dendrogram": {
       "ariaLabel": "{{linkage}} dendrogram",
       "malformed": "This linkage's dendrogram could not be drawn.",
@@ -259,6 +264,7 @@
       "pending": "Applying the cut…",
       "errorTitle": "Could not apply the cut",
       "noValidRange": "There is no valid number of clusters to cut this corpus.",
+      "unavailable": "The cut will be available once the clustering finishes loading.",
       "errors": {
         "kRange": "k must be an integer between {{min}} and {{max}}."
       }
