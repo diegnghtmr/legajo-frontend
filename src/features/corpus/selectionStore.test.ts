@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 
-import { useSelectionStore } from './selectionStore';
+import { sortedPair, useSelectionStore } from './selectionStore';
 
 /** Resets the shared Zustand store between tests (module-level singleton). */
 beforeEach(() => {
@@ -74,5 +74,24 @@ describe('useSelectionStore', () => {
 
     expect(useSelectionStore.getState().canCompare).toBe(false);
     expect(useSelectionStore.getState().canMatrix).toBe(false);
+  });
+});
+
+describe('sortedPair', () => {
+  it('returns null for zero ids — there is no pair to report', () => {
+    expect(sortedPair([])).toBeNull();
+  });
+
+  it('returns null for a single id — one id is not a pair', () => {
+    expect(sortedPair(['doc-01'])).toBeNull();
+  });
+
+  it('sorts exactly two ids into a stable pair regardless of input order', () => {
+    expect(sortedPair(['doc-01', 'doc-02'])).toEqual(['doc-01', 'doc-02']);
+    expect(sortedPair(['doc-02', 'doc-01'])).toEqual(['doc-01', 'doc-02']);
+  });
+
+  it('returns null for three or more ids — it never silently drops the rest', () => {
+    expect(sortedPair(['doc-01', 'doc-02', 'doc-03'])).toBeNull();
   });
 });

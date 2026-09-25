@@ -6,6 +6,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import * as corpusApi from '../../infrastructure/api/corpus';
 import * as embeddingsApi from '../../infrastructure/api/embeddings';
+import es from '../../infrastructure/i18n/locales/es.json';
 import { useSelectionStore } from './selectionStore';
 import { embeddingsSummaryState, SelectionRail } from './SelectionRail';
 
@@ -113,12 +114,47 @@ describe('SelectionRail', () => {
 
     await user.type(screen.getByRole('searchbox', { name: /buscar/i }), 'clustering');
 
-    expect(screen.queryByText('A survey of string similarity')).not.toBeInTheDocument();
+    // Same role+name query the positive assertions below use — a text
+    // query would still report "not found" if the filter branch broke and
+    // left the row's accessible name mangled instead of actually hiding it.
+    expect(
+      screen.queryByRole('checkbox', { name: 'A survey of string similarity' }),
+    ).not.toBeInTheDocument();
     expect(
       screen.getByRole('checkbox', { name: 'Clustering theory refresher' }),
     ).toBeInTheDocument();
     // Still selected even though its row is currently filtered out.
     expect(useSelectionStore.getState().selectedIds).toEqual(['doc-01']);
+  });
+
+  it('filters rows by an id substring, case-insensitively', async () => {
+    const user = userEvent.setup();
+    renderRail();
+
+    await screen.findByRole('checkbox', { name: 'A survey of string similarity' });
+    await user.type(screen.getByRole('searchbox', { name: /buscar/i }), 'DOC-03');
+
+    expect(
+      screen.queryByRole('checkbox', { name: 'A survey of string similarity' }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.getByRole('checkbox', { name: 'Clustering theory refresher' }),
+    ).toBeInTheDocument();
+  });
+
+  it('filters rows by an author substring, case-insensitively', async () => {
+    const user = userEvent.setup();
+    renderRail();
+
+    await screen.findByRole('checkbox', { name: 'A survey of string similarity' });
+    await user.type(screen.getByRole('searchbox', { name: /buscar/i }), 'three');
+
+    expect(
+      screen.queryByRole('checkbox', { name: 'A survey of string similarity' }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.getByRole('checkbox', { name: 'Embeddings for scientific text' }),
+    ).toBeInTheDocument();
   });
 
   it('shows a quiet no-matches line when the search matches nothing', async () => {
@@ -272,6 +308,29 @@ describe('SelectionRail', () => {
 
     it('the pure state helper never claims a match for absent data — an honest "unknown", not the corpus-matches default', () => {
       expect(embeddingsSummaryState(undefined)).toBe('unknown');
+    });
+
+    it('contains an embeddings-status failure to its own summary — the article list still renders, without raising an alert', async () => {
+      vi.spyOn(embeddingsApi, 'fetchEmbeddingsStatus').mockRejectedValue({
+        kind: 'network',
+        cause: 'timeout',
+        i18nKey: 'errors.network.coldStart',
+      });
+
+      renderRail();
+
+      // Re-query the row on every poll instead of asserting on one node
+      // captured up front, and assert the exact localized value the
+      // component renders through `t('corpus.rail.embeddings.errorValue')`
+      // — not a hand-typed guess at the copy.
+      await expect
+        .poll(() => screen.getByRole('button', { name: 'Ver el estado de los embeddings' }))
+        .toHaveTextContent(es.corpus.rail.embeddings.errorValue);
+
+      expect(
+        await screen.findByRole('button', { name: 'A survey of string similarity' }),
+      ).toBeInTheDocument();
+      expect(screen.queryAllByRole('alert')).toHaveLength(0);
     });
   });
 });

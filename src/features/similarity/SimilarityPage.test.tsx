@@ -49,11 +49,12 @@ function compareResponseFor(ids: readonly AlgorithmId[]): CompareResponse {
 
 function renderWithProviders(ui: ReactNode) {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-  return render(
+  const view = render(
     <QueryClientProvider client={queryClient}>
       <MemoryRouter>{ui}</MemoryRouter>
     </QueryClientProvider>,
   );
+  return { queryClient, ...view };
 }
 
 beforeEach(() => {
@@ -82,6 +83,29 @@ describe('SimilarityPage — wrong selection count', () => {
       // persistent rail already lets the user change the selection.
       expect(status.closest('section')).not.toBeNull();
       expect(screen.queryByRole('link', { name: /corpus/i })).not.toBeInTheDocument();
+      expect(similarityApi.compareSimilarity).not.toHaveBeenCalled();
+    },
+  );
+
+  it.each([[[]], [['doc-01']], [['doc-01', 'doc-02', 'doc-03']]])(
+    'never registers a compare query — not even a disabled one holding blank ids — for selection %j',
+    (selectedIds) => {
+      useSelectionStore.setState({
+        selectedIds,
+        canCompare: false,
+        canMatrix: selectedIds.length >= 3,
+      });
+
+      const { queryClient } = renderWithProviders(<SimilarityPage />);
+
+      // A disabled `useQuery` still registers its query key in the cache —
+      // asserting on the cache (not just on whether the fetch ran) is what
+      // proves the blank-id placeholders can no longer exist at all, rather
+      // than merely being unused this render.
+      expect(
+        queryClient.getQueryCache().findAll({ queryKey: ['similarity', 'compare'] }),
+      ).toHaveLength(0);
+      expect(screen.queryByText(/Comparando/)).not.toBeInTheDocument();
       expect(similarityApi.compareSimilarity).not.toHaveBeenCalled();
     },
   );
@@ -135,7 +159,7 @@ describe('SimilarityPage — exactly two selected', () => {
     vi.spyOn(similarityApi, 'fetchSimilarityAlgorithms').mockResolvedValue(CATALOGUE);
     vi.spyOn(similarityApi, 'compareSimilarity').mockResolvedValue(compareResponseFor(ALL_SIX_IDS));
 
-    renderWithProviders(<SimilarityPage />);
+    const { queryClient } = renderWithProviders(<SimilarityPage />);
 
     expect(await screen.findAllByRole('row')).toHaveLength(7); // header + 6 results
 
@@ -144,6 +168,20 @@ describe('SimilarityPage — exactly two selected', () => {
       documentIdB: 'doc-02',
       algorithmIds: [...ALL_SIX_IDS],
     });
+
+    // Exactly one compare query is ever registered for this pair — its key
+    // carries the real sorted ids, never the blank-id placeholder shape.
+    const compareQueries = queryClient
+      .getQueryCache()
+      .findAll({ queryKey: ['similarity', 'compare'] });
+    expect(compareQueries).toHaveLength(1);
+    expect(compareQueries[0]?.queryKey).toEqual([
+      'similarity',
+      'compare',
+      'doc-01',
+      'doc-02',
+      [...ALL_SIX_IDS],
+    ]);
   });
 
   it('narrows the visible algorithm buttons by family without changing the underlying selection', async () => {

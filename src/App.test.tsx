@@ -3,6 +3,7 @@ import { render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { useSelectionStore } from './features/corpus/selectionStore';
 import * as benchmarksApi from './infrastructure/api/benchmarks';
 import * as corpusApi from './infrastructure/api/corpus';
 import { httpClient } from './infrastructure/httpClient';
@@ -25,6 +26,7 @@ function renderAppAt(initialPath: string) {
 
 beforeEach(() => {
   vi.restoreAllMocks();
+  useSelectionStore.setState({ selectedIds: [], canCompare: false, canMatrix: false });
   vi.spyOn(corpusApi, 'fetchCorpus').mockResolvedValue([]);
   // `corpusApi`/`benchmarksApi` are mocked whole (above), but every other
   // route's own data (similarity/clustering's algorithms catalogue
@@ -113,6 +115,14 @@ describe('App', () => {
   });
 
   it('never lets a route that needs the algorithms catalogue reach the real network', async () => {
+    // The algorithms catalogue is only fetched once a comparable pair is
+    // selected — this route's own compare view is not mounted otherwise.
+    useSelectionStore.setState({
+      selectedIds: ['doc-01', 'doc-02'],
+      canCompare: true,
+      canMatrix: false,
+    });
+
     renderAppAt('/similarity');
 
     await screen.findByRole('heading', { name: 'Comparación de similitud' });
