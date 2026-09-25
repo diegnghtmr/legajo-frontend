@@ -111,7 +111,7 @@ test.describe('similarity compare screen', () => {
     await page.getByRole('checkbox', { name: 'A survey of string similarity' }).check();
     await page.getByRole('checkbox', { name: 'Embeddings for scientific text' }).check();
 
-    const compareButton = page.getByRole('button', { name: 'Comparar' });
+    const compareButton = page.getByRole('button', { name: 'Comparar doc-01 y doc-02' });
     await expect(compareButton).toBeEnabled();
     await compareButton.click();
 
@@ -143,7 +143,7 @@ test.describe('similarity compare screen', () => {
 
     await page.getByRole('checkbox', { name: 'A survey of string similarity' }).check();
     await page.getByRole('checkbox', { name: 'Embeddings for scientific text' }).check();
-    await page.getByRole('button', { name: 'Comparar' }).click();
+    await page.getByRole('button', { name: 'Comparar doc-01 y doc-02' }).click();
 
     await expect(page.getByRole('row')).toHaveCount(7);
 

@@ -54,7 +54,7 @@ beforeEach(() => {
 
 describe('SimilarityMatrixPage — fewer than 3 selected', () => {
   it.each([[[]], [['doc-01']], [['doc-01', 'doc-02']]])(
-    'shows the wrong-count message and a link back to the corpus for selection %j',
+    'shows a designed empty state naming the next step for selection %j',
     async (selectedIds) => {
       useSelectionStore.setState({
         selectedIds,
@@ -65,18 +65,15 @@ describe('SimilarityMatrixPage — fewer than 3 selected', () => {
 
       renderWithProviders(<SimilarityMatrixPage />);
 
-      expect(
-        await screen.findByText(
-          `Tienes ${selectedIds.length} artículos seleccionados; selecciona al menos tres en el corpus para ver la matriz.`,
-        ),
-      ).toBeInTheDocument();
-      const backLink = screen.getByRole('link', { name: 'Ir al corpus' });
-      expect(backLink).toHaveAttribute('href', '/corpus');
-      // A designed state: the message and the next-step action live inside
-      // the Panel card (a `<section>`), and the action reads as a button,
-      // not a bare underlined link.
-      expect(backLink.closest('section')).not.toBeNull();
-      expect(backLink.className).toContain('bg-primary');
+      const status = await screen.findByText(
+        'Selecciona 2 artículos en el panel para comparar, o 3 o más para ver la matriz.',
+      );
+      expect(status).toBeInTheDocument();
+      // A designed state: the message lives inside the Panel card (a
+      // `<section>`), never a bare "go to the corpus" dead end — the
+      // persistent rail already lets the user change the selection.
+      expect(status.closest('section')).not.toBeNull();
+      expect(screen.queryByRole('link', { name: /corpus/i })).not.toBeInTheDocument();
       expect(similarityApi.fetchSimilarityMatrix).not.toHaveBeenCalled();
     },
   );

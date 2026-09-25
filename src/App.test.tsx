@@ -43,11 +43,27 @@ describe('App', () => {
     expect(screen.getByRole('heading', { level: 1, name: /legajo/i })).toBeInTheDocument();
   });
 
-  it('redirects the root path to the corpus screen', async () => {
+  it('redirects the root path to the similarity workbench', async () => {
     renderAppAt('/');
 
     expect(
-      await screen.findByRole('heading', { name: 'Artículos del corpus' }),
+      await screen.findByRole('heading', { name: 'Comparación de similitud' }),
+    ).toBeInTheDocument();
+  });
+
+  it('redirects the bare /corpus path into the similarity workbench too', async () => {
+    renderAppAt('/corpus');
+
+    expect(
+      await screen.findByRole('heading', { name: 'Comparación de similitud' }),
+    ).toBeInTheDocument();
+  });
+
+  it('redirects /corpus/:id into the similarity workbench too', async () => {
+    renderAppAt('/corpus/doc-01');
+
+    expect(
+      await screen.findByRole('heading', { name: 'Comparación de similitud' }),
     ).toBeInTheDocument();
   });
 

@@ -224,15 +224,15 @@ test.describe('end-to-end journey', () => {
   }) => {
     await mockFlowA(page);
 
-    // Step 1: corpus, select two articles.
+    // Step 1: the selection rail, select two articles.
     await page.goto('/');
-    await expect(page.getByRole('heading', { name: 'Artículos del corpus' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Comparación de similitud' })).toBeVisible();
     await assertNoAxeViolations(page);
 
     await page.getByRole('checkbox', { name: CORPUS_SUMMARIES_A[0].title }).check();
     await page.getByRole('checkbox', { name: CORPUS_SUMMARIES_A[1].title }).check();
 
-    const compareButton = page.getByRole('button', { name: 'Comparar' });
+    const compareButton = page.getByRole('button', { name: 'Comparar doc-01 y doc-02' });
     await expect(compareButton).toBeEnabled();
 
     // Step 2: compare the six capabilities.
@@ -307,21 +307,21 @@ test.describe('end-to-end journey', () => {
 
     await page.goto('/');
     const nav = page.getByRole('navigation');
-    await expect(page.getByRole('heading', { name: 'Artículos del corpus' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Comparación de similitud' })).toBeVisible();
     await expect(nav.getByRole('link', { name: 'Similitud', exact: true })).toBeVisible();
     await expect(nav.getByRole('link', { name: 'Agrupamiento', exact: true })).toBeVisible();
     await expect(page.getByRole('button', { name: 'Comparar' })).toBeVisible();
 
     await page.getByRole('button', { name: 'English' }).click();
 
-    await expect(page.getByRole('heading', { name: 'Corpus articles' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Similarity comparison' })).toBeVisible();
     await expect(nav.getByRole('link', { name: 'Similarity', exact: true })).toBeVisible();
     await expect(nav.getByRole('link', { name: 'Clustering', exact: true })).toBeVisible();
     await expect(page.getByRole('button', { name: 'Compare' })).toBeVisible();
 
     await page.getByRole('button', { name: 'Español' }).click();
 
-    await expect(page.getByRole('heading', { name: 'Artículos del corpus' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Comparación de similitud' })).toBeVisible();
     await expect(nav.getByRole('link', { name: 'Similitud', exact: true })).toBeVisible();
     await expect(page.getByRole('button', { name: 'Comparar' })).toBeVisible();
   });

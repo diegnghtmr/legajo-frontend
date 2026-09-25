@@ -4,10 +4,13 @@ import { cn } from '../lib/cn';
 import { SHELL_MAIN_PADDING_VAR } from '../lib/shellMetrics';
 
 export interface WorkbenchLayoutProps {
-  /** The corpus selection rail. Omitted on screens with no rail (clustering,
-   * benchmarks). */
+  /** The corpus selection rail. Stacks above the center below `lg`; still
+   * fully usable there, ahead of a dedicated narrow-width tray. Omitted
+   * entirely on screens with no rail (clustering, benchmarks). */
   rail?: ReactNode;
-  /** The trace or abstract detail panel. Only rendered once open. */
+  /** The trace or abstract detail panel. Only rendered once open; hidden
+   * below `lg` (a consumer shows its content inline or as a sheet there
+   * instead). */
   detail?: ReactNode;
   /** The screen's own results content. */
   children: ReactNode;
@@ -88,7 +91,9 @@ export function WorkbenchLayout({ rail, detail, children }: WorkbenchLayoutProps
           build-time scanner needs the exact class text in source, so it
           cannot be assembled from `SHELL_MAIN_PADDING_VAR` at runtime the
           way the `style` prop above reads that constant. */}
-      <div className="min-w-0 flex-1 p-(--shell-main-pad)">{children}</div>
+      <div className="min-w-0 flex-1 p-(--shell-main-pad) lg:h-full lg:overflow-y-auto">
+        {children}
+      </div>
       {detail && (
         <div
           data-testid="workbench-detail"

@@ -23,7 +23,7 @@ import { Dendrogram } from '../../shared/components/Dendrogram';
 import { MetricTile } from '../../shared/components/MetricTile';
 import { Panel, PanelHeader } from '../../shared/components/Panel';
 import { SegmentedControl, type SegmentedOption } from '../../shared/components/SegmentedControl';
-import { CORPUS_LIST_QUERY_KEY } from '../corpus/ArticleList';
+import { CORPUS_LIST_QUERY_KEY } from '../corpus/SelectionRail';
 import { resolveCutLabelsForLinkage } from './cutLabels';
 import { tryComputeCutDistance } from './cutLine';
 import { CutForm, type CutFormValues } from './CutForm';

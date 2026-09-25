@@ -26,22 +26,39 @@
     "empty": "The corpus has no articles loaded.",
     "errorTitle": "Could not load the corpus",
     "detail": {
-      "selectPrompt": "Select an article to see its full abstract.",
       "loading": "Loading the article…",
       "errorTitle": "Could not load the article",
       "abstractLabel": "Abstract",
       "authorsLabel": "Authors",
-      "idLabel": "Identifier"
+      "idLabel": "Identifier",
+      "closeLabel": "Close"
     },
-    "selection": {
-      "compareCta": "Compare",
-      "reasonNone": "Select at least two articles to compare.",
-      "reasonOne": "Select one more article to compare.",
+    "rail": {
+      "countLabel": "{{count}} documents",
+      "clear": "Clear",
+      "searchLabel": "Search the corpus",
+      "searchPlaceholder": "title, author or id",
+      "searchNoMatches": "No matches",
       "selectedCount": "{{count}} selected",
-      "matrixCta": "View matrix",
-      "matrixReasonNone": "Select at least three articles to view the matrix.",
-      "matrixReasonOne": "Select two more articles to view the matrix.",
-      "matrixReasonTwo": "Select one more article to view the matrix."
+      "mode": {
+        "reason": "Select at least 2 to compare.",
+        "pairwise": "Pairwise comparison",
+        "matrix": "Similarity matrix"
+      },
+      "cta": {
+        "compare": "Compare",
+        "comparePair": "Compare {{a}} and {{b}}",
+        "viewMatrix": "View matrix of {{count}}"
+      },
+      "embeddings": {
+        "label": "Embeddings",
+        "loading": "Loading…",
+        "errorValue": "Error",
+        "allMatch": "Matches the corpus",
+        "mismatch": "Check match",
+        "unknown": "Not verified yet",
+        "openLabel": "View the embeddings status"
+      }
     },
     "embeddingsStatus": {
       "eyebrow": "Embeddings",
@@ -66,8 +83,7 @@
     "eyebrow": "Similarity",
     "title": "Similarity comparison",
     "selection": {
-      "wrongCount": "You have {{count}} articles selected; select exactly two in the corpus to compare.",
-      "backToCorpus": "Go to the corpus",
+      "emptyState": "Select 2 articles in the panel to compare, or 3 or more to view the matrix.",
       "comparing": "Comparing {{a}} × {{b}}",
       "noAlgorithms": "Select at least one algorithm to compare.",
       "viewMatrix": "View the similarity matrix"
@@ -190,7 +206,6 @@
     "matrix": {
       "eyebrow": "Matrix",
       "title": "Similarity matrix",
-      "wrongCount": "You have {{count}} articles selected; select at least three in the corpus to view the matrix.",
       "algorithmGroupLabel": "Matrix algorithm",
       "loading": "Computing the matrix…",
       "errorTitle": "Could not compute the matrix",

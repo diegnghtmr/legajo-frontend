@@ -16,7 +16,7 @@ import { Panel, PanelHeader } from '../../shared/components/Panel';
 import { AlgoTextList } from '../../shared/components/AlgoTextList';
 import { SegmentedControl, type SegmentedOption } from '../../shared/components/SegmentedControl';
 import { buttonVariants } from '../../shared/components/ui/button';
-import { useSelectionStore } from '../corpus/selectionStore';
+import { sortedPair, useSelectionStore } from '../corpus/selectionStore';
 import { algoFamilyFromKind } from './algorithmFamily';
 import { CompareTable } from './CompareTable';
 
@@ -82,16 +82,14 @@ export function SimilarityPage() {
   const hasExactlyTwoSelected = selectedArticleIds.length === 2;
   const hasAlgorithmsSelected = selectedAlgorithmIds.length > 0;
 
+  // Sorted, never the raw toggle order — selecting d02 before d01 must
+  // still compare (and label) the pair as d01/d02, the same order the rail's
+  // own CTA uses (`sortedPair`).
+  const [documentIdA, documentIdB] = sortedPair(selectedArticleIds);
+
   const compareQuery = useQuery<CompareResponse, ApiError>({
-    queryKey: [
-      'similarity',
-      'compare',
-      selectedArticleIds[0],
-      selectedArticleIds[1],
-      selectedAlgorithmIds,
-    ] as const,
+    queryKey: ['similarity', 'compare', documentIdA, documentIdB, selectedAlgorithmIds] as const,
     queryFn: () => {
-      const [documentIdA, documentIdB] = selectedArticleIds;
       const body: CompareRequestBody = {
         documentIdA,
         documentIdB,
@@ -108,24 +106,19 @@ export function SimilarityPage() {
         <PanelHeader eyebrow={t('similarity.eyebrow')} title={t('similarity.title')} />
         <Panel>
           <p role="status" className="text-body text-ink-secondary">
-            {t('similarity.selection.wrongCount', { count: selectedArticleIds.length })}
+            {t('similarity.selection.emptyState')}
           </p>
-          <div className="mt-3 flex flex-wrap gap-3">
-            <Link to="/corpus" className={buttonVariants({ variant: 'primary' })}>
-              {t('similarity.selection.backToCorpus')}
-            </Link>
-            {canMatrix && (
+          {canMatrix && (
+            <div className="mt-3">
               <Link to="/similarity/matrix" className={buttonVariants({ variant: 'secondary' })}>
                 {t('similarity.selection.viewMatrix')}
               </Link>
-            )}
-          </div>
+            </div>
+          )}
         </Panel>
       </div>
     );
   }
-
-  const [documentIdA, documentIdB] = selectedArticleIds;
 
   const familyOptions: readonly SegmentedOption<FamilyFilter>[] = [
     { value: 'all', label: t('similarity.family.all') },

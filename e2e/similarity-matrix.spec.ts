@@ -55,7 +55,7 @@ async function selectThreeArticlesAndOpenMatrix(page: Page) {
   await page.getByRole('checkbox', { name: 'Embeddings for scientific text' }).check();
   await page.getByRole('checkbox', { name: 'Clustering theory refresher' }).check();
 
-  const matrixButton = page.getByRole('button', { name: 'Ver matriz' });
+  const matrixButton = page.getByRole('button', { name: 'Ver matriz de 3' });
   await expect(matrixButton).toBeEnabled();
   await matrixButton.click();
 }

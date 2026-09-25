@@ -67,31 +67,28 @@ beforeEach(() => {
 
 describe('SimilarityPage — wrong selection count', () => {
   it.each([[[]], [['doc-01']], [['doc-01', 'doc-02', 'doc-03']]])(
-    'shows the wrong-count message and a link back to the corpus for selection %j',
+    'shows a designed empty state naming the next step for selection %j',
     (selectedIds) => {
       useSelectionStore.setState({ selectedIds, canCompare: false, canMatrix: false });
 
       renderWithProviders(<SimilarityPage />);
 
-      expect(
-        screen.getByText(
-          `Tienes ${selectedIds.length} artículos seleccionados; selecciona exactamente dos en el corpus para comparar.`,
-        ),
-      ).toBeInTheDocument();
-      const backLink = screen.getByRole('link', { name: 'Ir al corpus' });
-      expect(backLink).toHaveAttribute('href', '/corpus');
-      // A designed empty state: the message and its next step live inside
-      // the Panel card (a `<section>`), and the action reads as a button,
-      // not a bare underlined link.
-      expect(backLink.closest('section')).not.toBeNull();
-      expect(backLink.className).toContain('bg-primary');
+      const status = screen.getByText(
+        'Selecciona 2 artículos en el panel para comparar, o 3 o más para ver la matriz.',
+      );
+      expect(status).toBeInTheDocument();
+      // A designed empty state: the message lives inside the Panel card
+      // (a `<section>`), never a bare "go to the corpus" dead end — the
+      // persistent rail already lets the user change the selection.
+      expect(status.closest('section')).not.toBeNull();
+      expect(screen.queryByRole('link', { name: /corpus/i })).not.toBeInTheDocument();
       expect(similarityApi.compareSimilarity).not.toHaveBeenCalled();
     },
   );
 });
 
 describe('SimilarityPage — three or more selected (wrong count for compare, matrix eligible)', () => {
-  it('shows a link to the similarity matrix in addition to the wrong-count message', () => {
+  it('shows a link to the similarity matrix in addition to the empty-state message', () => {
     useSelectionStore.setState({
       selectedIds: ['doc-01', 'doc-02', 'doc-03'],
       canCompare: false,
@@ -102,7 +99,7 @@ describe('SimilarityPage — three or more selected (wrong count for compare, ma
 
     expect(
       screen.getByText(
-        'Tienes 3 artículos seleccionados; selecciona exactamente dos en el corpus para comparar.',
+        'Selecciona 2 artículos en el panel para comparar, o 3 o más para ver la matriz.',
       ),
     ).toBeInTheDocument();
     const matrixLink = screen.getByRole('link', { name: 'Ver la matriz de similitud' });

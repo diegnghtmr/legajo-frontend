@@ -26,6 +26,19 @@ function deriveThresholds(
 }
 
 /**
+ * Deterministic pair order for exactly two selected ids — sorted, never the
+ * raw toggle/click order the store itself keeps (`selectedIds` is an
+ * insertion-ordered array, so selecting d02 before d01 would otherwise flip
+ * which document is "A" and which is "B"). Every caller that renders or acts
+ * on a pair (the rail's CTA label, the compare screen's own derivation) uses
+ * this same helper, so they can never disagree with each other.
+ */
+export function sortedPair(ids: readonly string[]): readonly [string, string] {
+  const [a, b] = [...ids].sort();
+  return [a, b];
+}
+
+/**
  * Article multi-select for corpus/similarity ("simple toggles
  * stay in Zustand, not react-hook-form"). `canCompare`/`canMatrix` are
  * recomputed on every mutation rather than derived at read time, so callers
