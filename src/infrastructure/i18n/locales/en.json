@@ -3,7 +3,11 @@
     "title": "Legajo",
     "eyebrow": "Similarity and clustering workbench",
     "description": "Corpus selection, similarity comparison and hierarchical clustering views load here.",
-    "skipToContent": "Skip to content"
+    "skipToContent": "Skip to content",
+    "nav": {
+      "openLabel": "Open navigation",
+      "closeLabel": "Close navigation"
+    }
   },
   "language": {
     "switchLabel": "Language",
@@ -11,7 +15,6 @@
     "en": "English"
   },
   "nav": {
-    "corpus": "Corpus",
     "similarity": "Similarity",
     "clustering": "Clustering",
     "benchmarks": "Benchmarks"
