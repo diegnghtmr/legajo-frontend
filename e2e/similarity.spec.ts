@@ -115,7 +115,7 @@ test.describe('similarity compare screen', () => {
     await expect(compareButton).toBeEnabled();
     await compareButton.click();
 
-    await expect(page.getByRole('heading', { name: 'Comparación de similitud' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'doc-01 frente a doc-02' })).toBeVisible();
 
     const rows = page.getByRole('row');
     // Header row + six results.

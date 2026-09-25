@@ -55,7 +55,7 @@ test.describe('similarity compare + trace (full stack, Flow A)', () => {
     await expect(compareButton).toBeEnabled();
     await compareButton.click();
 
-    await expect(page.getByRole('heading', { name: 'Comparación de similitud' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'd01 frente a d02' })).toBeVisible();
 
     // Header row + six real algorithm results.
     await expect(page.getByRole('row')).toHaveCount(7);
@@ -99,7 +99,7 @@ test.describe('similarity compare + trace (full stack, Flow A)', () => {
     await page.getByRole('checkbox', { name: titleA }).check();
     await page.getByRole('checkbox', { name: titleB }).check();
     await page.getByRole('button', { name: 'Comparar d01 y d02' }).click();
-    await expect(page.getByRole('heading', { name: 'Comparación de similitud' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'd01 frente a d02' })).toBeVisible();
 
     await page
       .getByRole('row', { name: 'needleman-wunsch' })

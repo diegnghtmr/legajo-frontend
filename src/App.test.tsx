@@ -139,7 +139,7 @@ describe('App', () => {
 
     renderAppAt('/similarity');
 
-    await screen.findByRole('heading', { name: 'Comparación de similitud' });
+    await screen.findByRole('heading', { name: 'doc-01 frente a doc-02' });
 
     // Only `corpusApi`/`benchmarksApi` are mocked per-module above; every
     // other route's own fetch (the similarity/clustering algorithms

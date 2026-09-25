@@ -100,7 +100,7 @@ describe('TraceDetailPanel', () => {
       await screen.findByRole('heading', { name: 'Levenshtein distance' }),
     ).toBeInTheDocument();
     expect(screen.getByText('Traza')).toBeInTheDocument();
-    expect(screen.getByText('Comparando doc-01 × doc-02')).toBeInTheDocument();
+    expect(screen.getByText('doc-01 frente a doc-02')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Cerrar traza' })).toBeInTheDocument();
   });
 

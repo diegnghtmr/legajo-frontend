@@ -88,9 +88,11 @@
     "title": "Comparación de similitud",
     "selection": {
       "emptyState": "Selecciona 2 artículos en el panel para comparar, o 3 o más para ver la matriz.",
-      "comparing": "Comparando {{a}} × {{b}}",
       "noAlgorithms": "Selecciona al menos un algoritmo para comparar.",
       "viewMatrix": "Ver la matriz de similitud"
+    },
+    "pairTitle": {
+      "connector": "frente a"
     },
     "family": {
       "groupLabel": "Familia de algoritmo",
@@ -119,7 +121,7 @@
     },
     "trace": {
       "eyebrow": "Traza",
-      "subtitle": "Comparando {{a}} × {{b}}",
+      "subtitle": "{{a}} frente a {{b}}",
       "backToCompare": "Volver a la comparación",
       "loading": "Cargando la traza…",
       "errorTitle": "No se pudo cargar la traza",

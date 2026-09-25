@@ -235,7 +235,7 @@ describe('SimilarityTracePage', () => {
 
     renderAtRoute('/similarity/jaccard/trace?documentIdA=doc-01&documentIdB=doc-02');
 
-    expect(await screen.findByText('Comparando doc-01 × doc-02')).toBeInTheDocument();
+    expect(await screen.findByText('doc-01 frente a doc-02')).toBeInTheDocument();
   });
 
   it('shows the family and optimal-path-cost meta row for a DP trace', async () => {
@@ -297,7 +297,7 @@ describe('SimilarityTracePage', () => {
     renderAtRoute('/similarity/jaccard/trace?documentIdA=doc-01');
 
     await screen.findByText('0.333300');
-    expect(screen.queryByText(/Comparando/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/frente a/)).not.toBeInTheDocument();
     expect(screen.queryByText('null')).not.toBeInTheDocument();
   });
 });

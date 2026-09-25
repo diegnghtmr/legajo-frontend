@@ -326,8 +326,7 @@ test.describe('corpus selection rail', () => {
     // Interaction 3: compare, from the docked selection tray.
     await compareButton.click();
 
-    await expect(page.getByRole('heading', { name: 'Comparación de similitud' })).toBeVisible();
-    await expect(page.getByText('Comparando doc-01 × doc-02')).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'doc-01 frente a doc-02' })).toBeVisible();
     await expect(firstRow).toHaveCount(0);
   });
 

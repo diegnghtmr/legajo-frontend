@@ -280,7 +280,7 @@ describe('SimilarityWorkbenchLayout', () => {
         await within(detail).findByRole('heading', { name: 'Levenshtein distance' }),
       ).toBeInTheDocument();
       // The results table stays mounted next to it, in the center.
-      expect(screen.getByRole('heading', { name: 'Comparación de similitud' })).toBeInTheDocument();
+      expect(screen.getByRole('heading', { name: 'doc-01 frente a doc-02' })).toBeInTheDocument();
     });
 
     it('closes by navigating to /similarity, keeping the table in place (never a reload)', async () => {
@@ -294,7 +294,7 @@ describe('SimilarityWorkbenchLayout', () => {
       await user.click(screen.getByRole('button', { name: 'Cerrar traza' }));
 
       expect(screen.queryByTestId('workbench-detail')).not.toBeInTheDocument();
-      expect(screen.getByRole('heading', { name: 'Comparación de similitud' })).toBeInTheDocument();
+      expect(screen.getByRole('heading', { name: 'doc-01 frente a doc-02' })).toBeInTheDocument();
       // The table's own rows, not only its heading, are still there — header
       // + the one result row this suite's catalogue produces — and the
       // compare data behind them was never re-fetched, proof the table
@@ -594,7 +594,7 @@ describe('SimilarityWorkbenchLayout', () => {
       renderLayoutAtRoute('/similarity');
 
       expect(
-        await screen.findByRole('heading', { name: 'Comparación de similitud' }),
+        await screen.findByRole('heading', { name: 'doc-01 frente a doc-02' }),
       ).toBeInTheDocument();
       expect(
         screen.queryByRole('checkbox', { name: 'A survey of string similarity' }),
@@ -608,7 +608,7 @@ describe('SimilarityWorkbenchLayout', () => {
         canMatrix: false,
       });
       renderLayoutAtRoute('/similarity');
-      await screen.findByRole('heading', { name: 'Comparación de similitud' });
+      await screen.findByRole('heading', { name: 'doc-01 frente a doc-02' });
 
       act(() => {
         useSelectionStore.setState({
@@ -630,7 +630,7 @@ describe('SimilarityWorkbenchLayout', () => {
       await user.click(screen.getByRole('button', { name: 'Comparar doc-03 y doc-04' }));
 
       expect(
-        await screen.findByRole('heading', { name: 'Comparación de similitud' }),
+        await screen.findByRole('heading', { name: 'doc-03 frente a doc-04' }),
       ).toBeInTheDocument();
     });
 

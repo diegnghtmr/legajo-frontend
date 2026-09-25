@@ -88,9 +88,11 @@
     "title": "Similarity comparison",
     "selection": {
       "emptyState": "Select 2 articles in the panel to compare, or 3 or more to view the matrix.",
-      "comparing": "Comparing {{a}} × {{b}}",
       "noAlgorithms": "Select at least one algorithm to compare.",
       "viewMatrix": "View the similarity matrix"
+    },
+    "pairTitle": {
+      "connector": "vs"
     },
     "family": {
       "groupLabel": "Algorithm family",
@@ -119,7 +121,7 @@
     },
     "trace": {
       "eyebrow": "Trace",
-      "subtitle": "Comparing {{a}} × {{b}}",
+      "subtitle": "{{a}} vs {{b}}",
       "backToCompare": "Back to the comparison",
       "loading": "Loading the trace…",
       "errorTitle": "Could not load the trace",
