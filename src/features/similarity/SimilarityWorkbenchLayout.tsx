@@ -363,18 +363,28 @@ export function SimilarityWorkbenchLayout() {
           // The docked tray below already carries the CTA and, on its own
           // sheet, this exact same list — this is the screen's own main
           // content only while no pair exists yet to compare, so the tray
-          // never has to be opened just to make a first selection. `pb-28`
-          // (below) keeps its own last row clear of the docked tray.
+          // never has to be opened just to make a first selection. `pb-52`
+          // (below) keeps its own last row clear of the docked tray — see
+          // the sibling branch's own comment for why 28 (112px) undersized
+          // it.
           <CorpusListPanel
-            className="pb-28"
+            className="pb-52"
             onOpenAbstract={openAbstract}
             onOpenEmbeddings={openEmbeddings}
           />
         ) : (
           // Space for the docked tray below, so its own last row is never
           // hidden underneath it — only needed below `lg`, where the tray
-          // exists at all.
-          <div className={!isAtLeastLg ? 'pb-28' : undefined}>
+          // exists at all. `pb-28` (112px) measured short of the tray's own
+          // real rendered height (summary button + reason text + CTA,
+          // ~155px in Chromium's own layout) by a wide margin, silently
+          // letting the tray's opaque `bg-paper-raised` background sit over
+          // a scrollable list's own last row or two — invisible in a quick
+          // look, but a real, un-tappable-there gap a coarse-pointer
+          // hit-test now catches (see `e2e/hit-areas.spec.ts`). `pb-52`
+          // (208px) leaves comfortable room for that height plus a real
+          // device's own `env(safe-area-inset-bottom)` on top of it.
+          <div className={!isAtLeastLg ? 'pb-52' : undefined}>
             <Outlet />
           </div>
         )}

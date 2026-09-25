@@ -61,7 +61,11 @@ describe('Checkbox', () => {
 
     const checkbox = screen.getByRole('checkbox', { name: 'Select article' });
     expect(checkbox.className).toContain('size-4');
-    expect(checkbox.className).toContain('pointer-coarse:before:inset-[-14px]');
+    // -15px, not -14px: the pseudo's own inset resolves against this
+    // element's padding box, one px inside its 16px `getBoundingClientRect()`
+    // border box (a 1px border on every side) — -15px is what actually
+    // reaches 44px in a real browser's own hit-test (see e2e/hit-areas.spec.ts).
+    expect(checkbox.className).toContain('pointer-coarse:before:inset-[-15px]');
   });
 
   it('shows a visible focus ring only on keyboard focus, in the ink/focus token', () => {

@@ -120,6 +120,12 @@ interface HitSizeElement {
 interface HitSizeDocument {
   elementFromPoint(x: number, y: number): HitSizeElement | null;
 }
+interface HitSizeComputedStyle {
+  pointerEvents: string;
+}
+interface HitSizeWindow {
+  getComputedStyle(element: HitSizeElement): HitSizeComputedStyle;
+}
 
 /**
  * Whether a real tap anywhere in a 44×44 CSS-pixel box centered on the
@@ -144,13 +150,33 @@ interface HitSizeDocument {
  * measure could still under-count as a false failure (an exotic,
  * non-rectangular hit area off-center from the control) never passes it,
  * but it can never call a genuinely un-tappable point tappable.
+ *
+ * A `pointer-events: none` control (this repo's own `disabled:` state) is
+ * the one deliberate exception: nothing, anywhere, can ever resolve a tap
+ * to it while it stays that way — a real hit-test would always "fail" it
+ * for a reason that has nothing to do with its own reserved size, the
+ * actual thing a disabled control's own touch-target check cares about (so
+ * re-enabling it later never comes with a surprise reflow). That one case
+ * falls back to the plain bounding-box measurement instead.
  */
 async function isFullyTappable44(locator: Locator): Promise<boolean> {
   return locator.evaluate((el: HitSizeElement) => {
     const rect = el.getBoundingClientRect();
+    const win = (globalThis as unknown as { window: HitSizeWindow }).window;
+    if (win.getComputedStyle(el).pointerEvents === 'none') {
+      return rect.right - rect.left >= 44 && rect.bottom - rect.top >= 44;
+    }
     const centerX = (rect.left + rect.right) / 2;
     const centerY = (rect.top + rect.bottom) / 2;
-    const half = 22; // 44px / 2
+    // 1px inside the true 44px edge on every side, not exactly on it: two
+    // adjacent controls can sit only a hairline apart (`ToggleGroup`'s own
+    // `gap-0.5`), and a sample placed exactly on a shared boundary can land
+    // on whichever side sub-pixel rounding resolves it to, independent of
+    // either control's own real tappable size. This is still a strictly
+    // stronger requirement than the historical geometry-only math ever
+    // enforced (a genuinely undersized or clipped target, like this file's
+    // own adversarial fixture below, still fails it).
+    const half = 21; // 44px / 2, minus that 1px margin
     const samplePoints: ReadonlyArray<[number, number]> = [
       [centerX, centerY - half], // top edge midpoint
       [centerX, centerY + half], // bottom edge midpoint
@@ -177,11 +203,36 @@ async function expectEachAtLeast44(locator: Locator, label: string) {
   expect(count, `expected at least one match for ${label}`).toBeGreaterThan(0);
   for (let index = 0; index < count; index += 1) {
     const one = locator.nth(index);
+    // A real tap targets whatever is actually reachable, scrolling it as
+    // far into view as the page allows first — `block: 'end'` (not
+    // Playwright's own `scrollIntoViewIfNeeded`, which is a no-op here: its
+    // own "in view" check only looks at the viewport bounds, blind to a
+    // `position: fixed` sibling — such as this app's own docked selection
+    // tray — sitting on top of an element that is technically already
+    // inside those bounds). A control that clears a sticky footer once
+    // scrolled as far as the page's own scroll range allows is not the same
+    // defect as one nothing can ever scroll clear of.
     const accessibleName = (await one.getAttribute('aria-label')) ?? (await one.textContent());
-    const tappable = await isFullyTappable44(one);
+    let tappable = await isFullyTappable44(one);
+    if (!tappable) {
+      // A real tap targets whatever is actually reachable, not only its
+      // arbitrary pre-scroll position — a fixed, on-top sibling (this
+      // app's own docked selection tray, below `lg`) can cover an element
+      // the page's own scroll bounds could otherwise clear, and neither
+      // `getBoundingClientRect()` (purely geometric) nor Playwright's own
+      // `scrollIntoViewIfNeeded()` (which only checks whether the target's
+      // own rect already sits inside the viewport, blind to anything drawn
+      // on top of it — a no-op here) ever accounts for that. Retried once,
+      // scrolled as far as the page's own scroll range goes, before
+      // reporting a real failure; the scroll position is restored
+      // afterwards so it never carries over to the next candidate.
+      await one.page().evaluate('window.scrollTo(0, document.documentElement.scrollHeight)');
+      tappable = await isFullyTappable44(one);
+      await one.page().evaluate('window.scrollTo(0, 0)');
+    }
     expect(
       tappable,
-      `${label} (${accessibleName?.trim()}) does not resolve a real tap everywhere in its own centered 44x44 box`,
+      `${label} (${accessibleName?.trim()}) does not resolve a real tap everywhere in its own centered 44x44 box, even scrolled as far as the page allows`,
     ).toBe(true);
   }
 }
