@@ -15,7 +15,7 @@ import { cn } from '@/shared/lib/cn';
  * the tap target to 44px without inflating the visible text box, the same
  * technique `Checkbox` already uses.
  */
-const buttonVariants = cva(
+export const buttonVariants = cva(
   'inline-flex items-center justify-center gap-2 motion-safe:transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring disabled:pointer-events-none disabled:opacity-45',
   {
     variants: {
