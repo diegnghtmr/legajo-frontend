@@ -238,6 +238,45 @@ export function BenchmarkCurveChart({
         </LineChart>
       </div>
 
+      {/*
+       * The four series differ only by dash pattern (grayscale-first,
+       * `seriesStyle.ts`): without a key, that distinction is invisible.
+       * Each entry pairs a swatch matching the chart line's own dash with
+       * the algorithm id in mono — the visible text is what assistive tech
+       * reads, so the decorative swatch itself is `aria-hidden`.
+       */}
+      <ul
+        aria-label={t('benchmarks.curves.legend')}
+        className="mt-3 flex flex-wrap gap-x-4 gap-y-2"
+      >
+        {series.map((entry, index) => {
+          const dash = dashPatternForIndex(index) || undefined;
+          return (
+            <li key={entry.family} className="flex items-center gap-2">
+              <svg
+                data-testid={`legend-swatch-${entry.family}`}
+                aria-hidden="true"
+                width="20"
+                height="10"
+                className="shrink-0"
+              >
+                <line
+                  data-testid={`legend-dash-${entry.family}`}
+                  x1="0"
+                  y1="5"
+                  x2="20"
+                  y2="5"
+                  stroke="var(--color-ink)"
+                  strokeWidth="1.5"
+                  strokeDasharray={dash}
+                />
+              </svg>
+              <span className="font-mono text-mono text-ink">{entry.family}</span>
+            </li>
+          );
+        })}
+      </ul>
+
       {familiesWithSlopes.length > 0 && (
         <Table aria-label={slopeTableCaption} className="mt-3">
           <TableCaption className="sr-only">{slopeTableCaption}</TableCaption>

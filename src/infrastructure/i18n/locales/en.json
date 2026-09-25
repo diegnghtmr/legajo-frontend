@@ -273,7 +273,8 @@
       "dataTableCaption": "Measured values: {{group}}",
       "dataTableSize": "Size",
       "dataTableMissingValue": "No data",
-      "noData": "No measurements available for this group."
+      "noData": "No measurements available for this group.",
+      "legend": "Series legend"
     },
     "embedding": {
       "title": "Embedding primitives (O(d))",
