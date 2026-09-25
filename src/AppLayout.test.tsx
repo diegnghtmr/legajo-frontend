@@ -226,6 +226,16 @@ describe('AppLayout', () => {
       expect(screen.getByRole('main')).toHaveFocus();
     });
 
+    it('keeps focus on an activated nav link when no panel was open to close, as on a wide viewport', async () => {
+      const user = userEvent.setup();
+      renderLayout();
+
+      await user.click(screen.getByRole('link', { name: 'Agrupamiento' }));
+
+      expect(await screen.findByText('clustering page')).toBeInTheDocument();
+      expect(screen.getByRole('link', { name: 'Agrupamiento' })).toHaveFocus();
+    });
+
     it("closes when the current (already active) route's own link is activated, which never changes the pathname", async () => {
       const user = userEvent.setup();
       renderLayout('/similarity');

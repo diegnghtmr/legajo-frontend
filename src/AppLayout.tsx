@@ -250,13 +250,17 @@ export function AppLayout() {
               // `location.pathname`, so the render-time check above alone
               // would never close the panel for it — this closes
               // unconditionally on every link activation instead, whether
-              // or not the destination differs. The panel becoming hidden
-              // right under the just-activated link would otherwise leave
-              // focus behind on it, so focus moves onto the routed content
-              // instead — the standard place to land it after a navigation.
+              // or not the destination differs. When the panel was open, it
+              // becomes hidden right under the just-activated link and would
+              // leave focus behind on it, so focus moves onto the routed
+              // content instead — the standard place to land it after a
+              // navigation. With no panel open (the always-visible wide nav),
+              // nothing disappears, so focus stays on the activated link.
               onClick={() => {
+                if (navOpen) {
+                  mainRef.current?.focus();
+                }
                 setNavOpen(false);
-                mainRef.current?.focus();
               }}
               className={({ isActive }) =>
                 cn(
