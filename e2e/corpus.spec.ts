@@ -205,7 +205,7 @@ test.describe('corpus selection rail', () => {
     expect(pageScrollY).toBe(0);
   });
 
-  test('at 390px with a full-size corpus, the rail list still reaches its last row with no page-level horizontal scroll', async ({
+  test('at 390px with a full-size corpus, the page scrolls to reach the last rail row with no page-level horizontal scroll', async ({
     page,
   }) => {
     const manySummaries = Array.from({ length: 30 }, (_unused, index) => ({
@@ -226,6 +226,16 @@ test.describe('corpus selection rail', () => {
     await expect(lastRow).toBeVisible();
     await lastRow.check();
     await expect(lastRow).toBeChecked();
+
+    // Below `lg`, `WorkbenchLayout` gives the rail no scroll region of its
+    // own (`lg:h-full lg:overflow-y-auto` only applies from `lg` up): the
+    // rail stacks in normal document flow above the results, so reaching a
+    // row this far down the list is necessarily the PAGE scrolling, not an
+    // internal rail scrollbar. `scrollIntoViewIfNeeded` alone doesn't prove
+    // that — it scrolls whichever ancestor is scrollable, silently passing
+    // even if that ancestor were something other than the page.
+    const pageScrollY = await page.evaluate('window.scrollY');
+    expect(pageScrollY as number).toBeGreaterThan(0);
 
     // "No horizontal overflow" is `scrollWidth <= clientWidth`, the same
     // check the dedicated 390px overflow test above uses — a full 30-row
