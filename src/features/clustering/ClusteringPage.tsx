@@ -295,7 +295,21 @@ export function ClusteringPage() {
                 error={activeCutError}
               />
             ) : (
-              <p className="text-body text-ink-muted">{t('clustering.cutForm.unavailable')}</p>
+              <p className="text-body text-ink-muted">
+                {/*
+                 * The placeholder shown while no `CutForm` can be rendered
+                 * must name the actual reason: nothing is selected, the
+                 * request failed, or it is still loading. Showing the
+                 * "still loading" copy for the first two would be false —
+                 * nothing is loading, and reselecting a linkage (not
+                 * waiting) is what unblocks the cut in each case.
+                 */}
+                {!hasLinkagesSelected
+                  ? t('clustering.cutForm.unavailableNoLinkage')
+                  : clusteringQuery.isError
+                    ? t('clustering.cutForm.unavailableError')
+                    : t('clustering.cutForm.unavailable')}
+              </p>
             )}
           </div>
         </div>

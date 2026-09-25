@@ -162,6 +162,44 @@ describe('ClusteringPage', () => {
     expect(screen.queryByRole('radiogroup', { name: 'Enlace a cortar' })).not.toBeInTheDocument();
   });
 
+  it('shows a distinct cut-unavailable reason when the clustering request fails, never the "still loading" placeholder', async () => {
+    vi.spyOn(corpusApi, 'fetchCorpus').mockResolvedValue(CORPUS);
+    vi.spyOn(clusteringApi, 'runClustering').mockRejectedValue({
+      kind: 'unexpected',
+      i18nKey: 'errors.unexpected',
+      message: 'boom',
+    });
+
+    renderPage();
+
+    expect(
+      await screen.findByText('El corte no está disponible porque el agrupamiento falló.'),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByText('El corte estará disponible cuando termine de cargar el agrupamiento.'),
+    ).not.toBeInTheDocument();
+  });
+
+  it('shows a distinct cut-unavailable reason when no linkage is selected, never the "still loading" placeholder', async () => {
+    vi.spyOn(corpusApi, 'fetchCorpus').mockResolvedValue(CORPUS);
+    vi.spyOn(clusteringApi, 'runClustering').mockResolvedValue(DEFAULT_RESPONSE);
+    const user = userEvent.setup();
+
+    renderPage();
+    await waitFor(() => expect(clusteringApi.runClustering).toHaveBeenCalled());
+
+    for (const id of ALL_FOUR) {
+      await user.click(screen.getByRole('button', { name: id }));
+    }
+
+    expect(
+      await screen.findByText('El corte no está disponible porque no hay ningún enlace seleccionado.'),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByText('El corte estará disponible cuando termine de cargar el agrupamiento.'),
+    ).not.toBeInTheDocument();
+  });
+
   it('requests tfidf-cosine and all four linkages by default', async () => {
     vi.spyOn(corpusApi, 'fetchCorpus').mockResolvedValue(CORPUS);
     vi.spyOn(clusteringApi, 'runClustering').mockResolvedValue(DEFAULT_RESPONSE);

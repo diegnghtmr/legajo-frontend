@@ -265,6 +265,8 @@
       "errorTitle": "Could not apply the cut",
       "noValidRange": "There is no valid number of clusters to cut this corpus.",
       "unavailable": "The cut will be available once the clustering finishes loading.",
+      "unavailableError": "The cut is unavailable because the clustering failed.",
+      "unavailableNoLinkage": "The cut is unavailable because no linkage is selected.",
       "errors": {
         "kRange": "k must be an integer between {{min}} and {{max}}."
       }

@@ -265,6 +265,8 @@
       "errorTitle": "No se pudo aplicar el corte",
       "noValidRange": "No hay una cantidad de clústeres válida para cortar este corpus.",
       "unavailable": "El corte estará disponible cuando termine de cargar el agrupamiento.",
+      "unavailableError": "El corte no está disponible porque el agrupamiento falló.",
+      "unavailableNoLinkage": "El corte no está disponible porque no hay ningún enlace seleccionado.",
       "errors": {
         "kRange": "k debe ser un entero entre {{min}} y {{max}}."
       }
