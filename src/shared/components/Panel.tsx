@@ -1,24 +1,23 @@
 import type { ReactNode } from 'react';
 
 import { cn } from '../lib/cn';
+import { cardSurfaceClassName } from './ui/card';
 
 export interface PanelProps {
   children: ReactNode;
   className?: string;
 }
 
-/** Card surface (the `components.card` token): hairline border, one quiet shadow, no glassmorphism. */
+/**
+ * The card token's surface, composed from the shadcn `Card` primitive's own
+ * className rather than a hand-rolled duplicate. Renders a `<section>`
+ * instead of `Card`'s `<div>` so trace and metric panels stay an
+ * identifiable landmark; `Card` has no padding of its own (its compound
+ * `CardHeader`/`CardContent` children carry it), so Panel keeps its own flat
+ * `p-4` for its simpler single-region usage.
+ */
 export function Panel({ children, className }: PanelProps) {
-  return (
-    <section
-      className={cn(
-        'rounded-md border border-hairline bg-paper-raised p-4 shadow-[0_1px_2px_rgb(0_0_0_/_0.04)]',
-        className,
-      )}
-    >
-      {children}
-    </section>
-  );
+  return <section className={cn(cardSurfaceClassName, 'p-4', className)}>{children}</section>;
 }
 
 export interface PanelHeaderProps {

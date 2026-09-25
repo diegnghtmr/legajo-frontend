@@ -1,17 +1,32 @@
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
+
 import { describe, expect, it } from 'vitest';
 
 import { contrastRatio } from './contrast.ts';
 
-// The tokens themselves (src/index.css @theme), so a token value drifting
-// away from its documented pairing fails this test instead of silently
-// shipping an inaccessible combination.
-const PAPER = '#fafafa';
-const PAPER_RAISED = '#ffffff';
-const INK_MUTED = '#737373';
-const CLASSIC_SOFT = '#fef3c7';
-const CLASSIC_FOREGROUND = '#78350f';
-const AI_SOFT = '#ede9fe';
-const AI_FOREGROUND = '#4c1d95';
+/**
+ * Reads a token's actual hex value from `src/index.css`'s `@theme` block
+ * instead of a hardcoded copy in this file: a copy would keep passing even
+ * after the real token drifted away from its documented pairing, proving
+ * nothing about the tokens the app actually ships.
+ */
+function readColorToken(name: string): string {
+  const css = readFileSync(join(process.cwd(), 'src', 'index.css'), 'utf8');
+  const match = new RegExp(`--color-${name}:\\s*(#[0-9a-fA-F]{3,8})\\s*;`).exec(css);
+  if (!match) {
+    throw new Error(`Token --color-${name} not found in src/index.css`);
+  }
+  return match[1]!;
+}
+
+const PAPER = readColorToken('paper');
+const PAPER_RAISED = readColorToken('paper-raised');
+const INK_MUTED = readColorToken('ink-muted');
+const CLASSIC_SOFT = readColorToken('classic-soft');
+const CLASSIC_FOREGROUND = readColorToken('classic-foreground');
+const AI_SOFT = readColorToken('ai-soft');
+const AI_FOREGROUND = readColorToken('ai-foreground');
 
 describe('contrastRatio', () => {
   it('computes the WCAG contrast ratio between two colors (black on white is 21:1)', () => {
