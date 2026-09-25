@@ -23,7 +23,13 @@ export function Checkbox({ className, ...props }: CheckboxProps) {
         // The visible box stays 16px (size-4); on a coarse pointer an
         // invisible pseudo-element extends the actual tappable area to 44px
         // (16px box + 14px on every side) without resizing the box itself.
-        "pointer-coarse:before:absolute pointer-coarse:before:inset-[-14px] pointer-coarse:before:content-['']",
+        // `-15px`, not `-14px`: this element's own 1px border (`border
+        // border-hairline-strong`) sits *inside* its `getBoundingClientRect()`
+        // box (browsers resolve an absolutely positioned pseudo's own
+        // `inset` against its containing block's padding box, not the
+        // border box that includes that 1px), so a plain `-14px` reaches
+        // only 42px, 2px short on every side.
+        "pointer-coarse:before:absolute pointer-coarse:before:inset-[-15px] pointer-coarse:before:content-['']",
         className,
       )}
       {...props}

@@ -1,38 +1,8 @@
 import { act, renderHook } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
+import { stubMatchMedia } from '../../test/matchMedia';
 import { useIsAtLeastLg } from './useIsAtLeastLg';
-
-interface FakeMediaQueryList extends Omit<MediaQueryList, 'matches'> {
-  matches: boolean;
-  fireChange(matches: boolean): void;
-}
-
-function stubMatchMedia(initialMatches: boolean): FakeMediaQueryList {
-  const listeners = new Set<(event: MediaQueryListEvent) => void>();
-  const list: FakeMediaQueryList = {
-    matches: initialMatches,
-    media: '(min-width: 1024px)',
-    onchange: null,
-    addListener: () => {},
-    removeListener: () => {},
-    addEventListener: (_type: string, listener: EventListenerOrEventListenerObject) => {
-      listeners.add(listener as (event: MediaQueryListEvent) => void);
-    },
-    removeEventListener: (_type: string, listener: EventListenerOrEventListenerObject) => {
-      listeners.delete(listener as (event: MediaQueryListEvent) => void);
-    },
-    dispatchEvent: () => false,
-    fireChange(matches: boolean) {
-      list.matches = matches;
-      for (const listener of listeners) {
-        listener({ matches } as MediaQueryListEvent);
-      }
-    },
-  };
-  vi.stubGlobal('matchMedia', () => list);
-  return list;
-}
 
 afterEach(() => {
   vi.unstubAllGlobals();

@@ -1,5 +1,12 @@
 import { MAIN_CONTENT_ID } from '../../shared/lib/shellMetrics';
 
+/** The attribute both `CompareTable`'s row button and
+ * `CompareResultsList`'s row button carry, set to that row's own algorithm
+ * id — the lookup key {@link restoreTraceTrigger} uses once the remembered
+ * element itself is gone, to find whichever of the two views (table at
+ * `lg`+, list below it) is *currently* mounted for that same algorithm. */
+const TRACE_TRIGGER_ATTRIBUTE = 'data-algorithm-trigger';
+
 /**
  * Remembers which compare row opened the trace currently shown in the
  * detail panel, so closing it (however it closes — the panel's own close
@@ -20,16 +27,22 @@ import { MAIN_CONTENT_ID } from '../../shared/lib/shellMetrics';
  * path that ends a trace without the person's own close action on it (the
  * rail naming a different pair, the rail's own abstract/embeddings view
  * replacing it, or the workbench unmounting outright). `restoreTraceTrigger`
- * also never focuses a remembered element that is no longer attached to the
- * document — one of those other paths having left it stale despite the
- * clearing above, or the row itself having since unmounted — falling back
- * to the app shell's own `<main>` landmark instead of silently dropping
- * focus back to the document body.
+ * also never blindly focuses a remembered element that is no longer
+ * attached to the document — the breakpoint crossing `lg` while the trace
+ * stayed open (`CompareTable` unmounts in favor of `CompareResultsList`, or
+ * back), one of those other paths having left it stale despite the
+ * clearing above, or the row itself having since unmounted. The remembered
+ * algorithm id lets it look up that exact row's trigger in whichever of
+ * the two views is mounted *now* instead, falling back to the app shell's
+ * own `<main>` landmark only once neither the original element nor a
+ * same-algorithm row can be found at all.
  */
 let lastTraceTrigger: HTMLElement | null = null;
+let lastTraceAlgorithmId: string | null = null;
 
-export function rememberTraceTrigger(element: HTMLElement | null): void {
+export function rememberTraceTrigger(element: HTMLElement | null, algorithmId: string): void {
   lastTraceTrigger = element;
+  lastTraceAlgorithmId = algorithmId;
 }
 
 /** Ends this module's tracking of the currently-open trace's own trigger
@@ -40,13 +53,30 @@ export function rememberTraceTrigger(element: HTMLElement | null): void {
  * trace close from focusing this no-longer-current button. */
 export function clearTraceTrigger(): void {
   lastTraceTrigger = null;
+  lastTraceAlgorithmId = null;
+}
+
+/** Finds the *currently mounted* trigger for `algorithmId` — the table's
+ * row button at `lg`+, the list's below it, whichever is actually in the
+ * document right now — never a `querySelector('button')` guess at DOM
+ * order, which every row's own trigger would equally match. */
+function findTriggerByAlgorithmId(algorithmId: string): HTMLElement | null {
+  const candidates = document.querySelectorAll<HTMLElement>(`[${TRACE_TRIGGER_ATTRIBUTE}]`);
+  for (const candidate of candidates) {
+    if (candidate.getAttribute(TRACE_TRIGGER_ATTRIBUTE) === algorithmId) {
+      return candidate;
+    }
+  }
+  return null;
 }
 
 export function restoreTraceTrigger(): void {
+  const remembered = lastTraceTrigger?.isConnected === true ? lastTraceTrigger : null;
   const target =
-    lastTraceTrigger?.isConnected === true
-      ? lastTraceTrigger
-      : document.getElementById(MAIN_CONTENT_ID);
+    remembered ??
+    (lastTraceAlgorithmId !== null ? findTriggerByAlgorithmId(lastTraceAlgorithmId) : null) ??
+    document.getElementById(MAIN_CONTENT_ID);
   lastTraceTrigger = null;
+  lastTraceAlgorithmId = null;
   target?.focus();
 }

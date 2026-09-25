@@ -9,7 +9,7 @@ import * as embeddingsApi from '../../infrastructure/api/embeddings';
 import * as similarityApi from '../../infrastructure/api/similarity';
 import type { ListSimilarityAlgorithmsResponse } from '../../infrastructure/api/similarity';
 import type { DpMatrixTrace } from '../../infrastructure/schemas/similarity';
-import { stubNarrowViewport } from '../../test/matchMedia';
+import { stubMatchMedia, stubNarrowViewport } from '../../test/matchMedia';
 import { useSelectionStore } from '../corpus/selectionStore';
 import { SimilarityPage } from './SimilarityPage';
 import { SimilarityWorkbenchLayout } from './SimilarityWorkbenchLayout';
@@ -333,6 +333,50 @@ describe('SimilarityWorkbenchLayout', () => {
       expect(rowButton).toHaveFocus();
     });
 
+    describe('a tablet rotation (or any resize) crossing the breakpoint while the trace stays open', () => {
+      afterEach(() => {
+        vi.unstubAllGlobals();
+      });
+
+      it('resolves the remembered trigger by algorithm id against whichever results view is mounted', async () => {
+        const mediaQueryList = stubMatchMedia(true);
+        const user = userEvent.setup();
+        renderLayoutAtRoute('/similarity');
+
+        await waitForCompareTable();
+        const tableRow = await screen.findByRole('row', { name: /^levenshtein/i });
+        await user.click(within(tableRow).getByRole('button', { name: 'levenshtein' }));
+        await screen.findByTestId('workbench-detail');
+
+        // The table unmounts in favor of the results list, and the row
+        // button `rememberTraceTrigger` captured is no longer in the
+        // document.
+        act(() => {
+          mediaQueryList.fireChange(false);
+        });
+
+        // The now-open below-`lg` trace sheet is a real Radix `Dialog`,
+        // which marks the rest of the page `aria-hidden` while it is open —
+        // `hidden: true` still finds the results list underneath it (its
+        // DOM node, and the row button's real focusability, are both
+        // unaffected by that accessibility-tree veil).
+        const list = await screen.findByRole('list', {
+          name: 'Resultados de similitud por algoritmo',
+          hidden: true,
+        });
+        const listRowButton = within(list).getByRole('button', {
+          name: 'levenshtein',
+          hidden: true,
+        });
+        const dialog = await screen.findByRole('dialog');
+
+        await user.click(within(dialog).getByRole('button', { name: 'Cerrar traza' }));
+
+        expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+        expect(listRowButton).toHaveFocus();
+      });
+    });
+
     it('closes the deep-linked trace and drops its document ids from the URL once the rail names a different pair', async () => {
       renderLayoutAtRoute('/similarity/levenshtein/trace?documentIdA=doc-01&documentIdB=doc-02');
 
@@ -503,6 +547,83 @@ describe('SimilarityWorkbenchLayout', () => {
       expect(
         await screen.findByRole('heading', { name: 'Comparación de similitud' }),
       ).toBeInTheDocument();
+    });
+
+    it('deselecting then reselecting the exact same pair needs its own fresh confirmation, not an immediate re-confirm', async () => {
+      const user = userEvent.setup();
+      vi.spyOn(corpusApi, 'fetchCorpus').mockResolvedValue([
+        { id: 'doc-01', title: 'A survey of string similarity', authors: ['A. One'] },
+        { id: 'doc-02', title: 'A second article', authors: ['B. Two'] },
+      ]);
+      renderLayoutAtRoute('/similarity');
+
+      await user.click(
+        await screen.findByRole('checkbox', { name: 'A survey of string similarity' }),
+      );
+      await user.click(screen.getByRole('checkbox', { name: 'A second article' }));
+      await user.click(screen.getByRole('button', { name: 'Comparar doc-01 y doc-02' }));
+      await screen.findByRole('list', { name: 'Resultados de similitud por algoritmo' });
+
+      // Deselects one article (the pair stops existing), then reselects it —
+      // the exact same pair key as before, which the layout must not
+      // silently treat as still confirmed.
+      act(() => {
+        useSelectionStore.setState({
+          selectedIds: ['doc-02'],
+          canCompare: false,
+          canMatrix: false,
+        });
+      });
+      act(() => {
+        useSelectionStore.setState({
+          selectedIds: ['doc-01', 'doc-02'],
+          canCompare: true,
+          canMatrix: false,
+        });
+      });
+
+      expect(
+        await screen.findByRole('checkbox', { name: 'A survey of string similarity' }),
+      ).toBeInTheDocument();
+      expect(
+        screen.queryByRole('list', { name: 'Resultados de similitud por algoritmo' }),
+      ).not.toBeInTheDocument();
+    });
+  });
+
+  describe('a pair selected while still at lg, then the viewport shrinks below lg', () => {
+    afterEach(() => {
+      vi.unstubAllGlobals();
+    });
+
+    it('keeps showing the results instead of reverting to the corpus list, since results already showing at lg need no separate tray confirmation', async () => {
+      const mediaQueryList = stubMatchMedia(true);
+      const user = userEvent.setup();
+      vi.spyOn(corpusApi, 'fetchCorpus').mockResolvedValue([
+        { id: 'doc-01', title: 'A survey of string similarity', authors: ['A. One'] },
+        { id: 'doc-02', title: 'A second article', authors: ['B. Two'] },
+      ]);
+      renderLayoutAtRoute('/similarity');
+
+      // At lg+, selecting through the persistent rail shows the compare
+      // results directly (Outlet) — no separate CTA confirmation exists at
+      // this width.
+      await user.click(
+        await screen.findByRole('checkbox', { name: 'A survey of string similarity' }),
+      );
+      await user.click(screen.getByRole('checkbox', { name: 'A second article' }));
+      await waitForCompareTable();
+
+      act(() => {
+        mediaQueryList.fireChange(false);
+      });
+
+      expect(
+        await screen.findByRole('list', { name: 'Resultados de similitud por algoritmo' }),
+      ).toBeInTheDocument();
+      expect(
+        screen.queryByRole('checkbox', { name: 'A survey of string similarity' }),
+      ).not.toBeInTheDocument();
     });
   });
 

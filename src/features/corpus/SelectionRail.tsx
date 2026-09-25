@@ -15,6 +15,11 @@ export { embeddingsSummaryState } from './CorpusListPanel';
 export interface SelectionRailProps {
   onOpenAbstract: (id: string) => void;
   onOpenEmbeddings: () => void;
+  /** Called the instant the CTA is activated, in addition to (never instead
+   * of) its own navigation — mirrors `SelectionTray`'s own
+   * `onCtaActivate` so `SimilarityWorkbenchLayout` records a comparison as
+   * confirmed from either rail, never only the below-`lg` one. */
+  onCtaActivate?: () => void;
 }
 
 /**
@@ -25,10 +30,19 @@ export interface SelectionRailProps {
  * compare at exactly two selected, the matrix at three or more, disabled
  * with a reason below two.
  */
-export function SelectionRail({ onOpenAbstract, onOpenEmbeddings }: SelectionRailProps) {
+export function SelectionRail({
+  onOpenAbstract,
+  onOpenEmbeddings,
+  onCtaActivate,
+}: SelectionRailProps) {
   const { t } = useTranslation();
   const reasonId = useId();
   const { selectedCount, ctaLabel, ctaEnabled, modeText, onCtaClick } = useAdaptiveSelectionCta();
+
+  function handleCtaClick() {
+    onCtaActivate?.();
+    onCtaClick();
+  }
 
   return (
     <aside aria-label={t('corpus.eyebrow')} className="flex h-full flex-col">
@@ -51,7 +65,7 @@ export function SelectionRail({ onOpenAbstract, onOpenEmbeddings }: SelectionRai
           type="button"
           disabled={!ctaEnabled}
           aria-describedby={ctaEnabled ? undefined : reasonId}
-          onClick={onCtaClick}
+          onClick={handleCtaClick}
         >
           {ctaLabel}
         </Button>

@@ -24,7 +24,14 @@ export const buttonVariants = cva(
           'h-9 rounded-btn px-4 py-2 text-label font-medium bg-primary text-primary-foreground hover:opacity-90 pointer-coarse:min-h-11 pointer-coarse:min-w-11',
         secondary:
           'h-9 rounded-btn border border-hairline-strong bg-paper-raised px-4 py-2 text-label font-medium text-ink hover:bg-paper-sunken pointer-coarse:min-h-11 pointer-coarse:min-w-11',
-        mono: "relative h-auto w-auto justify-start gap-0 rounded-none border-b-[1.5px] border-transparent px-0 py-1 font-mono text-mono font-normal text-ink-secondary hover:text-ink pointer-coarse:before:absolute pointer-coarse:before:inset-[-10px] pointer-coarse:before:content-['']",
+        // `before:bottom-[-11.5px]`, not `-10px` on every side: this
+        // variant's own bottom border (`border-b-[1.5px]`) sits *inside*
+        // its `getBoundingClientRect()` box on that one edge only (browsers
+        // resolve an absolutely positioned pseudo's own `inset` against its
+        // containing block's padding box, not the border box that includes
+        // that 1.5px) — a plain `-10px` on every side reaches only 8.5px on
+        // the bottom, 1.5px short.
+        mono: "relative h-auto w-auto justify-start gap-0 rounded-none border-b-[1.5px] border-transparent px-0 py-1 font-mono text-mono font-normal text-ink-secondary hover:text-ink pointer-coarse:before:absolute pointer-coarse:before:inset-[-10px] pointer-coarse:before:bottom-[-11.5px] pointer-coarse:before:content-['']",
       },
     },
     defaultVariants: {
