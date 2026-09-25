@@ -122,6 +122,10 @@
       "errorTitle": "No se pudo cargar la traza",
       "algorithmErrorTitle": "No se pudo cargar los datos del algoritmo",
       "algorithmRetryLabel": "Reintentar",
+      "panel": {
+        "closeLabel": "Cerrar traza",
+        "fullScreenLabel": "Pantalla completa"
+      },
       "dp": {
         "familyLabel": "Familia",
         "optimalPathLabel": "Camino óptimo",
