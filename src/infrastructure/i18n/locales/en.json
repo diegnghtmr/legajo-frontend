@@ -99,6 +99,8 @@
       "backToCompare": "Back to the comparison",
       "loading": "Loading the trace…",
       "errorTitle": "Could not load the trace",
+      "algorithmErrorTitle": "Could not load the algorithm data",
+      "algorithmRetryLabel": "Retry",
       "dp": {
         "familyLabel": "Family",
         "optimalPathLabel": "Optimal path",

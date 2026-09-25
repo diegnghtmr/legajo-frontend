@@ -99,6 +99,8 @@
       "backToCompare": "Volver a la comparación",
       "loading": "Cargando la traza…",
       "errorTitle": "No se pudo cargar la traza",
+      "algorithmErrorTitle": "No se pudo cargar los datos del algoritmo",
+      "algorithmRetryLabel": "Reintentar",
       "dp": {
         "familyLabel": "Familia",
         "optimalPathLabel": "Camino óptimo",

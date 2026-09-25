@@ -18,6 +18,7 @@ import { TfIdfTracePanel } from './traces/TfIdfTracePanel';
 import { algoFamilyFromKind } from './algorithmFamily';
 import { ALGORITHMS_QUERY_KEY } from './SimilarityPage';
 import { PanelHeader } from '../../shared/components/Panel';
+import { Button } from '../../shared/components/ui/button';
 
 /**
  * Routes one resolved trace to its panel by the `algorithmId` discriminator.
@@ -93,14 +94,40 @@ export function SimilarityTracePage() {
   const algorithmSummary = algorithmsQuery.data?.find((algorithm) => algorithm.id === algorithmId);
   const title = algorithmSummary?.displayName ?? algorithmId ?? '';
   const family = algorithmSummary ? algoFamilyFromKind(algorithmSummary.kind) : undefined;
+  // Never a raw placeholder ("Comparando  ×  ") when a document id is
+  // missing from the URL: the subtitle is omitted entirely rather than
+  // interpolating an empty operand.
+  const hasBothDocumentIds = documentIdA !== '' && documentIdB !== '';
 
   return (
     <div className="flex flex-col gap-4">
       <PanelHeader
         eyebrow={t('similarity.trace.eyebrow')}
         title={title}
-        subtitle={t('similarity.trace.subtitle', { a: documentIdA, b: documentIdB })}
+        subtitle={
+          hasBothDocumentIds
+            ? t('similarity.trace.subtitle', { a: documentIdA, b: documentIdB })
+            : undefined
+        }
       />
+
+      {algorithmsQuery.isError && (
+        <div role="alert" className="flex flex-col items-start gap-1">
+          <p className="text-body font-semibold text-danger">
+            {t('similarity.trace.algorithmErrorTitle')}
+          </p>
+          <p className="text-body text-ink-secondary">
+            {t(algorithmsQuery.error.i18nKey ?? DEFAULT_UNEXPECTED_I18N_KEY)}
+          </p>
+          <Button
+            variant="secondary"
+            className="mt-1"
+            onClick={() => void algorithmsQuery.refetch()}
+          >
+            {t('similarity.trace.algorithmRetryLabel')}
+          </Button>
+        </div>
+      )}
 
       {traceQuery.isPending && (
         <p role="status" className="text-body text-ink-secondary">

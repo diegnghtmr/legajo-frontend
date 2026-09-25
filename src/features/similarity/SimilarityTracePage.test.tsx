@@ -1,5 +1,6 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { render, screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Route, Routes } from 'react-router';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -245,5 +246,58 @@ describe('SimilarityTracePage', () => {
     expect(await screen.findByTestId('dp-trace-family')).toHaveTextContent('Clásico');
     // DP_TRACE's matrix bottom-right cell (the edit distance itself).
     expect(screen.getByTestId('dp-trace-optimal-path')).toHaveTextContent('1');
+  });
+
+  it('shows a designed, retryable error when the algorithm catalogue rejects, without hiding an already-resolved trace', async () => {
+    vi.spyOn(similarityApi, 'fetchSimilarityAlgorithms').mockRejectedValue({
+      kind: 'network',
+      cause: 'timeout',
+      i18nKey: 'errors.network.coldStart',
+    });
+    vi.spyOn(similarityApi, 'fetchSimilarityTrace').mockResolvedValue(DP_TRACE);
+
+    renderAtRoute(ROUTE);
+
+    // The trace itself resolved: its matrix still renders.
+    expect((await screen.findAllByRole('cell')).length).toBeGreaterThan(0);
+    // The meta row that depends on the catalogue never silently disappears:
+    // a designed, visible error replaces it, with a retry action.
+    expect(screen.queryByTestId('dp-trace-family')).not.toBeInTheDocument();
+    const alert = await screen.findByRole('alert');
+    expect(alert).toHaveTextContent('No se pudo cargar los datos del algoritmo');
+    expect(screen.getByRole('button', { name: 'Reintentar' })).toBeInTheDocument();
+    // The title falls back to the plain id (never a repeat of the eyebrow),
+    // exactly as it already does before the catalogue resolves.
+    expect(screen.getByRole('heading', { name: 'levenshtein' })).toBeInTheDocument();
+  });
+
+  it('retries the algorithm catalogue fetch when the retry action is activated', async () => {
+    const user = userEvent.setup();
+    vi.spyOn(similarityApi, 'fetchSimilarityAlgorithms')
+      .mockRejectedValueOnce({
+        kind: 'network',
+        cause: 'timeout',
+        i18nKey: 'errors.network.coldStart',
+      })
+      .mockResolvedValueOnce(CATALOGUE);
+    vi.spyOn(similarityApi, 'fetchSimilarityTrace').mockResolvedValue(DP_TRACE);
+
+    renderAtRoute(ROUTE);
+
+    await screen.findByRole('button', { name: 'Reintentar' });
+    await user.click(screen.getByRole('button', { name: 'Reintentar' }));
+
+    expect(await screen.findByTestId('dp-trace-family')).toHaveTextContent('Clásico');
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+  });
+
+  it('omits the subtitle instead of rendering a raw placeholder when a document id is missing from the URL', async () => {
+    vi.spyOn(similarityApi, 'fetchSimilarityTrace').mockResolvedValue(JACCARD_TRACE);
+
+    renderAtRoute('/similarity/jaccard/trace?documentIdA=doc-01');
+
+    await screen.findByText('0.333300');
+    expect(screen.queryByText(/Comparando/)).not.toBeInTheDocument();
+    expect(screen.queryByText('null')).not.toBeInTheDocument();
   });
 });
