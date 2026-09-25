@@ -70,7 +70,13 @@ describe('SimilarityMatrixPage — fewer than 3 selected', () => {
           `Tienes ${selectedIds.length} artículos seleccionados; selecciona al menos tres en el corpus para ver la matriz.`,
         ),
       ).toBeInTheDocument();
-      expect(screen.getByRole('link', { name: 'Ir al corpus' })).toHaveAttribute('href', '/corpus');
+      const backLink = screen.getByRole('link', { name: 'Ir al corpus' });
+      expect(backLink).toHaveAttribute('href', '/corpus');
+      // A designed state: the message and the next-step action live inside
+      // the Panel card (a `<section>`), and the action reads as a button,
+      // not a bare underlined link.
+      expect(backLink.closest('section')).not.toBeNull();
+      expect(backLink.className).toContain('bg-primary');
       expect(similarityApi.fetchSimilarityMatrix).not.toHaveBeenCalled();
     },
   );

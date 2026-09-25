@@ -7,8 +7,12 @@ import { DEFAULT_UNEXPECTED_I18N_KEY, type ApiError } from '../../infrastructure
 import { fetchCorpus, type ListCorpusResponse } from '../../infrastructure/api/corpus';
 import { fetchSimilarityMatrix, type MatrixResponse } from '../../infrastructure/api/similarity';
 import { AlgorithmIdSchema, type AlgorithmId } from '../../infrastructure/schemas/similarity';
-import { PanelHeader } from '../../shared/components/Panel';
-import { SegmentedControl, type SegmentedOption } from '../../shared/components/SegmentedControl';
+import {
+  AlgoTextRadioGroup,
+  type AlgoTextRadioOption,
+} from '../../shared/components/AlgoTextRadioGroup';
+import { Panel, PanelHeader } from '../../shared/components/Panel';
+import { buttonVariants } from '../../shared/components/ui/button';
 import { CORPUS_LIST_QUERY_KEY } from '../corpus/ArticleList';
 import { useSelectionStore } from '../corpus/selectionStore';
 import { MatrixTable } from './matrix/MatrixTable';
@@ -26,17 +30,13 @@ const ALGORITHM_IDS = [...AlgorithmIdSchema.options];
  * "no catalogue dependency" default reasoning. */
 const DEFAULT_ALGORITHM_ID: AlgorithmId = ALGORITHM_IDS[0];
 
-const ALGORITHM_OPTIONS: readonly SegmentedOption<AlgorithmId>[] = ALGORITHM_IDS.map((id) => ({
-  value: id,
-  label: <span className="font-mono">{id}</span>,
-}));
+const ALGORITHM_OPTIONS: readonly AlgoTextRadioOption[] = ALGORITHM_IDS.map((id) => ({ id }));
 
 /**
  * The m×m similarity matrix screen: reads the shared corpus
  * `selectionStore`, requires at least three selected articles (`canMatrix`),
- * and lets the user pick exactly one algorithm via a `radiogroup` (reusing
- * `SegmentedControl`, widened to accept a mono `ReactNode` label instead of
- * duplicating its roving-tabindex arrow-key logic in a new component).
+ * and lets the user pick exactly one algorithm via the locked mono
+ * text-button pattern wired as a `radiogroup` (`AlgoTextRadioGroup`).
  */
 export function SimilarityMatrixPage() {
   const { t } = useTranslation();
@@ -70,15 +70,16 @@ export function SimilarityMatrixPage() {
           eyebrow={t('similarity.matrix.eyebrow')}
           title={t('similarity.matrix.title')}
         />
-        <p role="status" className="text-body text-ink-secondary">
-          {t('similarity.matrix.wrongCount', { count: selectedArticleIds.length })}
-        </p>
-        <Link
-          to="/corpus"
-          className="text-body font-semibold text-ink underline-offset-2 hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus"
-        >
-          {t('similarity.selection.backToCorpus')}
-        </Link>
+        <Panel>
+          <p role="status" className="text-body text-ink-secondary">
+            {t('similarity.matrix.wrongCount', { count: selectedArticleIds.length })}
+          </p>
+          <div className="mt-3">
+            <Link to="/corpus" className={buttonVariants({ variant: 'primary' })}>
+              {t('similarity.selection.backToCorpus')}
+            </Link>
+          </div>
+        </Panel>
       </div>
     );
   }
@@ -87,14 +88,12 @@ export function SimilarityMatrixPage() {
     <div className="flex flex-col gap-6">
       <PanelHeader eyebrow={t('similarity.matrix.eyebrow')} title={t('similarity.matrix.title')} />
 
-      <div className="overflow-x-auto">
-        <SegmentedControl
-          options={ALGORITHM_OPTIONS}
-          value={algorithmId}
-          onChange={setAlgorithmId}
-          aria-label={t('similarity.matrix.algorithmGroupLabel')}
-        />
-      </div>
+      <AlgoTextRadioGroup
+        options={ALGORITHM_OPTIONS}
+        value={algorithmId}
+        onChange={(id) => setAlgorithmId(id as AlgorithmId)}
+        aria-label={t('similarity.matrix.algorithmGroupLabel')}
+      />
 
       {matrixQuery.isPending && (
         <p role="status" className="text-body text-ink-secondary">
