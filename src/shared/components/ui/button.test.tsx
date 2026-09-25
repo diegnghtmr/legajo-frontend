@@ -58,4 +58,40 @@ describe('Button', () => {
     expect(button.className).toContain('px-10');
     expect(button.className).not.toMatch(/\bpx-4\b/);
   });
+
+  it('grows to a 44px touch target on coarse pointers without resizing on desktop', () => {
+    render(<Button>Comparar</Button>);
+
+    const button = screen.getByRole('button', { name: 'Comparar' });
+    // h-9 (36px) stays the base size for a mouse; pointer-coarse:min-h-11
+    // (44px) only takes effect under `@media (pointer: coarse)`, so desktop
+    // density is untouched.
+    expect(button.className).toContain('h-9');
+    expect(button.className).toContain('pointer-coarse:min-h-11');
+    expect(button.className).toContain('pointer-coarse:min-w-11');
+  });
+
+  it('shows a visible focus ring only on keyboard focus, in the ink/focus token', () => {
+    render(<Button>Comparar</Button>);
+
+    const button = screen.getByRole('button', { name: 'Comparar' });
+    expect(button.className).toContain('focus-visible:outline');
+    expect(button.className).toContain('focus-visible:outline-ring');
+  });
+
+  it('marks the disabled state to assistive tech via the native disabled attribute', () => {
+    render(<Button disabled>Disabled</Button>);
+
+    const button = screen.getByRole('button', { name: 'Disabled' });
+    expect(button).toBeDisabled();
+    expect(button.className).toContain('disabled:opacity-45');
+  });
+
+  it('only transitions colors when the user has not requested reduced motion', () => {
+    render(<Button>Comparar</Button>);
+
+    const button = screen.getByRole('button', { name: 'Comparar' });
+    expect(button.className).toContain('motion-safe:transition-colors');
+    expect(button.className).not.toMatch(/(?<!motion-safe:)\btransition-colors\b/);
+  });
 });

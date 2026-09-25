@@ -31,9 +31,11 @@ export function ToggleGroupItem({ className, ...props }: ToggleGroupItemProps) {
   return (
     <ToggleGroupPrimitive.Item
       className={cn(
-        'rounded-btn px-3 py-1.5 text-label font-medium text-ink-secondary transition-colors',
+        'rounded-btn px-3 py-1.5 text-label font-medium text-ink-secondary motion-safe:transition-colors',
         'focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring',
+        'disabled:pointer-events-none disabled:opacity-45',
         'data-[state=on]:bg-paper-raised data-[state=on]:text-ink data-[state=on]:shadow-[0_1px_2px_rgb(0_0_0_/_0.06)]',
+        'pointer-coarse:min-h-11 pointer-coarse:min-w-11',
         className,
       )}
       {...props}

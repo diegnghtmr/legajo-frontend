@@ -10,7 +10,7 @@ import { cn } from '@/shared/lib/cn';
  * height the design system's button spec uses.
  */
 const buttonVariants = cva(
-  'inline-flex h-9 items-center justify-center gap-2 rounded-btn px-4 py-2 text-label font-medium transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring disabled:pointer-events-none disabled:opacity-45',
+  'inline-flex h-9 items-center justify-center gap-2 rounded-btn px-4 py-2 text-label font-medium motion-safe:transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring disabled:pointer-events-none disabled:opacity-45 pointer-coarse:min-h-11 pointer-coarse:min-w-11',
   {
     variants: {
       variant: {

@@ -55,4 +55,36 @@ describe('Checkbox', () => {
 
     expect(onChange).toHaveBeenCalledWith(true);
   });
+
+  it('extends its hit area to 44px on coarse pointers via an invisible pseudo-element, keeping the 16px visible box', () => {
+    render(<Checkbox aria-label="Select article" />);
+
+    const checkbox = screen.getByRole('checkbox', { name: 'Select article' });
+    expect(checkbox.className).toContain('size-4');
+    expect(checkbox.className).toContain('pointer-coarse:before:inset-[-14px]');
+  });
+
+  it('shows a visible focus ring only on keyboard focus, in the ink/focus token', () => {
+    render(<Checkbox aria-label="Select article" />);
+
+    expect(screen.getByRole('checkbox', { name: 'Select article' }).className).toContain(
+      'focus-visible:outline-ring',
+    );
+  });
+
+  it('marks the disabled state to assistive tech via the native disabled attribute', () => {
+    render(<Checkbox aria-label="Select article" disabled />);
+
+    const checkbox = screen.getByRole('checkbox', { name: 'Select article' });
+    expect(checkbox).toBeDisabled();
+    expect(checkbox.className).toContain('disabled:opacity-45');
+  });
+
+  it('only transitions colors when the user has not requested reduced motion', () => {
+    render(<Checkbox aria-label="Select article" />);
+
+    expect(screen.getByRole('checkbox', { name: 'Select article' }).className).toContain(
+      'motion-safe:transition-colors',
+    );
+  });
 });

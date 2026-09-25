@@ -50,4 +50,48 @@ describe('ToggleGroup (single) — Segmented primitive', () => {
 
     expect(screen.getByRole('radio', { name: 'All' }).className).toContain('data-[state=on]');
   });
+
+  it('grows each option to a 44px touch target on coarse pointers without resizing on desktop', () => {
+    render(<ControlledToggleGroup />);
+
+    const option = screen.getByRole('radio', { name: 'All' });
+    expect(option.className).toContain('pointer-coarse:min-h-11');
+    expect(option.className).toContain('pointer-coarse:min-w-11');
+  });
+
+  it('shows a visible focus ring only on keyboard focus, in the ink/focus token', () => {
+    render(<ControlledToggleGroup />);
+
+    expect(screen.getByRole('radio', { name: 'All' }).className).toContain(
+      'focus-visible:outline-ring',
+    );
+  });
+
+  it('marks a disabled option to assistive tech and stops it from firing onValueChange', async () => {
+    const user = userEvent.setup();
+    const onChange = vi.fn();
+    render(
+      <ToggleGroup type="single" value="all" onValueChange={onChange} aria-label="Family filter">
+        <ToggleGroupItem value="all">All</ToggleGroupItem>
+        <ToggleGroupItem value="classic" disabled>
+          Classic
+        </ToggleGroupItem>
+      </ToggleGroup>,
+    );
+
+    const option = screen.getByRole('radio', { name: 'Classic' });
+    expect(option).toBeDisabled();
+    expect(option.className).toContain('disabled:opacity-45');
+
+    await user.click(option);
+    expect(onChange).not.toHaveBeenCalled();
+  });
+
+  it('only transitions colors when the user has not requested reduced motion', () => {
+    render(<ControlledToggleGroup />);
+
+    expect(screen.getByRole('radio', { name: 'All' }).className).toContain(
+      'motion-safe:transition-colors',
+    );
+  });
 });
