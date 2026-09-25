@@ -1,9 +1,10 @@
 import { fireEvent, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import type { FormEvent } from 'react';
+import { createRef } from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import { DpMatrix } from './DpMatrix';
+import { DpMatrix, type DpMatrixHandle } from './DpMatrix';
 
 const ROW_LABELS = ['', 'k', 'i', 't'];
 const COLUMN_LABELS = ['', 's', 'i', 't'];
@@ -157,6 +158,116 @@ describe('DpMatrix', () => {
     expect(onSubmit).not.toHaveBeenCalled();
 
     vi.unstubAllGlobals();
+  });
+
+  describe('auto-scroll to the optimal path', () => {
+    // jsdom has no `scrollIntoView` implementation at all (the component's
+    // own call is optionally-chained for exactly that reason), so there is
+    // no existing property on the prototype for `vi.spyOn` to wrap — these
+    // tests install a plain fake instead, and remove it again afterward.
+    afterEach(() => {
+      Reflect.deleteProperty(HTMLElement.prototype, 'scrollIntoView');
+    });
+
+    it("scrolls the final optimal-path cell into view — the published score, not the path's first cell", () => {
+      const scrollIntoView = vi.fn();
+      HTMLElement.prototype.scrollIntoView = scrollIntoView;
+
+      renderMatrix();
+
+      const pathCells = screen.getAllByLabelText('Optimal path cell', { exact: false });
+      const finalCell = pathCells[pathCells.length - 1];
+
+      expect(scrollIntoView).toHaveBeenCalledTimes(1);
+      expect(scrollIntoView.mock.instances[0]).toBe(finalCell);
+      // Never the path's first (origin) cell.
+      expect(scrollIntoView.mock.instances[0]).not.toBe(pathCells[0]);
+    });
+
+    it('re-scrolls to the new final cell when the matrix/path change (a different pair or algorithm)', () => {
+      const scrollIntoView = vi.fn();
+      HTMLElement.prototype.scrollIntoView = scrollIntoView;
+
+      const { rerender } = renderMatrix();
+      expect(scrollIntoView).toHaveBeenCalledTimes(1);
+
+      const nextPath = [
+        { row: 0, col: 0 },
+        { row: 1, col: 0 },
+        { row: 2, col: 1 },
+      ];
+      rerender(
+        <DpMatrix
+          rowLabels={ROW_LABELS}
+          columnLabels={COLUMN_LABELS}
+          matrix={MATRIX}
+          optimalPath={nextPath}
+          ariaLabel="Levenshtein matrix"
+          downloadLabel="Download CSV"
+          downloadFileName="levenshtein-matrix.csv"
+          pathCellLabel="Optimal path cell"
+        />,
+      );
+
+      expect(scrollIntoView).toHaveBeenCalledTimes(2);
+      const pathCells = screen.getAllByLabelText('Optimal path cell', { exact: false });
+      expect(scrollIntoView.mock.instances[1]).toBe(pathCells[pathCells.length - 1]);
+    });
+  });
+
+  describe('an embedding caller that hides this own download button (the panel places it in a pinned footer instead)', () => {
+    afterEach(() => {
+      vi.unstubAllGlobals();
+    });
+
+    it('renders no download button of its own when showDownloadButton is false', () => {
+      render(
+        <DpMatrix
+          rowLabels={ROW_LABELS}
+          columnLabels={COLUMN_LABELS}
+          matrix={MATRIX}
+          optimalPath={OPTIMAL_PATH}
+          ariaLabel="Levenshtein matrix"
+          downloadLabel="Download CSV"
+          downloadFileName="levenshtein-matrix.csv"
+          pathCellLabel="Optimal path cell"
+          showDownloadButton={false}
+        />,
+      );
+
+      expect(screen.queryByRole('button', { name: 'Download CSV' })).not.toBeInTheDocument();
+    });
+
+    it('still downloads the same CSV when triggered imperatively through a forwarded ref', async () => {
+      let capturedBlob: Blob | undefined;
+      const createObjectURL = vi.fn((blob: Blob) => {
+        capturedBlob = blob;
+        return 'blob:mock-url';
+      });
+      vi.stubGlobal('URL', { ...URL, createObjectURL, revokeObjectURL: vi.fn() });
+      const ref = createRef<DpMatrixHandle>();
+
+      render(
+        <DpMatrix
+          ref={ref}
+          rowLabels={ROW_LABELS}
+          columnLabels={COLUMN_LABELS}
+          matrix={MATRIX}
+          optimalPath={OPTIMAL_PATH}
+          ariaLabel="Levenshtein matrix"
+          downloadLabel="Download CSV"
+          downloadFileName="levenshtein-matrix.csv"
+          pathCellLabel="Optimal path cell"
+          showDownloadButton={false}
+        />,
+      );
+
+      ref.current?.downloadCsv();
+
+      expect(createObjectURL).toHaveBeenCalledTimes(1);
+      const text = await capturedBlob?.text();
+      expect(text?.split('\r\n')).toHaveLength(MATRIX.length + 1);
+    });
   });
 
   describe('CSV download anchor lifecycle', () => {

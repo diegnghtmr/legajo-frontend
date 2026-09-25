@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { forwardRef, useEffect, useImperativeHandle, useRef } from 'react';
 
 import { cn } from '../lib/cn';
 import { toCsv } from '../lib/csv';
@@ -23,6 +23,17 @@ export interface DpMatrixProps {
   downloadFileName: string;
   /** Accessible suffix appended to a path cell's own value, e.g. "Optimal path cell". */
   pathCellLabel: string;
+  /** Renders this component's own "Download CSV" button. Defaults to `true`
+   * (the standalone full trace view's own layout). The docked/overlay trace
+   * panel sets this to `false` and instead pins an equivalent action in its
+   * own footer, triggered through the forwarded `DpMatrixHandle`. */
+  showDownloadButton?: boolean;
+}
+
+export interface DpMatrixHandle {
+  /** Triggers the exact same CSV download the internal button fires,
+   * regardless of whether that button is rendered (`showDownloadButton`). */
+  downloadCsv: () => void;
 }
 
 /**
@@ -61,16 +72,20 @@ function pathKey(row: number, col: number): string {
  * every cell directly without the indirection of a windowing dependency
  * that is not in the fixed stack.
  */
-export function DpMatrix({
-  rowLabels,
-  columnLabels,
-  matrix,
-  optimalPath,
-  ariaLabel,
-  downloadLabel,
-  downloadFileName,
-  pathCellLabel,
-}: DpMatrixProps) {
+export const DpMatrix = forwardRef<DpMatrixHandle, DpMatrixProps>(function DpMatrix(
+  {
+    rowLabels,
+    columnLabels,
+    matrix,
+    optimalPath,
+    ariaLabel,
+    downloadLabel,
+    downloadFileName,
+    pathCellLabel,
+    showDownloadButton = true,
+  }: DpMatrixProps,
+  forwardedRef,
+) {
   const containerRef = useRef<HTMLDivElement>(null);
 
   const pathSet = new Set(optimalPath.map((cell) => pathKey(cell.row, cell.col)));
@@ -83,8 +98,15 @@ export function DpMatrix({
     if (!container) {
       return;
     }
-    const firstPathCell = container.querySelector('[data-optimal-path="true"]');
-    firstPathCell?.scrollIntoView?.({ block: 'center', inline: 'center' });
+    // The optimal path always terminates at the matrix's own bottom-right
+    // cell (the published edit distance / alignment score) — the LAST
+    // `[data-optimal-path]` cell in this row-major-rendered table, never
+    // the first (the path's origin near (0,0), which is what an earlier
+    // version anchored on instead, leaving the actual score cell of a large
+    // real matrix off-screen).
+    const pathCells = container.querySelectorAll('[data-optimal-path="true"]');
+    const finalPathCell = pathCells[pathCells.length - 1];
+    finalPathCell?.scrollIntoView?.({ block: 'center', inline: 'center' });
   }, [matrix, optimalPath]);
 
   function downloadCsv() {
@@ -108,6 +130,8 @@ export function DpMatrix({
       URL.revokeObjectURL(url);
     }, 0);
   }
+
+  useImperativeHandle(forwardedRef, () => ({ downloadCsv }));
 
   return (
     <div className="flex flex-col gap-2">
@@ -170,9 +194,11 @@ export function DpMatrix({
           </tbody>
         </table>
       </div>
-      <Button type="button" variant="secondary" onClick={downloadCsv} className="w-fit">
-        {downloadLabel}
-      </Button>
+      {showDownloadButton && (
+        <Button type="button" variant="secondary" onClick={downloadCsv} className="w-fit">
+          {downloadLabel}
+        </Button>
+      )}
     </div>
   );
-}
+});
