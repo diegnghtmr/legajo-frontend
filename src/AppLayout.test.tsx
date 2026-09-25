@@ -10,13 +10,13 @@ afterEach(async () => {
   await i18n.changeLanguage('es');
 });
 
-function renderLayout(initialPath = '/corpus') {
+function renderLayout(initialPath = '/similarity') {
   return render(
     <MemoryRouter initialEntries={[initialPath]}>
       <Routes>
         <Route path="/" element={<AppLayout />}>
-          <Route path="corpus" element={<p>corpus page</p>} />
           <Route path="similarity" element={<p>similarity page</p>} />
+          <Route path="clustering" element={<p>clustering page</p>} />
         </Route>
       </Routes>
     </MemoryRouter>,
@@ -24,40 +24,44 @@ function renderLayout(initialPath = '/corpus') {
 }
 
 describe('AppLayout', () => {
-  it('renders the Legajo heading and the section navigation', () => {
+  it('renders the Legajo wordmark and exactly the three workbench sections', () => {
     renderLayout();
 
-    expect(screen.getByRole('heading', { level: 1, name: /legajo/i })).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'Corpus' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { level: 1, name: 'Legajo' })).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Similitud' })).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Agrupamiento' })).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Benchmarks' })).toBeInTheDocument();
+    // Corpus selection now lives in the selection rail, not as its own nav section.
+    expect(screen.queryByRole('link', { name: 'Corpus' })).not.toBeInTheDocument();
   });
 
-  it('marks the active section link with aria-current', () => {
-    renderLayout('/corpus');
+  it('marks the active section link with aria-current and the paper-sunken active fill', () => {
+    renderLayout('/similarity');
 
-    expect(screen.getByRole('link', { name: 'Corpus' })).toHaveAttribute('aria-current', 'page');
-    expect(screen.getByRole('link', { name: 'Similitud' })).not.toHaveAttribute('aria-current');
+    const activeLink = screen.getByRole('link', { name: 'Similitud' });
+    expect(activeLink).toHaveAttribute('aria-current', 'page');
+    expect(activeLink.className).toContain('bg-paper-sunken');
+    expect(screen.getByRole('link', { name: 'Agrupamiento' })).not.toHaveAttribute('aria-current');
   });
 
   it('renders the routed page content through the outlet', () => {
-    renderLayout('/corpus');
+    renderLayout('/similarity');
 
-    expect(screen.getByText('corpus page')).toBeInTheDocument();
+    expect(screen.getByText('similarity page')).toBeInTheDocument();
   });
 
   it('switching the language updates a visible string without navigating', async () => {
     const user = userEvent.setup();
-    renderLayout('/corpus');
+    renderLayout('/similarity');
 
-    expect(screen.getByRole('link', { name: 'Corpus' })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Similitud' })).toBeInTheDocument();
 
     await user.click(screen.getByRole('button', { name: 'English' }));
 
     expect(await screen.findByRole('link', { name: 'Similarity' })).toBeInTheDocument();
-    expect(screen.getByText('corpus page')).toBeInTheDocument();
+    expect(screen.getByText('similarity page')).toBeInTheDocument();
   });
+
   it('names the language switch as a group so assistive technology announces it', () => {
     renderLayout();
 
@@ -67,9 +71,9 @@ describe('AppLayout', () => {
   it('gives the section nav links a 44px hit area on coarse pointers, keeping desktop density unchanged', () => {
     renderLayout();
 
-    const link = screen.getByRole('link', { name: 'Corpus' });
-    expect(link.className).toContain('pointer-coarse:min-h-11');
+    const link = screen.getByRole('link', { name: 'Similitud' });
     expect(link.className).toContain('pointer-coarse:min-w-11');
+    expect(link.className).toContain('min-h-11');
   });
 
   it('gives the language-switch buttons a 44px hit area on coarse pointers', () => {
@@ -98,5 +102,51 @@ describe('AppLayout', () => {
     await user.keyboard('{Enter}');
 
     expect(screen.getByRole('main')).toHaveFocus();
+  });
+
+  describe('the below-1024px menu button', () => {
+    it('starts collapsed, with the nav hidden and a 44px accessible toggle', () => {
+      renderLayout();
+
+      const toggle = screen.getByRole('button', { name: 'Abrir navegación' });
+      expect(toggle).toHaveAttribute('aria-expanded', 'false');
+      expect(toggle.className).toContain('h-11');
+      expect(toggle.className).toContain('w-11');
+      expect(toggle).toHaveAttribute('aria-controls');
+
+      const nav = screen.getByRole('navigation');
+      expect(nav.getAttribute('id')).toBe(toggle.getAttribute('aria-controls'));
+      expect(nav.className).toContain('hidden');
+    });
+
+    it('opens the nav list on click, each item at least 44px tall, and relabels the toggle', async () => {
+      const user = userEvent.setup();
+      renderLayout();
+
+      await user.click(screen.getByRole('button', { name: 'Abrir navegación' }));
+
+      const toggle = screen.getByRole('button', { name: 'Cerrar navegación' });
+      expect(toggle).toHaveAttribute('aria-expanded', 'true');
+      const nav = screen.getByRole('navigation');
+      expect(nav.className).toContain('flex');
+      expect(nav.className).not.toContain('hidden');
+      for (const name of ['Similitud', 'Agrupamiento', 'Benchmarks']) {
+        expect(screen.getByRole('link', { name }).className).toContain('min-h-11');
+      }
+    });
+
+    it('closes again once the route changes, e.g. after a nav link is activated', async () => {
+      const user = userEvent.setup();
+      renderLayout();
+
+      await user.click(screen.getByRole('button', { name: 'Abrir navegación' }));
+      await user.click(screen.getByRole('link', { name: 'Agrupamiento' }));
+
+      expect(await screen.findByText('clustering page')).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Abrir navegación' })).toHaveAttribute(
+        'aria-expanded',
+        'false',
+      );
+    });
   });
 });

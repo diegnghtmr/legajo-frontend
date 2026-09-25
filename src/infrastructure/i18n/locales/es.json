@@ -3,7 +3,11 @@
     "title": "Legajo",
     "eyebrow": "Banco de similitud y agrupamiento",
     "description": "Aquí se cargan la selección de corpus, la comparación de similitud y las vistas de agrupamiento jerárquico.",
-    "skipToContent": "Saltar al contenido"
+    "skipToContent": "Saltar al contenido",
+    "nav": {
+      "openLabel": "Abrir navegación",
+      "closeLabel": "Cerrar navegación"
+    }
   },
   "language": {
     "switchLabel": "Idioma",
@@ -11,7 +15,6 @@
     "en": "Inglés"
   },
   "nav": {
-    "corpus": "Corpus",
     "similarity": "Similitud",
     "clustering": "Agrupamiento",
     "benchmarks": "Benchmarks"
