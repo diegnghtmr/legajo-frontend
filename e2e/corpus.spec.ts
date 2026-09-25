@@ -205,6 +205,39 @@ test.describe('corpus selection rail', () => {
     expect(pageScrollY).toBe(0);
   });
 
+  test('at 390px with a full-size corpus, the rail list still reaches its last row with no page-level horizontal scroll', async ({
+    page,
+  }) => {
+    const manySummaries = Array.from({ length: 30 }, (_unused, index) => ({
+      id: `doc-${String(index + 1).padStart(2, '0')}`,
+      title: `Article number ${index + 1}`,
+      authors: ['A. Author'],
+    }));
+    await page.route('**/api/v1/corpus', async (route) => {
+      await route.fulfill({ json: manySummaries });
+    });
+
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto('/');
+    await expect(page.getByRole('heading', { name: 'Comparación de similitud' })).toBeVisible();
+
+    const lastRow = page.getByRole('checkbox', { name: 'Article number 30' });
+    await lastRow.scrollIntoViewIfNeeded();
+    await expect(lastRow).toBeVisible();
+    await lastRow.check();
+    await expect(lastRow).toBeChecked();
+
+    // "No horizontal overflow" is `scrollWidth <= clientWidth`, the same
+    // check the dedicated 390px overflow test above uses — a full 30-row
+    // corpus must not widen the page just because the list grew taller.
+    const overflow = await page.evaluate(
+      '(() => { const el = document.documentElement; return { scrollWidth: el.scrollWidth, clientWidth: el.clientWidth }; })()',
+    );
+    expect(
+      (overflow as { scrollWidth: number; clientWidth: number }).scrollWidth,
+    ).toBeLessThanOrEqual((overflow as { scrollWidth: number; clientWidth: number }).clientWidth);
+  });
+
   test('has no automatically detectable WCAG 2.1 AA violations on the similarity workbench', async ({
     page,
   }) => {
