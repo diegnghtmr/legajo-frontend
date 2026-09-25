@@ -11,9 +11,15 @@ function LocationProbe() {
   return <p data-testid="location">{location.pathname}</p>;
 }
 
+/** Starts everywhere else on purpose — never `/similarity` itself, the exact
+ * destination the pairwise branch navigates to. Starting there would make
+ * `toHaveTextContent('/similarity')` a substring match that a *matrix*
+ * navigation (`/similarity/matrix`) would also satisfy, or that no
+ * navigation at all (`onCtaClick` never called) would trivially satisfy
+ * too — either bug would slip past the assertion silently. */
 function wrapper({ children }: { children: ReactNode }) {
   return (
-    <MemoryRouter initialEntries={['/similarity']}>
+    <MemoryRouter initialEntries={['/elsewhere']}>
       <LocationProbe />
       <Routes>
         <Route path="*" element={<>{children}</>} />
@@ -60,7 +66,9 @@ describe('useAdaptiveSelectionCta', () => {
       result.current.onCtaClick();
     });
 
-    expect(screen.getByTestId('location')).toHaveTextContent('/similarity');
+    // Exact equality, not a substring match: `/similarity/matrix` (the
+    // matrix branch's own destination) must never satisfy this.
+    expect(screen.getByTestId('location').textContent).toBe('/similarity');
   });
 
   it('reads the matrix label and navigates to /similarity/matrix at three or more selected', () => {
