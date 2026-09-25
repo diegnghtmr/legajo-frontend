@@ -36,10 +36,15 @@ const negativeMainPaddingStyle: CSSProperties = {
  *
  * Breakpoints follow the same scale `AppLayout`'s nav collapse uses
  * (Tailwind `lg` = 1024px, `xl` = 1280px): at `xl` the detail panel is
- * docked in its own column; between `lg` and `xl` it overlays the right
- * edge of the center instead (the center floor is 480px, and 320 + 480 +
- * 460 already exceeds 1279px, which is why it cannot dock there without
- * shrinking the center below its floor).
+ * docked in its own column, sharing the viewport width with the rail and
+ * the center; between `lg` and `xl` there isn't yet enough width for all
+ * three side by side (320 + 460 alone already leaves under 480px of a
+ * 1279px viewport for the center), so this is a deliberate overlay by
+ * design instead — the panel floats over the right edge of the center
+ * (`lg:absolute`, `xl:static` returns it to the normal flow once docked),
+ * and the person viewing it dismisses it to see the center content
+ * underneath. The center cell itself carries no enforced minimum width
+ * (`min-w-0`) at any breakpoint.
  *
  * Below `lg` there is no persistent side rail and no side panel — the two
  * regions are asymmetric there, on purpose: the rail's own content still
@@ -64,6 +69,7 @@ const negativeMainPaddingStyle: CSSProperties = {
 export function WorkbenchLayout({ rail, detail, children }: WorkbenchLayoutProps) {
   return (
     <div
+      data-testid="workbench-layout"
       style={negativeMainPaddingStyle}
       className={cn(
         'flex flex-col lg:h-[calc(100vh-var(--shell-header-h))] lg:flex-row lg:overflow-hidden',
@@ -78,7 +84,11 @@ export function WorkbenchLayout({ rail, detail, children }: WorkbenchLayoutProps
           {rail}
         </div>
       )}
-      <div className="min-w-0 flex-1 p-6">{children}</div>
+      {/* The literal utility name below must stay a plain string — Tailwind's
+          build-time scanner needs the exact class text in source, so it
+          cannot be assembled from `SHELL_MAIN_PADDING_VAR` at runtime the
+          way the `style` prop above reads that constant. */}
+      <div className="min-w-0 flex-1 p-(--shell-main-pad)">{children}</div>
       {detail && (
         <div
           data-testid="workbench-detail"

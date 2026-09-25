@@ -66,13 +66,22 @@ describe('WorkbenchLayout', () => {
   it("reads AppLayout's own shared header-height and main-padding custom properties instead of a second, hard-coded copy of their values", () => {
     render(<WorkbenchLayout>{<p>main content</p>}</WorkbenchLayout>);
 
-    const root = screen.getByText('main content').closest(
-      // The outermost element this component itself renders.
-      '[style*="margin"]',
-    );
-    expect(root).not.toBeNull();
-    expect(root?.getAttribute('style')).toContain(`var(${SHELL_MAIN_PADDING_VAR})`);
-    expect(root?.className).toContain(`var(${SHELL_HEADER_HEIGHT_VAR})`);
+    const root = screen.getByTestId('workbench-layout');
+    expect(root.getAttribute('style')).toContain(`var(${SHELL_MAIN_PADDING_VAR})`);
+    expect(root.className).toContain(`var(${SHELL_HEADER_HEIGHT_VAR})`);
+  });
+
+  it("re-applies the page's own main padding to the center cell through the same shared custom property, not a second hard-coded value", () => {
+    render(<WorkbenchLayout>{<p>main content</p>}</WorkbenchLayout>);
+
+    const center = screen.getByText('main content').parentElement;
+    expect(center).not.toBeNull();
+    expect(center?.className).toContain(`p-(${SHELL_MAIN_PADDING_VAR})`);
+    // The negative margin above cancels exactly one `--shell-main-pad`
+    // worth of `AppLayout`'s own padding — re-applying it here as a
+    // literal `p-6` would silently drift the moment that shared value
+    // changes, even though both numbers currently agree.
+    expect(hasClassToken(center as HTMLElement, 'p-6')).toBe(false);
   });
 
   it('renders all three regions together', () => {
