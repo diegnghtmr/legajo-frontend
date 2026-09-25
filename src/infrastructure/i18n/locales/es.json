@@ -240,6 +240,11 @@
       "daviesBouldinAtK": "Davies–Bouldin (k={{k}})",
       "undefinedValue": "no definido"
     },
+    "metricsTable": {
+      "linkageHeader": "Enlace",
+      "regionLabel": "Comparación de métricas por enlace",
+      "caption": "Comparación de cofenética, silueta y Davies–Bouldin entre los cuatro enlaces"
+    },
     "dendrogram": {
       "ariaLabel": "Dendrograma de {{linkage}}",
       "malformed": "No se pudo dibujar el dendrograma de este enlace.",
@@ -259,6 +264,7 @@
       "pending": "Aplicando el corte…",
       "errorTitle": "No se pudo aplicar el corte",
       "noValidRange": "No hay una cantidad de clústeres válida para cortar este corpus.",
+      "unavailable": "El corte estará disponible cuando termine de cargar el agrupamiento.",
       "errors": {
         "kRange": "k debe ser un entero entre {{min}} y {{max}}."
       }
