@@ -411,8 +411,10 @@ describe('SimilarityWorkbenchLayout', () => {
       renderLayoutAtRoute('/similarity/levenshtein/trace');
 
       const location = await screen.findByTestId('location');
-      await waitFor(() => expect(location).toHaveTextContent('/similarity'));
-      expect(location.textContent).not.toContain('/trace');
+      // The starting path already contains `/similarity`, so wait for the
+      // part that only the normalization removes.
+      await waitFor(() => expect(location.textContent).not.toContain('/trace'));
+      expect(location).toHaveTextContent('/similarity');
       expect(screen.queryByTestId('workbench-detail')).not.toBeInTheDocument();
       expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
     });
@@ -421,8 +423,8 @@ describe('SimilarityWorkbenchLayout', () => {
       renderLayoutAtRoute('/similarity/levenshtein/trace?documentIdA=doc-01');
 
       const location = await screen.findByTestId('location');
-      await waitFor(() => expect(location).toHaveTextContent('/similarity'));
-      expect(location.textContent).not.toContain('/trace');
+      await waitFor(() => expect(location.textContent).not.toContain('/trace'));
+      expect(location).toHaveTextContent('/similarity');
       expect(location.textContent).not.toContain('documentIdA');
       expect(screen.queryByTestId('workbench-detail')).not.toBeInTheDocument();
     });
