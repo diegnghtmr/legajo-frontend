@@ -2,6 +2,15 @@ import { CartesianGrid, Line, LineChart, XAxis, YAxis, type DotItemDotProps } fr
 import { useTranslation } from 'react-i18next';
 
 import { Panel, PanelHeader } from '../../shared/components/Panel';
+import {
+  Table,
+  TableBody,
+  TableCaption,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '../../shared/components/ui/table';
 import { mergeSeriesIntoRows, type FamilySeries } from './grouping';
 import { dashPatternForIndex, markerShapeForIndex, type MarkerShape } from './seriesStyle';
 import { theoreticalCurvePoints } from './theoreticalCurve';
@@ -230,67 +239,59 @@ export function BenchmarkCurveChart({
       </div>
 
       {familiesWithSlopes.length > 0 && (
-        <table aria-label={slopeTableCaption} className="mt-3 w-full text-label">
-          <caption className="sr-only">{slopeTableCaption}</caption>
-          <thead>
-            <tr>
-              <th scope="col" className="text-left font-medium text-ink-secondary">
-                {t('benchmarks.curves.slopeTableFamily')}
-              </th>
-              <th scope="col" className="text-left font-medium text-ink-secondary">
-                {t('benchmarks.curves.slopeTableEmpirical')}
-              </th>
-              <th scope="col" className="text-left font-medium text-ink-secondary">
-                {t('benchmarks.curves.slopeTableTheoretical')}
-              </th>
-            </tr>
-          </thead>
-          <tbody>
+        <Table aria-label={slopeTableCaption} className="mt-3">
+          <TableCaption className="sr-only">{slopeTableCaption}</TableCaption>
+          <TableHeader>
+            <TableRow>
+              <TableHead>{t('benchmarks.curves.slopeTableFamily')}</TableHead>
+              <TableHead>{t('benchmarks.curves.slopeTableEmpirical')}</TableHead>
+              <TableHead>{t('benchmarks.curves.slopeTableTheoretical')}</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
             {familiesWithSlopes.map((entry) => {
               const slope = slopes.get(entry.family)!;
               return (
-                <tr key={entry.family}>
-                  <td className="font-mono text-mono text-ink">{entry.family}</td>
-                  <td className="font-mono text-mono text-ink">
+                <TableRow key={entry.family}>
+                  <TableCell className="font-mono text-mono text-ink">{entry.family}</TableCell>
+                  <TableCell className="font-mono text-mono text-ink">
                     {formatSlopeNumber(slope.empiricalSlope)}
-                  </td>
-                  <td className="font-mono text-mono text-ink">
+                  </TableCell>
+                  <TableCell className="font-mono text-mono text-ink">
                     {formatSlopeNumber(slope.theoreticalExponent)}
-                  </td>
-                </tr>
+                  </TableCell>
+                </TableRow>
               );
             })}
-          </tbody>
-        </table>
+          </TableBody>
+        </Table>
       )}
 
-      <table aria-label={dataTableCaption} className="sr-only">
-        <caption>{dataTableCaption}</caption>
-        <thead>
-          <tr>
-            <th scope="col">{t('benchmarks.curves.dataTableSize')}</th>
+      <Table aria-label={dataTableCaption} className="sr-only">
+        <TableCaption>{dataTableCaption}</TableCaption>
+        <TableHeader>
+          <TableRow>
+            <TableHead>{t('benchmarks.curves.dataTableSize')}</TableHead>
             {series.map((entry) => (
-              <th key={entry.family} scope="col">
-                {entry.family}
-              </th>
+              <TableHead key={entry.family}>{entry.family}</TableHead>
             ))}
-          </tr>
-        </thead>
-        <tbody>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
           {chartData.map((row) => (
-            <tr key={row.size}>
-              <td>{row.size}</td>
+            <TableRow key={row.size}>
+              <TableCell>{row.size}</TableCell>
               {series.map((entry) => (
-                <td key={entry.family}>
+                <TableCell key={entry.family}>
                   {row[entry.family] === undefined
                     ? t('benchmarks.curves.dataTableMissingValue')
                     : formatDuration(row[entry.family]!)}
-                </td>
+                </TableCell>
               ))}
-            </tr>
+            </TableRow>
           ))}
-        </tbody>
-      </table>
+        </TableBody>
+      </Table>
     </Panel>
   );
 }

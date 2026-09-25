@@ -7,6 +7,7 @@ import { z } from 'zod';
 import { DEFAULT_UNEXPECTED_I18N_KEY, type ApiError } from '../../infrastructure/apiError';
 import { LinkageIdSchema, type LinkageId } from '../../infrastructure/schemas/clustering';
 import { SegmentedControl, type SegmentedOption } from '../../shared/components/SegmentedControl';
+import { Button } from '../../shared/components/ui/button';
 
 export interface CutFormLinkageOption {
   id: LinkageId;
@@ -121,13 +122,9 @@ export function CutForm({ linkages, n, defaultLinkage, onSubmit, isPending, erro
         </p>
       )}
 
-      <button
-        type="submit"
-        disabled={isPending || !hasValidCutRange}
-        className="w-fit rounded-btn bg-primary px-3 py-1.5 text-body text-primary-foreground hover:opacity-90 disabled:opacity-45 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus"
-      >
+      <Button type="submit" disabled={isPending || !hasValidCutRange} className="w-fit">
         {isPending ? t('clustering.cutForm.pending') : t('clustering.cutForm.submit')}
-      </button>
+      </Button>
 
       {error && !errors.k && (
         <div role="alert" className="flex flex-col gap-1">

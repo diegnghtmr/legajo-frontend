@@ -5,6 +5,16 @@ import type {
   CompareResponse,
   ListSimilarityAlgorithmsResponse,
 } from '../../infrastructure/api/similarity';
+import { Badge } from '../../shared/components/ui/badge';
+import {
+  Table,
+  TableBody,
+  TableCaption,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '../../shared/components/ui/table';
 import { FamilyStatus } from '../../shared/components/FamilyStatus';
 import { ScoreBar } from '../../shared/components/ScoreBar';
 import { algoFamilyFromKind } from './algorithmFamily';
@@ -20,60 +30,32 @@ export interface CompareTableProps {
 }
 
 /**
- * The six-capability comparison table. A plain
- * semantic `<table>` instead of TanStack Table: there is no sorting,
+ * The six-capability comparison table, on the shadcn `Table` primitive. A
+ * plain semantic table instead of TanStack Table: there is no sorting,
  * filtering, or pagination requirement for a fixed, small (≤6) row set, so
  * the extra dependency and column-definition ceremony would not simplify
  * anything here — it would only add indirection over a table that never
- * needs it.
+ * needs it. The algorithm id cell keeps its own `<th scope="row">` markup
+ * (a `TableHead` restyled to a body cell) since `TableCell` only renders a
+ * `<td>`, and this row needs the semantic row-header role.
  */
 export function CompareTable({ rows, catalogueById, documentIdA, documentIdB }: CompareTableProps) {
   const { t, i18n } = useTranslation();
 
   return (
-    <table className="w-full border-collapse text-left">
-      <caption className="sr-only">{t('similarity.table.caption')}</caption>
-      <thead>
-        <tr className="bg-paper-sunken">
-          <th
-            scope="col"
-            className="p-2 text-eyebrow font-semibold uppercase tracking-wide text-ink-secondary"
-          >
-            {t('similarity.table.algorithm')}
-          </th>
-          <th
-            scope="col"
-            className="p-2 text-eyebrow font-semibold uppercase tracking-wide text-ink-secondary"
-          >
-            {t('similarity.table.family')}
-          </th>
-          <th
-            scope="col"
-            className="p-2 text-eyebrow font-semibold uppercase tracking-wide text-ink-secondary"
-          >
-            {t('similarity.table.score')}
-          </th>
-          <th
-            scope="col"
-            className="p-2 text-eyebrow font-semibold uppercase tracking-wide text-ink-secondary"
-          >
-            {t('similarity.table.raw')}
-          </th>
-          <th
-            scope="col"
-            className="p-2 text-eyebrow font-semibold uppercase tracking-wide text-ink-secondary"
-          >
-            {t('similarity.table.time')}
-          </th>
-          <th
-            scope="col"
-            className="p-2 text-eyebrow font-semibold uppercase tracking-wide text-ink-secondary"
-          >
-            {t('similarity.table.degenerate')}
-          </th>
-        </tr>
-      </thead>
-      <tbody>
+    <Table>
+      <TableCaption className="sr-only">{t('similarity.table.caption')}</TableCaption>
+      <TableHeader>
+        <TableRow>
+          <TableHead>{t('similarity.table.algorithm')}</TableHead>
+          <TableHead>{t('similarity.table.family')}</TableHead>
+          <TableHead>{t('similarity.table.score')}</TableHead>
+          <TableHead>{t('similarity.table.raw')}</TableHead>
+          <TableHead>{t('similarity.table.time')}</TableHead>
+          <TableHead>{t('similarity.table.degenerate')}</TableHead>
+        </TableRow>
+      </TableHeader>
+      <TableBody>
         {rows.map(({ algorithmId, result }) => {
           const summary = catalogueById.get(algorithmId);
           const family = algoFamilyFromKind(summary?.kind ?? 'CLASSIC');
@@ -82,8 +64,11 @@ export function CompareTable({ rows, catalogueById, documentIdA, documentIdB }: 
           const formattedRaw = formatRawValue(result.rawValue);
 
           return (
-            <tr key={algorithmId} className="border-b border-hairline">
-              <th scope="row" className="p-2 font-normal">
+            <TableRow key={algorithmId}>
+              <TableHead
+                scope="row"
+                className="text-left text-body font-normal normal-case tracking-normal text-ink"
+              >
                 <Link
                   to={`/similarity/${encodeURIComponent(algorithmId)}/trace?documentIdA=${encodeURIComponent(documentIdA)}&documentIdB=${encodeURIComponent(documentIdB)}`}
                   className="font-mono text-mono text-ink underline-offset-2 hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus"
@@ -91,18 +76,18 @@ export function CompareTable({ rows, catalogueById, documentIdA, documentIdB }: 
                   {algorithmId}
                 </Link>
                 {summary && <p className="text-label text-ink-muted">{summary.displayName}</p>}
-              </th>
-              <td className="p-2">
+              </TableHead>
+              <TableCell>
                 <FamilyStatus family={family} label={familyLabel} />
-              </td>
-              <td className="p-2">
+              </TableCell>
+              <TableCell>
                 <ScoreBar
                   value={result.normalizedScore}
                   family={family}
                   label={t('similarity.table.scoreLabel', { id: algorithmId })}
                 />
-              </td>
-              <td className="p-2 font-mono text-mono text-ink-muted">
+              </TableCell>
+              <TableCell className="font-mono text-mono text-ink-muted">
                 {formattedRaw === null ? (
                   <>
                     <span aria-hidden="true">—</span>
@@ -111,24 +96,24 @@ export function CompareTable({ rows, catalogueById, documentIdA, documentIdB }: 
                 ) : (
                   formattedRaw
                 )}
-              </td>
-              <td className="p-2 font-mono text-mono text-ink">
+              </TableCell>
+              <TableCell className="font-mono text-mono text-ink">
                 {formatComputedNanos(result.computedNanos, i18n.language)}
                 {result.cached && (
-                  <span className="ml-2 rounded-sm border border-ink px-1 text-[10px] font-semibold uppercase tracking-wide text-ink">
+                  <Badge className="ml-2 rounded-sm border-ink px-1 py-0 text-[10px] font-semibold uppercase tracking-wide text-ink">
                     {t('similarity.table.cachedMarker')}
-                  </span>
+                  </Badge>
                 )}
-              </td>
-              <td className="p-2 text-label text-ink-secondary">
+              </TableCell>
+              <TableCell className="text-label text-ink-secondary">
                 {result.degenerate
                   ? t('similarity.table.degenerateYes')
                   : t('similarity.table.degenerateNo')}
-              </td>
-            </tr>
+              </TableCell>
+            </TableRow>
           );
         })}
-      </tbody>
-    </table>
+      </TableBody>
+    </Table>
   );
 }

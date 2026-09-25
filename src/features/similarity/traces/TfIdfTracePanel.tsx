@@ -1,6 +1,14 @@
 import { useTranslation } from 'react-i18next';
 
 import type { TfIdfCosineTrace } from '../../../infrastructure/schemas/similarity';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '../../../shared/components/ui/table';
 import { formatTraceNumber } from '../formatters';
 import { FormulaCaption } from './FormulaCaption';
 
@@ -11,8 +19,7 @@ export interface TfIdfTracePanelProps {
   trace: TfIdfCosineTrace;
 }
 
-const NUMERIC_TH_CLASS =
-  'p-2 text-eyebrow font-semibold uppercase tracking-wide text-ink-secondary';
+const NUMERIC_TH_CLASS = 'p-2';
 const NUMERIC_TD_CLASS = 'p-2 font-mono text-mono text-ink';
 
 /**
@@ -37,62 +44,76 @@ export function TfIdfTracePanel({ trace }: TfIdfTracePanelProps) {
           {t('similarity.trace.tfidf.termsHeading')}
         </h3>
         <div className="max-w-full overflow-x-auto rounded-md border border-hairline">
-          <table className="border-collapse text-left">
-            <thead>
-              <tr className="bg-paper-sunken">
-                <th scope="col" className={NUMERIC_TH_CLASS}>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead className={NUMERIC_TH_CLASS}>
                   {t('similarity.trace.tfidf.termLabel')}
-                </th>
-                <th scope="col" className={NUMERIC_TH_CLASS}>
+                </TableHead>
+                <TableHead className={NUMERIC_TH_CLASS}>
                   {t('similarity.trace.tfidf.frequencyALabel')}
-                </th>
-                <th scope="col" className={NUMERIC_TH_CLASS}>
+                </TableHead>
+                <TableHead className={NUMERIC_TH_CLASS}>
                   {t('similarity.trace.tfidf.frequencyBLabel')}
-                </th>
-                <th scope="col" className={NUMERIC_TH_CLASS}>
+                </TableHead>
+                <TableHead className={NUMERIC_TH_CLASS}>
                   {t('similarity.trace.tfidf.documentFrequencyLabel')}
-                </th>
-                <th scope="col" className={NUMERIC_TH_CLASS}>
+                </TableHead>
+                <TableHead className={NUMERIC_TH_CLASS}>
                   {t('similarity.trace.tfidf.tfALabel')}
-                </th>
-                <th scope="col" className={NUMERIC_TH_CLASS}>
+                </TableHead>
+                <TableHead className={NUMERIC_TH_CLASS}>
                   {t('similarity.trace.tfidf.tfBLabel')}
-                </th>
-                <th scope="col" className={NUMERIC_TH_CLASS}>
+                </TableHead>
+                <TableHead className={NUMERIC_TH_CLASS}>
                   {t('similarity.trace.tfidf.idfLabel')}
-                </th>
-                <th scope="col" className={NUMERIC_TH_CLASS}>
+                </TableHead>
+                <TableHead className={NUMERIC_TH_CLASS}>
                   {t('similarity.trace.tfidf.rawWeightALabel')}
-                </th>
-                <th scope="col" className={NUMERIC_TH_CLASS}>
+                </TableHead>
+                <TableHead className={NUMERIC_TH_CLASS}>
                   {t('similarity.trace.tfidf.rawWeightBLabel')}
-                </th>
-                <th scope="col" className={NUMERIC_TH_CLASS}>
+                </TableHead>
+                <TableHead className={NUMERIC_TH_CLASS}>
                   {t('similarity.trace.tfidf.normalizedWeightALabel')}
-                </th>
-                <th scope="col" className={NUMERIC_TH_CLASS}>
+                </TableHead>
+                <TableHead className={NUMERIC_TH_CLASS}>
                   {t('similarity.trace.tfidf.normalizedWeightBLabel')}
-                </th>
-              </tr>
-            </thead>
-            <tbody>
+                </TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
               {trace.terms.map((row) => (
-                <tr key={row.term} className="border-b border-hairline">
-                  <td className="p-2 font-mono text-mono text-ink">{row.term}</td>
-                  <td className={NUMERIC_TD_CLASS}>{formatTraceNumber(row.frequencyA)}</td>
-                  <td className={NUMERIC_TD_CLASS}>{formatTraceNumber(row.frequencyB)}</td>
-                  <td className={NUMERIC_TD_CLASS}>{formatTraceNumber(row.documentFrequency)}</td>
-                  <td className={NUMERIC_TD_CLASS}>{formatTraceNumber(row.tfA)}</td>
-                  <td className={NUMERIC_TD_CLASS}>{formatTraceNumber(row.tfB)}</td>
-                  <td className={NUMERIC_TD_CLASS}>{formatTraceNumber(row.idf)}</td>
-                  <td className={NUMERIC_TD_CLASS}>{formatTraceNumber(row.rawWeightA)}</td>
-                  <td className={NUMERIC_TD_CLASS}>{formatTraceNumber(row.rawWeightB)}</td>
-                  <td className={NUMERIC_TD_CLASS}>{formatTraceNumber(row.normalizedWeightA)}</td>
-                  <td className={NUMERIC_TD_CLASS}>{formatTraceNumber(row.normalizedWeightB)}</td>
-                </tr>
+                <TableRow key={row.term}>
+                  <TableCell className="p-2 font-mono text-mono text-ink">{row.term}</TableCell>
+                  <TableCell className={NUMERIC_TD_CLASS}>
+                    {formatTraceNumber(row.frequencyA)}
+                  </TableCell>
+                  <TableCell className={NUMERIC_TD_CLASS}>
+                    {formatTraceNumber(row.frequencyB)}
+                  </TableCell>
+                  <TableCell className={NUMERIC_TD_CLASS}>
+                    {formatTraceNumber(row.documentFrequency)}
+                  </TableCell>
+                  <TableCell className={NUMERIC_TD_CLASS}>{formatTraceNumber(row.tfA)}</TableCell>
+                  <TableCell className={NUMERIC_TD_CLASS}>{formatTraceNumber(row.tfB)}</TableCell>
+                  <TableCell className={NUMERIC_TD_CLASS}>{formatTraceNumber(row.idf)}</TableCell>
+                  <TableCell className={NUMERIC_TD_CLASS}>
+                    {formatTraceNumber(row.rawWeightA)}
+                  </TableCell>
+                  <TableCell className={NUMERIC_TD_CLASS}>
+                    {formatTraceNumber(row.rawWeightB)}
+                  </TableCell>
+                  <TableCell className={NUMERIC_TD_CLASS}>
+                    {formatTraceNumber(row.normalizedWeightA)}
+                  </TableCell>
+                  <TableCell className={NUMERIC_TD_CLASS}>
+                    {formatTraceNumber(row.normalizedWeightB)}
+                  </TableCell>
+                </TableRow>
               ))}
-            </tbody>
-          </table>
+            </TableBody>
+          </Table>
         </div>
       </div>
 

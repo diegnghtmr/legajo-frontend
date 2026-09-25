@@ -3,6 +3,15 @@ import { useTranslation } from 'react-i18next';
 
 import type { DpMatrixTrace } from '../../../infrastructure/schemas/similarity';
 import { DpMatrix } from '../../../shared/components/DpMatrix';
+import {
+  Table,
+  TableBody,
+  TableCaption,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '../../../shared/components/ui/table';
 import { DP_OPERATION_LEGEND, type DpOperationKind } from './dpOperationLegend';
 import { FormulaCaption } from './FormulaCaption';
 
@@ -68,48 +77,33 @@ export function DpTracePanel({ trace }: DpTracePanelProps) {
           tabIndex={0}
           className="max-h-64 overflow-auto rounded-md border border-hairline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus"
         >
-          <table className="w-full border-collapse text-left">
-            <caption className="sr-only">
+          <Table>
+            <TableCaption className="sr-only">
               {t('similarity.trace.dp.operationsTableCaption', { id: trace.algorithmId })}
-            </caption>
-            <thead>
-              <tr className="bg-paper-sunken">
-                <th
-                  scope="col"
-                  className="p-2 text-eyebrow font-semibold uppercase tracking-wide text-ink-secondary"
-                >
-                  {t('similarity.trace.dp.fromLabel')}
-                </th>
-                <th
-                  scope="col"
-                  className="p-2 text-eyebrow font-semibold uppercase tracking-wide text-ink-secondary"
-                >
-                  {t('similarity.trace.dp.toLabel')}
-                </th>
-                <th
-                  scope="col"
-                  className="p-2 text-eyebrow font-semibold uppercase tracking-wide text-ink-secondary"
-                >
-                  {t('similarity.trace.dp.operationLabel')}
-                </th>
-              </tr>
-            </thead>
-            <tbody>
+            </TableCaption>
+            <TableHeader>
+              <TableRow>
+                <TableHead>{t('similarity.trace.dp.fromLabel')}</TableHead>
+                <TableHead>{t('similarity.trace.dp.toLabel')}</TableHead>
+                <TableHead>{t('similarity.trace.dp.operationLabel')}</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
               {trace.operations.map((step, index) => (
-                <tr key={index} className="border-b border-hairline">
-                  <td className="p-2 font-mono text-mono text-ink-muted">
+                <TableRow key={index}>
+                  <TableCell className="font-mono text-mono text-ink-muted">
                     ({step.from.row}, {step.from.col})
-                  </td>
-                  <td className="p-2 font-mono text-mono text-ink-muted">
+                  </TableCell>
+                  <TableCell className="font-mono text-mono text-ink-muted">
                     ({step.to.row}, {step.to.col})
-                  </td>
-                  <td className="p-2 text-body text-ink">
+                  </TableCell>
+                  <TableCell>
                     {t(`similarity.trace.dp.operation.${step.operation as DpOperationKind}`)}
-                  </td>
-                </tr>
+                  </TableCell>
+                </TableRow>
               ))}
-            </tbody>
-          </table>
+            </TableBody>
+          </Table>
         </div>
       </div>
 
