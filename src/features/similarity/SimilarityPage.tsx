@@ -32,6 +32,54 @@ type FamilyFilter = 'all' | 'classic' | 'ai';
  * selected articles from the shared corpus `selectionStore`; exactly two are
  * required and never auto-picked.
  *
+ * `sortedPair` returns a pair only for exactly two selected ids — anything
+ * else renders the empty state right here, before any compare-specific hook
+ * or query exists. There is no blank-id fallback to guard: `pair` is either
+ * `null` (empty state, nothing else rendered) or a real `[a, b]` tuple, and
+ * only the latter is ever passed down to `SimilarityCompareView`, which is
+ * the only place a compare query gets created.
+ */
+export function SimilarityPage() {
+  const { t } = useTranslation();
+  const selectedArticleIds = useSelectionStore((state) => state.selectedIds);
+  const canMatrix = useSelectionStore((state) => state.canMatrix);
+  const pair = sortedPair(selectedArticleIds);
+
+  if (pair === null) {
+    return (
+      <div className="flex flex-col gap-4">
+        <PanelHeader eyebrow={t('similarity.eyebrow')} title={t('similarity.title')} />
+        <Panel>
+          <p role="status" className="text-body text-ink-secondary">
+            {t('similarity.selection.emptyState')}
+          </p>
+          {canMatrix && (
+            <div className="mt-3">
+              <Link to="/similarity/matrix" className={buttonVariants({ variant: 'secondary' })}>
+                {t('similarity.selection.viewMatrix')}
+              </Link>
+            </div>
+          )}
+        </Panel>
+      </div>
+    );
+  }
+
+  return <SimilarityCompareView pair={pair} />;
+}
+
+interface SimilarityCompareViewProps {
+  /** Always a real, non-blank pair — `SimilarityPage` only mounts this
+   * component once `sortedPair` has resolved one. */
+  pair: readonly [string, string];
+}
+
+/**
+ * The actual compare screen: family filter, algorithm selection and the
+ * compare request/table. Only ever mounted with a real pair, so every hook
+ * and query in here — including the compare query's key — is built from
+ * real document ids, never a placeholder.
+ *
  * The family Segmented is a **view-only filter**: it narrows which algo
  * buttons are visible, but never removes an id from the actual selection —
  * an already-selected algorithm sent to the backend stays selected even
@@ -41,9 +89,8 @@ type FamilyFilter = 'all' | 'classic' | 'ai';
  * change to the selection issues a fresh request instead of reusing a stale
  * result.
  */
-export function SimilarityPage() {
+function SimilarityCompareView({ pair }: SimilarityCompareViewProps) {
   const { t } = useTranslation();
-  const selectedArticleIds = useSelectionStore((state) => state.selectedIds);
   const [family, setFamily] = useState<FamilyFilter>('all');
   const [selectedAlgorithmIds, setSelectedAlgorithmIds] =
     useState<AlgorithmId[]>(DEFAULT_ALGORITHM_IDS);
@@ -78,18 +125,12 @@ export function SimilarityPage() {
     );
   };
 
-  const canMatrix = useSelectionStore((state) => state.canMatrix);
-  const hasExactlyTwoSelected = selectedArticleIds.length === 2;
   const hasAlgorithmsSelected = selectedAlgorithmIds.length > 0;
 
   // Sorted, never the raw toggle order — selecting d02 before d01 must
   // still compare (and label) the pair as d01/d02, the same order the rail's
-  // own CTA uses (`sortedPair`). `sortedPair` only returns a pair for
-  // exactly two selected ids; outside that count these placeholders are
-  // never sent anywhere — the compare query stays disabled below, and the
-  // early empty-state return further down never reaches the label that
-  // would otherwise display them.
-  const [documentIdA, documentIdB] = sortedPair(selectedArticleIds) ?? ['', ''];
+  // own CTA uses (`sortedPair`).
+  const [documentIdA, documentIdB] = pair;
 
   const compareQuery = useQuery<CompareResponse, ApiError>({
     queryKey: ['similarity', 'compare', documentIdA, documentIdB, selectedAlgorithmIds] as const,
@@ -101,28 +142,8 @@ export function SimilarityPage() {
       };
       return compareSimilarity(body);
     },
-    enabled: hasExactlyTwoSelected && hasAlgorithmsSelected,
+    enabled: hasAlgorithmsSelected,
   });
-
-  if (!hasExactlyTwoSelected) {
-    return (
-      <div className="flex flex-col gap-4">
-        <PanelHeader eyebrow={t('similarity.eyebrow')} title={t('similarity.title')} />
-        <Panel>
-          <p role="status" className="text-body text-ink-secondary">
-            {t('similarity.selection.emptyState')}
-          </p>
-          {canMatrix && (
-            <div className="mt-3">
-              <Link to="/similarity/matrix" className={buttonVariants({ variant: 'secondary' })}>
-                {t('similarity.selection.viewMatrix')}
-              </Link>
-            </div>
-          )}
-        </Panel>
-      </div>
-    );
-  }
 
   const familyOptions: readonly SegmentedOption<FamilyFilter>[] = [
     { value: 'all', label: t('similarity.family.all') },
