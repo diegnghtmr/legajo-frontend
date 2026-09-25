@@ -2,6 +2,9 @@ import { Link } from 'react-router';
 
 import { Checkbox } from '../../shared/components/ui/checkbox';
 import { cn } from '../../shared/lib/cn';
+import { STICKY_CTA_SCROLL_MARGIN_BOTTOM } from './stickyCta';
+
+const stickyCtaScrollMarginStyle = { scrollMarginBottom: STICKY_CTA_SCROLL_MARGIN_BOTTOM };
 
 export interface ArticleRowProps {
   id: string;
@@ -21,8 +24,10 @@ export interface ArticleRowProps {
  * visually cover a row that a native browser focus-scroll already considers
  * "fully in view" by raw geometry — that geometry check knows nothing about
  * the opaque sibling painted on top (WCAG 2.4.11, focus not obscured). Both
- * focusable elements below carry `scroll-mb-48` (matching `CorpusPage`'s own
- * `pb-48`, the bar's measured tallest height) so the browser's focus
+ * focusable elements below carry `scroll-margin-bottom` (`stickyCta.ts`,
+ * reading the same custom property `CorpusPage` measures the bar's real
+ * height into, rather than a hard-coded pixel value that would drift the
+ * moment the bar's own content changes) so the browser's focus
  * scroll-into-view treats that space as part of what must clear the
  * viewport, forcing it to scroll the row above the bar instead of leaving it
  * hidden behind it.
@@ -40,12 +45,14 @@ export function ArticleRow({ id, title, authors, selected, onToggle }: ArticleRo
           checked={selected}
           onCheckedChange={() => onToggle(id)}
           aria-label={title}
-          className="mt-1 scroll-mb-48"
+          className="mt-1"
+          style={stickyCtaScrollMarginStyle}
         />
         <div className="flex flex-col gap-1">
           <Link
             to={`/corpus/${encodeURIComponent(id)}`}
-            className="scroll-mb-48 text-body font-semibold text-ink underline-offset-2 hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus"
+            style={stickyCtaScrollMarginStyle}
+            className="text-body font-semibold text-ink underline-offset-2 hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus"
           >
             {title}
           </Link>

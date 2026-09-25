@@ -5,6 +5,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import * as benchmarksApi from './infrastructure/api/benchmarks';
 import * as corpusApi from './infrastructure/api/corpus';
+import { httpClient } from './infrastructure/httpClient';
 
 vi.mock('./infrastructure/api/benchmarks');
 vi.mock('./infrastructure/api/corpus');
@@ -25,6 +26,14 @@ function renderAppAt(initialPath: string) {
 beforeEach(() => {
   vi.restoreAllMocks();
   vi.spyOn(corpusApi, 'fetchCorpus').mockResolvedValue([]);
+  // `corpusApi`/`benchmarksApi` are mocked whole (above), but every other
+  // route's own data (similarity/clustering's algorithms catalogue
+  // included) goes through this same shared client — stub it once here so
+  // no route rendered by any test in this file can escape to a real
+  // request; a pending, never-resolving promise leaves each query in its
+  // own ordinary loading state instead of crashing on unmocked data.
+  vi.spyOn(httpClient, 'get').mockReturnValue(new Promise(() => {}));
+  vi.spyOn(httpClient, 'post').mockReturnValue(new Promise(() => {}));
 });
 
 describe('App', () => {
@@ -85,5 +94,18 @@ describe('App', () => {
     renderAppAt('/does-not-exist');
 
     expect(screen.getByRole('heading', { name: 'Página no encontrada' })).toBeInTheDocument();
+  });
+
+  it('never lets a route that needs the algorithms catalogue reach the real network', async () => {
+    renderAppAt('/similarity');
+
+    await screen.findByRole('heading', { name: 'Comparación de similitud' });
+
+    // Only `corpusApi`/`benchmarksApi` are mocked per-module above; every
+    // other route's own fetch (the similarity/clustering algorithms
+    // catalogue included) still goes through the *shared* `httpClient`, so
+    // stubbing that one client below is what keeps every route hermetic,
+    // not just the two explicitly mocked API modules.
+    expect(httpClient.get).toHaveBeenCalledWith('/api/v1/similarity/algorithms');
   });
 });

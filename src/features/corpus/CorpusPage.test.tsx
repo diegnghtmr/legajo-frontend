@@ -1,12 +1,15 @@
+import { act } from 'react';
+
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Route, Routes } from 'react-router';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import * as corpusApi from '../../infrastructure/api/corpus';
 import * as embeddingsApi from '../../infrastructure/api/embeddings';
 import { useSelectionStore } from './selectionStore';
+import { STICKY_CTA_HEIGHT_VAR, STICKY_CTA_SCROLL_MARGIN_BOTTOM } from './stickyCta';
 
 vi.mock('../../infrastructure/api/corpus');
 vi.mock('../../infrastructure/api/embeddings');
@@ -14,6 +17,37 @@ vi.mock('../../infrastructure/api/embeddings');
 import { CorpusDetail } from './CorpusDetail';
 import { CorpusDetailPlaceholder } from './CorpusDetailPlaceholder';
 import { CorpusPage } from './CorpusPage';
+
+/**
+ * A controllable double for the real `ResizeObserver` (jsdom has none; the
+ * shared test setup installs a no-op default): `observe` records the target
+ * so a test can drive the exact same callback the component itself passed
+ * in, instead of the no-op default that never calls back at all.
+ */
+class FakeResizeObserver implements ResizeObserver {
+  static callback: ResizeObserverCallback | undefined;
+
+  constructor(callback: ResizeObserverCallback) {
+    FakeResizeObserver.callback = callback;
+  }
+
+  observe(): void {}
+  unobserve(): void {}
+  disconnect(): void {}
+}
+
+function triggerResize(heightPx: number) {
+  act(() => {
+    FakeResizeObserver.callback?.(
+      [
+        {
+          borderBoxSize: [{ blockSize: heightPx, inlineSize: 0 }],
+        } as unknown as ResizeObserverEntry,
+      ],
+      new FakeResizeObserver(() => {}),
+    );
+  });
+}
 
 function renderCorpusRoutes(initialPath = '/corpus') {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
@@ -127,5 +161,62 @@ describe('CorpusPage', () => {
     ).toBeInTheDocument();
     expect(screen.getByRole('alert')).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'First article' })).toBeInTheDocument();
+  });
+
+  describe('the sticky CTA bar height', () => {
+    afterEach(() => {
+      vi.unstubAllGlobals();
+    });
+
+    it("updates the shared custom property when the bar's own height changes, instead of a fixed guess", async () => {
+      vi.stubGlobal('ResizeObserver', FakeResizeObserver);
+      vi.spyOn(corpusApi, 'fetchCorpus').mockResolvedValue([
+        { id: 'doc-01', title: 'First article', authors: ['A. One'] },
+      ]);
+      vi.spyOn(embeddingsApi, 'fetchEmbeddingsStatus').mockResolvedValue(EMBEDDINGS_STATUS);
+
+      renderCorpusRoutes();
+      const compareButton = await screen.findByRole('button', { name: 'Comparar' });
+      const section = compareButton.closest('section')!;
+
+      triggerResize(260);
+
+      expect(section.style.getPropertyValue(STICKY_CTA_HEIGHT_VAR)).toBe('260px');
+    });
+
+    it('reads the border-box height (border + padding included), never the content-box height alone', async () => {
+      // A real `ResizeObserver` fires this callback automatically once,
+      // right after `observe()`, even with no actual resize — so this must
+      // hold for the very first callback, not only a later "real" one.
+      vi.stubGlobal('ResizeObserver', FakeResizeObserver);
+      vi.spyOn(corpusApi, 'fetchCorpus').mockResolvedValue([
+        { id: 'doc-01', title: 'First article', authors: ['A. One'] },
+      ]);
+      vi.spyOn(embeddingsApi, 'fetchEmbeddingsStatus').mockResolvedValue(EMBEDDINGS_STATUS);
+
+      renderCorpusRoutes();
+      const compareButton = await screen.findByRole('button', { name: 'Comparar' });
+      const section = compareButton.closest('section')!;
+
+      // A content-box height (what `entry.contentRect.height` alone would
+      // give) would be smaller than this by the bar's own border + padding.
+      triggerResize(150);
+
+      expect(section.style.getPropertyValue(STICKY_CTA_HEIGHT_VAR)).toBe('150px');
+    });
+
+    it("keeps the list's own bottom padding reading the same shared custom property as the rows' scroll-margin-bottom", async () => {
+      vi.spyOn(corpusApi, 'fetchCorpus').mockResolvedValue([
+        { id: 'doc-01', title: 'First article', authors: ['A. One'] },
+      ]);
+      vi.spyOn(embeddingsApi, 'fetchEmbeddingsStatus').mockResolvedValue(EMBEDDINGS_STATUS);
+
+      renderCorpusRoutes();
+      const list = await screen.findByRole('list');
+
+      expect((list.parentElement as HTMLElement).style.paddingBottom).toBe(
+        STICKY_CTA_SCROLL_MARGIN_BOTTOM,
+      );
+    });
   });
 });
