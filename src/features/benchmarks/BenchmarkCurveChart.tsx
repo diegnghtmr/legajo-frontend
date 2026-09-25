@@ -2,6 +2,7 @@ import { CartesianGrid, Line, LineChart, XAxis, YAxis, type DotItemDotProps } fr
 import { useTranslation } from 'react-i18next';
 
 import { Panel, PanelHeader } from '../../shared/components/Panel';
+import { useElementWidth } from '../../shared/hooks/useElementWidth';
 import {
   Table,
   TableBody,
@@ -32,7 +33,11 @@ export interface BenchmarkCurveChartProps {
   slopeTableCaption: string;
 }
 
-const CHART_WIDTH = 640;
+/** Same shape as `DendrogramCard`'s own `INITIAL_WIDTH`: what a chart
+ * renders at before its `ResizeObserver` ever reports a real measurement
+ * (also jsdom's own permanent width in a test with no fake observer
+ * installed — see `useElementWidth`'s own doc comment). */
+const INITIAL_WIDTH = 640;
 const CHART_HEIGHT = 280;
 const DOT_RADIUS = 4;
 
@@ -139,6 +144,7 @@ export function BenchmarkCurveChart({
   slopeTableCaption,
 }: BenchmarkCurveChartProps) {
   const { t } = useTranslation();
+  const [containerRef, width] = useElementWidth<HTMLDivElement>(INITIAL_WIDTH);
 
   if (series.length === 0) {
     return (
@@ -178,14 +184,14 @@ export function BenchmarkCurveChart({
       <PanelHeader title={title} />
 
       <div
+        ref={containerRef}
         role="group"
         aria-label={title}
         data-scale={axisScale}
-        className="overflow-x-auto"
-        style={{ width: CHART_WIDTH, maxWidth: '100%' }}
+        className="w-full"
       >
         <LineChart
-          width={CHART_WIDTH}
+          width={width}
           height={CHART_HEIGHT}
           data={mergedData}
           accessibilityLayer={false}
