@@ -1,9 +1,11 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { render, screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Route, Routes } from 'react-router';
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import * as similarityApi from '../../infrastructure/api/similarity';
+import type { ListSimilarityAlgorithmsResponse } from '../../infrastructure/api/similarity';
 import type {
   DpMatrixTrace,
   EmbeddingApiTrace,
@@ -14,6 +16,16 @@ import type {
 import { SimilarityTracePage } from './SimilarityTracePage';
 
 vi.mock('../../infrastructure/api/similarity');
+
+/** Same catalogue shape `SimilarityPage.test.tsx` and the e2e fixtures use. */
+const CATALOGUE: ListSimilarityAlgorithmsResponse = [
+  { id: 'levenshtein', displayName: 'Levenshtein distance', kind: 'CLASSIC' },
+  { id: 'needleman-wunsch', displayName: 'Needleman–Wunsch', kind: 'CLASSIC' },
+  { id: 'jaccard', displayName: 'Jaccard index', kind: 'CLASSIC' },
+  { id: 'tfidf-cosine', displayName: 'TF-IDF cosine', kind: 'CLASSIC' },
+  { id: 'embedding-local', displayName: 'Local embedding', kind: 'AI' },
+  { id: 'embedding-api', displayName: 'Live embedding API', kind: 'AI' },
+];
 
 const DP_TRACE: DpMatrixTrace = {
   algorithmId: 'levenshtein',
@@ -106,6 +118,10 @@ function renderAtRoute(path: string) {
 const ROUTE = '/similarity/levenshtein/trace?documentIdA=doc-01&documentIdB=doc-02';
 
 describe('SimilarityTracePage', () => {
+  beforeEach(() => {
+    vi.spyOn(similarityApi, 'fetchSimilarityAlgorithms').mockResolvedValue(CATALOGUE);
+  });
+
   it('shows a loading state before the trace resolves', () => {
     vi.spyOn(similarityApi, 'fetchSimilarityTrace').mockReturnValue(new Promise(() => {}));
 
@@ -206,11 +222,82 @@ describe('SimilarityTracePage', () => {
     );
   });
 
-  it('titles the page with the algorithm id from the route', async () => {
+  it('titles the page with the algorithm display name, not a repeat of the eyebrow', async () => {
     vi.spyOn(similarityApi, 'fetchSimilarityTrace').mockResolvedValue(JACCARD_TRACE);
 
     renderAtRoute('/similarity/jaccard/trace?documentIdA=doc-01&documentIdB=doc-02');
 
-    expect(await screen.findByRole('heading', { name: 'Traza: jaccard' })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Jaccard index' })).toBeInTheDocument();
+  });
+
+  it('shows a subtitle naming the two compared documents', async () => {
+    vi.spyOn(similarityApi, 'fetchSimilarityTrace').mockResolvedValue(JACCARD_TRACE);
+
+    renderAtRoute('/similarity/jaccard/trace?documentIdA=doc-01&documentIdB=doc-02');
+
+    expect(await screen.findByText('Comparando doc-01 × doc-02')).toBeInTheDocument();
+  });
+
+  it('shows the family and optimal-path-cost meta row for a DP trace', async () => {
+    vi.spyOn(similarityApi, 'fetchSimilarityTrace').mockResolvedValue(DP_TRACE);
+
+    renderAtRoute(ROUTE);
+
+    expect(await screen.findByTestId('dp-trace-family')).toHaveTextContent('Clásico');
+    // DP_TRACE's matrix bottom-right cell (the edit distance itself).
+    expect(screen.getByTestId('dp-trace-optimal-path')).toHaveTextContent('1');
+  });
+
+  it('shows a designed, retryable error when the algorithm catalogue rejects, without hiding an already-resolved trace', async () => {
+    vi.spyOn(similarityApi, 'fetchSimilarityAlgorithms').mockRejectedValue({
+      kind: 'network',
+      cause: 'timeout',
+      i18nKey: 'errors.network.coldStart',
+    });
+    vi.spyOn(similarityApi, 'fetchSimilarityTrace').mockResolvedValue(DP_TRACE);
+
+    renderAtRoute(ROUTE);
+
+    // The trace itself resolved: its matrix still renders.
+    expect((await screen.findAllByRole('cell')).length).toBeGreaterThan(0);
+    // The meta row that depends on the catalogue never silently disappears:
+    // a designed, visible error replaces it, with a retry action.
+    expect(screen.queryByTestId('dp-trace-family')).not.toBeInTheDocument();
+    const alert = await screen.findByRole('alert');
+    expect(alert).toHaveTextContent('No se pudo cargar los datos del algoritmo');
+    expect(screen.getByRole('button', { name: 'Reintentar' })).toBeInTheDocument();
+    // The title falls back to the plain id (never a repeat of the eyebrow),
+    // exactly as it already does before the catalogue resolves.
+    expect(screen.getByRole('heading', { name: 'levenshtein' })).toBeInTheDocument();
+  });
+
+  it('retries the algorithm catalogue fetch when the retry action is activated', async () => {
+    const user = userEvent.setup();
+    vi.spyOn(similarityApi, 'fetchSimilarityAlgorithms')
+      .mockRejectedValueOnce({
+        kind: 'network',
+        cause: 'timeout',
+        i18nKey: 'errors.network.coldStart',
+      })
+      .mockResolvedValueOnce(CATALOGUE);
+    vi.spyOn(similarityApi, 'fetchSimilarityTrace').mockResolvedValue(DP_TRACE);
+
+    renderAtRoute(ROUTE);
+
+    await screen.findByRole('button', { name: 'Reintentar' });
+    await user.click(screen.getByRole('button', { name: 'Reintentar' }));
+
+    expect(await screen.findByTestId('dp-trace-family')).toHaveTextContent('Clásico');
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+  });
+
+  it('omits the subtitle instead of rendering a raw placeholder when a document id is missing from the URL', async () => {
+    vi.spyOn(similarityApi, 'fetchSimilarityTrace').mockResolvedValue(JACCARD_TRACE);
+
+    renderAtRoute('/similarity/jaccard/trace?documentIdA=doc-01');
+
+    await screen.findByText('0.333300');
+    expect(screen.queryByText(/Comparando/)).not.toBeInTheDocument();
+    expect(screen.queryByText('null')).not.toBeInTheDocument();
   });
 });

@@ -94,4 +94,19 @@ describe('DpTracePanel', () => {
     const region = screen.getByRole('region', { name: /secuencia de operaciones/i });
     expect(region).toHaveAttribute('tabindex', '0');
   });
+
+  it('shows the required meta row (family, optimal path cost) once the caller resolves a family', () => {
+    render(<DpTracePanel trace={LEVENSHTEIN_TRACE} family="classic" />);
+
+    expect(screen.getByTestId('dp-trace-family')).toHaveTextContent('Clásico');
+    // Bottom-right cell of LEVENSHTEIN_TRACE.matrix (the edit distance itself).
+    expect(screen.getByTestId('dp-trace-optimal-path')).toHaveTextContent('1');
+  });
+
+  it('renders no meta row while the caller has not resolved a family yet', () => {
+    render(<DpTracePanel trace={LEVENSHTEIN_TRACE} />);
+
+    expect(screen.queryByTestId('dp-trace-family')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('dp-trace-optimal-path')).not.toBeInTheDocument();
+  });
 });

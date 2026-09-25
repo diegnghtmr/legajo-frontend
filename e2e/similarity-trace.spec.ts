@@ -99,7 +99,20 @@ const EMBEDDING_API_TRACE = {
   providerStatus: 'cached',
 };
 
+/** Same catalogue shape the other e2e suites use, keyed by algorithm id. */
+const ALGORITHM_CATALOGUE = [
+  { id: 'levenshtein', displayName: 'Levenshtein distance', kind: 'CLASSIC' },
+  { id: 'needleman-wunsch', displayName: 'Needleman–Wunsch', kind: 'CLASSIC' },
+  { id: 'jaccard', displayName: 'Jaccard index', kind: 'CLASSIC' },
+  { id: 'tfidf-cosine', displayName: 'TF-IDF cosine', kind: 'CLASSIC' },
+  { id: 'embedding-local', displayName: 'Local embedding', kind: 'AI' },
+  { id: 'embedding-api', displayName: 'Live embedding API', kind: 'AI' },
+];
+
 async function mockTrace(page: Page, algorithmId: string, trace: unknown) {
+  await page.route('**/api/v1/similarity/algorithms', async (route) => {
+    await route.fulfill({ json: ALGORITHM_CATALOGUE });
+  });
   await page.route(`**/api/v1/similarity/${algorithmId}/trace**`, async (route) => {
     await route.fulfill({ json: trace });
   });
@@ -113,7 +126,9 @@ test.describe('similarity trace view', () => {
 
     await page.goto('/similarity/levenshtein/trace?documentIdA=doc-01&documentIdB=doc-02');
 
-    await expect(page.getByRole('heading', { name: 'Traza: levenshtein' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Levenshtein distance' })).toBeVisible();
+    await expect(page.getByTestId('dp-trace-family')).toHaveText('Clásico');
+    await expect(page.getByTestId('dp-trace-optimal-path')).toHaveText('1');
 
     // Every cell of the 4x4 matrix is present, never a truncated subset.
     await expect(page.locator('table').first().locator('td')).toHaveCount(16);
@@ -150,7 +165,7 @@ test.describe('similarity trace view', () => {
 
     await page.goto('/similarity/jaccard/trace?documentIdA=doc-01&documentIdB=doc-02');
 
-    await expect(page.getByRole('heading', { name: 'Traza: jaccard' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Jaccard index' })).toBeVisible();
     await expect(page.getByText('0.500000')).toBeVisible();
     await expect(page.getByRole('region', { name: /intersecci/i })).toContainText('similarity');
     await expect(page.getByRole('region', { name: /uni[oó]n/i })).toContainText('corpus');
@@ -162,7 +177,7 @@ test.describe('similarity trace view', () => {
     await mockTrace(page, 'levenshtein', DP_TRACE);
 
     await page.goto('/similarity/levenshtein/trace?documentIdA=doc-01&documentIdB=doc-02');
-    await expect(page.getByRole('heading', { name: 'Traza: levenshtein' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Levenshtein distance' })).toBeVisible();
 
     const results = await new AxeBuilder({ page })
       .withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa'])
@@ -180,17 +195,17 @@ test.describe('similarity trace view', () => {
     trace: unknown;
     headingName: string;
   }> = [
-    { algorithmId: 'jaccard', trace: JACCARD_TRACE, headingName: 'Traza: jaccard' },
-    { algorithmId: 'tfidf-cosine', trace: TFIDF_TRACE, headingName: 'Traza: tfidf-cosine' },
+    { algorithmId: 'jaccard', trace: JACCARD_TRACE, headingName: 'Jaccard index' },
+    { algorithmId: 'tfidf-cosine', trace: TFIDF_TRACE, headingName: 'TF-IDF cosine' },
     {
       algorithmId: 'embedding-local',
       trace: EMBEDDING_LOCAL_TRACE,
-      headingName: 'Traza: embedding-local',
+      headingName: 'Local embedding',
     },
     {
       algorithmId: 'embedding-api',
       trace: EMBEDDING_API_TRACE,
-      headingName: 'Traza: embedding-api',
+      headingName: 'Live embedding API',
     },
   ];
 
