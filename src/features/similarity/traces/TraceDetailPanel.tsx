@@ -25,9 +25,9 @@ export interface TraceDetailPanelProps {
   documentIdA: string;
   documentIdB: string;
   /** Closes the panel. Called on the header's close button and on `Esc`,
-   * exactly as the docked/overlay panel and the below-`lg` sheet both
-   * expect (§6.0, §6.3): this component never decides where it is hosted or
-   * what closing navigates to, only that closing happened. */
+   * the same way regardless of whether this renders in the docked/overlay
+   * panel or the below-`lg` sheet: this component never decides where it is
+   * hosted or what closing navigates to, only that closing happened. */
   onClose: () => void;
 }
 
@@ -36,7 +36,7 @@ function isDpAlgorithm(algorithmId: string): boolean {
 }
 
 /**
- * The trace deep link's own detail panel content (§6.3): header (eyebrow,
+ * The trace deep link's own detail panel content: header (eyebrow,
  * algorithm display name, mono pair subtitle, close button), a generic meta
  * row (Familia, the raw value, the normalized score, and — DP only — the
  * optimal path cost), the routed per-capability body (`TracePanel`, shared

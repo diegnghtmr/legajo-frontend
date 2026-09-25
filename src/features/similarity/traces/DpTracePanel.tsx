@@ -35,7 +35,7 @@ export interface DpTracePanelProps {
    */
   family?: AlgoFamily;
   /** Set by the trace detail panel, whose own header already renders the
-   * generic Familia/raw-value/score/optimal-path meta row (§6.3) — this
+   * generic Familia/raw-value/score/optimal-path meta row — this
    * component's own `Familia`/`Camino óptimo` `dl` would otherwise duplicate
    * it. The standalone full trace view leaves this unset and keeps showing
    * its own meta row exactly as before. */

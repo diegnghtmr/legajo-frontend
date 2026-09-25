@@ -27,7 +27,7 @@ export interface CompareTableProps {
   rows: CompareResponse;
   catalogueById: ReadonlyMap<string, AlgorithmSummary>;
   /** Opens `algorithmId`'s trace in the workbench's detail panel without
-   * navigating away from this table (the row is the trace trigger, §6.2).
+   * navigating away from this table — the row is the trace trigger.
    * The caller already knows the compared pair (it is the one that fetched
    * these rows), so building the trace destination from it lives there,
    * never re-derived here from a documentIdA/documentIdB prop this table

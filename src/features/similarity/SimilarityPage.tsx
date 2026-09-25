@@ -61,7 +61,7 @@ function parseAlgorithmIds(raw: string | null): AlgorithmId[] {
  * component: a trace deep link never swaps the pairwise results out for a
  * trace-only screen, it only makes `SimilarityWorkbenchLayout` additionally
  * open that algorithm's trace in the detail panel next to these same
- * results (§6.3).
+ * results.
  *
  * `pair` is either `null` (empty state, nothing else rendered) or a real
  * `[a, b]` tuple, and only the latter is ever passed down to
