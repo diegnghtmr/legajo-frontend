@@ -440,6 +440,91 @@ describe('SimilarityWorkbenchLayout', () => {
     });
   });
 
+  describe('a cold deep link to the trace route with an empty rail selection', () => {
+    beforeEach(() => {
+      vi.spyOn(corpusApi, 'fetchCorpus').mockResolvedValue([
+        { id: 'doc-01', title: 'A survey of string similarity', authors: ['A. One'] },
+        { id: 'doc-02', title: 'A second article', authors: ['B. Two'] },
+      ]);
+    });
+
+    it('seeds the rail selection from the URL pair, checking both articles and enabling the confirmed CTA, at lg and above', async () => {
+      renderLayoutAtRoute('/similarity/levenshtein/trace?documentIdA=doc-01&documentIdB=doc-02');
+
+      expect(
+        await screen.findByRole('checkbox', { name: 'A survey of string similarity' }),
+      ).toBeChecked();
+      expect(screen.getByRole('checkbox', { name: 'A second article' })).toBeChecked();
+      const cta = screen.getByRole('button', { name: 'Comparar doc-01 y doc-02' });
+      expect(cta).toBeEnabled();
+    });
+
+    describe('below lg', () => {
+      beforeEach(() => {
+        stubNarrowViewport();
+      });
+
+      afterEach(() => {
+        vi.unstubAllGlobals();
+      });
+
+      it('seeds the tray selection too, and never flips to the corpus list once the trace closes', async () => {
+        const user = userEvent.setup();
+        renderLayoutAtRoute('/similarity/levenshtein/trace?documentIdA=doc-01&documentIdB=doc-02');
+
+        await screen.findByRole('dialog');
+        // The seed itself waits on the corpus fetch resolving, so this
+        // needs to poll rather than read the CTA's state the instant the
+        // dialog first appears. The open trace dialog marks the rest of
+        // the page `aria-hidden` while it stays open (a real Radix
+        // `Dialog`) — `hidden: true` still finds the tray's own CTA
+        // underneath it.
+        await waitFor(() =>
+          expect(
+            screen.getByRole('button', { name: 'Comparar doc-01 y doc-02', hidden: true }),
+          ).toBeEnabled(),
+        );
+
+        await user.click(await screen.findByRole('button', { name: 'Cerrar traza' }));
+
+        // Already confirmed from the deep link itself — never reverts to
+        // the corpus list just because the trace closed.
+        expect(
+          await screen.findByRole('list', { name: 'Resultados de similitud por algoritmo' }),
+        ).toBeInTheDocument();
+        expect(
+          screen.queryByRole('checkbox', { name: 'A survey of string similarity' }),
+        ).not.toBeInTheDocument();
+      });
+    });
+
+    it('never seeds an unknown document id from a stray or mistyped URL', async () => {
+      renderLayoutAtRoute('/similarity/levenshtein/trace?documentIdA=doc-99&documentIdB=doc-98');
+
+      await screen.findByRole('checkbox', { name: 'A survey of string similarity' });
+      expect(
+        screen.getByRole('checkbox', { name: 'A survey of string similarity' }),
+      ).not.toBeChecked();
+      expect(screen.getByRole('checkbox', { name: 'A second article' })).not.toBeChecked();
+      expect(screen.getByRole('button', { name: 'Comparar' })).toBeDisabled();
+    });
+
+    it('never overrides a rail selection the person already made before this resolves', async () => {
+      useSelectionStore.setState({
+        selectedIds: ['doc-02'],
+        canCompare: false,
+        canMatrix: false,
+      });
+      renderLayoutAtRoute('/similarity/levenshtein/trace?documentIdA=doc-01&documentIdB=doc-02');
+
+      await screen.findByRole('checkbox', { name: 'A survey of string similarity' });
+      expect(screen.getByRole('checkbox', { name: 'A second article' })).toBeChecked();
+      expect(
+        screen.getByRole('checkbox', { name: 'A survey of string similarity' }),
+      ).not.toBeChecked();
+    });
+  });
+
   describe('below lg, before any comparison, on the plain compare route', () => {
     beforeEach(() => {
       stubNarrowViewport();

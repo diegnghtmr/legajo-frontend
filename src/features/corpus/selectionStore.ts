@@ -14,6 +14,14 @@ export interface SelectionState {
   canMatrix: boolean;
   toggle: (id: string) => void;
   clear: () => void;
+  /** Replaces the whole selection with exactly this pair, sorted the same
+   * deterministic way {@link sortedPair} always reports it — never the raw
+   * `(a, b)` argument order. Distinct from `toggle`: a cold trace deep link
+   * (`/similarity/:algorithmId/trace?documentIdA=…&documentIdB=…`) needs to
+   * seed the rail's own selection from a pair the URL already names, in one
+   * step, rather than two individual toggles that would each recompute
+   * (and briefly show) an intermediate one-selected state. */
+  selectPair: (a: string, b: string) => void;
 }
 
 function deriveThresholds(
@@ -64,4 +72,9 @@ export const useSelectionStore = create<SelectionState>((set) => ({
       return { selectedIds, ...deriveThresholds(selectedIds) };
     }),
   clear: () => set({ selectedIds: [], ...deriveThresholds([]) }),
+  selectPair: (a, b) => {
+    const pair = sortedPair([a, b]) ?? [a, b];
+    const selectedIds = [...pair];
+    set({ selectedIds, ...deriveThresholds(selectedIds) });
+  },
 }));
