@@ -6,6 +6,7 @@ import { NavLink, Outlet, useLocation } from 'react-router';
 
 import { setLanguage, SUPPORTED_LANGUAGES, type SupportedLanguage } from './infrastructure/i18n';
 import { cn } from './shared/lib/cn';
+import { shellMetricsStyle } from './shared/lib/shellMetrics';
 
 /** Each language's own name (autonym), so it reads the same in every locale. */
 const LANGUAGE_AUTONYMS: Record<SupportedLanguage, string> = {
@@ -189,7 +190,7 @@ export function AppLayout() {
   };
 
   return (
-    <div className="flex min-h-screen flex-col bg-paper text-ink">
+    <div className="flex min-h-screen flex-col bg-paper text-ink" style={shellMetricsStyle}>
       <a
         href={`#${MAIN_CONTENT_ID}`}
         onClick={focusMainContent}
@@ -197,7 +198,7 @@ export function AppLayout() {
       >
         {t('app.skipToContent')}
       </a>
-      <header className="sticky top-0 z-30 flex h-14 shrink-0 items-center gap-3 border-b border-hairline bg-paper-raised px-4 sm:px-6">
+      <header className="sticky top-0 z-30 flex h-(--shell-header-h) shrink-0 items-center gap-3 border-b border-hairline bg-paper-raised px-4 sm:px-6">
         <h1 className="text-title font-semibold text-ink">{t('app.title')}</h1>
 
         <nav
@@ -257,7 +258,7 @@ export function AppLayout() {
         id={MAIN_CONTENT_ID}
         ref={mainRef}
         tabIndex={-1}
-        className="flex flex-1 flex-col gap-6 p-6 focus:outline focus:outline-2 focus:outline-offset-2 focus:outline-focus"
+        className="flex flex-1 flex-col gap-6 p-(--shell-main-pad) focus:outline focus:outline-2 focus:outline-offset-2 focus:outline-focus"
       >
         <Outlet />
       </main>

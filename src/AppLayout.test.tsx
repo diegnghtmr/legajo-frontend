@@ -5,6 +5,12 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import i18n from './infrastructure/i18n';
 import { AppLayout } from './AppLayout';
+import {
+  SHELL_HEADER_HEIGHT,
+  SHELL_HEADER_HEIGHT_VAR,
+  SHELL_MAIN_PADDING,
+  SHELL_MAIN_PADDING_VAR,
+} from './shared/lib/shellMetrics';
 
 afterEach(async () => {
   await i18n.changeLanguage('es');
@@ -50,6 +56,15 @@ describe('AppLayout', () => {
     expect(activeLink).toHaveAttribute('aria-current', 'page');
     expect(activeLink.className).toContain('bg-paper-sunken');
     expect(screen.getByRole('link', { name: 'Agrupamiento' })).not.toHaveAttribute('aria-current');
+  });
+
+  it("sets the shared header-height and main-padding custom properties on the shell's own root, the same tokens WorkbenchLayout reads back", () => {
+    renderLayout();
+
+    const root = screen.getByRole('heading', { level: 1, name: 'Legajo' }).closest('div');
+    expect(root).not.toBeNull();
+    expect(root?.style.getPropertyValue(SHELL_HEADER_HEIGHT_VAR)).toBe(SHELL_HEADER_HEIGHT);
+    expect(root?.style.getPropertyValue(SHELL_MAIN_PADDING_VAR)).toBe(SHELL_MAIN_PADDING);
   });
 
   it('renders the routed page content through the outlet', () => {

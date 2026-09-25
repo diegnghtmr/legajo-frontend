@@ -1,6 +1,7 @@
 import { render, screen } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 
+import { SHELL_HEADER_HEIGHT_VAR, SHELL_MAIN_PADDING_VAR } from '../lib/shellMetrics';
 import { WorkbenchLayout } from './WorkbenchLayout';
 
 /** True when `className` contains `token` as its own whitespace-delimited
@@ -60,6 +61,18 @@ describe('WorkbenchLayout', () => {
     expect(detail.className).toContain('lg:absolute');
     expect(detail.className).toContain('xl:static');
     expect(detail.className).toContain('xl:w-[460px]');
+  });
+
+  it("reads AppLayout's own shared header-height and main-padding custom properties instead of a second, hard-coded copy of their values", () => {
+    render(<WorkbenchLayout>{<p>main content</p>}</WorkbenchLayout>);
+
+    const root = screen.getByText('main content').closest(
+      // The outermost element this component itself renders.
+      '[style*="margin"]',
+    );
+    expect(root).not.toBeNull();
+    expect(root?.getAttribute('style')).toContain(`var(${SHELL_MAIN_PADDING_VAR})`);
+    expect(root?.className).toContain(`var(${SHELL_HEADER_HEIGHT_VAR})`);
   });
 
   it('renders all three regions together', () => {
