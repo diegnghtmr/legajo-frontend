@@ -26,11 +26,18 @@ export interface SheetContentProps extends ComponentProps<typeof DialogPrimitive
    * dialog has a name, never as a second, differently-styled title. */
   title: string;
   hideTitle?: boolean;
+  /** 'right' (default): a full-height panel sliding in from the right edge
+   * — the trace and article-abstract sheets (DESIGN §6.3, §6.7). 'bottom':
+   * docked to the viewport's bottom edge, bounded to 85dvh with its own
+   * scroll and safe-area bottom padding — the corpus-list sheet the
+   * selection tray opens (DESIGN §6.7, §9.3). */
+  side?: 'right' | 'bottom';
 }
 
 export function SheetContent({
   title,
   hideTitle = true,
+  side = 'right',
   className,
   children,
   ...props
@@ -40,9 +47,10 @@ export function SheetContent({
       <DialogPrimitive.Overlay className="fixed inset-0 z-40 bg-ink/40" />
       <DialogPrimitive.Content
         className={cn(
-          'fixed inset-y-0 right-0 z-50 flex h-full w-full flex-col overflow-y-auto',
-          'border-l border-hairline bg-paper-raised shadow-[0_1px_2px_rgb(0_0_0_/_0.04)]',
-          'sm:max-w-md',
+          'fixed z-50 flex flex-col overflow-y-auto bg-paper-raised shadow-[0_1px_2px_rgb(0_0_0_/_0.04)]',
+          side === 'bottom'
+            ? 'inset-x-0 bottom-0 max-h-[85dvh] w-full rounded-t-lg border-t border-hairline pb-[env(safe-area-inset-bottom)]'
+            : 'inset-y-0 right-0 h-full w-full border-l border-hairline sm:max-w-md',
           className,
         )}
         {...props}
