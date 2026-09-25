@@ -63,4 +63,40 @@ describe('AppLayout', () => {
 
     expect(screen.getByRole('group', { name: /idioma|language/i })).toBeInTheDocument();
   });
+
+  it('gives the section nav links a 44px hit area on coarse pointers, keeping desktop density unchanged', () => {
+    renderLayout();
+
+    const link = screen.getByRole('link', { name: 'Corpus' });
+    expect(link.className).toContain('pointer-coarse:min-h-11');
+    expect(link.className).toContain('pointer-coarse:min-w-11');
+  });
+
+  it('gives the language-switch buttons a 44px hit area on coarse pointers', () => {
+    renderLayout();
+
+    const button = screen.getByRole('button', { name: 'English' });
+    expect(button.className).toContain('pointer-coarse:min-h-11');
+    expect(button.className).toContain('pointer-coarse:min-w-11');
+  });
+
+  it('provides a skip-to-content link as the first focusable element, hidden until focused', () => {
+    renderLayout();
+
+    const skipLink = screen.getByRole('link', { name: 'Saltar al contenido' });
+    expect(skipLink.className).toContain('sr-only');
+    expect(skipLink.className).toContain('focus:not-sr-only');
+  });
+
+  it('moves focus to the main content when the skip link is activated after a first Tab', async () => {
+    const user = userEvent.setup();
+    renderLayout();
+
+    await user.tab();
+    expect(screen.getByRole('link', { name: 'Saltar al contenido' })).toHaveFocus();
+
+    await user.keyboard('{Enter}');
+
+    expect(screen.getByRole('main')).toHaveFocus();
+  });
 });
