@@ -70,10 +70,10 @@ function renderList(
 }
 
 /**
- * The below-`lg` results list (DESIGN §6.7): each row is a single ≥44px
- * button — family dot, mono id, score, chevron on one line, a quiet second
- * line for the raw value and the time with its cached marker — that opens
- * the row's own trace, exactly like `CompareTable`'s row does at `lg`+.
+ * The below-`lg` results list: each row is a single ≥44px button — family
+ * dot, mono id, score, chevron on one line, a quiet second line for the
+ * raw value and the time with its cached marker — that opens the row's
+ * own trace, exactly like `CompareTable`'s row does at `lg`+.
  */
 describe('CompareResultsList', () => {
   it('renders one row per result, each at least 44px tall, as a single button', () => {

@@ -14,8 +14,8 @@ export interface AdaptiveSelectionCta {
 }
 
 /**
- * The single adaptive selection CTA's own rule (PRD HU-1.1, TRD FTR-UI),
- * extracted out of `SelectionRail` so `SelectionTray` — the same rule
+ * The single adaptive selection CTA's own rule, extracted out of
+ * `SelectionRail` so `SelectionTray` — the same rule
  * below `lg` — never re-derives it independently and risks disagreeing on
  * when the CTA is enabled or where it navigates. Below two selected it is
  * disabled with a reason; at exactly two it opens the pairwise comparison;

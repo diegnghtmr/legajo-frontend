@@ -72,10 +72,10 @@ beforeEach(() => {
 });
 
 /**
- * The rail's below-`lg` replacement (DESIGN §6.7): docked at the bottom, it
- * shows the count and the selected mono ids on one line (never open by
- * itself), plus the same adaptive CTA `SelectionRail` uses. Tapping the
- * summary — not the CTA — opens the full corpus list as a bottom sheet.
+ * The rail's below-`lg` replacement: docked at the bottom, it shows the
+ * count and the selected mono ids on one line (never open by itself), plus
+ * the same adaptive CTA `SelectionRail` uses. Tapping the summary — not the
+ * CTA — opens the full corpus list as a bottom sheet.
  */
 describe('SelectionTray', () => {
   it('shows the selected count and the adaptive CTA, disabled with a reason below two selected', () => {

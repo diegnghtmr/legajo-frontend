@@ -74,14 +74,14 @@ export function SimilarityWorkbenchLayout() {
   // tracks the exact pair the tray's own CTA was last activated for —
   // `SelectionTray`'s `onCtaActivate` sets it — so selecting a second
   // article alone never swaps the corpus list out from under the person
-  // mid-tap (DESIGN §6.7: select, select, compare is three interactions,
-  // not two). Seeded from whatever pair already exists the instant this
-  // layout first mounts (a deep link, a restored selection, or simply
-  // already having a pair from an earlier visit): only a pair assembled
-  // interactively AFTER arriving here needs its own explicit confirmation
-  // — DESIGN.md settles the fresh three-interaction flow, not whether
-  // returning to an already-selected pair must redundantly repeat it, so
-  // this mount-time seeding is a conservative, reviewable choice. A
+  // mid-tap: a basic comparison stays select, select, compare — three
+  // interactions, not two. Seeded from whatever pair already exists the
+  // instant this layout first mounts (a deep link, a restored selection,
+  // or simply already having a pair from an earlier visit): only a pair
+  // assembled interactively AFTER arriving here needs its own explicit
+  // confirmation — nothing requires that returning to an already-selected
+  // pair must redundantly repeat that confirmation, so this mount-time
+  // seeding is a conservative, reviewable choice. A
   // DIFFERENT pair assembled afterwards (or none at all) always needs its
   // own fresh confirmation, since it no longer matches this remembered key.
   const [confirmedPairKey, setConfirmedPairKey] = useState<string | null>(() => pairKey);

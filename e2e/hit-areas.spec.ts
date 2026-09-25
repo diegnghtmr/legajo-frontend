@@ -2,8 +2,8 @@ import { expect, test, type Locator, type Page } from '@playwright/test';
 
 /**
  * Every interactive control's real tap target at the 390px reference phone
- * width (DESIGN §6.7): at least 44×44px, whether that comes from the
- * control's own visible box or an invisible `pointer-coarse:before:inset-*`
+ * width must be at least 44×44px, whether that comes from the control's
+ * own visible box or an invisible `pointer-coarse:before:inset-*`
  * pseudo-element extending it (`Button`'s `mono` variant, `Checkbox`).
  *
  * `hasTouch`/`isMobile` (not just a narrow `setViewportSize`, which every
@@ -208,7 +208,7 @@ async function expectEachAtLeast44(locator: Locator, label: string) {
   }
 }
 
-test.describe('44x44 touch targets at 390px (DESIGN §6.7)', () => {
+test.describe('44x44 touch targets at 390px', () => {
   test('the selection tray summary, its CTA and the corpus-list sheet controls', async ({
     page,
   }) => {

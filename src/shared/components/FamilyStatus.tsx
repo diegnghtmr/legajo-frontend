@@ -5,9 +5,9 @@ export interface FamilyStatusProps {
   family: AlgoFamily;
   label: string;
   /** Visually hides the text label for a compact row (the mobile results
-   * list's "family dot", DESIGN §6.7) while keeping it in the accessible
-   * tree — the dot alone is still never the only channel, only the one a
-   * sighted person sees painted. */
+   * list's "family dot") while keeping it in the accessible tree — the
+   * dot alone is still never the only channel, only the one a sighted
+   * person sees painted. */
   hideLabel?: boolean;
 }
 
