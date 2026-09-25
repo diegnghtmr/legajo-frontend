@@ -9,7 +9,7 @@ import { Sheet, SheetContent } from '../../shared/components/ui/sheet';
 import { ArticleAbstract } from '../corpus/ArticleAbstract';
 import { EmbeddingsStatusPanel } from '../corpus/EmbeddingsStatusPanel';
 import { SelectionRail } from '../corpus/SelectionRail';
-import { restoreTraceTrigger } from './traceFocusReturn';
+import { clearTraceTrigger, restoreTraceTrigger } from './traceFocusReturn';
 import { TraceDetailPanel } from './traces/TraceDetailPanel';
 
 type DetailView = { kind: 'abstract'; id: string } | { kind: 'embeddings' } | null;
@@ -74,6 +74,12 @@ export function SimilarityWorkbenchLayout() {
   const traceDocumentIdA = searchParams.get('documentIdA');
   const traceDocumentIdB = searchParams.get('documentIdB');
   const isTraceOpen = Boolean(traceAlgorithmId && traceDocumentIdA && traceDocumentIdB);
+  // The trace route matched, but at least one of its own document ids is
+  // missing — a hand-edited or truncated URL, never one this layout's own
+  // navigations produce. Nothing renders for it (`isTraceOpen` is false), so
+  // the URL is normalized back to plain `/similarity` instead of leaving a
+  // trace path visible over a screen that shows no trace at all.
+  const hasPartialTraceRoute = traceAlgorithmId !== undefined && !isTraceOpen;
 
   function navigateAwayFromTrace() {
     if (!isTraceOpen) {
@@ -86,17 +92,77 @@ export function SimilarityWorkbenchLayout() {
     navigate(`/similarity${search ? `?${search}` : ''}`);
   }
 
+  useEffect(() => {
+    if (!hasPartialTraceRoute) {
+      return;
+    }
+    clearTraceTrigger();
+    const nextParams = new URLSearchParams(searchParams);
+    nextParams.delete('documentIdA');
+    nextParams.delete('documentIdB');
+    const search = nextParams.toString();
+    navigate(`/similarity${search ? `?${search}` : ''}`, { replace: true });
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- re-running this for every render `hasPartialTraceRoute` stays true is harmless (the navigate below leaves the trace route on its very next commit, which flips the condition false); listing `searchParams`/`navigate` here would only make it re-run for reasons that never change what it does.
+  }, [hasPartialTraceRoute]);
+
+  // A trace unmounts whatever local detail view (abstract/embeddings) was
+  // open before it, "one panel at a time" — `localDetail` below already
+  // keeps it from rendering meanwhile, but `detail` state itself must be
+  // cleared too, or it would resurrect unrequested once the trace closes
+  // and `localDetail` reverts to reading it again. Adjusted here, during
+  // render, the instant `isTraceOpen` itself flips true — React's own
+  // pattern for resetting one piece of state in response to another
+  // changing (no ref reads here; those are never safe during render) —
+  // rather than in an effect, which would let the stale `detail` value
+  // commit to the DOM for one extra render, exactly what would otherwise
+  // (briefly, but observably) resurrect it.
+  const [wasTraceOpen, setWasTraceOpen] = useState(false);
+  if (isTraceOpen !== wasTraceOpen) {
+    setWasTraceOpen(isTraceOpen);
+    if (isTraceOpen) {
+      setDetail(null);
+    }
+  }
+
+  // This also forgets the local detail view's own focus-return target
+  // (`triggerRef`) so the effect further below never refocuses it once the
+  // trace closes — the trace has its own trigger, tracked separately by
+  // `traceFocusReturn` and restored by `closeDetail`. A plain ref mutation,
+  // so (unlike the state adjustment above) this belongs in an effect, not
+  // during render.
+  useEffect(() => {
+    if (isTraceOpen) {
+      triggerRef.current = null;
+    }
+  }, [isTraceOpen]);
+
   function openAbstract(id: string) {
     navigateAwayFromTrace();
+    // The rail — not the trace's own close action — is what ends an
+    // already-open trace here, so its remembered focus-return target is
+    // dropped without focusing anything: see `clearTraceTrigger`'s own
+    // contract in `traceFocusReturn`.
+    clearTraceTrigger();
     triggerRef.current = document.activeElement as HTMLElement | null;
     setDetail({ kind: 'abstract', id });
   }
 
   function openEmbeddings() {
     navigateAwayFromTrace();
+    clearTraceTrigger();
     triggerRef.current = document.activeElement as HTMLElement | null;
     setDetail({ kind: 'embeddings' });
   }
+
+  // Leaving the similarity screens entirely (a route change elsewhere in
+  // the app, not any of this layout's own close paths above) still ends
+  // whatever trace was open without ever calling `closeDetail` — this is
+  // the layout's own last-resort clear for that path.
+  useEffect(() => {
+    return () => {
+      clearTraceTrigger();
+    };
+  }, []);
 
   // Memoized: the docked/overlay panel's own `Esc` listener effect below
   // re-subscribes whenever this identity changes, so a stable reference

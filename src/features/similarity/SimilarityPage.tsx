@@ -19,6 +19,7 @@ import { buttonVariants } from '../../shared/components/ui/button';
 import { sortedPair, useSelectionStore } from '../corpus/selectionStore';
 import { algoFamilyFromKind } from './algorithmFamily';
 import { CompareTable } from './CompareTable';
+import { clearTraceTrigger } from './traceFocusReturn';
 
 export const ALGORITHMS_QUERY_KEY = ['similarity', 'algorithms'] as const;
 
@@ -114,6 +115,11 @@ export function SimilarityPage() {
     if (!staleTracePair) {
       return;
     }
+    // The rail — not the person's own close action on the trace — is what
+    // ends it here, so this clears the row's remembered focus-return target
+    // without focusing anything: a later, unrelated trace's own close must
+    // never land on this now-stale row (`traceFocusReturn`'s own contract).
+    clearTraceTrigger();
     const nextParams = new URLSearchParams(searchParams);
     nextParams.delete('documentIdA');
     nextParams.delete('documentIdB');
@@ -285,7 +291,13 @@ function SimilarityCompareView({ pair, openAlgorithmId }: SimilarityCompareViewP
   // search param (the family filter, the algorithm selection) instead of
   // wiping them.
   function openTrace(algorithmId: string) {
-    const nextParams = new URLSearchParams(searchParams);
+    // `searchParamsRef.current`, not this render's own `searchParams`
+    // snapshot — the same staleness `commitSearchParams` above already
+    // guards against: a family/algorithm change and a row's own trace open
+    // dispatched in the same tick (before React flushes a render between
+    // them) must still both land in the URL, not have the second overwrite
+    // the first with a now-stale base.
+    const nextParams = new URLSearchParams(searchParamsRef.current);
     nextParams.set('documentIdA', documentIdA);
     nextParams.set('documentIdB', documentIdB);
     navigate({

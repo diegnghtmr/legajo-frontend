@@ -8,6 +8,7 @@ import type {
   ListSimilarityAlgorithmsResponse,
 } from '../../infrastructure/api/similarity';
 import { CompareTable } from './CompareTable';
+import { restoreTraceTrigger } from './traceFocusReturn';
 
 const CATALOGUE = new Map<string, ListSimilarityAlgorithmsResponse[number]>([
   ['levenshtein', { id: 'levenshtein', displayName: 'Levenshtein distance', kind: 'CLASSIC' }],
@@ -105,6 +106,46 @@ describe('CompareTable', () => {
     for (const row of screen.getAllByRole('row')) {
       expect(row).not.toHaveAttribute('aria-current');
     }
+  });
+
+  it('opens that row’s trace when its algorithm button is activated from the keyboard alone (Enter, then Space)', async () => {
+    const user = userEvent.setup();
+    const { onOpenTrace } = renderTable();
+
+    await user.tab();
+    expect(screen.getByRole('button', { name: 'levenshtein' })).toHaveFocus();
+
+    await user.keyboard('{Enter}');
+    expect(onOpenTrace).toHaveBeenCalledWith('levenshtein');
+    expect(onOpenTrace).toHaveBeenCalledTimes(1);
+
+    await user.keyboard(' ');
+    expect(onOpenTrace).toHaveBeenCalledTimes(2);
+  });
+
+  it('remembers the row’s own algorithm button as the trace trigger, never merely the first button the row happens to contain', async () => {
+    const user = userEvent.setup();
+    const { container, onOpenTrace } = renderTable();
+
+    const row = screen.getByRole('row', { name: /^levenshtein/i });
+    const realButton = within(row).getByRole('button', { name: 'levenshtein' });
+    // A decoy button placed ahead of the real one in DOM order — a naive
+    // `row.querySelector('button')` would pick this one instead. It carries
+    // no accessible name of its own, so it never shows up in the row's own
+    // accessible name or button queries above.
+    const decoyButton = document.createElement('button');
+    realButton.parentElement?.insertBefore(decoyButton, realButton);
+    expect(container.contains(decoyButton)).toBe(true);
+
+    // A click far from either button — the row's own `onClick` — still
+    // opens the trace, exactly as the row-hit-area test above proves.
+    await user.click(within(row).getByText('12'));
+    expect(onOpenTrace).toHaveBeenCalledWith('levenshtein');
+
+    restoreTraceTrigger();
+
+    expect(realButton).toHaveFocus();
+    expect(decoyButton).not.toHaveFocus();
   });
 
   it('opens the row’s trace from a click on a cell far from the algorithm button, not only the button itself', async () => {

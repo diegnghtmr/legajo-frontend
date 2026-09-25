@@ -14,6 +14,12 @@ import type { CSSProperties } from 'react';
 export const SHELL_HEADER_HEIGHT_VAR = '--shell-header-h';
 export const SHELL_MAIN_PADDING_VAR = '--shell-main-pad';
 
+/** `AppLayout`'s own `<main>` landmark id — focusable (`tabIndex={-1}`) and
+ * unique in the tree, so it also serves as the last-resort focus target for
+ * anything that would otherwise return focus to an element that no longer
+ * exists (e.g. `traceFocusReturn`'s own fallback). */
+export const MAIN_CONTENT_ID = 'main-content';
+
 /** Matches `AppLayout`'s header, `h-14`. */
 export const SHELL_HEADER_HEIGHT = '3.5rem';
 /** Matches `AppLayout`'s `<main>`, `p-6`. */
