@@ -71,6 +71,23 @@ describe('CutForm', () => {
     expect(onSubmit).not.toHaveBeenCalled();
   });
 
+  it('submits by pressing Enter inside the k input, exactly like clicking the submit button', async () => {
+    const user = userEvent.setup();
+    const { onSubmit } = renderForm({ defaultLinkage: 'average' });
+
+    await setK(user, '3');
+    await user.keyboard('{Enter}');
+
+    expect(onSubmit).toHaveBeenCalledWith({ linkage: 'average', k: 3 });
+
+    onSubmit.mockClear();
+
+    await setK(user, '4');
+    await user.click(screen.getByRole('button', { name: 'Aplicar corte' }));
+
+    expect(onSubmit).toHaveBeenCalledWith({ linkage: 'average', k: 4 });
+  });
+
   it('accepts the minimum allowed k (2) and submits {linkage, k}', async () => {
     const user = userEvent.setup();
     const { onSubmit } = renderForm({ defaultLinkage: 'average' });

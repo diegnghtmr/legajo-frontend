@@ -3,6 +3,15 @@ import { useTranslation } from 'react-i18next';
 import type { BenchmarkReportResponse } from '../../infrastructure/api/benchmarks';
 import { cn } from '../../shared/lib/cn';
 import { Panel, PanelHeader } from '../../shared/components/Panel';
+import {
+  Table,
+  TableBody,
+  TableCaption,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '../../shared/components/ui/table';
 import { SLO_CLASSIC_FAMILIES, SLO_CLUSTERING_FAMILY } from './grouping';
 import { algorithmIdFromSloFamily, evaluateSlo, type SloEvaluation } from './sloEvaluation';
 import { formatDuration } from './units';
@@ -58,41 +67,33 @@ function SloTable({
   return (
     <Panel>
       <PanelHeader title={title} />
-      <table aria-label={title} className="w-full text-body">
-        <caption className="sr-only">{title}</caption>
-        <thead>
-          <tr>
-            <th scope="col" className="text-left font-medium text-ink-secondary">
-              {algorithmLabel}
-            </th>
-            <th scope="col" className="text-left font-medium text-ink-secondary">
-              {t('benchmarks.slo.valueLabel')}
-            </th>
-            <th scope="col" className="text-left font-medium text-ink-secondary">
-              {t('benchmarks.slo.thresholdLabel')}
-            </th>
-            <th scope="col" className="text-left font-medium text-ink-secondary">
-              {t('benchmarks.slo.statusLabel')}
-            </th>
-          </tr>
-        </thead>
-        <tbody>
+      <Table aria-label={title}>
+        <TableCaption className="sr-only">{title}</TableCaption>
+        <TableHeader>
+          <TableRow>
+            <TableHead>{algorithmLabel}</TableHead>
+            <TableHead>{t('benchmarks.slo.valueLabel')}</TableHead>
+            <TableHead>{t('benchmarks.slo.thresholdLabel')}</TableHead>
+            <TableHead>{t('benchmarks.slo.statusLabel')}</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
           {evaluations.map(({ evaluation, label }) => (
-            <tr key={`${evaluation.family}-${evaluation.size}`}>
-              <td className="font-mono text-mono text-ink">{label}</td>
-              <td className="font-mono text-mono text-ink">
+            <TableRow key={`${evaluation.family}-${evaluation.size}`}>
+              <TableCell className="font-mono text-mono text-ink">{label}</TableCell>
+              <TableCell className="font-mono text-mono text-ink">
                 {formatDuration(evaluation.valueMs * 1_000_000)}
-              </td>
-              <td className="font-mono text-mono text-ink-secondary">
+              </TableCell>
+              <TableCell className="font-mono text-mono text-ink-secondary">
                 {formatDuration(evaluation.thresholdMs * 1_000_000)}
-              </td>
-              <td>
+              </TableCell>
+              <TableCell>
                 <StatusLabel evaluation={evaluation} />
-              </td>
-            </tr>
+              </TableCell>
+            </TableRow>
           ))}
-        </tbody>
-      </table>
+        </TableBody>
+      </Table>
     </Panel>
   );
 }

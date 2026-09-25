@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react';
 
 import { cn } from '../lib/cn';
 import { toCsv } from '../lib/csv';
+import { Button } from './ui/button';
 
 export interface DpMatrixCell {
   row: number;
@@ -169,13 +170,9 @@ export function DpMatrix({
           </tbody>
         </table>
       </div>
-      <button
-        type="button"
-        onClick={downloadCsv}
-        className="w-fit rounded-btn border border-hairline-strong bg-paper-raised px-3 py-1.5 text-body text-ink hover:bg-paper-sunken focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus"
-      >
+      <Button type="button" variant="secondary" onClick={downloadCsv} className="w-fit">
         {downloadLabel}
-      </button>
+      </Button>
     </div>
   );
 }

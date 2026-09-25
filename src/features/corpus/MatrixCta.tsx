@@ -1,6 +1,7 @@
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router';
 
+import { Button } from '../../shared/components/ui/button';
 import { useSelectionStore } from './selectionStore';
 
 /**
@@ -29,14 +30,15 @@ export function MatrixCta() {
 
   return (
     <div className="flex flex-col gap-1">
-      <button
+      <Button
         type="button"
+        variant="secondary"
         disabled={!canMatrix}
         onClick={() => void navigate('/similarity/matrix')}
-        className="w-fit rounded-btn border border-hairline-strong bg-paper-raised px-4 py-2 text-body font-semibold text-ink hover:bg-paper-sunken disabled:opacity-45 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus"
+        className="w-fit"
       >
         {t('corpus.selection.matrixCta')}
-      </button>
+      </Button>
       {reasonKey && <p className="text-label text-ink-muted">{t(reasonKey)}</p>}
     </div>
   );

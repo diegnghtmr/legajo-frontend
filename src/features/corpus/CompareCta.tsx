@@ -1,6 +1,7 @@
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router';
 
+import { Button } from '../../shared/components/ui/button';
 import { useSelectionStore } from './selectionStore';
 
 /**
@@ -23,14 +24,9 @@ export function CompareCta() {
 
   return (
     <div className="flex flex-col gap-1">
-      <button
-        type="button"
-        disabled={!canCompare}
-        onClick={() => void navigate('/similarity')}
-        className="rounded-btn bg-ink px-4 py-2 text-body font-semibold text-primary-foreground disabled:opacity-45 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus"
-      >
+      <Button type="button" disabled={!canCompare} onClick={() => void navigate('/similarity')}>
         {t('corpus.selection.compareCta')}
-      </button>
+      </Button>
       {reasonKey && <p className="text-label text-ink-muted">{t(reasonKey)}</p>}
     </div>
   );
