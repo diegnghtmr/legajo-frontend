@@ -1,17 +1,57 @@
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
+
 import { describe, expect, it } from 'vitest';
 
 import { contrastRatio } from './contrast.ts';
 
-// The tokens themselves (src/index.css @theme), so a token value drifting
-// away from its documented pairing fails this test instead of silently
-// shipping an inaccessible combination.
-const PAPER = '#fafafa';
-const PAPER_RAISED = '#ffffff';
-const INK_MUTED = '#737373';
-const CLASSIC_SOFT = '#fef3c7';
-const CLASSIC_FOREGROUND = '#78350f';
-const AI_SOFT = '#ede9fe';
-const AI_FOREGROUND = '#4c1d95';
+/**
+ * `src/index.css`'s absolute path, resolved from this test file's own
+ * directory (`import.meta.dirname`) rather than `process.cwd()` — the
+ * runner's working directory is whatever invoked it, not necessarily the
+ * repo root, so a `process.cwd()`-based path is only an accident of how the
+ * command happens to be run today.
+ */
+const INDEX_CSS_PATH = join(import.meta.dirname, '..', 'src', 'index.css');
+
+/**
+ * Reads a token's actual hex value from `src/index.css`'s `@theme` block
+ * instead of a hardcoded copy in this file: a copy would keep passing even
+ * after the real token drifted away from its documented pairing, proving
+ * nothing about the tokens the app actually ships.
+ */
+function readColorToken(name: string): string {
+  const css = readFileSync(INDEX_CSS_PATH, 'utf8');
+  const match = new RegExp(`--color-${name}:\\s*(#[0-9a-fA-F]{3,8})\\s*;`).exec(css);
+  if (!match) {
+    throw new Error(`Token --color-${name} not found in src/index.css`);
+  }
+  return match[1]!;
+}
+
+const PAPER = readColorToken('paper');
+const PAPER_RAISED = readColorToken('paper-raised');
+const INK_MUTED = readColorToken('ink-muted');
+const CLASSIC_SOFT = readColorToken('classic-soft');
+const CLASSIC_FOREGROUND = readColorToken('classic-foreground');
+const AI_SOFT = readColorToken('ai-soft');
+const AI_FOREGROUND = readColorToken('ai-foreground');
+
+describe('readColorToken (resolving src/index.css)', () => {
+  it('resolves src/index.css relative to this test file, not the process working directory', () => {
+    // A path built from process.cwd() only works when the runner happens to
+    // be invoked from the repo root; readColorToken must keep finding
+    // src/index.css even when the current process directory points
+    // somewhere else entirely.
+    const originalCwd = process.cwd();
+    process.chdir('/tmp');
+    try {
+      expect(readColorToken('paper')).toBe('#fafafa');
+    } finally {
+      process.chdir(originalCwd);
+    }
+  });
+});
 
 describe('contrastRatio', () => {
   it('computes the WCAG contrast ratio between two colors (black on white is 21:1)', () => {

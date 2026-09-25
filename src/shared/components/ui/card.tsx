@@ -2,17 +2,18 @@ import type { ComponentProps } from 'react';
 
 import { cn } from '@/shared/lib/cn';
 
+/**
+ * Card surface treatment: hairline border, one quiet shadow, no
+ * glassmorphism. Exported so another primitive that needs the same surface
+ * on a different element than `<div>` (e.g. `Panel`, which renders a
+ * `<section>` landmark) can compose it instead of duplicating the string.
+ */
+export const cardSurfaceClassName =
+  'rounded-md border border-hairline bg-paper-raised text-ink shadow-[0_1px_2px_rgb(0_0_0_/_0.04)]';
+
 /** Card surface: hairline border, one quiet shadow, no glassmorphism. */
 export function Card({ className, ...props }: ComponentProps<'div'>) {
-  return (
-    <div
-      className={cn(
-        'rounded-md border border-hairline bg-paper-raised text-ink shadow-[0_1px_2px_rgb(0_0_0_/_0.04)]',
-        className,
-      )}
-      {...props}
-    />
-  );
+  return <div className={cn(cardSurfaceClassName, className)} {...props} />;
 }
 
 export function CardHeader({ className, ...props }: ComponentProps<'div'>) {

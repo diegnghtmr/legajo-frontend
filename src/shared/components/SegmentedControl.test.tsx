@@ -43,9 +43,20 @@ describe('SegmentedControl', () => {
     expect(screen.getByRole('radio', { name: 'AI' })).toHaveAttribute('aria-checked', 'false');
   });
 
-  it('uses roving tabindex: only the active option is tab-reachable', () => {
+  it('uses roving tabindex: one Tab stop enters the group and lands focus on the active option', async () => {
+    // Radix's roving-focus group is an "entry point" model: before any
+    // interaction the group root itself holds the single Tab stop
+    // (tabindex 0 on the root, every item at -1); Tab redirects focus to the
+    // current item, which is when its own tabindex flips to 0 and its
+    // siblings' stay at -1. This is a stronger, WAI-ARIA-compliant proof
+    // than asserting a static attribute before any interaction, which was
+    // only true for the previous hand-rolled implementation.
+    const user = userEvent.setup();
     render(<ControlledSegmented />);
 
+    await user.tab();
+
+    expect(screen.getByRole('radio', { name: 'All' })).toHaveFocus();
     expect(screen.getByRole('radio', { name: 'All' })).toHaveAttribute('tabindex', '0');
     expect(screen.getByRole('radio', { name: 'Classic' })).toHaveAttribute('tabindex', '-1');
     expect(screen.getByRole('radio', { name: 'AI' })).toHaveAttribute('tabindex', '-1');
@@ -103,10 +114,19 @@ describe('SegmentedControl', () => {
       />,
     );
 
-    expect(screen.getByRole('radio', { name: 'All' })).toHaveAttribute('tabindex', '0');
+    // With no matching value, Radix's roving-focus group defaults its entry
+    // point to the first item, so one Tab still reaches "All" before moving on.
     await user.tab();
+    expect(screen.getByRole('radio', { name: 'All' })).toHaveFocus();
+    // Entering the group by Tab must never select anything by itself, with
+    // no matching value either: onChange fires only for an explicit key
+    // press or click, never merely because a roving-focus default landed
+    // focus somewhere.
+    expect(onChange).not.toHaveBeenCalled();
+
     await user.keyboard('{ArrowRight}');
 
+    expect(onChange).toHaveBeenCalledTimes(1);
     expect(onChange).toHaveBeenCalledWith('classic');
   });
 
@@ -125,6 +145,59 @@ describe('SegmentedControl', () => {
 
     const option = screen.getByRole('radio', { name: 'all' });
     expect(option.querySelector('span.font-mono')).toBeInTheDocument();
+  });
+
+  it('never selects on Tab-in alone when the value matches an option', async () => {
+    const user = userEvent.setup();
+    const onChange = vi.fn();
+    render(<ControlledSegmented onChange={onChange} />);
+
+    await user.tab();
+
+    expect(screen.getByRole('radio', { name: 'All' })).toHaveFocus();
+    expect(onChange).not.toHaveBeenCalled();
+  });
+
+  it('never selects on Tab-in alone when the value matches no option', async () => {
+    const user = userEvent.setup();
+    const onChange = vi.fn();
+    render(
+      <SegmentedControl
+        options={OPTIONS}
+        value={'stale' as Family}
+        onChange={onChange}
+        aria-label="Family filter"
+      />,
+    );
+
+    await user.tab();
+
+    expect(screen.getByRole('radio', { name: 'All' })).toHaveFocus();
+    expect(onChange).not.toHaveBeenCalled();
+  });
+
+  it('never selects on a plain programmatic focus() call', () => {
+    const onChange = vi.fn();
+    render(<ControlledSegmented onChange={onChange} />);
+
+    screen.getByRole('radio', { name: 'Classic' }).focus();
+
+    expect(screen.getByRole('radio', { name: 'Classic' })).toHaveFocus();
+    expect(onChange).not.toHaveBeenCalled();
+  });
+
+  it('selects with ArrowRight exactly once, with only the next value, after a non-selecting Tab-in', async () => {
+    const user = userEvent.setup();
+    const onChange = vi.fn();
+    render(<ControlledSegmented onChange={onChange} />);
+
+    await user.tab();
+    expect(onChange).not.toHaveBeenCalled();
+
+    await user.keyboard('{ArrowRight}');
+
+    expect(onChange).toHaveBeenCalledTimes(1);
+    expect(onChange).toHaveBeenCalledWith('classic');
   });
 
   it('jumps to the first option on Home and the last option on End', async () => {
