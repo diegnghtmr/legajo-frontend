@@ -29,9 +29,15 @@ test.describe('clustering (full stack, Flow B)', () => {
     // (`table.sr-only` in Dendrogram.tsx), not recomputed here.
     await expect(wardDendrogram.locator('table tbody tr')).toHaveCount(19);
 
-    const wardPanel = page.getByTestId('linkage-panel-ward');
-    await expect(wardPanel.getByText(/Silueta/i).first()).toBeVisible();
-    await expect(wardPanel.getByText(/Davies–Bouldin/).first()).toBeVisible();
+    // The metrics comparison table (ClusteringMetricsTable) carries the
+    // "Silueta"/"Davies–Bouldin" column headers once for the whole table,
+    // not per row; the Ward row itself carries the Ward's own values, so
+    // "visible evaluation metrics" is proven by both the table's headers
+    // and the Ward row's own presence.
+    const metricsTable = page.getByRole('table');
+    await expect(metricsTable.getByText(/Silueta/i).first()).toBeVisible();
+    await expect(metricsTable.getByText(/Davies–Bouldin/).first()).toBeVisible();
+    await expect(page.getByTestId('metrics-row-ward')).toBeVisible();
 
     expect(hasSuccessfulResponse(backendResponses, '/api/v1/clustering')).toBe(true);
   });

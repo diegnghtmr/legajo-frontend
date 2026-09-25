@@ -3,13 +3,14 @@ import type { LinkageId } from '../../infrastructure/schemas/clustering';
 
 /**
  * Sorts a `POST /clustering` response's linkage results into the metrics
- * table's fixed row order (DESIGN.md §6.4.2: "one row per linkage ...
- * declaration order single, complete, average, ward"), regardless of the
- * backend's own array order. A linkage id outside the four canonical ones
- * (never expected from the closed `LinkageIdSchema` enum, but this stays
- * total rather than throwing) sorts after every canonical one, in its
- * original relative order — the table still shows every row it is handed,
- * it just never lets an unknown id perturb the fixed four's order.
+ * table's fixed row order — one row per linkage, in the same declaration
+ * order `ranking.ts` already uses (single, complete, average, ward) —
+ * regardless of the backend's own array order. A linkage id outside the
+ * four canonical ones (never expected from the closed `LinkageIdSchema`
+ * enum, but this stays total rather than throwing) sorts after every
+ * canonical one, in its original relative order — the table still shows
+ * every row it is handed, it just never lets an unknown id perturb the
+ * fixed four's order.
  */
 export function orderLinkagesForMetricsTable<T extends { linkageId: LinkageId }>(
   results: readonly T[],
@@ -28,14 +29,13 @@ export interface MetricsTableEvaluationSource {
 }
 
 /**
- * The secondary column group's own fixed cuts (DESIGN.md §6.4.2): every k
- * the response's own evaluation carries, other than `k_ref` — `k_ref`
- * already has its own lead column (Silhouette/Davies–Bouldin at `k_ref`),
- * so repeating it here would only show the same number a second time. This
- * reads "the k_ref columns stay highlighted" as referring to those lead
- * columns rather than a duplicate entry in the secondary grid — a
- * conservative author decision DESIGN.md's prose leaves open, flagged in
- * the W3 delivery report.
+ * The metrics table's secondary column group: every fixed cut `k` the
+ * response's own evaluation carries, other than `k_ref` — `k_ref` already
+ * has its own lead column (Silhouette/Davies–Bouldin at `k_ref`), so
+ * repeating it here would only show the same number a second time. Whether
+ * a `k_ref` column should also reappear, highlighted, inside this secondary
+ * group is left open by the interface's own rules; this module's own,
+ * conservative choice is "no" — the lead column already is the highlight.
  *
  * Keys are unioned across every linkage's own `meanSilhouette`, never read
  * from just the first one: one linkage silently missing a fixed cut must

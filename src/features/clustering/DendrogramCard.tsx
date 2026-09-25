@@ -25,12 +25,12 @@ export interface DendrogramCardProps {
 const INITIAL_WIDTH = 640;
 
 /**
- * One dendrogram grid card (DESIGN.md §6.4.3): a `Panel` headed by the
- * linkage's display name, with the `Dendrogram` sized to fill the card's
- * own measured width (`useElementWidth`, never a fixed pixel width) and to a
- * height that follows the leaf count (`dendrogramGridSizing.ts`). Drawing
- * itself — the merges, the cut line, the cluster labels — stays entirely
- * `Dendrogram`'s own responsibility; this only measures and sizes.
+ * One dendrogram grid card: a `Panel` headed by the linkage's display name,
+ * with the `Dendrogram` sized to fill the card's own measured width
+ * (`useElementWidth`, never a fixed pixel width) and to a height that
+ * follows the leaf count (`dendrogramGridSizing.ts`). Drawing itself — the
+ * merges, the cut line, the cluster labels — stays entirely `Dendrogram`'s
+ * own responsibility; this only measures and sizes.
  */
 export function DendrogramCard({
   linkageId,
