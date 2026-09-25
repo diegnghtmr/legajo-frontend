@@ -4,6 +4,11 @@ import { cn } from '../lib/cn';
 export interface FamilyStatusProps {
   family: AlgoFamily;
   label: string;
+  /** Visually hides the text label for a compact row (the mobile results
+   * list's "family dot", DESIGN §6.7) while keeping it in the accessible
+   * tree — the dot alone is still never the only channel, only the one a
+   * sighted person sees painted. */
+  hideLabel?: boolean;
 }
 
 /**
@@ -11,7 +16,7 @@ export interface FamilyStatusProps {
  * a 6px status dot plus a visible text label — the dot alone is never the
  * only channel.
  */
-export function FamilyStatus({ family, label }: FamilyStatusProps) {
+export function FamilyStatus({ family, label, hideLabel = false }: FamilyStatusProps) {
   return (
     <span className="inline-flex items-center gap-2 text-label text-ink-secondary">
       <span
@@ -21,7 +26,7 @@ export function FamilyStatus({ family, label }: FamilyStatusProps) {
           family === 'classic' ? 'bg-classic' : 'bg-ai',
         )}
       />
-      {label}
+      <span className={hideLabel ? 'sr-only' : undefined}>{label}</span>
     </span>
   );
 }

@@ -16,8 +16,10 @@ import { Panel, PanelHeader } from '../../shared/components/Panel';
 import { AlgoTextList } from '../../shared/components/AlgoTextList';
 import { SegmentedControl, type SegmentedOption } from '../../shared/components/SegmentedControl';
 import { buttonVariants } from '../../shared/components/ui/button';
+import { useIsAtLeastLg } from '../../shared/lib/useIsAtLeastLg';
 import { sortedPair, useSelectionStore } from '../corpus/selectionStore';
 import { algoFamilyFromKind } from './algorithmFamily';
+import { CompareResultsList } from './CompareResultsList';
 import { CompareTable } from './CompareTable';
 import { clearTraceTrigger } from './traceFocusReturn';
 
@@ -186,6 +188,7 @@ interface SimilarityCompareViewProps {
 function SimilarityCompareView({ pair, openAlgorithmId }: SimilarityCompareViewProps) {
   const { t } = useTranslation();
   const navigate = useNavigate();
+  const isAtLeastLg = useIsAtLeastLg();
   const [searchParams, setSearchParams] = useSearchParams();
   // `setSearchParams` itself does not compose: its own functional-updater
   // form still resolves against this render's `searchParams` closure, so
@@ -361,14 +364,22 @@ function SimilarityCompareView({ pair, openAlgorithmId }: SimilarityCompareViewP
           </p>
         </div>
       )}
-      {compareQuery.data && (
-        <CompareTable
-          rows={compareQuery.data}
-          catalogueById={catalogueById}
-          onOpenTrace={openTrace}
-          openAlgorithmId={openAlgorithmId}
-        />
-      )}
+      {compareQuery.data &&
+        (isAtLeastLg ? (
+          <CompareTable
+            rows={compareQuery.data}
+            catalogueById={catalogueById}
+            onOpenTrace={openTrace}
+            openAlgorithmId={openAlgorithmId}
+          />
+        ) : (
+          <CompareResultsList
+            rows={compareQuery.data}
+            catalogueById={catalogueById}
+            onOpenTrace={openTrace}
+            openAlgorithmId={openAlgorithmId}
+          />
+        ))}
     </div>
   );
 }

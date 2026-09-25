@@ -202,4 +202,43 @@ test.describe('similarity compare screen', () => {
 
     expect(results.violations).toEqual([]);
   });
+
+  test('below lg (390px), the results render as a list of row buttons, and a row opens its trace as a full-height sheet', async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto('/');
+
+    await page.getByRole('checkbox', { name: 'A survey of string similarity' }).check();
+    await page.getByRole('checkbox', { name: 'Embeddings for scientific text' }).check();
+    await page.getByRole('button', { name: 'Comparar doc-01 y doc-02' }).click();
+
+    // A list, never a table, below lg.
+    await expect(page.getByRole('table')).toHaveCount(0);
+    const list = page.getByRole('list', { name: 'Resultados de similitud por algoritmo' });
+    await expect(list).toBeVisible();
+
+    for (const { algorithmId } of COMPARE_RESULTS) {
+      await expect(list.getByRole('button', { name: algorithmId, exact: true })).toBeVisible();
+    }
+
+    const cachedRow = list.getByRole('button', { name: 'embedding-api', exact: true });
+    await expect(cachedRow).toContainText('en caché');
+
+    const row = list.getByRole('button', { name: 'levenshtein', exact: true });
+    const rowBox = await row.boundingBox();
+    expect(rowBox).not.toBeNull();
+    expect(rowBox!.height).toBeGreaterThanOrEqual(44);
+
+    await row.click();
+
+    const dialog = page.getByRole('dialog');
+    await expect(dialog).toBeVisible();
+    await expect(dialog.getByRole('heading', { name: 'Levenshtein distance' })).toBeVisible();
+
+    await dialog.getByRole('button', { name: 'Cerrar traza' }).click();
+
+    await expect(dialog).toHaveCount(0);
+    await expect(row).toBeFocused();
+  });
 });
