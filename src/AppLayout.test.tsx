@@ -486,5 +486,45 @@ describe('AppLayout', () => {
       expect(document.body).not.toHaveFocus();
       expect(screen.getByRole('main')).toHaveFocus();
     });
+
+    it('rescues focus even when the browser already blurred the disappearing toggle button to the document body before this effect runs', async () => {
+      const mediaQueryList = stubMatchMedia(false);
+      const user = userEvent.setup();
+      renderLayout();
+
+      await user.click(screen.getByRole('button', { name: 'Abrir navegación' }));
+      await user.keyboard('{Escape}');
+      const toggle = screen.getByRole('button', { name: 'Abrir navegación' });
+      expect(toggle).toHaveFocus();
+
+      // A real browser applies `lg:hidden` to the toggle button as part of
+      // the same layout pass that resolves the media query itself, before
+      // ever dispatching this component's own `change` listener — its own
+      // default focus-fixup (moving focus to the document body, since the
+      // now-`display:none` button can no longer hold it) has therefore
+      // already happened by the time this effect runs. jsdom never performs
+      // that fixup on its own (`lg:hidden` toggling `display` does not blur
+      // anything here), so the test reproduces it explicitly instead of
+      // asserting a browser behavior jsdom cannot exercise by itself.
+      act(() => {
+        toggle.blur();
+      });
+      expect(document.body).toHaveFocus();
+
+      act(() => {
+        mediaQueryList.fireChange(true);
+      });
+
+      expect(document.body).not.toHaveFocus();
+      expect(screen.getByRole('link', { name: 'Similitud' })).toHaveFocus();
+    });
+
+    it('never steals focus on mount, even though the very first render already reports a wide viewport', () => {
+      renderLayout();
+
+      // No transition happened yet (the hook's own snapshot was already
+      // wide on the very first render) — nothing to rescue focus from.
+      expect(document.body).toHaveFocus();
+    });
   });
 });

@@ -101,18 +101,6 @@ async function mockCorpusAndSimilarity(page: Page) {
   });
 }
 
-/**
- * The effective tap target, in CSS pixels: the element's own bounding box,
- * unioned with a `::before`/`::after` pseudo-element only when it is
- * actually the invisible hit-area extension this repo's components use —
- * `position: absolute`/`fixed` with a real `inset`/`top`/`right`/`bottom`/
- * `left` offset and non-empty `content`, exactly the shape `Checkbox` and
- * the `Button` `mono` variant declare under `pointer-coarse:`. A pseudo
- * that fails any of those checks (no offset content, static position, or
- * simply absent) contributes nothing, so a plain visible box is measured
- * as itself — conservative in both directions: this never invents an
- * extension that isn't really there, and never misses one that is.
- */
 /** The handful of DOM members this file's browser-side callback needs —
  * spelled out locally, rather than adding the `dom` lib (which this
  * project's Node-typed e2e tsconfig deliberately omits, per
@@ -127,59 +115,53 @@ interface HitSizeRect {
 }
 interface HitSizeElement {
   getBoundingClientRect(): HitSizeRect;
+  contains(other: unknown): boolean;
 }
-interface HitSizeComputedStyle {
-  content: string;
-  position: string;
-  left: string;
-  top: string;
-  right: string;
-  bottom: string;
-}
-interface HitSizeWindow {
-  getComputedStyle(element: HitSizeElement, pseudo: string): HitSizeComputedStyle;
+interface HitSizeDocument {
+  elementFromPoint(x: number, y: number): HitSizeElement | null;
 }
 
 /**
- * The effective tap target, in CSS pixels: the element's own bounding box,
- * unioned with a `::before`/`::after` pseudo-element only when it is
- * actually the invisible hit-area extension this repo's components use —
- * `position: absolute`/`fixed` with a real `inset`/`top`/`right`/`bottom`/
- * `left` offset and non-empty `content`, exactly the shape `Checkbox` and
- * the `Button` `mono` variant declare under `pointer-coarse:`. A pseudo
- * that fails any of those checks (no offset content, static position, or
- * simply absent) contributes nothing, so a plain visible box is measured
- * as itself — conservative in both directions: this never invents an
- * extension that isn't really there, and never misses one that is.
+ * Whether a real tap anywhere in a 44×44 CSS-pixel box centered on the
+ * control's own visual center would actually land on that control (or one
+ * of its descendants) — sampled at the box's four edge midpoints (top,
+ * bottom, left, right), each one `document.elementFromPoint` away from the
+ * center. This asks the browser's own hit-test, the same one a real tap
+ * resolves through, rather than re-deriving the geometry from the
+ * control's `getBoundingClientRect()` plus a `::before`/`::after` pseudo's
+ * own CSS `inset`: that arithmetic silently assumes the pseudo's
+ * offsets resolve against the control's *own* box, which only holds when
+ * the control itself is the pseudo's containing block (`position:
+ * relative` on that same element) — an absolutely positioned pseudo's
+ * `top`/`right`/`bottom`/`left` are resolved by the browser against
+ * whichever ancestor actually establishes that containing block, and even
+ * when it is the control's own box, an intervening `overflow: hidden`
+ * ancestor can still clip the extension down before it ever reaches the
+ * viewport. A CSS-only replica of that geometry cannot see either case;
+ * asking the browser to actually resolve a tap at each sampled point
+ * always reflects both. Conservative in one direction: a control passes
+ * only when every sampled edge resolves to it, so a real gap this
+ * measure could still under-count as a false failure (an exotic,
+ * non-rectangular hit area off-center from the control) never passes it,
+ * but it can never call a genuinely un-tappable point tappable.
  */
-async function effectiveHitSize(locator: Locator): Promise<{ width: number; height: number }> {
+async function isFullyTappable44(locator: Locator): Promise<boolean> {
   return locator.evaluate((el: HitSizeElement) => {
     const rect = el.getBoundingClientRect();
-    let left = rect.left;
-    let top = rect.top;
-    let right = rect.right;
-    let bottom = rect.bottom;
-
-    for (const pseudo of ['::before', '::after']) {
-      const style = (globalThis as unknown as HitSizeWindow).getComputedStyle(el, pseudo);
-      const isRealExtension =
-        style.content !== 'none' &&
-        style.content !== '' &&
-        (style.position === 'absolute' || style.position === 'fixed');
-      if (!isRealExtension) {
-        continue;
-      }
-      const offsetLeft = parseFloat(style.left);
-      const offsetTop = parseFloat(style.top);
-      const offsetRight = parseFloat(style.right);
-      const offsetBottom = parseFloat(style.bottom);
-      if (Number.isFinite(offsetLeft)) left = Math.min(left, rect.left + offsetLeft);
-      if (Number.isFinite(offsetTop)) top = Math.min(top, rect.top + offsetTop);
-      if (Number.isFinite(offsetRight)) right = Math.max(right, rect.right - offsetRight);
-      if (Number.isFinite(offsetBottom)) bottom = Math.max(bottom, rect.bottom - offsetBottom);
-    }
-
-    return { width: right - left, height: bottom - top };
+    const centerX = (rect.left + rect.right) / 2;
+    const centerY = (rect.top + rect.bottom) / 2;
+    const half = 22; // 44px / 2
+    const samplePoints: ReadonlyArray<[number, number]> = [
+      [centerX, centerY - half], // top edge midpoint
+      [centerX, centerY + half], // bottom edge midpoint
+      [centerX - half, centerY], // left edge midpoint
+      [centerX + half, centerY], // right edge midpoint
+    ];
+    const doc = (globalThis as unknown as { document: HitSizeDocument }).document;
+    return samplePoints.every(([x, y]) => {
+      const hit = doc.elementFromPoint(x, y);
+      return hit !== null && (hit === el || el.contains(hit));
+    });
   });
 }
 
@@ -196,15 +178,11 @@ async function expectEachAtLeast44(locator: Locator, label: string) {
   for (let index = 0; index < count; index += 1) {
     const one = locator.nth(index);
     const accessibleName = (await one.getAttribute('aria-label')) ?? (await one.textContent());
-    const size = await effectiveHitSize(one);
+    const tappable = await isFullyTappable44(one);
     expect(
-      size.width,
-      `${label} (${accessibleName?.trim()}) width ${size.width}px`,
-    ).toBeGreaterThanOrEqual(44);
-    expect(
-      size.height,
-      `${label} (${accessibleName?.trim()}) height ${size.height}px`,
-    ).toBeGreaterThanOrEqual(44);
+      tappable,
+      `${label} (${accessibleName?.trim()}) does not resolve a real tap everywhere in its own centered 44x44 box`,
+    ).toBe(true);
   }
 }
 
@@ -504,5 +482,57 @@ test.describe('44x44 touch targets at 390px', () => {
       page.getByRole('radiogroup', { name: 'Escala' }).getByRole('radio'),
       'benchmarks scale option',
     );
+  });
+
+  test('rejects a hit-area extension an overflow:hidden ancestor clips below 44x44, even though its own inset math alone would satisfy 44px', async ({
+    page,
+  }) => {
+    // A minimal, self-contained fixture instead of a real screen: a 16px
+    // button, `position: relative` (so its own `pointer-coarse:before:`
+    // pseudo's `-14px` inset resolves against its own box, exactly like
+    // `Checkbox`/`Button` `mono` above), inset -14px on every side would
+    // reach the textbook 44x44px box — but a 40x40px `overflow: hidden`
+    // wrapper clips that extension down to 40x40px before it ever reaches
+    // the viewport. A geometry-only replica of the inset math never sees
+    // the clip and reports exactly 44px; only a real hit-test at the
+    // 44x44 box's own edges (2px beyond the clip on every side) can catch
+    // it.
+    await page.setContent(`<!doctype html>
+      <html>
+        <head>
+          <style>
+            .clip {
+              width: 40px;
+              height: 40px;
+              overflow: hidden;
+              display: flex;
+              align-items: center;
+              justify-content: center;
+            }
+            #target {
+              position: relative;
+              width: 16px;
+              height: 16px;
+              padding: 0;
+              margin: 0;
+              border: none;
+            }
+            #target::before {
+              content: '';
+              position: absolute;
+              inset: -14px;
+            }
+          </style>
+        </head>
+        <body>
+          <div class="clip">
+            <button id="target" aria-label="Clipped target">t</button>
+          </div>
+        </body>
+      </html>`);
+
+    await expect(
+      expectEachAtLeast44(page.getByRole('button', { name: 'Clipped target' }), 'clipped target'),
+    ).rejects.toThrow();
   });
 });

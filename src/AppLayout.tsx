@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import type { MouseEvent } from 'react';
 import { Menu, X } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
@@ -134,13 +134,45 @@ export function AppLayout() {
   // panel was closed, e.g. via Escape or an outside click, but focus was
   // never moved off the button itself, and the viewport then widened
   // without an intervening click elsewhere), the browser drops focus to
-  // the document outright the instant that button disappears. A plain
-  // ref mutation read here is unsafe during render, so this defers to an
-  // effect keyed on the same transition; the active section link (if the
-  // current route has one) is the most useful next landing spot, with
-  // `<main>` as a fallback for a route with none (e.g. the not-found page).
-  useEffect(() => {
-    if (!isAtLeastLg || document.activeElement !== toggleButtonRef.current) {
+  // the document outright the instant that button disappears. The active
+  // section link (if the current route has one) is the most useful next
+  // landing spot, with `<main>` as a fallback for a route with none (e.g.
+  // the not-found page).
+  //
+  // A real browser applies `lg:hidden` (and the focus-fixup that follows
+  // from a now-unfocusable button) as part of the very same layout pass
+  // that resolves the underlying media query, which happens *before* this
+  // component's own `change` listener (`useIsAtLeastLg`'s `subscribe`) ever
+  // fires — so `document.activeElement` can already be `document.body` by
+  // the time any of this component's own code runs, never still the toggle
+  // button itself. Checking only `=== toggleButtonRef.current` misses that
+  // real-browser case entirely (jsdom, which never performs this fixup on
+  // its own, cannot expose that gap); checking for `document.body` too
+  // catches it without needing a separate focus/blur-tracking ref, which
+  // would face the identical race (the button's own `blur` — to body —
+  // fires as part of that very same layout pass, before this effect can
+  // ever read it). `previousIsAtLeastLgRef` (a ref updated only by this
+  // effect, decoupled from the render-time `wasAtLeastLg` state adjustment
+  // above, which has already caught up to `isAtLeastLg` by the time this
+  // commits) is what keeps this from firing on the very first render
+  // instead of only a genuine narrow-to-wide transition — `document.body`
+  // is also jsdom's own default `activeElement` before anything has ever
+  // been focused, so without it, every mount at `lg`+ would otherwise
+  // steal focus onto the active nav link or `<main>` for no reason at all.
+  // `useLayoutEffect`, not `useEffect`, so the rescue applies before the
+  // browser paints the transition.
+  const previousIsAtLeastLgRef = useRef(isAtLeastLg);
+  useLayoutEffect(() => {
+    const wasAtLeastLgBefore = previousIsAtLeastLgRef.current;
+    previousIsAtLeastLgRef.current = isAtLeastLg;
+    const crossedToWide = isAtLeastLg && !wasAtLeastLgBefore;
+    if (!crossedToWide) {
+      return;
+    }
+    const toggleLikelyLostFocus =
+      document.activeElement === toggleButtonRef.current ||
+      document.activeElement === document.body;
+    if (!toggleLikelyLostFocus) {
       return;
     }
     const activeLink = navRef.current?.querySelector<HTMLElement>('a[aria-current="page"]');
