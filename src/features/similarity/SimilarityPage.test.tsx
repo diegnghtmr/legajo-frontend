@@ -393,17 +393,26 @@ describe('SimilarityPage — exactly two selected', () => {
 
 describe('SimilarityPage — the trace deep link route', () => {
   beforeEach(() => {
+    // Explicit, rather than relying on the file-level `beforeEach` above:
+    // several tests in this very describe block deliberately select
+    // `doc-01`/`doc-02` in the rail, so a bare-deep-link test proving URL
+    // precedence needs its own guaranteed-empty rail, not an inherited one
+    // a later edit to the outer hook could silently weaken.
+    useSelectionStore.setState({ selectedIds: [], canCompare: false, canMatrix: false });
     vi.spyOn(similarityApi, 'fetchSimilarityAlgorithms').mockResolvedValue(CATALOGUE);
     vi.spyOn(similarityApi, 'compareSimilarity').mockResolvedValue(compareResponseFor(ALL_SIX_IDS));
   });
 
   it("reads the compared pair from the deep link's own document ids, even with nothing rail-selected", async () => {
-    renderAtRoute('/similarity/levenshtein/trace?documentIdA=doc-01&documentIdB=doc-02');
+    // Deliberately distinct from every other test's `doc-01`/`doc-02` pair:
+    // that shared id would let a bug that quietly preferred the rail's own
+    // (empty-here, but coincidentally identical) pair still pass.
+    renderAtRoute('/similarity/levenshtein/trace?documentIdA=doc-05&documentIdB=doc-06');
 
     expect(await screen.findAllByRole('row')).toHaveLength(7);
     expect(similarityApi.compareSimilarity).toHaveBeenCalledWith({
-      documentIdA: 'doc-01',
-      documentIdB: 'doc-02',
+      documentIdA: 'doc-05',
+      documentIdB: 'doc-06',
       algorithmIds: [...ALL_SIX_IDS],
     });
   });
