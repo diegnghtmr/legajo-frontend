@@ -64,4 +64,15 @@ describe('ArticleRow', () => {
 
     expect(onToggle).toHaveBeenCalledWith('doc-01');
   });
+
+  it('gives both focusable elements enough scroll-margin-bottom to clear the sticky CTA bar (WCAG 2.4.11)', () => {
+    // jsdom performs no real layout, so this asserts the CSS contract
+    // (matching CorpusPage's own pb-48, the bar's measured tallest height),
+    // not an actual scroll position — verified separately against a live
+    // render in the corpus e2e suite.
+    renderRow();
+
+    expect(screen.getByRole('checkbox', { name: summary.title })).toHaveClass('scroll-mb-48');
+    expect(screen.getByRole('link', { name: summary.title })).toHaveClass('scroll-mb-48');
+  });
 });

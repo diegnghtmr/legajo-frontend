@@ -17,6 +17,16 @@ export interface ArticleRowProps {
  * links to `/corpus/:id` for the full abstract. Meta (mono id, authors) is
  * stacked on its own lines, never joined by `·`.
  *
+ * `CorpusPage`'s sticky compare/matrix CTA bar sits below this list and can
+ * visually cover a row that a native browser focus-scroll already considers
+ * "fully in view" by raw geometry — that geometry check knows nothing about
+ * the opaque sibling painted on top (WCAG 2.4.11, focus not obscured). Both
+ * focusable elements below carry `scroll-mb-48` (matching `CorpusPage`'s own
+ * `pb-48`, the bar's measured tallest height) so the browser's focus
+ * scroll-into-view treats that space as part of what must clear the
+ * viewport, forcing it to scroll the row above the bar instead of leaving it
+ * hidden behind it.
+ *
  * Colocated in `features/corpus` rather than `shared/`: today it has exactly
  * one importer (this feature's article list). The Scope Rule promotes on
  * actual second use, not anticipated reuse — when `similarity` also
@@ -30,12 +40,12 @@ export function ArticleRow({ id, title, authors, selected, onToggle }: ArticleRo
           checked={selected}
           onCheckedChange={() => onToggle(id)}
           aria-label={title}
-          className="mt-1"
+          className="mt-1 scroll-mb-48"
         />
         <div className="flex flex-col gap-1">
           <Link
             to={`/corpus/${encodeURIComponent(id)}`}
-            className="text-body font-semibold text-ink underline-offset-2 hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus"
+            className="scroll-mb-48 text-body font-semibold text-ink underline-offset-2 hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus"
           >
             {title}
           </Link>
