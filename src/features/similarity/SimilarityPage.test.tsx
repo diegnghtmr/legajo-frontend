@@ -126,13 +126,14 @@ describe('SimilarityPage — wrong selection count', () => {
 
       const { queryClient } = renderWithProviders(<SimilarityPage />);
 
-      // A disabled `useQuery` still registers its query key in the cache —
-      // asserting on the cache (not just on whether the fetch ran) is what
-      // proves the blank-id placeholders can no longer exist at all, rather
-      // than merely being unused this render.
-      expect(
-        queryClient.getQueryCache().findAll({ queryKey: ['similarity', 'compare'] }),
-      ).toHaveLength(0);
+      // The whole cache, not only the `similarity, compare` prefix: the
+      // wrong-count empty state returns before `SimilarityCompareView`
+      // mounts at all, so nothing — not the compare query, not the
+      // algorithm catalogue, not anything else — is ever registered. A
+      // narrower assertion on just the compare key would still pass if a
+      // future change accidentally mounted the catalogue query (or any
+      // other query) alongside the empty state.
+      expect(queryClient.getQueryCache().getAll()).toHaveLength(0);
       expect(screen.queryByText(/Comparando/)).not.toBeInTheDocument();
       expect(similarityApi.compareSimilarity).not.toHaveBeenCalled();
     },
