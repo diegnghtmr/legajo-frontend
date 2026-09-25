@@ -111,6 +111,15 @@ export function SimilarityWorkbenchLayout() {
   // browser's focus outright; doing it here, in an effect that runs after
   // the commit, targets a document that no longer has anything trapping it.
   const wasOpenRef = useRef(false);
+  // Which of the two restore targets the deferred effect above should use
+  // for the *next* close: the trace's own remembered trigger
+  // (`traceFocusReturn`) or this layout's own `triggerRef` for a local
+  // (abstract/embeddings) detail view. Set from `isTraceOpen` while a
+  // detail view is open, since by the time the effect actually runs the
+  // close has already committed and `isTraceOpen` itself has flipped back
+  // to `false` — reading it directly at that point would always pick the
+  // local branch.
+  const wasTraceRef = useRef(false);
 
   const traceMatch = matchPath(TRACE_ROUTE_PATTERN, location.pathname);
   const traceAlgorithmId = traceMatch?.params.algorithmId;
@@ -210,11 +219,18 @@ export function SimilarityWorkbenchLayout() {
   // Memoized: the docked/overlay panel's own `Esc` listener effect below
   // re-subscribes whenever this identity changes, so a stable reference
   // (recreated only when what it actually reads changes) keeps that from
-  // happening on every unrelated render.
+  // happening on every unrelated render. The focus restore itself never
+  // happens here — below `lg` this is the below-`lg` Sheet's own close
+  // path, and Radix's focus trap is still mounted for the render where
+  // `isTraceOpen` first flips false (it only unmounts *after* this
+  // commits); calling `restoreTraceTrigger()` synchronously here would
+  // fight that still-mounted trap and silently lose focus outright, the
+  // exact hazard the `wasOpenRef` effect below already exists to avoid for
+  // the local (abstract/embeddings) detail view. The trace-close case
+  // shares that same effect instead, deferred to run after the commit.
   const closeDetail = useCallback(() => {
     if (isTraceOpen) {
       navigateAwayFromTrace();
-      restoreTraceTrigger();
       return;
     }
     setDetail(null);
@@ -234,10 +250,19 @@ export function SimilarityWorkbenchLayout() {
     const anyDetailOpen = localDetail !== null || isTraceOpen;
     if (anyDetailOpen) {
       wasOpenRef.current = true;
+      // Remembered for the close transition below: which restore target
+      // applies depends on what was actually open, not on `isTraceOpen`'s
+      // now-closed value read at that later point.
+      wasTraceRef.current = isTraceOpen;
     } else if (wasOpenRef.current) {
       wasOpenRef.current = false;
-      triggerRef.current?.focus();
-      triggerRef.current = null;
+      if (wasTraceRef.current) {
+        restoreTraceTrigger();
+      } else {
+        triggerRef.current?.focus();
+        triggerRef.current = null;
+      }
+      wasTraceRef.current = false;
     }
   }, [localDetail, isTraceOpen]);
 

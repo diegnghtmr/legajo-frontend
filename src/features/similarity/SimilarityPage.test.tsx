@@ -3,7 +3,7 @@ import { act, fireEvent, render, screen, waitFor, within } from '@testing-librar
 import userEvent from '@testing-library/user-event';
 import type { ReactNode } from 'react';
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import type {
   CompareResponse,
@@ -11,6 +11,7 @@ import type {
 } from '../../infrastructure/api/similarity';
 import * as similarityApi from '../../infrastructure/api/similarity';
 import type { AlgorithmId } from '../../infrastructure/schemas/similarity';
+import { stubNarrowViewport } from '../../test/matchMedia';
 import { useSelectionStore } from '../corpus/selectionStore';
 import { SimilarityPage } from './SimilarityPage';
 
@@ -414,6 +415,65 @@ describe('SimilarityPage — exactly two selected', () => {
     renderWithProviders(<SimilarityPage />);
 
     expect(await screen.findByText('Ocurrió un error inesperado.')).toBeInTheDocument();
+  });
+});
+
+describe('SimilarityPage — below lg, the results render as a list instead of a table', () => {
+  beforeEach(() => {
+    stubNarrowViewport();
+    useSelectionStore.setState({
+      selectedIds: ['doc-01', 'doc-02'],
+      canCompare: true,
+      canMatrix: false,
+    });
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it('renders one row button per result, never a table, below lg', async () => {
+    vi.spyOn(similarityApi, 'fetchSimilarityAlgorithms').mockResolvedValue(CATALOGUE);
+    vi.spyOn(similarityApi, 'compareSimilarity').mockResolvedValue(compareResponseFor(ALL_SIX_IDS));
+
+    renderWithProviders(<SimilarityPage />);
+
+    const list = await screen.findByRole('list', { name: 'Resultados de similitud por algoritmo' });
+    expect(within(list).getByRole('button', { name: 'levenshtein' })).toBeInTheDocument();
+    expect(screen.queryByRole('table')).not.toBeInTheDocument();
+    expect(screen.queryByRole('row')).not.toBeInTheDocument();
+  });
+
+  it('opens a row’s trace exactly like the lg+ table row does', async () => {
+    vi.spyOn(similarityApi, 'fetchSimilarityAlgorithms').mockResolvedValue(CATALOGUE);
+    vi.spyOn(similarityApi, 'compareSimilarity').mockResolvedValue(compareResponseFor(ALL_SIX_IDS));
+    const user = userEvent.setup();
+    renderAtRoute('/similarity');
+
+    const list = await screen.findByRole('list', { name: 'Resultados de similitud por algoritmo' });
+    await user.click(within(list).getByRole('button', { name: 'levenshtein' }));
+
+    const location = await screen.findByTestId('location');
+    expect(location.textContent).toContain('/similarity/levenshtein/trace');
+  });
+});
+
+describe('SimilarityPage — at lg and above, the results still render as a table', () => {
+  beforeEach(() => {
+    useSelectionStore.setState({
+      selectedIds: ['doc-01', 'doc-02'],
+      canCompare: true,
+      canMatrix: false,
+    });
+  });
+
+  it('renders the table, never the below-lg list', async () => {
+    vi.spyOn(similarityApi, 'fetchSimilarityAlgorithms').mockResolvedValue(CATALOGUE);
+    vi.spyOn(similarityApi, 'compareSimilarity').mockResolvedValue(compareResponseFor(ALL_SIX_IDS));
+
+    renderWithProviders(<SimilarityPage />);
+
+    expect(await screen.findByRole('table')).toBeInTheDocument();
   });
 });
 

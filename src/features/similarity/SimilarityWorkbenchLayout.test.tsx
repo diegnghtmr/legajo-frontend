@@ -9,6 +9,7 @@ import * as embeddingsApi from '../../infrastructure/api/embeddings';
 import * as similarityApi from '../../infrastructure/api/similarity';
 import type { ListSimilarityAlgorithmsResponse } from '../../infrastructure/api/similarity';
 import type { DpMatrixTrace } from '../../infrastructure/schemas/similarity';
+import { stubNarrowViewport } from '../../test/matchMedia';
 import { useSelectionStore } from '../corpus/selectionStore';
 import { SimilarityPage } from './SimilarityPage';
 import { SimilarityWorkbenchLayout } from './SimilarityWorkbenchLayout';
@@ -58,22 +59,6 @@ const EMBEDDINGS_STATUS = {
     mode: 'cached' as const,
   },
 };
-
-/** No `matchMedia` implementation reports a narrow viewport by itself —
- * this fakes the `(min-width: 1024px)` list `useIsAtLeastLg` reads,
- * matching the shared default stub's own shape (`src/test/setup.ts`). */
-function stubNarrowViewport() {
-  vi.stubGlobal('matchMedia', (query: string): MediaQueryList => ({
-    matches: false,
-    media: query,
-    onchange: null,
-    addListener: () => {},
-    removeListener: () => {},
-    addEventListener: () => {},
-    removeEventListener: () => {},
-    dispatchEvent: () => false,
-  }));
-}
 
 function renderLayout() {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
@@ -392,9 +377,14 @@ describe('SimilarityWorkbenchLayout', () => {
         const user = userEvent.setup();
         renderLayoutAtRoute('/similarity');
 
-        await waitForCompareTable();
-        const row = await screen.findByRole('row', { name: /^levenshtein/i });
-        const rowButton = within(row).getByRole('button', { name: 'levenshtein' });
+        // Below `lg` the results render as a list (`CompareResultsList`),
+        // never a table — its own row is still the trace trigger. Scoped to
+        // the list: the family filter above it has its own same-named
+        // toggle button for every algorithm id.
+        const list = await screen.findByRole('list', {
+          name: 'Resultados de similitud por algoritmo',
+        });
+        const rowButton = within(list).getByRole('button', { name: 'levenshtein' });
         await user.click(rowButton);
 
         await screen.findByRole('dialog');
@@ -456,7 +446,11 @@ describe('SimilarityWorkbenchLayout', () => {
       // Interaction 3: compare.
       await user.click(cta);
 
-      expect(await screen.findAllByRole('row')).toHaveLength(2);
+      // Below `lg` the results render as a list (`CompareResultsList`),
+      // never a table.
+      expect(
+        await screen.findByRole('list', { name: 'Resultados de similitud por algoritmo' }),
+      ).toBeInTheDocument();
       expect(
         screen.queryByRole('checkbox', { name: 'A survey of string similarity' }),
       ).not.toBeInTheDocument();
