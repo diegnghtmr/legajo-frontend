@@ -276,6 +276,30 @@ test.describe('corpus selection rail', () => {
     await expect(page.getByText('Comparando doc-01 × doc-02')).toBeVisible();
   });
 
+  test('below lg (390px) an article abstract opens as a dialog and closes back to the title', async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto('/');
+
+    const title = page.getByRole('button', { name: 'A survey of string similarity' });
+    await title.click();
+
+    const dialog = page.getByRole('dialog');
+    await expect(dialog).toBeVisible();
+    await expect(
+      dialog.getByText('This paper surveys classic and embedding-based similarity measures.'),
+    ).toBeVisible();
+    // Never both at once: the docked/overlay detail region never mounts
+    // below `lg`, even while the dialog holds the same content.
+    await expect(page.getByTestId('workbench-detail')).toHaveCount(0);
+
+    await dialog.getByRole('button', { name: 'Cerrar' }).click();
+
+    await expect(dialog).toHaveCount(0);
+    await expect(title).toBeFocused();
+  });
+
   for (const path of ['/corpus/doc-01', '/similarity', '/clustering', '/no-such-route']) {
     test(`has no automatically detectable WCAG 2.1 AA violations on ${path}`, async ({ page }) => {
       await page.goto(path);
