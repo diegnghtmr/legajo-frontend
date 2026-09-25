@@ -31,7 +31,8 @@
       "abstractLabel": "Resumen",
       "authorsLabel": "Autores",
       "idLabel": "Identificador",
-      "closeLabel": "Cerrar"
+      "closeLabel": "Cerrar",
+      "sheetTitle": "Artículo {{id}}"
     },
     "rail": {
       "countLabel": "{{count}} documentos",
