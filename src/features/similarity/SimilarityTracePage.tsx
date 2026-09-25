@@ -117,8 +117,8 @@ export function SimilarityTracePage() {
   const algorithmSummary = algorithmsQuery.data?.find((algorithm) => algorithm.id === algorithmId);
   const title = algorithmSummary?.displayName ?? algorithmId ?? '';
   const family = algorithmSummary ? algoFamilyFromKind(algorithmSummary.kind) : undefined;
-  // Never a raw placeholder ("Comparando  ×  ") when a document id is
-  // missing from the URL: the subtitle is omitted entirely rather than
+  // Never a raw placeholder ("  frente a  ") when a document id is missing
+  // from the URL: the subtitle is omitted entirely rather than
   // interpolating an empty operand.
   const hasBothDocumentIds = documentIdA !== '' && documentIdB !== '';
 

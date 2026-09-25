@@ -1,13 +1,16 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { matchPath, Outlet, useLocation, useNavigate, useSearchParams } from 'react-router';
 
+import type { ApiError } from '../../infrastructure/apiError';
+import { fetchCorpus, type ListCorpusResponse } from '../../infrastructure/api/corpus';
 import { useIsAtLeastLg } from '../../shared/lib/useIsAtLeastLg';
 import { WorkbenchLayout } from '../../shared/components/WorkbenchLayout';
 import { Button } from '../../shared/components/ui/button';
 import { Sheet, SheetContent } from '../../shared/components/ui/sheet';
 import { ArticleAbstract } from '../corpus/ArticleAbstract';
-import { CorpusListPanel } from '../corpus/CorpusListPanel';
+import { CORPUS_LIST_QUERY_KEY, CorpusListPanel } from '../corpus/CorpusListPanel';
 import { EmbeddingsStatusPanel } from '../corpus/EmbeddingsStatusPanel';
 import { SelectionRail } from '../corpus/SelectionRail';
 import { SelectionTray } from '../corpus/SelectionTray';
@@ -163,6 +166,70 @@ export function SimilarityWorkbenchLayout() {
   // the URL is normalized back to plain `/similarity` instead of leaving a
   // trace path visible over a screen that shows no trace at all.
   const hasPartialTraceRoute = traceAlgorithmId !== undefined && !isTraceOpen;
+
+  // A cold deep link into the trace route (bookmarked, or shared) resolves
+  // its own comparison and trace straight from the URL — `SimilarityPage`
+  // never needs the rail's own selection for that — but the rail and the
+  // below-`lg` tray only ever read the shared `selectionStore`, so arriving
+  // this way with nothing rail-selected yet would show the right comparison
+  // next to a rail that reads "0 seleccionados", both checkboxes unchecked
+  // and the CTA disabled. Seeded here, once, so the rail/tray reflect the
+  // same pair the screen is already showing — and recorded as confirmed
+  // immediately, so shrinking below `lg` (or the trace closing there) never
+  // flips the main content back to the corpus list.
+  //
+  // Guarded twice: only while the rail selection is still empty (a person
+  // who already has a selection — their own, or an earlier run of this same
+  // effect — always wins, never overridden here), and only once the corpus
+  // list has actually resolved and both ids are real, known documents (a
+  // stray or hand-edited id in the URL never seeds a selection nothing else
+  // in the rail can even render a row for). `hasSeededDeepLinkPairRef`
+  // reaches a decision exactly once — seed, or deliberately give up — never
+  // repeating it once made, so it can never re-seed a pair the person has
+  // since replaced or cleared in the rail themselves.
+  const corpusQuery = useQuery<ListCorpusResponse, ApiError>({
+    queryKey: CORPUS_LIST_QUERY_KEY,
+    queryFn: fetchCorpus,
+  });
+  const hasSeededDeepLinkPairRef = useRef(false);
+  useEffect(() => {
+    if (hasSeededDeepLinkPairRef.current) {
+      return;
+    }
+    if (selectedIds.length !== 0) {
+      hasSeededDeepLinkPairRef.current = true;
+      return;
+    }
+    if (!isTraceOpen || traceDocumentIdA === traceDocumentIdB) {
+      return;
+    }
+    if (corpusQuery.data === undefined) {
+      return;
+    }
+    hasSeededDeepLinkPairRef.current = true;
+    if (!traceDocumentIdA || !traceDocumentIdB) {
+      return;
+    }
+    const knownIds = new Set(corpusQuery.data.map((article) => article.id));
+    if (!knownIds.has(traceDocumentIdA) || !knownIds.has(traceDocumentIdB)) {
+      return;
+    }
+    const seededPair = sortedPair([traceDocumentIdA, traceDocumentIdB]);
+    if (!seededPair) {
+      return;
+    }
+    useSelectionStore.getState().selectPair(seededPair[0], seededPair[1]);
+    // Confirming the pair in this very same effect that seeds it, rather
+    // than through a second render-time correction reading a ref (refs
+    // cannot be read during render either, under this same lint config), is
+    // what keeps the rail/tray from ever painting one commit with the pair
+    // selected but not yet confirmed. `hasSeededDeepLinkPairRef` above
+    // already guarantees this whole effect body runs at most once, so this
+    // can never cascade into a render loop the way the rule's general
+    // warning assumes.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setConfirmedPairKey(`${seededPair[0]}:${seededPair[1]}`);
+  }, [selectedIds.length, isTraceOpen, traceDocumentIdA, traceDocumentIdB, corpusQuery.data]);
 
   function navigateAwayFromTrace() {
     if (!isTraceOpen) {

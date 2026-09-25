@@ -75,6 +75,16 @@ describe('useSelectionStore', () => {
     expect(useSelectionStore.getState().canCompare).toBe(false);
     expect(useSelectionStore.getState().canMatrix).toBe(false);
   });
+
+  it('selectPair replaces the whole selection with exactly that pair, sorted', () => {
+    useSelectionStore.getState().toggle('doc-09');
+
+    useSelectionStore.getState().selectPair('doc-02', 'doc-01');
+
+    expect(useSelectionStore.getState().selectedIds).toEqual(['doc-01', 'doc-02']);
+    expect(useSelectionStore.getState().canCompare).toBe(true);
+    expect(useSelectionStore.getState().canMatrix).toBe(false);
+  });
 });
 
 describe('sortedPair', () => {

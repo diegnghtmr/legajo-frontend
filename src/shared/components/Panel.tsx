@@ -22,7 +22,11 @@ export function Panel({ children, className }: PanelProps) {
 
 export interface PanelHeaderProps {
   eyebrow?: string;
-  title: string;
+  /** A plain string for most headers; `ReactNode` is accepted so a caller
+   * needing part of the title in a different treatment (e.g. the
+   * similarity compare screen's own mono document ids) can compose it,
+   * the same way `SegmentedOption.label` already does. */
+  title: ReactNode;
   subtitle?: string;
 }
 

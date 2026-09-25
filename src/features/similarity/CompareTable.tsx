@@ -205,7 +205,7 @@ function CompareTableRow({
       <TableCell className="font-mono text-mono text-ink">
         {formatComputedNanos(result.computedNanos, i18n.language)}
         {result.cached && (
-          <Badge className="ml-2 rounded-sm border-ink px-1 py-0 text-[10px] font-semibold uppercase tracking-wide text-ink">
+          <Badge className="ml-2 whitespace-nowrap rounded-sm border-ink px-1 py-0 text-[10px] font-semibold uppercase tracking-wide text-ink">
             {t('similarity.table.cachedMarker')}
           </Badge>
         )}

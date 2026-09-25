@@ -112,6 +112,13 @@ describe('CompareResultsList', () => {
     expect(within(nonCachedRow).queryByText('en caché')).not.toBeInTheDocument();
   });
 
+  it('never wraps the cached marker onto a second line', () => {
+    renderList();
+
+    const cachedRow = screen.getByRole('button', { name: 'embedding-api' });
+    expect(within(cachedRow).getByText('en caché').className).toContain('whitespace-nowrap');
+  });
+
   it('shows a dash and accessible text for a null raw value in the degenerate case', () => {
     renderList();
 

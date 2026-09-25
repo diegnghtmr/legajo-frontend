@@ -237,7 +237,7 @@ test.describe('end-to-end journey', () => {
 
     // Step 2: compare the six capabilities.
     await compareButton.click();
-    await expect(page.getByRole('heading', { name: 'Comparación de similitud' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'doc-01 frente a doc-02' })).toBeVisible();
 
     const rows = page.getByRole('row');
     // Header row + six results.
@@ -259,8 +259,8 @@ test.describe('end-to-end journey', () => {
       .click();
     const panel = page.getByTestId('trace-detail-panel');
     await expect(panel.getByRole('heading', { name: 'Needleman–Wunsch' })).toBeVisible();
-    await expect(page.getByRole('heading', { name: 'Comparación de similitud' })).toBeVisible();
-    await expect(panel.getByText('Comparando doc-01 × doc-02')).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'doc-01 frente a doc-02' })).toBeVisible();
+    await expect(panel.getByText('doc-01 frente a doc-02')).toBeVisible();
     await expect(panel.getByText('Clásico')).toBeVisible();
 
     // Every cell of the 4x4 matrix is present, never a truncated subset.

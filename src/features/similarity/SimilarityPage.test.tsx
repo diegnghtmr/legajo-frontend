@@ -135,7 +135,7 @@ describe('SimilarityPage — wrong selection count', () => {
       // future change accidentally mounted the catalogue query (or any
       // other query) alongside the empty state.
       expect(queryClient.getQueryCache().getAll()).toHaveLength(0);
-      expect(screen.queryByText(/Comparando/)).not.toBeInTheDocument();
+      expect(screen.queryByRole('heading', { name: /frente a/ })).not.toBeInTheDocument();
       expect(similarityApi.compareSimilarity).not.toHaveBeenCalled();
     },
   );
@@ -555,7 +555,9 @@ describe('SimilarityPage — the trace deep link route', () => {
       });
     });
 
-    expect(await screen.findByText('Comparando doc-03 × doc-04')).toBeInTheDocument();
+    expect(
+      await screen.findByRole('heading', { name: 'doc-03 frente a doc-04' }),
+    ).toBeInTheDocument();
     await waitFor(() =>
       expect(similarityApi.compareSimilarity).toHaveBeenLastCalledWith({
         documentIdA: 'doc-03',

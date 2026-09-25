@@ -311,10 +311,15 @@ function SimilarityCompareView({ pair, openAlgorithmId }: SimilarityCompareViewP
 
   return (
     <div className="flex flex-col gap-6">
-      <PanelHeader eyebrow={t('similarity.eyebrow')} title={t('similarity.title')} />
-      <p className="font-mono text-mono text-ink-muted">
-        {t('similarity.selection.comparing', { a: documentIdA, b: documentIdB })}
-      </p>
+      <PanelHeader
+        eyebrow={t('similarity.title')}
+        title={
+          <>
+            <span className="font-mono">{documentIdA}</span> {t('similarity.pairTitle.connector')}{' '}
+            <span className="font-mono">{documentIdB}</span>
+          </>
+        }
+      />
 
       <SegmentedControl
         options={familyOptions}
