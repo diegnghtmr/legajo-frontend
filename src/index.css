@@ -35,7 +35,7 @@
   --color-matrix-mid-low: #d4d4d4;
   --color-matrix-mid: #a3a3a3;
   --color-matrix-high: #171717;
-  --font-sans: 'Geist', 'Inter', ui-sans-serif, system-ui, sans-serif;
+  --font-sans: 'Geist Sans', 'Inter', ui-sans-serif, system-ui, sans-serif;
   --font-mono: 'Geist Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
   --font-formula: 'KaTeX_Main', 'Times New Roman', serif;
   --text-display: 30px;
