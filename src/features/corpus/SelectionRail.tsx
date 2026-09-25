@@ -125,6 +125,12 @@ export function SelectionRail({ onOpenAbstract, onOpenEmbeddings }: SelectionRai
       ? t('corpus.rail.embeddings.errorValue')
       : t(`corpus.rail.embeddings.${embeddingsSummaryState(embeddingsQuery.data)}`);
 
+  // `sortedPair` returns a pair only for exactly two selected ids — the
+  // same condition the "pairwise" branch below needs, so branching on the
+  // pair itself (rather than re-checking `selectedCount === 2`) keeps the
+  // two conditions from ever drifting apart.
+  const pair = sortedPair(selectedIds);
+
   let ctaLabel: string;
   let ctaEnabled: boolean;
   let modeText: string;
@@ -135,12 +141,12 @@ export function SelectionRail({ onOpenAbstract, onOpenEmbeddings }: SelectionRai
     ctaEnabled = false;
     modeText = t('corpus.rail.mode.reason');
     onCtaClick = () => {};
-  } else if (selectedCount === 2) {
+  } else if (pair) {
     // Sorted, never the raw toggle order — selecting d02 before d01 must
     // still read "Comparar d01 y d02", the same order the compare screen
     // itself derives (`sortedPair`), so the label never promises an order
     // the results then contradict.
-    const [a, b] = sortedPair(selectedIds);
+    const [a, b] = pair;
     ctaLabel = t('corpus.rail.cta.comparePair', { a, b });
     ctaEnabled = true;
     modeText = t('corpus.rail.mode.pairwise');

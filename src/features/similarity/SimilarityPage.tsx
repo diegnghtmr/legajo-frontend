@@ -84,8 +84,12 @@ export function SimilarityPage() {
 
   // Sorted, never the raw toggle order — selecting d02 before d01 must
   // still compare (and label) the pair as d01/d02, the same order the rail's
-  // own CTA uses (`sortedPair`).
-  const [documentIdA, documentIdB] = sortedPair(selectedArticleIds);
+  // own CTA uses (`sortedPair`). `sortedPair` only returns a pair for
+  // exactly two selected ids; outside that count these placeholders are
+  // never sent anywhere — the compare query stays disabled below, and the
+  // early empty-state return further down never reaches the label that
+  // would otherwise display them.
+  const [documentIdA, documentIdB] = sortedPair(selectedArticleIds) ?? ['', ''];
 
   const compareQuery = useQuery<CompareResponse, ApiError>({
     queryKey: ['similarity', 'compare', documentIdA, documentIdB, selectedAlgorithmIds] as const,

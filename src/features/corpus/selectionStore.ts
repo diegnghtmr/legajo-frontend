@@ -32,8 +32,15 @@ function deriveThresholds(
  * which document is "A" and which is "B"). Every caller that renders or acts
  * on a pair (the rail's CTA label, the compare screen's own derivation) uses
  * this same helper, so they can never disagree with each other.
+ *
+ * Returns `null` for anything other than exactly two ids — zero or one ids
+ * have no pair to report, and three or more are never truncated into a
+ * fake pair by silently dropping the rest.
  */
-export function sortedPair(ids: readonly string[]): readonly [string, string] {
+export function sortedPair(ids: readonly string[]): readonly [string, string] | null {
+  if (ids.length !== 2) {
+    return null;
+  }
   const [a, b] = [...ids].sort();
   return [a, b];
 }
