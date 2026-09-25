@@ -81,8 +81,22 @@ describe('App', () => {
     expect(screen.getByRole('heading', { name: 'Matriz de similitud' })).toBeInTheDocument();
   });
 
-  it('renders the trace placeholder at /similarity/:algorithmId/trace', () => {
+  it('opens the trace deep link inside the workbench, over the pairwise results for that same pair', () => {
     renderAppAt('/similarity/levenshtein/trace?documentIdA=doc-01&documentIdB=doc-02');
+
+    // The deep link's own document ids drive the center content even with
+    // nothing rail-selected — the family filter only renders once a real
+    // pair resolves, never in the wrong-count empty state.
+    expect(screen.getByRole('radiogroup', { name: 'Familia de algoritmo' })).toBeInTheDocument();
+    expect(
+      screen.queryByText(
+        'Selecciona 2 artículos en el panel para comparar, o 3 o más para ver la matriz.',
+      ),
+    ).not.toBeInTheDocument();
+  });
+
+  it('renders the standalone full-screen trace at /similarity/:algorithmId/trace/full', () => {
+    renderAppAt('/similarity/levenshtein/trace/full?documentIdA=doc-01&documentIdB=doc-02');
 
     // The algorithm catalogue is not mocked here (this is a routing smoke
     // test, not a data test): the title falls back to the plain route id

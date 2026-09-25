@@ -71,6 +71,17 @@ beforeEach(() => {
   vi.spyOn(embeddingsApi, 'fetchEmbeddingsStatus').mockResolvedValue(EMBEDDINGS_STATUS);
 });
 
+/** Asserts a filtered-out row is entirely gone — neither of its two
+ * affordances (the checkbox, the title button) remains — rather than only
+ * one role's query, which would still report "not found" if the filter
+ * broke in a way that removed just one of the row's two elements while
+ * leaving the other (e.g. an orphaned title button with no checkbox next
+ * to it) still in the document. */
+function expectRowGone(title: string) {
+  expect(screen.queryByRole('checkbox', { name: title })).not.toBeInTheDocument();
+  expect(screen.queryByRole('button', { name: title })).not.toBeInTheDocument();
+}
+
 describe('SelectionRail', () => {
   it('renders every article as a compact row with a separate checkbox and title affordance', async () => {
     renderRail();
@@ -114,12 +125,7 @@ describe('SelectionRail', () => {
 
     await user.type(screen.getByRole('searchbox', { name: /buscar/i }), 'clustering');
 
-    // Same role+name query the positive assertions below use — a text
-    // query would still report "not found" if the filter branch broke and
-    // left the row's accessible name mangled instead of actually hiding it.
-    expect(
-      screen.queryByRole('checkbox', { name: 'A survey of string similarity' }),
-    ).not.toBeInTheDocument();
+    expectRowGone('A survey of string similarity');
     expect(
       screen.getByRole('checkbox', { name: 'Clustering theory refresher' }),
     ).toBeInTheDocument();
@@ -134,9 +140,7 @@ describe('SelectionRail', () => {
     await screen.findByRole('checkbox', { name: 'A survey of string similarity' });
     await user.type(screen.getByRole('searchbox', { name: /buscar/i }), 'DOC-03');
 
-    expect(
-      screen.queryByRole('checkbox', { name: 'A survey of string similarity' }),
-    ).not.toBeInTheDocument();
+    expectRowGone('A survey of string similarity');
     expect(
       screen.getByRole('checkbox', { name: 'Clustering theory refresher' }),
     ).toBeInTheDocument();
@@ -149,9 +153,7 @@ describe('SelectionRail', () => {
     await screen.findByRole('checkbox', { name: 'A survey of string similarity' });
     await user.type(screen.getByRole('searchbox', { name: /buscar/i }), 'three');
 
-    expect(
-      screen.queryByRole('checkbox', { name: 'A survey of string similarity' }),
-    ).not.toBeInTheDocument();
+    expectRowGone('A survey of string similarity');
     expect(
       screen.getByRole('checkbox', { name: 'Embeddings for scientific text' }),
     ).toBeInTheDocument();

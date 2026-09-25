@@ -243,20 +243,30 @@ test.describe('end-to-end journey', () => {
     // Header row + six results.
     await expect(rows).toHaveCount(7);
     for (const { algorithmId } of COMPARE_RESULTS) {
-      await expect(page.getByRole('link', { name: algorithmId, exact: true })).toBeVisible();
+      // Scoped to the row: the family filter above the table has its own
+      // same-named toggle button for every algorithm id.
+      const row = page.getByRole('row', { name: algorithmId });
+      await expect(row.getByRole('button', { name: algorithmId, exact: true })).toBeVisible();
     }
     await assertNoAxeViolations(page);
 
-    // Step 3: open the Needleman–Wunsch trace and confirm the DP matrix/trace is visible.
-    await page.getByRole('link', { name: 'needleman-wunsch', exact: true }).click();
-    await expect(page.getByRole('heading', { name: 'Needleman–Wunsch' })).toBeVisible();
-    await expect(page.getByText('Comparando doc-01 × doc-02')).toBeVisible();
-    await expect(page.getByTestId('dp-trace-family')).toHaveText('Clásico');
+    // Step 3: open the Needleman–Wunsch trace in the detail panel — the
+    // results table stays mounted next to it, so the panel's own DP matrix
+    // is scoped by its testid rather than a bare `table` locator.
+    await page
+      .getByRole('row', { name: 'needleman-wunsch' })
+      .getByRole('button', { name: 'needleman-wunsch', exact: true })
+      .click();
+    const panel = page.getByTestId('trace-detail-panel');
+    await expect(panel.getByRole('heading', { name: 'Needleman–Wunsch' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Comparación de similitud' })).toBeVisible();
+    await expect(panel.getByText('Comparando doc-01 × doc-02')).toBeVisible();
+    await expect(panel.getByText('Clásico')).toBeVisible();
 
     // Every cell of the 4x4 matrix is present, never a truncated subset.
-    await expect(page.locator('table').first().locator('td')).toHaveCount(16);
+    await expect(panel.locator('table').first().locator('td')).toHaveCount(16);
     // The optimal path is drawn (matches `optimalPath` above).
-    await expect(page.locator('[data-optimal-path="true"]')).toHaveCount(4);
+    await expect(panel.locator('[data-optimal-path="true"]')).toHaveCount(4);
     await assertNoAxeViolations(page);
   });
 

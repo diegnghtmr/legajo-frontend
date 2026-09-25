@@ -1,11 +1,11 @@
 import { useTranslation } from 'react-i18next';
-import { Link } from 'react-router';
 
 import type {
   CompareResponse,
   ListSimilarityAlgorithmsResponse,
 } from '../../infrastructure/api/similarity';
 import { Badge } from '../../shared/components/ui/badge';
+import { cn } from '../../shared/lib/cn';
 import {
   Table,
   TableBody,
@@ -19,14 +19,23 @@ import { FamilyStatus } from '../../shared/components/FamilyStatus';
 import { ScoreBar } from '../../shared/components/ScoreBar';
 import { algoFamilyFromKind } from './algorithmFamily';
 import { formatComputedNanos, formatRawValue } from './formatters';
+import { rememberTraceTrigger } from './traceFocusReturn';
 
 type AlgorithmSummary = ListSimilarityAlgorithmsResponse[number];
 
 export interface CompareTableProps {
   rows: CompareResponse;
   catalogueById: ReadonlyMap<string, AlgorithmSummary>;
-  documentIdA: string;
-  documentIdB: string;
+  /** Opens `algorithmId`'s trace in the workbench's detail panel without
+   * navigating away from this table — the row is the trace trigger.
+   * The caller already knows the compared pair (it is the one that fetched
+   * these rows), so building the trace destination from it lives there,
+   * never re-derived here from a documentIdA/documentIdB prop this table
+   * would otherwise carry only to hand straight back unchanged. */
+  onOpenTrace: (algorithmId: string) => void;
+  /** The algorithm id whose trace is currently open, if any — marks that
+   * one row `aria-current` with a 2px inset marker; never more than one. */
+  openAlgorithmId?: string | null;
 }
 
 /**
@@ -35,11 +44,30 @@ export interface CompareTableProps {
  * filtering, or pagination requirement for a fixed, small (≤6) row set, so
  * the extra dependency and column-definition ceremony would not simplify
  * anything here — it would only add indirection over a table that never
- * needs it. The algorithm id cell keeps its own `<th scope="row">` markup
- * (a `TableHead` restyled to a body cell) since `TableCell` only renders a
- * `<td>`, and this row needs the semantic row-header role.
+ * needs it.
+ *
+ * Each row is its own trace trigger. The accessible control is a single
+ * `<button>` whose accessible name is the mono algorithm id, but the hit area
+ * is the whole row: `TableRow` itself carries the `onClick`, so a click
+ * anywhere in the row — including the button, whose own activation click
+ * bubbles there like any other — opens that one row's trace exactly once.
+ * This never relies on a `position: relative`/`absolute inset-0` pair to
+ * make a cell's box cover the row (that only works when nothing between the
+ * two is itself accidentally positioned, and does not need verifying across
+ * browsers to begin with — plain DOM event bubbling always does). Keyboard
+ * and assistive-technology users still act on the button alone; the row's
+ * own `onClick` is a mouse/pointer convenience layered on top, never a
+ * second way anything is exposed to accessibility tooling. Activating it
+ * opens the trace in the detail panel and keeps this table mounted — the
+ * row never navigates away from it. The catalogue's `displayName` sits in a
+ * decorative paragraph next to the button, not inside its accessible name.
  */
-export function CompareTable({ rows, catalogueById, documentIdA, documentIdB }: CompareTableProps) {
+export function CompareTable({
+  rows,
+  catalogueById,
+  onOpenTrace,
+  openAlgorithmId = null,
+}: CompareTableProps) {
   const { t, i18n } = useTranslation();
 
   return (
@@ -62,20 +90,56 @@ export function CompareTable({ rows, catalogueById, documentIdA, documentIdB }: 
           const familyLabel =
             family === 'classic' ? t('similarity.family.classic') : t('similarity.family.ai');
           const formattedRaw = formatRawValue(result.rawValue);
+          const isOpen = openAlgorithmId === algorithmId;
 
           return (
-            <TableRow key={algorithmId}>
+            <TableRow
+              key={algorithmId}
+              aria-current={isOpen ? 'true' : undefined}
+              onClick={(event) => {
+                const trigger = event.currentTarget.querySelector<HTMLButtonElement>('button');
+                rememberTraceTrigger(trigger);
+                onOpenTrace(algorithmId);
+              }}
+              className={cn(
+                'relative cursor-pointer',
+                isOpen &&
+                  "before:absolute before:inset-y-0 before:left-0 before:w-[2px] before:bg-ink before:content-['']",
+              )}
+            >
               <TableHead
                 scope="row"
-                className="text-left text-body font-normal normal-case tracking-normal text-ink"
+                className="relative text-left text-body font-normal normal-case tracking-normal text-ink"
               >
-                <Link
-                  to={`/similarity/${encodeURIComponent(algorithmId)}/trace?documentIdA=${encodeURIComponent(documentIdA)}&documentIdB=${encodeURIComponent(documentIdB)}`}
-                  className="font-mono text-mono text-ink underline-offset-2 hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus"
+                {/* The row's single accessible trigger: keyboard and
+                 * assistive-technology users tab to and activate this
+                 * button directly. A mouse click anywhere else in the row
+                 * reaches the exact same outcome through the `TableRow`'s
+                 * own `onClick` above (this button's own click bubbles
+                 * there too, so only that one handler ever runs — never
+                 * both). It carries no text of its own — `aria-labelledby`
+                 * borrows the mono id span's name instead, the same pattern
+                 * `SelectionRail`'s checkbox uses for its title — so the
+                 * visible id and `displayName` stay normal, unhidden text
+                 * (each still contributes to the row's own accessible name)
+                 * while every pointer event still reaches the button
+                 * underneath them (`pointer-events-none` on both). */}
+                <button
+                  type="button"
+                  aria-labelledby={`compare-row-algo-${algorithmId}`}
+                  className="absolute inset-0 z-0 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus"
+                />
+                <span
+                  id={`compare-row-algo-${algorithmId}`}
+                  className="pointer-events-none relative z-10 font-mono text-mono text-ink"
                 >
                   {algorithmId}
-                </Link>
-                {summary && <p className="text-label text-ink-muted">{summary.displayName}</p>}
+                </span>
+                {summary && (
+                  <p className="pointer-events-none relative z-10 text-label text-ink-muted">
+                    {summary.displayName}
+                  </p>
+                )}
               </TableHead>
               <TableCell>
                 <FamilyStatus family={family} label={familyLabel} />

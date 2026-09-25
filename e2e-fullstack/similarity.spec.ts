@@ -60,7 +60,10 @@ test.describe('similarity compare + trace (full stack, Flow A)', () => {
     // Header row + six real algorithm results.
     await expect(page.getByRole('row')).toHaveCount(7);
     for (const algorithmId of ALGORITHM_IDS) {
-      await expect(page.getByRole('link', { name: algorithmId, exact: true })).toBeVisible();
+      // Scoped to the row: the family filter above the table has its own
+      // same-named toggle button for every algorithm id.
+      const row = page.getByRole('row', { name: algorithmId });
+      await expect(row.getByRole('button', { name: algorithmId, exact: true })).toBeVisible();
     }
 
     // Cross-check the rendered needleman-wunsch score against the backend's
@@ -98,8 +101,14 @@ test.describe('similarity compare + trace (full stack, Flow A)', () => {
     await page.getByRole('button', { name: 'Comparar d01 y d02' }).click();
     await expect(page.getByRole('heading', { name: 'Comparación de similitud' })).toBeVisible();
 
-    await page.getByRole('link', { name: 'needleman-wunsch', exact: true }).click();
-    await expect(page.getByRole('heading', { name: 'Needleman-Wunsch' })).toBeVisible();
+    await page
+      .getByRole('row', { name: 'needleman-wunsch' })
+      .getByRole('button', { name: 'needleman-wunsch', exact: true })
+      .click();
+    // The results table stays mounted next to the panel, so the panel's own
+    // DP matrix is scoped by its testid rather than a bare `table` locator.
+    const panel = page.getByTestId('trace-detail-panel');
+    await expect(panel.getByRole('heading', { name: 'Needleman-Wunsch' })).toBeVisible();
 
     // The real backend computes the trace for the real d01/d02 abstracts
     // (a genuinely larger matrix than the 4x4 mock), so the page's own
@@ -107,7 +116,7 @@ test.describe('similarity compare + trace (full stack, Flow A)', () => {
     // the heading appears; waiting on the first cell itself (an
     // auto-retrying `expect`, unlike a one-shot `.count()`) is what
     // actually waits for that fetch to resolve, not just the navigation.
-    const firstCell = page.locator('table').first().locator('td').first();
+    const firstCell = panel.locator('table').first().locator('td').first();
     await expect(firstCell).toBeVisible({ timeout: 15_000 });
 
     // Cross-checked against the same trace fetched directly from the
@@ -129,12 +138,12 @@ test.describe('similarity compare + trace (full stack, Flow A)', () => {
     // row before the real content has painted.
     const trace = await fetchSimilarityTrace(request, 'needleman-wunsch', 'd01', 'd02');
     const expectedCellCount = trace.matrix.length * trace.matrix[0].length;
-    await expect(page.locator('table').first().locator('td')).toHaveCount(expectedCellCount);
+    await expect(panel.locator('table').first().locator('td')).toHaveCount(expectedCellCount);
 
     // `trace.optimalPath.length` comes straight from the backend response
     // fetched above, not from the UI, so it needs no polling of its own.
     expect(trace.optimalPath.length).toBeGreaterThan(0);
-    await expect(page.locator('[data-optimal-path="true"]')).toHaveCount(trace.optimalPath.length);
+    await expect(panel.locator('[data-optimal-path="true"]')).toHaveCount(trace.optimalPath.length);
 
     // At least one cell shows a real, non-empty score value (not a blank
     // or placeholder cell).
@@ -160,11 +169,15 @@ test.describe('similarity compare + trace (full stack, Flow A)', () => {
     let results = await new AxeBuilder({ page }).withTags(AXE_TAGS).analyze();
     expect(results.violations).toEqual([]);
 
-    await page.getByRole('link', { name: 'needleman-wunsch', exact: true }).click();
-    await expect(page.getByRole('heading', { name: 'Needleman-Wunsch' })).toBeVisible();
+    await page
+      .getByRole('row', { name: 'needleman-wunsch' })
+      .getByRole('button', { name: 'needleman-wunsch', exact: true })
+      .click();
+    const panel = page.getByTestId('trace-detail-panel');
+    await expect(panel.getByRole('heading', { name: 'Needleman-Wunsch' })).toBeVisible();
     // Same real-backend loading race as the DP matrix test above: wait for
     // the trace's own content, not just the heading, before scanning.
-    await expect(page.locator('table').first().locator('td').first()).toBeVisible({
+    await expect(panel.locator('table').first().locator('td').first()).toBeVisible({
       timeout: 15_000,
     });
 

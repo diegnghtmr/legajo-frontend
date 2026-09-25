@@ -1,3 +1,4 @@
+import type { Ref } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { Link, useParams, useSearchParams } from 'react-router';
@@ -9,6 +10,7 @@ import {
   type ListSimilarityAlgorithmsResponse,
   type SimilarityTraceResponse,
 } from '../../infrastructure/api/similarity';
+import type { DpMatrixHandle } from '../../shared/components/DpMatrix';
 import type { AlgoFamily } from '../../shared/family';
 import { DpTracePanel } from './traces/DpTracePanel';
 import { EmbeddingApiTracePanel } from './traces/EmbeddingApiTracePanel';
@@ -29,17 +31,38 @@ import { Button } from '../../shared/components/ui/button';
  * (`AlgorithmTraceSchema`), so there is no "unknown" branch to render — a
  * rejected fetch is handled separately by the query's error state, never here.
  */
-function TracePanel({
+/** Exported for the trace detail panel (`TraceDetailPanel`), which routes a
+ * resolved trace to the same per-capability body this standalone page uses,
+ * so the two never drift into two different sets of panels for the same
+ * six capabilities. */
+export function TracePanel({
   trace,
   family,
+  dpMatrixRef,
+  hideDpMetaRow = false,
+  hideDpDownloadButton = false,
 }: {
   trace: SimilarityTraceResponse;
   family: AlgoFamily | undefined;
+  /** Only meaningful for the two DP variants; ignored otherwise. Lets the
+   * trace detail panel forward a ref and suppress this body's own meta
+   * row/download button when it renders its own equivalents instead. */
+  dpMatrixRef?: Ref<DpMatrixHandle>;
+  hideDpMetaRow?: boolean;
+  hideDpDownloadButton?: boolean;
 }) {
   switch (trace.algorithmId) {
     case 'levenshtein':
     case 'needleman-wunsch':
-      return <DpTracePanel trace={trace} family={family} />;
+      return (
+        <DpTracePanel
+          ref={dpMatrixRef}
+          trace={trace}
+          family={family}
+          hideOwnMetaRow={hideDpMetaRow}
+          hideDownloadButton={hideDpDownloadButton}
+        />
+      );
     case 'jaccard':
       return <JaccardTracePanel trace={trace} />;
     case 'tfidf-cosine':

@@ -1,7 +1,9 @@
 import { render, screen, within } from '@testing-library/react';
-import { describe, expect, it } from 'vitest';
+import { createRef } from 'react';
+import { describe, expect, it, vi } from 'vitest';
 
 import type { DpMatrixTrace } from '../../../infrastructure/schemas/similarity';
+import type { DpMatrixHandle } from '../../../shared/components/DpMatrix';
 import { DpTracePanel } from './DpTracePanel';
 
 const LEVENSHTEIN_TRACE: DpMatrixTrace = {
@@ -108,5 +110,32 @@ describe('DpTracePanel', () => {
 
     expect(screen.queryByTestId('dp-trace-family')).not.toBeInTheDocument();
     expect(screen.queryByTestId('dp-trace-optimal-path')).not.toBeInTheDocument();
+  });
+
+  describe('embedded inside the trace detail panel (its own header carries the meta row and footer)', () => {
+    it('hides its own meta row when hideOwnMetaRow is set, even with a resolved family', () => {
+      render(<DpTracePanel trace={LEVENSHTEIN_TRACE} family="classic" hideOwnMetaRow />);
+
+      expect(screen.queryByTestId('dp-trace-family')).not.toBeInTheDocument();
+      expect(screen.queryByTestId('dp-trace-optimal-path')).not.toBeInTheDocument();
+    });
+
+    it('hides its own CSV download button when hideDownloadButton is set', () => {
+      render(<DpTracePanel trace={LEVENSHTEIN_TRACE} hideDownloadButton />);
+
+      expect(screen.queryByRole('button', { name: /csv/i })).not.toBeInTheDocument();
+    });
+
+    it('still exposes the CSV download imperatively through a forwarded ref when its own button is hidden', async () => {
+      const createObjectURL = vi.fn(() => 'blob:mock-url');
+      vi.stubGlobal('URL', { ...URL, createObjectURL, revokeObjectURL: vi.fn() });
+      const ref = createRef<DpMatrixHandle>();
+
+      render(<DpTracePanel ref={ref} trace={LEVENSHTEIN_TRACE} hideDownloadButton />);
+      ref.current?.downloadCsv();
+
+      expect(createObjectURL).toHaveBeenCalledTimes(1);
+      vi.unstubAllGlobals();
+    });
   });
 });
