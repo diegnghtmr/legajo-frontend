@@ -98,7 +98,10 @@ test.describe('similarity compare + trace (full stack, Flow A)', () => {
     await page.getByRole('button', { name: 'Comparar d01 y d02' }).click();
     await expect(page.getByRole('heading', { name: 'Comparación de similitud' })).toBeVisible();
 
-    await page.getByRole('button', { name: 'needleman-wunsch', exact: true }).click();
+    await page
+      .getByRole('row', { name: 'needleman-wunsch' })
+      .getByRole('button', { name: 'needleman-wunsch', exact: true })
+      .click();
     // The results table stays mounted next to the panel, so the panel's own
     // DP matrix is scoped by its testid rather than a bare `table` locator.
     const panel = page.getByTestId('trace-detail-panel');
@@ -163,7 +166,10 @@ test.describe('similarity compare + trace (full stack, Flow A)', () => {
     let results = await new AxeBuilder({ page }).withTags(AXE_TAGS).analyze();
     expect(results.violations).toEqual([]);
 
-    await page.getByRole('button', { name: 'needleman-wunsch', exact: true }).click();
+    await page
+      .getByRole('row', { name: 'needleman-wunsch' })
+      .getByRole('button', { name: 'needleman-wunsch', exact: true })
+      .click();
     const panel = page.getByTestId('trace-detail-panel');
     await expect(panel.getByRole('heading', { name: 'Needleman-Wunsch' })).toBeVisible();
     // Same real-backend loading race as the DP matrix test above: wait for

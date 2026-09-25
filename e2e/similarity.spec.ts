@@ -122,7 +122,10 @@ test.describe('similarity compare screen', () => {
     await expect(rows).toHaveCount(7);
 
     for (const { algorithmId } of COMPARE_RESULTS) {
-      await expect(page.getByRole('button', { name: algorithmId, exact: true })).toBeVisible();
+      // Scoped to the row: the family filter above the table has its own
+      // same-named toggle button for every algorithm id.
+      const row = page.getByRole('row', { name: algorithmId });
+      await expect(row.getByRole('button', { name: algorithmId, exact: true })).toBeVisible();
     }
 
     const degenerateRow = page.getByRole('row', { name: /tfidf-cosine/ });
