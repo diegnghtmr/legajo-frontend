@@ -110,7 +110,6 @@ export function AppLayout() {
   // do, so that click's own default action — moving focus onto it — is
   // left alone instead of being overridden a moment later.
   const returnFocusToToggleRef = useRef(false);
-  const isAtLeastLg = useIsAtLeastLg();
 
   // Above `lg` the nav is always visible via `lg:flex` regardless of
   // `navOpen` (see the component docstring above), and the toggle button
@@ -118,12 +117,18 @@ export function AppLayout() {
   // crosses that breakpoint while the panel was left open below it must
   // reset this JS-driven state, instead of leaving it (and, through the
   // effect further down, its Escape/outside-click document listeners)
-  // attached under a nav that CSS alone already keeps open.
-  useEffect(() => {
+  // attached under a nav that CSS alone already keeps open. Adjusted
+  // during render — the same pattern the pathname check below uses — so
+  // this reset is visible in the very render that reports the new
+  // breakpoint, rather than one render later from an effect.
+  const isAtLeastLg = useIsAtLeastLg();
+  const [wasAtLeastLg, setWasAtLeastLg] = useState(isAtLeastLg);
+  if (isAtLeastLg !== wasAtLeastLg) {
+    setWasAtLeastLg(isAtLeastLg);
     if (isAtLeastLg) {
       setNavOpen(false);
     }
-  }, [isAtLeastLg]);
+  }
 
   // A link inside the collapsed mobile nav navigates without ever closing
   // the panel on its own (a route change is the only signal available from
