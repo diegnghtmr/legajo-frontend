@@ -249,7 +249,9 @@ test.describe('end-to-end journey', () => {
 
     // Step 3: open the Needleman–Wunsch trace and confirm the DP matrix/trace is visible.
     await page.getByRole('link', { name: 'needleman-wunsch', exact: true }).click();
-    await expect(page.getByRole('heading', { name: 'Traza: needleman-wunsch' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Needleman–Wunsch' })).toBeVisible();
+    await expect(page.getByText('Comparando doc-01 × doc-02')).toBeVisible();
+    await expect(page.getByTestId('dp-trace-family')).toHaveText('Clásico');
 
     // Every cell of the 4x4 matrix is present, never a truncated subset.
     await expect(page.locator('table').first().locator('td')).toHaveCount(16);
@@ -284,7 +286,11 @@ test.describe('end-to-end journey', () => {
     // presence check is the correct assertion, not `toBeVisible()`.
     await expect(wardDendrogram.getByTestId('dendrogram-cut-line')).toBeAttached();
     // labels = [0, 0, 1, 1, 2, 2] over 6 leaves -> two leaves per cluster.
-    await expect(wardDendrogram.getByText('Clúster 0')).toHaveCount(2);
+    // A bare, compact number, not the full "Clúster N" word (see
+    // `Dendrogram.tsx`'s own overlap-avoidance comment).
+    await expect(
+      wardDendrogram.getByTestId('cluster-marker').filter({ hasText: /^0$/ }),
+    ).toHaveCount(2);
 
     // No cut line leaks onto a linkage that was not cut.
     await expect(

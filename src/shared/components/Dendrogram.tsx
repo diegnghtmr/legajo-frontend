@@ -55,6 +55,11 @@ function leafLabelFor(leafLabels: readonly DendrogramLeafLabel[] | undefined, id
   return leafLabels?.[id]?.label ?? String(id);
 }
 
+/** Count of distinct cluster numbers actually present in a cut's labels (never a computed metric — just how many distinct values the caller handed in). */
+function distinctClusterCount(labels: readonly (number | undefined)[]): number {
+  return new Set(labels.filter((label): label is number => label !== undefined)).size;
+}
+
 /**
  * D3 wrapper: draws only from the
  * backend's own linkage matrix and `leafOrder` (`dendrogramLayout.ts`),
@@ -135,9 +140,14 @@ export function Dendrogram({
           ))}
           {layout.leaves.map((leaf) => {
             const clusterNumber = cut?.labels[leaf.id];
+            const leafTitle = leafLabels?.[leaf.id]?.title ?? leafLabelFor(leafLabels, leaf.id);
             return (
               <g key={leaf.id} data-leaf-id={leaf.id} data-leaf-x={leaf.x}>
-                <title>{leafLabels?.[leaf.id]?.title ?? leafLabelFor(leafLabels, leaf.id)}</title>
+                <title>
+                  {clusterNumber === undefined
+                    ? leafTitle
+                    : `${leafTitle} — ${t('clustering.dendrogram.clusterLabel', { id: clusterNumber })}`}
+                </title>
                 <line
                   x1={leaf.x}
                   y1={chartHeight}
@@ -154,13 +164,22 @@ export function Dendrogram({
                   {leafLabelFor(leafLabels, leaf.id)}
                 </text>
                 {clusterNumber !== undefined && (
+                  // A compact number, not the full "Clúster N" word: at the
+                  // default leaf spacing (chart width / (n - 1)) a full word
+                  // overlaps its neighbours long before a projector-legible
+                  // corpus size is reached. The full name stays available via
+                  // this leaf's own `<title>` above and the caption legend
+                  // below, so this mark is `aria-hidden` to avoid announcing
+                  // a bare, out-of-context number.
                   <text
+                    data-testid="cluster-marker"
+                    aria-hidden="true"
                     x={leaf.x}
                     y={chartHeight + LEAF_CLUSTER_LABEL_OFFSET}
                     textAnchor="middle"
                     className="text-mono fill-ink"
                   >
-                    {t('clustering.dendrogram.clusterLabel', { id: clusterNumber })}
+                    {clusterNumber}
                   </text>
                 )}
               </g>
@@ -169,7 +188,27 @@ export function Dendrogram({
         </g>
       </svg>
 
-      <table className="sr-only">
+      {cut && distinctClusterCount(cut.labels) > 0 && (
+        <p className="text-label text-ink-secondary">
+          {t('clustering.dendrogram.clusterLegend', { k: distinctClusterCount(cut.labels) })}
+        </p>
+      )}
+
+      {/*
+       * `table-fixed` alone is not enough: an auto-layout table ignores an
+       * explicit CSS width when its content's min-content width is wider,
+       * so `table-layout: fixed` is required to stop the browser from
+       * growing the table to fit its content. But `sr-only` itself sets
+       * `white-space: nowrap`, and a fixed-layout table still sizes each
+       * column to its widest *unbreakable* run of text (verified against a
+       * live render) — with `nowrap`, every cell's full text counts as one
+       * such run, defeating `table-fixed` on its own. `whitespace-normal`
+       * lets that text wrap instead, so the table collapses to its
+       * narrowest single word rather than its widest full cell, keeping the
+       * merge table off the page's own scrollable width while it stays
+       * fully readable to assistive tech regardless of its rendered size.
+       */}
+      <table className="sr-only table-fixed whitespace-normal">
         <caption>{t('clustering.dendrogram.mergeTableCaption', { linkage: ariaLabel })}</caption>
         <thead>
           <tr>

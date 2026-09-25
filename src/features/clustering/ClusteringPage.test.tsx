@@ -462,7 +462,11 @@ describe('ClusteringPage', () => {
 
       const completeDendrogram = await screen.findByTestId('linkage-dendrogram-complete');
       expect(within(completeDendrogram).getByTestId('dendrogram-cut-line')).toBeInTheDocument();
-      expect(within(completeDendrogram).getAllByText('Clúster 0')).toHaveLength(2);
+      expect(
+        within(completeDendrogram).getAllByText('0', {
+          selector: '[data-testid="cluster-marker"]',
+        }),
+      ).toHaveLength(2);
 
       const singleDendrogram = screen.getByTestId('linkage-dendrogram-single');
       expect(within(singleDendrogram).queryByTestId('dendrogram-cut-line')).not.toBeInTheDocument();
@@ -495,8 +499,12 @@ describe('ClusteringPage', () => {
       // by array position would wrongly read labels[0] = 0 for this leaf.
       const leafZero = singleDendrogram.querySelector('[data-leaf-id="0"]') as HTMLElement;
       expect(leafZero).not.toBeNull();
-      expect(within(leafZero).getByText('Clúster 2')).toBeInTheDocument();
-      expect(within(leafZero).queryByText('Clúster 0')).not.toBeInTheDocument();
+      expect(
+        within(leafZero).getByText('2', { selector: '[data-testid="cluster-marker"]' }),
+      ).toBeInTheDocument();
+      expect(
+        within(leafZero).queryByText('0', { selector: '[data-testid="cluster-marker"]' }),
+      ).not.toBeInTheDocument();
     });
 
     it('clears a previous cut result once the representation changes (it was computed against a different request)', async () => {
@@ -548,7 +556,11 @@ describe('ClusteringPage', () => {
 
       const completeDendrogram = await screen.findByTestId('linkage-dendrogram-complete');
       await waitFor(() =>
-        expect(within(completeDendrogram).getAllByText('Clúster 0')).toHaveLength(2),
+        expect(
+          within(completeDendrogram).getAllByText('0', {
+            selector: '[data-testid="cluster-marker"]',
+          }),
+        ).toHaveLength(2),
       );
       expect(
         within(completeDendrogram).queryByTestId('dendrogram-cut-line'),
@@ -685,7 +697,9 @@ describe('ClusteringPage', () => {
           within(singleDendrogram).queryByTestId('dendrogram-cut-line'),
         ).not.toBeInTheDocument(),
       );
-      expect(within(singleDendrogram).queryByText('Clúster 0')).not.toBeInTheDocument();
+      expect(
+        within(singleDendrogram).queryByText('0', { selector: '[data-testid="cluster-marker"]' }),
+      ).not.toBeInTheDocument();
     });
   });
 });
