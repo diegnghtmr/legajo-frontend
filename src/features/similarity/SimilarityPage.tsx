@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router';
@@ -181,6 +181,29 @@ function SimilarityCompareView({ pair, openAlgorithmId }: SimilarityCompareViewP
   const { t } = useTranslation();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
+  // `setSearchParams` itself does not compose: its own functional-updater
+  // form still resolves against this render's `searchParams` closure, so
+  // two calls dispatched before a render flushes between them (e.g. a
+  // family radio and an algorithm toggle reacting to one shared event)
+  // each build from the same stale base and the second's `navigate` call
+  // simply replaces the URL the first one just set, losing it. This ref
+  // instead tracks the *last params either updater actually committed*,
+  // resynced from `searchParams` after every render (so a change from
+  // outside these updaters — a browser back/forward, `openTrace`'s own
+  // navigate — is still picked up) and updated by the updaters below the
+  // instant they call `setSearchParams`, so a second update in the same
+  // tick reads the first's own result, not the render's now-stale snapshot.
+  const searchParamsRef = useRef(searchParams);
+  useEffect(() => {
+    searchParamsRef.current = searchParams;
+  }, [searchParams]);
+
+  function commitSearchParams(update: (prev: URLSearchParams) => void) {
+    const nextParams = new URLSearchParams(searchParamsRef.current);
+    update(nextParams);
+    searchParamsRef.current = nextParams;
+    setSearchParams(nextParams, { replace: true });
+  }
 
   const rawFamily = searchParams.get('family');
   const family: FamilyFilter = isFamilyFilter(rawFamily) ? rawFamily : 'all';
@@ -211,23 +234,24 @@ function SimilarityCompareView({ pair, openAlgorithmId }: SimilarityCompareViewP
   );
 
   function setFamily(next: FamilyFilter) {
-    const nextParams = new URLSearchParams(searchParams);
-    if (next === 'all') {
-      nextParams.delete('family');
-    } else {
-      nextParams.set('family', next);
-    }
-    setSearchParams(nextParams, { replace: true });
+    commitSearchParams((nextParams) => {
+      if (next === 'all') {
+        nextParams.delete('family');
+      } else {
+        nextParams.set('family', next);
+      }
+    });
   }
 
   function toggleAlgorithm(id: string) {
     const algorithmId = id as AlgorithmId;
-    const nextIds = selectedAlgorithmIds.includes(algorithmId)
-      ? selectedAlgorithmIds.filter((existing) => existing !== algorithmId)
-      : [...selectedAlgorithmIds, algorithmId];
-    const nextParams = new URLSearchParams(searchParams);
-    nextParams.set('algorithms', nextIds.join(','));
-    setSearchParams(nextParams, { replace: true });
+    commitSearchParams((nextParams) => {
+      const currentIds = parseAlgorithmIds(nextParams.get('algorithms'));
+      const nextIds = currentIds.includes(algorithmId)
+        ? currentIds.filter((existing) => existing !== algorithmId)
+        : [...currentIds, algorithmId];
+      nextParams.set('algorithms', nextIds.join(','));
+    });
   }
 
   const hasAlgorithmsSelected = selectedAlgorithmIds.length > 0;

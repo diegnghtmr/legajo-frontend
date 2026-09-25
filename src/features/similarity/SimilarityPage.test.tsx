@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { act, render, screen, waitFor, within } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import type { ReactNode } from 'react';
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router';
@@ -324,6 +324,40 @@ describe('SimilarityPage — exactly two selected', () => {
         .mocked(similarityApi.compareSimilarity)
         .mock.calls.some(([request]) => request.algorithmIds?.length === 0),
     ).toBe(false);
+  });
+
+  it('applies two search-param updates dispatched in the same tick without losing either', async () => {
+    vi.spyOn(similarityApi, 'fetchSimilarityAlgorithms').mockResolvedValue(CATALOGUE);
+    vi.spyOn(similarityApi, 'compareSimilarity').mockResolvedValue(compareResponseFor(ALL_SIX_IDS));
+
+    renderWithProviders(<SimilarityPage />);
+
+    const algoGroup = await screen.findByRole('group', { name: 'Selección de algoritmos' });
+    const embeddingApiButton = within(algoGroup).getByRole('button', { name: 'embedding-api' });
+    const classicRadio = screen.getByRole('radio', { name: 'Clásico' });
+
+    // Both dispatched synchronously inside one `act`, so React never
+    // flushes a render between them — exactly the same-tick shape a real
+    // double click, or two controls reacting to one shared event, produces.
+    act(() => {
+      fireEvent.click(classicRadio);
+      fireEvent.click(embeddingApiButton);
+    });
+
+    await waitFor(() =>
+      expect(similarityApi.compareSimilarity).toHaveBeenLastCalledWith({
+        documentIdA: 'doc-01',
+        documentIdB: 'doc-02',
+        algorithmIds: [
+          'levenshtein',
+          'needleman-wunsch',
+          'jaccard',
+          'tfidf-cosine',
+          'embedding-local',
+        ],
+      }),
+    );
+    expect(classicRadio).toHaveAttribute('aria-checked', 'true');
   });
 
   it('shows the mapped error message when the algorithm catalogue fails to load', async () => {
