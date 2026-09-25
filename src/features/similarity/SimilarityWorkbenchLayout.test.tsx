@@ -1,8 +1,8 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { render, screen } from '@testing-library/react';
+import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Route, Routes } from 'react-router';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import * as corpusApi from '../../infrastructure/api/corpus';
 import * as embeddingsApi from '../../infrastructure/api/embeddings';
@@ -30,6 +30,22 @@ const EMBEDDINGS_STATUS = {
     mode: 'cached' as const,
   },
 };
+
+/** No `matchMedia` implementation reports a narrow viewport by itself —
+ * this fakes the `(min-width: 1024px)` list `useIsAtLeastLg` reads,
+ * matching the shared default stub's own shape (`src/test/setup.ts`). */
+function stubNarrowViewport() {
+  vi.stubGlobal('matchMedia', (query: string): MediaQueryList => ({
+    matches: false,
+    media: query,
+    onchange: null,
+    addListener: () => {},
+    removeListener: () => {},
+    addEventListener: () => {},
+    removeEventListener: () => {},
+    dispatchEvent: () => false,
+  }));
+}
 
 function renderLayout() {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
@@ -126,6 +142,68 @@ describe('SimilarityWorkbenchLayout', () => {
       await user.click(screen.getByRole('button', { name: 'Cerrar' }));
 
       expect(statusRow).toHaveFocus();
+    });
+  });
+
+  describe('below the lg breakpoint, where WorkbenchLayout hides its own detail region', () => {
+    beforeEach(() => {
+      stubNarrowViewport();
+    });
+
+    afterEach(() => {
+      vi.unstubAllGlobals();
+    });
+
+    it('opens an article abstract as a dialog instead of leaving it unreachable, and returns focus to the title on close', async () => {
+      const user = userEvent.setup();
+      renderLayout();
+
+      const title = await screen.findByRole('button', { name: 'A survey of string similarity' });
+      await user.click(title);
+
+      const dialog = await screen.findByRole('dialog');
+      expect(within(dialog).getByText('The full abstract.')).toBeInTheDocument();
+      // Never both at once: the docked/overlay region never mounts below `lg`.
+      expect(screen.queryByTestId('workbench-detail')).not.toBeInTheDocument();
+
+      await user.click(within(dialog).getByRole('button', { name: 'Cerrar' }));
+
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+      expect(title).toHaveFocus();
+    });
+
+    it('opens the embeddings detail as a dialog, and returns focus to the status row on close', async () => {
+      const user = userEvent.setup();
+      renderLayout();
+
+      const statusRow = await screen.findByRole('button', {
+        name: 'Ver el estado de los embeddings',
+      });
+      await user.click(statusRow);
+
+      const dialog = await screen.findByRole('dialog');
+      expect(
+        within(dialog).getByRole('heading', { name: 'Estado de los embeddings' }),
+      ).toBeInTheDocument();
+
+      await user.click(within(dialog).getByRole('button', { name: 'Cerrar' }));
+
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+      expect(statusRow).toHaveFocus();
+    });
+
+    it('closes the dialog on Escape', async () => {
+      const user = userEvent.setup();
+      renderLayout();
+
+      await user.click(
+        await screen.findByRole('button', { name: 'A survey of string similarity' }),
+      );
+      await screen.findByRole('dialog');
+
+      await user.keyboard('{Escape}');
+
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
     });
   });
 });

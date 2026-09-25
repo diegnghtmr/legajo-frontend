@@ -31,7 +31,8 @@
       "abstractLabel": "Abstract",
       "authorsLabel": "Authors",
       "idLabel": "Identifier",
-      "closeLabel": "Close"
+      "closeLabel": "Close",
+      "sheetTitle": "Article {{id}}"
     },
     "rail": {
       "countLabel": "{{count}} documents",
