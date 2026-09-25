@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 
 import { BenchmarkCurveChart } from './BenchmarkCurveChart';
 import type { FamilySeries } from './grouping';
+import { dashPatternForIndex } from './seriesStyle';
 
 const SERIES: FamilySeries[] = [
   {
@@ -229,5 +230,59 @@ describe('BenchmarkCurveChart', () => {
     expect(within(size100Row).getByText('100')).toBeInTheDocument();
     expect(within(size100Row).getByText('Sin dato')).toBeInTheDocument();
     expect(within(size100Row).getByText('20.3 µs')).toBeInTheDocument();
+  });
+
+  it('shows a visible legend naming each series by its mono algorithm id, readable by assistive tech', () => {
+    renderChart();
+
+    const legend = screen.getByRole('list', { name: 'Leyenda de series' });
+    const items = within(legend).getAllByRole('listitem');
+    expect(items).toHaveLength(SERIES.length);
+    for (const series of SERIES) {
+      const label = within(legend).getByText(series.family);
+      expect(label.className).toContain('font-mono');
+    }
+  });
+
+  it("matches each legend swatch's dash pattern to its series' own line style, in grayscale ink", () => {
+    const { container } = renderChart();
+
+    SERIES.forEach((series, index) => {
+      const swatch = container.querySelector(`[data-testid="legend-dash-${series.family}"]`);
+      expect(swatch).not.toBeNull();
+      expect(swatch).toHaveAttribute('stroke', 'var(--color-ink)');
+      const expectedDash = dashPatternForIndex(index);
+      if (expectedDash) {
+        expect(swatch).toHaveAttribute('stroke-dasharray', expectedDash);
+      } else {
+        expect(swatch).not.toHaveAttribute('stroke-dasharray');
+      }
+    });
+  });
+
+  it('hides the legend swatches from assistive tech, since the visible mono label already names the series', () => {
+    const { container } = renderChart();
+
+    for (const series of SERIES) {
+      const swatch = container.querySelector(`svg[data-testid="legend-swatch-${series.family}"]`);
+      expect(swatch).toHaveAttribute('aria-hidden', 'true');
+    }
+  });
+
+  it('shows no legend in the "no data" state', () => {
+    render(
+      <BenchmarkCurveChart
+        title="Empty group"
+        xAxisLabel="L"
+        yAxisLabel="T"
+        series={[]}
+        slopes={new Map()}
+        scale="linear"
+        dataTableCaption="empty-data"
+        slopeTableCaption="empty-slope"
+      />,
+    );
+
+    expect(screen.queryByRole('list', { name: 'Leyenda de series' })).not.toBeInTheDocument();
   });
 });

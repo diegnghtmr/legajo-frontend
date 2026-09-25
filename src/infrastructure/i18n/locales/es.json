@@ -274,7 +274,8 @@
       "dataTableCaption": "Valores medidos: {{group}}",
       "dataTableSize": "Tamaño",
       "dataTableMissingValue": "Sin dato",
-      "noData": "No hay mediciones disponibles para este grupo."
+      "noData": "No hay mediciones disponibles para este grupo.",
+      "legend": "Leyenda de series"
     },
     "embedding": {
       "title": "Primitivas de embeddings (O(d))",
