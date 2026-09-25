@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from '@testing-library/react';
+import { act, fireEvent, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Route, Routes } from 'react-router';
 import { afterEach, describe, expect, it, vi } from 'vitest';
@@ -14,6 +14,7 @@ import {
 
 afterEach(async () => {
   await i18n.changeLanguage('es');
+  vi.unstubAllGlobals();
 });
 
 /** True when `className` contains `token` as its own whitespace-delimited
@@ -22,6 +23,41 @@ afterEach(async () => {
  * can never fail even for the wrong display value). */
 function hasClassToken(element: HTMLElement, token: string): boolean {
   return element.className.split(/\s+/).includes(token);
+}
+
+interface FakeMediaQueryList extends Omit<MediaQueryList, 'matches'> {
+  matches: boolean;
+  fireChange(matches: boolean): void;
+}
+
+/** Mirrors `useIsAtLeastLg`'s own test double: a controllable stand-in for
+ * `window.matchMedia('(min-width: 1024px)')` so a test can simulate the
+ * viewport crossing the `lg` breakpoint without an actual resize, which
+ * jsdom cannot perform. */
+function stubMatchMedia(initialMatches: boolean): FakeMediaQueryList {
+  const listeners = new Set<(event: MediaQueryListEvent) => void>();
+  const list: FakeMediaQueryList = {
+    matches: initialMatches,
+    media: '(min-width: 1024px)',
+    onchange: null,
+    addListener: () => {},
+    removeListener: () => {},
+    addEventListener: (_type: string, listener: EventListenerOrEventListenerObject) => {
+      listeners.add(listener as (event: MediaQueryListEvent) => void);
+    },
+    removeEventListener: (_type: string, listener: EventListenerOrEventListenerObject) => {
+      listeners.delete(listener as (event: MediaQueryListEvent) => void);
+    },
+    dispatchEvent: () => false,
+    fireChange(matches: boolean) {
+      list.matches = matches;
+      for (const listener of listeners) {
+        listener({ matches } as MediaQueryListEvent);
+      }
+    },
+  };
+  vi.stubGlobal('matchMedia', () => list);
+  return list;
 }
 
 function renderLayout(initialPath = '/similarity') {
@@ -356,6 +392,39 @@ describe('AppLayout', () => {
         'aria-expanded',
         'false',
       );
+    });
+
+    it('closes itself and detaches its outside-click listener once the viewport reaches lg', async () => {
+      const mediaQueryList = stubMatchMedia(false);
+      const user = userEvent.setup();
+      renderLayout();
+
+      await user.click(screen.getByRole('button', { name: 'Abrir navegación' }));
+      expect(screen.getByRole('button', { name: 'Cerrar navegación' })).toHaveAttribute(
+        'aria-expanded',
+        'true',
+      );
+
+      // Widening across the breakpoint: the nav becomes visible via
+      // `lg:flex` regardless of `navOpen`, so the JS-driven open state (and
+      // the document listeners it keeps attached) must reset instead of
+      // staying stuck open underneath.
+      act(() => {
+        mediaQueryList.fireChange(true);
+      });
+
+      expect(screen.getByRole('button', { name: 'Abrir navegación' })).toHaveAttribute(
+        'aria-expanded',
+        'false',
+      );
+
+      // The outside-click `mousedown` listener only exists while the panel
+      // is open; once it resets, a mousedown on non-focusable content is no
+      // longer intercepted (`preventDefault` never gets called).
+      const outsideEvent = new MouseEvent('mousedown', { bubbles: true, cancelable: true });
+      screen.getByRole('heading', { level: 1, name: 'Legajo' }).dispatchEvent(outsideEvent);
+
+      expect(outsideEvent.defaultPrevented).toBe(false);
     });
   });
 });

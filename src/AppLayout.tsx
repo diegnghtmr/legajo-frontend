@@ -7,6 +7,7 @@ import { NavLink, Outlet, useLocation } from 'react-router';
 import { setLanguage, SUPPORTED_LANGUAGES, type SupportedLanguage } from './infrastructure/i18n';
 import { cn } from './shared/lib/cn';
 import { shellMetricsStyle } from './shared/lib/shellMetrics';
+import { useIsAtLeastLg } from './shared/lib/useIsAtLeastLg';
 
 /** Each language's own name (autonym), so it reads the same in every locale. */
 const LANGUAGE_AUTONYMS: Record<SupportedLanguage, string> = {
@@ -109,6 +110,20 @@ export function AppLayout() {
   // do, so that click's own default action — moving focus onto it — is
   // left alone instead of being overridden a moment later.
   const returnFocusToToggleRef = useRef(false);
+  const isAtLeastLg = useIsAtLeastLg();
+
+  // Above `lg` the nav is always visible via `lg:flex` regardless of
+  // `navOpen` (see the component docstring above), and the toggle button
+  // that owns it is itself hidden via `lg:hidden` — so a resize that
+  // crosses that breakpoint while the panel was left open below it must
+  // reset this JS-driven state, instead of leaving it (and, through the
+  // effect further down, its Escape/outside-click document listeners)
+  // attached under a nav that CSS alone already keeps open.
+  useEffect(() => {
+    if (isAtLeastLg) {
+      setNavOpen(false);
+    }
+  }, [isAtLeastLg]);
 
   // A link inside the collapsed mobile nav navigates without ever closing
   // the panel on its own (a route change is the only signal available from
