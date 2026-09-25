@@ -45,10 +45,46 @@ describe('ToggleGroup (single) — Segmented primitive', () => {
     expect(onChange).toHaveBeenCalledWith('classic');
   });
 
-  it('marks the active option with the ink surface treatment', async () => {
+  it('marks the active option with the ink surface treatment via the data-state attribute', async () => {
     render(<ControlledToggleGroup />);
 
     expect(screen.getByRole('radio', { name: 'All' }).className).toContain('data-[state=on]');
+  });
+
+  it('flips data-state and aria-checked from the clicked option onto the newly active one', async () => {
+    const user = userEvent.setup();
+    render(<ControlledToggleGroup />);
+
+    await user.click(screen.getByRole('radio', { name: 'Classic' }));
+
+    expect(screen.getByRole('radio', { name: 'Classic' })).toHaveAttribute('data-state', 'on');
+    expect(screen.getByRole('radio', { name: 'Classic' })).toHaveAttribute('aria-checked', 'true');
+    expect(screen.getByRole('radio', { name: 'All' })).toHaveAttribute('data-state', 'off');
+    expect(screen.getByRole('radio', { name: 'All' })).toHaveAttribute('aria-checked', 'false');
+  });
+
+  it('moves focus (not selection) on ArrowRight, then selects the focused option on Space', async () => {
+    // The raw primitive's arrow keys only move the roving-tabindex focus —
+    // they do not also select, unlike a native <input type="radio"> group.
+    // `SegmentedControl` adds that "select follows focus" behavior itself
+    // (see its own test suite); this test pins the raw primitive's actual,
+    // narrower keyboard contract so the two are not confused.
+    const user = userEvent.setup();
+    render(<ControlledToggleGroup />);
+
+    await user.tab();
+    await user.keyboard('{ArrowRight}');
+
+    expect(screen.getByRole('radio', { name: 'Classic' })).toHaveFocus();
+    expect(screen.getByRole('radio', { name: 'Classic' })).toHaveAttribute('data-state', 'off');
+    expect(screen.getByRole('radio', { name: 'All' })).toHaveAttribute('data-state', 'on');
+
+    await user.keyboard(' ');
+
+    expect(screen.getByRole('radio', { name: 'Classic' })).toHaveAttribute('data-state', 'on');
+    expect(screen.getByRole('radio', { name: 'Classic' })).toHaveAttribute('aria-checked', 'true');
+    expect(screen.getByRole('radio', { name: 'All' })).toHaveAttribute('data-state', 'off');
+    expect(screen.getByRole('radio', { name: 'All' })).toHaveAttribute('aria-checked', 'false');
   });
 
   it('grows each option to a 44px touch target on coarse pointers without resizing on desktop', () => {
