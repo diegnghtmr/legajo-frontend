@@ -78,7 +78,13 @@ describe('SimilarityPage — wrong selection count', () => {
           `Tienes ${selectedIds.length} artículos seleccionados; selecciona exactamente dos en el corpus para comparar.`,
         ),
       ).toBeInTheDocument();
-      expect(screen.getByRole('link', { name: 'Ir al corpus' })).toHaveAttribute('href', '/corpus');
+      const backLink = screen.getByRole('link', { name: 'Ir al corpus' });
+      expect(backLink).toHaveAttribute('href', '/corpus');
+      // A designed empty state: the message and its next step live inside
+      // the Panel card (a `<section>`), and the action reads as a button,
+      // not a bare underlined link.
+      expect(backLink.closest('section')).not.toBeNull();
+      expect(backLink.className).toContain('bg-primary');
       expect(similarityApi.compareSimilarity).not.toHaveBeenCalled();
     },
   );
@@ -99,10 +105,9 @@ describe('SimilarityPage — three or more selected (wrong count for compare, ma
         'Tienes 3 artículos seleccionados; selecciona exactamente dos en el corpus para comparar.',
       ),
     ).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'Ver la matriz de similitud' })).toHaveAttribute(
-      'href',
-      '/similarity/matrix',
-    );
+    const matrixLink = screen.getByRole('link', { name: 'Ver la matriz de similitud' });
+    expect(matrixLink).toHaveAttribute('href', '/similarity/matrix');
+    expect(matrixLink.className).toContain('border-hairline-strong');
   });
 
   it('does not show the matrix link with fewer than 3 selected', () => {
