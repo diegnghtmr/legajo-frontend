@@ -6,7 +6,7 @@ import { NavLink, Outlet, useLocation } from 'react-router';
 
 import { setLanguage, SUPPORTED_LANGUAGES, type SupportedLanguage } from './infrastructure/i18n';
 import { cn } from './shared/lib/cn';
-import { shellMetricsStyle } from './shared/lib/shellMetrics';
+import { MAIN_CONTENT_ID, shellMetricsStyle } from './shared/lib/shellMetrics';
 import { useIsAtLeastLg } from './shared/lib/useIsAtLeastLg';
 
 /** Each language's own name (autonym), so it reads the same in every locale. */
@@ -57,7 +57,6 @@ const SECTIONS = [
   { to: '/benchmarks', labelKey: 'nav.benchmarks' },
 ] as const;
 
-const MAIN_CONTENT_ID = 'main-content';
 const PRIMARY_NAV_ID = 'primary-nav';
 
 /** Whether `node` is, or sits inside, a real interactive focus target — the
