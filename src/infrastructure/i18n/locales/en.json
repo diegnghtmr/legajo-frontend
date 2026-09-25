@@ -2,7 +2,8 @@
   "app": {
     "title": "Legajo",
     "eyebrow": "Similarity and clustering workbench",
-    "description": "Corpus selection, similarity comparison and hierarchical clustering views load here."
+    "description": "Corpus selection, similarity comparison and hierarchical clustering views load here.",
+    "skipToContent": "Skip to content"
   },
   "language": {
     "switchLabel": "Language",
@@ -295,7 +296,8 @@
   },
   "notFound": {
     "title": "Page not found",
-    "description": "The requested route does not exist."
+    "description": "The requested route does not exist.",
+    "cta": "Go to the corpus"
   },
   "errors": {
     "unknownDocument": "The requested document does not exist in the corpus.",

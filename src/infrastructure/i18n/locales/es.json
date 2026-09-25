@@ -2,7 +2,8 @@
   "app": {
     "title": "Legajo",
     "eyebrow": "Banco de similitud y agrupamiento",
-    "description": "Aquí se cargan la selección de corpus, la comparación de similitud y las vistas de agrupamiento jerárquico."
+    "description": "Aquí se cargan la selección de corpus, la comparación de similitud y las vistas de agrupamiento jerárquico.",
+    "skipToContent": "Saltar al contenido"
   },
   "language": {
     "switchLabel": "Idioma",
@@ -295,7 +296,8 @@
   },
   "notFound": {
     "title": "Página no encontrada",
-    "description": "La ruta solicitada no existe."
+    "description": "La ruta solicitada no existe.",
+    "cta": "Ir al corpus"
   },
   "errors": {
     "unknownDocument": "El documento solicitado no existe en el corpus.",

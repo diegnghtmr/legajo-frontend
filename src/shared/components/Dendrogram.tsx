@@ -50,6 +50,14 @@ const MARGIN_BOTTOM = 44;
 const LEAF_TICK_LENGTH = 6;
 const LEAF_ID_LABEL_OFFSET = 18;
 const LEAF_CLUSTER_LABEL_OFFSET = 34;
+/**
+ * Minimum horizontal room per leaf, in px, so a mono leaf label never has to
+ * shrink to fit: a narrow container widens the chart past `width` instead
+ * (the wrapping scroll region below absorbs the overflow), rather than the
+ * old behavior of letting `max-w-full` downscale the whole SVG — labels and
+ * all — to whatever the container happened to be.
+ */
+const MIN_LEAF_SPACING = 32;
 
 function leafLabelFor(leafLabels: readonly DendrogramLeafLabel[] | undefined, id: number): string {
   return leafLabels?.[id]?.label ?? String(id);
@@ -88,7 +96,11 @@ export function Dendrogram({
 }: DendrogramProps) {
   const { t } = useTranslation();
   const titleId = useId();
-  const chartWidth = Math.max(width - MARGIN_SIDE * 2, 0);
+  const requestedChartWidth = Math.max(width - MARGIN_SIDE * 2, 0);
+  const leafCount = leafOrder.length;
+  const minChartWidth = leafCount > 1 ? (leafCount - 1) * MIN_LEAF_SPACING : requestedChartWidth;
+  const chartWidth = Math.max(requestedChartWidth, minChartWidth);
+  const renderWidth = chartWidth + MARGIN_SIDE * 2;
   const chartHeight = Math.max(height - MARGIN_TOP - MARGIN_BOTTOM, 0);
 
   let layout;
@@ -114,79 +126,99 @@ export function Dendrogram({
       <figcaption id={titleId} className="text-label text-ink-secondary">
         {ariaLabel}
       </figcaption>
-      <svg
-        role="img"
-        aria-labelledby={titleId}
-        width={width}
-        height={height}
-        viewBox={`0 0 ${width} ${height}`}
-        className="max-w-full"
+      {/*
+       * The scroll region — not the SVG itself — absorbs a narrow
+       * container: the SVG below always renders at its own intrinsic
+       * `renderWidth` (no `max-w-full`), so its 12px mono labels never get
+       * scaled down by the browser mapping a smaller viewport onto the
+       * `viewBox`'s coordinate space. `overflow-x-auto` lets this one
+       * bounded, focusable, labelled region scroll horizontally instead of
+       * the page.
+       */}
+      <div
+        role="region"
+        aria-label={ariaLabel}
+        tabIndex={0}
+        className="max-w-full overflow-x-auto rounded-md focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus"
       >
-        {cutY !== undefined && (
-          <line
-            data-testid="dendrogram-cut-line"
-            x1={0}
-            y1={cutY}
-            x2={width}
-            y2={cutY}
-            className="stroke-warning"
-            strokeDasharray="6 4"
-            strokeWidth={1.5}
-          />
-        )}
-        <g transform={`translate(${MARGIN_SIDE}, ${MARGIN_TOP})`}>
-          {layout.links.map((link) => (
-            <path key={link.id} d={link.path} className="fill-none stroke-ink" strokeWidth={1.5} />
-          ))}
-          {layout.leaves.map((leaf) => {
-            const clusterNumber = cut?.labels[leaf.id];
-            const leafTitle = leafLabels?.[leaf.id]?.title ?? leafLabelFor(leafLabels, leaf.id);
-            return (
-              <g key={leaf.id} data-leaf-id={leaf.id} data-leaf-x={leaf.x}>
-                <title>
-                  {clusterNumber === undefined
-                    ? leafTitle
-                    : `${leafTitle} — ${t('clustering.dendrogram.clusterLabel', { id: clusterNumber })}`}
-                </title>
-                <line
-                  x1={leaf.x}
-                  y1={chartHeight}
-                  x2={leaf.x}
-                  y2={chartHeight + LEAF_TICK_LENGTH}
-                  className="stroke-ink-secondary"
-                />
-                <text
-                  x={leaf.x}
-                  y={chartHeight + LEAF_ID_LABEL_OFFSET}
-                  textAnchor="middle"
-                  className="font-mono text-mono fill-ink-secondary"
-                >
-                  {leafLabelFor(leafLabels, leaf.id)}
-                </text>
-                {clusterNumber !== undefined && (
-                  // A compact number, not the full "Clúster N" word: at the
-                  // default leaf spacing (chart width / (n - 1)) a full word
-                  // overlaps its neighbours long before a projector-legible
-                  // corpus size is reached. The full name stays available via
-                  // this leaf's own `<title>` above and the caption legend
-                  // below, so this mark is `aria-hidden` to avoid announcing
-                  // a bare, out-of-context number.
+        <svg
+          role="img"
+          aria-labelledby={titleId}
+          width={renderWidth}
+          height={height}
+          viewBox={`0 0 ${renderWidth} ${height}`}
+        >
+          {cutY !== undefined && (
+            <line
+              data-testid="dendrogram-cut-line"
+              x1={0}
+              y1={cutY}
+              x2={renderWidth}
+              y2={cutY}
+              className="stroke-warning"
+              strokeDasharray="6 4"
+              strokeWidth={1.5}
+            />
+          )}
+          <g transform={`translate(${MARGIN_SIDE}, ${MARGIN_TOP})`}>
+            {layout.links.map((link) => (
+              <path
+                key={link.id}
+                d={link.path}
+                className="fill-none stroke-ink"
+                strokeWidth={1.5}
+              />
+            ))}
+            {layout.leaves.map((leaf) => {
+              const clusterNumber = cut?.labels[leaf.id];
+              const leafTitle = leafLabels?.[leaf.id]?.title ?? leafLabelFor(leafLabels, leaf.id);
+              return (
+                <g key={leaf.id} data-leaf-id={leaf.id} data-leaf-x={leaf.x}>
+                  <title>
+                    {clusterNumber === undefined
+                      ? leafTitle
+                      : `${leafTitle} — ${t('clustering.dendrogram.clusterLabel', { id: clusterNumber })}`}
+                  </title>
+                  <line
+                    x1={leaf.x}
+                    y1={chartHeight}
+                    x2={leaf.x}
+                    y2={chartHeight + LEAF_TICK_LENGTH}
+                    className="stroke-ink-secondary"
+                  />
                   <text
-                    data-testid="cluster-marker"
-                    aria-hidden="true"
                     x={leaf.x}
-                    y={chartHeight + LEAF_CLUSTER_LABEL_OFFSET}
+                    y={chartHeight + LEAF_ID_LABEL_OFFSET}
                     textAnchor="middle"
-                    className="text-mono fill-ink"
+                    className="font-mono text-mono fill-ink-secondary"
                   >
-                    {clusterNumber}
+                    {leafLabelFor(leafLabels, leaf.id)}
                   </text>
-                )}
-              </g>
-            );
-          })}
-        </g>
-      </svg>
+                  {clusterNumber !== undefined && (
+                    // A compact number, not the full "Clúster N" word: at the
+                    // default leaf spacing (chart width / (n - 1)) a full word
+                    // overlaps its neighbours long before a projector-legible
+                    // corpus size is reached. The full name stays available via
+                    // this leaf's own `<title>` above and the caption legend
+                    // below, so this mark is `aria-hidden` to avoid announcing
+                    // a bare, out-of-context number.
+                    <text
+                      data-testid="cluster-marker"
+                      aria-hidden="true"
+                      x={leaf.x}
+                      y={chartHeight + LEAF_CLUSTER_LABEL_OFFSET}
+                      textAnchor="middle"
+                      className="text-mono fill-ink"
+                    >
+                      {clusterNumber}
+                    </text>
+                  )}
+                </g>
+              );
+            })}
+          </g>
+        </svg>
+      </div>
 
       {cut && distinctClusterCount(cut.labels) > 0 && (
         <p className="text-label text-ink-secondary">
