@@ -11,6 +11,7 @@ import {
   SHELL_MAIN_PADDING,
   SHELL_MAIN_PADDING_VAR,
 } from './shared/lib/shellMetrics';
+import { stubMatchMedia } from './test/matchMedia';
 
 afterEach(async () => {
   await i18n.changeLanguage('es');
@@ -23,41 +24,6 @@ afterEach(async () => {
  * can never fail even for the wrong display value). */
 function hasClassToken(element: HTMLElement, token: string): boolean {
   return element.className.split(/\s+/).includes(token);
-}
-
-interface FakeMediaQueryList extends Omit<MediaQueryList, 'matches'> {
-  matches: boolean;
-  fireChange(matches: boolean): void;
-}
-
-/** Mirrors `useIsAtLeastLg`'s own test double: a controllable stand-in for
- * `window.matchMedia('(min-width: 1024px)')` so a test can simulate the
- * viewport crossing the `lg` breakpoint without an actual resize, which
- * jsdom cannot perform. */
-function stubMatchMedia(initialMatches: boolean): FakeMediaQueryList {
-  const listeners = new Set<(event: MediaQueryListEvent) => void>();
-  const list: FakeMediaQueryList = {
-    matches: initialMatches,
-    media: '(min-width: 1024px)',
-    onchange: null,
-    addListener: () => {},
-    removeListener: () => {},
-    addEventListener: (_type: string, listener: EventListenerOrEventListenerObject) => {
-      listeners.add(listener as (event: MediaQueryListEvent) => void);
-    },
-    removeEventListener: (_type: string, listener: EventListenerOrEventListenerObject) => {
-      listeners.delete(listener as (event: MediaQueryListEvent) => void);
-    },
-    dispatchEvent: () => false,
-    fireChange(matches: boolean) {
-      list.matches = matches;
-      for (const listener of listeners) {
-        listener({ matches } as MediaQueryListEvent);
-      }
-    },
-  };
-  vi.stubGlobal('matchMedia', () => list);
-  return list;
 }
 
 function renderLayout(initialPath = '/similarity') {
