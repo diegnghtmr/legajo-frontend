@@ -2,13 +2,28 @@ import type { ComponentProps } from 'react';
 
 import { cn } from '@/shared/lib/cn';
 
+export interface TableProps extends ComponentProps<'table'> {
+  /**
+   * Skip this primitive's own `overflow-x-auto` wrapper div. Defaults to
+   * `true` (wrapped). Set to `false` when the caller supplies its own
+   * single scroll container instead — nesting two `overflow` ancestors
+   * (this wrapper inside a caller's own scrolling div) makes `position:
+   * sticky` cells/headers stick to whichever one actually scrolls, which is
+   * not reliably the caller's outer container, breaking sticky headers and
+   * sticky first columns on a scrollable matrix.
+   */
+  wrap?: boolean;
+}
+
 /** Table primitives: eyebrow header on `paper-sunken`, mono numeric columns left to callers. */
-export function Table({ className, ...props }: ComponentProps<'table'>) {
-  return (
-    <div className="w-full overflow-x-auto">
-      <table className={cn('w-full border-collapse text-body', className)} {...props} />
-    </div>
-  );
+export function Table({ className, wrap = true, ...props }: TableProps) {
+  const table = <table className={cn('w-full border-collapse text-body', className)} {...props} />;
+
+  if (!wrap) {
+    return table;
+  }
+
+  return <div className="w-full overflow-x-auto">{table}</div>;
 }
 
 export function TableHeader({ className, ...props }: ComponentProps<'thead'>) {

@@ -24,7 +24,7 @@ export function CompareCta() {
 
   return (
     <div className="flex flex-col gap-1">
-      <Button disabled={!canCompare} onClick={() => void navigate('/similarity')}>
+      <Button type="button" disabled={!canCompare} onClick={() => void navigate('/similarity')}>
         {t('corpus.selection.compareCta')}
       </Button>
       {reasonKey && <p className="text-label text-ink-muted">{t(reasonKey)}</p>}

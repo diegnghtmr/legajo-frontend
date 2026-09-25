@@ -1,5 +1,6 @@
 import { fireEvent, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import type { FormEvent } from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { DpMatrix } from './DpMatrix';
@@ -123,6 +124,37 @@ describe('DpMatrix', () => {
         expect(cells[col + 1]).toBe(String(MATRIX[row][col]));
       }
     }
+
+    vi.unstubAllGlobals();
+  });
+
+  it('does not submit a surrounding form when the CSV button is clicked', async () => {
+    const user = userEvent.setup();
+    const onSubmit = vi.fn((event: FormEvent) => event.preventDefault());
+    vi.stubGlobal('URL', {
+      ...URL,
+      createObjectURL: vi.fn(() => 'blob:mock-url'),
+      revokeObjectURL: vi.fn(),
+    });
+
+    render(
+      <form onSubmit={onSubmit}>
+        <DpMatrix
+          rowLabels={ROW_LABELS}
+          columnLabels={COLUMN_LABELS}
+          matrix={MATRIX}
+          optimalPath={OPTIMAL_PATH}
+          ariaLabel="Levenshtein matrix"
+          downloadLabel="Download CSV"
+          downloadFileName="levenshtein-matrix.csv"
+          pathCellLabel="Optimal path cell"
+        />
+      </form>,
+    );
+
+    await user.click(screen.getByRole('button', { name: 'Download CSV' }));
+
+    expect(onSubmit).not.toHaveBeenCalled();
 
     vi.unstubAllGlobals();
   });

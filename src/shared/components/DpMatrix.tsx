@@ -170,7 +170,7 @@ export function DpMatrix({
           </tbody>
         </table>
       </div>
-      <Button variant="secondary" onClick={downloadCsv} className="w-fit">
+      <Button type="button" variant="secondary" onClick={downloadCsv} className="w-fit">
         {downloadLabel}
       </Button>
     </div>

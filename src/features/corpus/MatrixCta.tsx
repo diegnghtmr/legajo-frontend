@@ -31,6 +31,7 @@ export function MatrixCta() {
   return (
     <div className="flex flex-col gap-1">
       <Button
+        type="button"
         variant="secondary"
         disabled={!canMatrix}
         onClick={() => void navigate('/similarity/matrix')}

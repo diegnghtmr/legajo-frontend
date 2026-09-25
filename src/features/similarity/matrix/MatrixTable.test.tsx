@@ -86,4 +86,30 @@ describe('MatrixTable', () => {
     const diagonalCell = screen.getAllByText('1.000')[0]?.closest('td');
     expect(diagonalCell?.className).toContain('bg-matrix-high');
   });
+
+  it('scrolls inside exactly one bounded container, with no nested overflow wrapper between it and the table', () => {
+    // A sticky header row and a sticky first column only stick relative to
+    // the nearest ancestor that actually scrolls. Two nested `overflow`
+    // divs (this component's own container plus the Table primitive's own
+    // wrapper) make that ambiguous and silently unstick them, so the
+    // table's direct parent must be this component's single scroll region.
+    render(
+      <MatrixTable documentIds={DOCUMENT_IDS} titleById={TITLE_BY_ID} cells={SYMMETRIC_CELLS} />,
+    );
+
+    const region = screen.getByRole('region', { name: /Matriz de similitud/i });
+    const table = screen.getByRole('table');
+    expect(table.parentElement).toBe(region);
+    expect(region.className).toContain('overflow-auto');
+    expect(region.className).toContain('max-h-');
+  });
+
+  it('makes the scrollable matrix viewport itself keyboard-focusable (WCAG 2.1.1 scrollable-region-focusable)', () => {
+    render(
+      <MatrixTable documentIds={DOCUMENT_IDS} titleById={TITLE_BY_ID} cells={SYMMETRIC_CELLS} />,
+    );
+
+    const region = screen.getByRole('region', { name: /Matriz de similitud/i });
+    expect(region).toHaveAttribute('tabindex', '0');
+  });
 });

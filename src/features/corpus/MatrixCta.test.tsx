@@ -1,7 +1,8 @@
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import type { FormEvent } from 'react';
 import { MemoryRouter, Route, Routes } from 'react-router';
-import { beforeEach, describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { useSelectionStore } from './selectionStore';
 import { MatrixCta } from './MatrixCta';
@@ -89,5 +90,25 @@ describe('MatrixCta', () => {
     await user.click(screen.getByRole('button', { name: 'Ver matriz' }));
 
     expect(screen.getByText('matrix view')).toBeInTheDocument();
+  });
+
+  it('does not submit a surrounding form when clicked', async () => {
+    const user = userEvent.setup();
+    useSelectionStore.getState().toggle('doc-01');
+    useSelectionStore.getState().toggle('doc-02');
+    useSelectionStore.getState().toggle('doc-03');
+    const onSubmit = vi.fn((event: FormEvent) => event.preventDefault());
+
+    render(
+      <MemoryRouter>
+        <form onSubmit={onSubmit}>
+          <MatrixCta />
+        </form>
+      </MemoryRouter>,
+    );
+
+    await user.click(screen.getByRole('button', { name: 'Ver matriz' }));
+
+    expect(onSubmit).not.toHaveBeenCalled();
   });
 });
