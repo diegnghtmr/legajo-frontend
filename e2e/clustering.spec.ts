@@ -255,20 +255,32 @@ test.describe('clustering screen', () => {
     await page.setViewportSize({ width: 390, height: 844 });
 
     // One column: every card shares (roughly) the same x, and each sits
-    // below the previous one.
-    const narrowBoxes = [];
-    for (const card of cardLocators) {
-      const box = await card.boundingBox();
-      expect(box).not.toBeNull();
-      narrowBoxes.push(box!);
-    }
-    for (let index = 1; index < narrowBoxes.length; index += 1) {
-      expect(Math.abs(narrowBoxes[index].x - narrowBoxes[0].x)).toBeLessThan(5);
-      expect(narrowBoxes[index].y).toBeGreaterThan(narrowBoxes[index - 1].y);
-    }
+    // below the previous one. Each card's own `ResizeObserver` settles
+    // asynchronously after the viewport resize, so poll until the grid
+    // has actually re-flowed instead of reading the boxes exactly once.
+    await expect
+      .poll(
+        async () => {
+          const boxes = await Promise.all(cardLocators.map((card) => card.boundingBox()));
+          if (boxes.some((box) => box === null)) {
+            return null;
+          }
+          const nonNullBoxes = boxes as NonNullable<(typeof boxes)[number]>[];
+          return nonNullBoxes.every(
+            (box, index) =>
+              index === 0 ||
+              (Math.abs(box.x - nonNullBoxes[0]!.x) < 5 && box.y > nonNullBoxes[index - 1]!.y),
+          );
+        },
+        { message: 'dendrogram cards should stack into one narrow column at 390px' },
+      )
+      .toBe(true);
 
-    const scrollWidth = await page.evaluate<number>('document.documentElement.scrollWidth');
-    expect(scrollWidth).toBeLessThanOrEqual(390);
+    await expect
+      .poll(async () => page.evaluate<number>('document.documentElement.scrollWidth'), {
+        message: 'the page should never scroll horizontally at 390px',
+      })
+      .toBeLessThanOrEqual(390);
   });
 
   test('deselecting every linkage shows the reason and no linkage panels', async ({ page }) => {
