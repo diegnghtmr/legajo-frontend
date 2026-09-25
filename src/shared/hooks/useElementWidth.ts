@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useState } from 'react';
 
 /**
  * Tracks one element's own measured content width via `ResizeObserver`, for
@@ -29,17 +29,19 @@ export function useElementWidth<T extends HTMLElement>(
   initialWidth: number,
 ): readonly [(node: T | null) => void, number] {
   const [width, setWidth] = useState(initialWidth);
-  const observerRef = useRef<ResizeObserver | null>(null);
-  // A lazily-initialized, otherwise-stable callback: created once (not on
-  // every render, the way an inline arrow prop would be) so React never
-  // sees it as "a different ref" and churns attach/detach on unrelated
-  // re-renders, while still avoiding a manual `useCallback` — the
-  // dependency-array memoization this project's React 19 convention avoids.
-  const setRef = useRef<((node: T | null) => void) | undefined>(undefined);
-  if (!setRef.current) {
-    setRef.current = (node) => {
-      observerRef.current?.disconnect();
-      observerRef.current = null;
+  // `useState`'s lazy initializer runs exactly once, on this hook's first
+  // render, giving a callback ref with a stable identity for the
+  // component's whole lifetime — without reading or writing a ref's
+  // `.current` during render, which this project's lint rule
+  // (`react-hooks/refs`) forbids. `currentObserver` lives in this closure,
+  // not in React state: it is imperative bookkeeping for whichever
+  // `ResizeObserver` is currently attached, never something a render needs
+  // to react to.
+  const [setRef] = useState<(node: T | null) => void>(() => {
+    let currentObserver: ResizeObserver | null = null;
+    return (node: T | null) => {
+      currentObserver?.disconnect();
+      currentObserver = null;
 
       if (!node) {
         return;
@@ -52,9 +54,9 @@ export function useElementWidth<T extends HTMLElement>(
         }
       });
       observer.observe(node);
-      observerRef.current = observer;
+      currentObserver = observer;
     };
-  }
+  });
 
-  return [setRef.current, width] as const;
+  return [setRef, width] as const;
 }

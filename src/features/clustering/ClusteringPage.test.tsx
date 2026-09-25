@@ -193,7 +193,9 @@ describe('ClusteringPage', () => {
     }
 
     expect(
-      await screen.findByText('El corte no está disponible porque no hay ningún enlace seleccionado.'),
+      await screen.findByText(
+        'El corte no está disponible porque no hay ningún enlace seleccionado.',
+      ),
     ).toBeInTheDocument();
     expect(
       screen.queryByText('El corte estará disponible cuando termine de cargar el agrupamiento.'),
