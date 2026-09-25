@@ -27,10 +27,10 @@ export interface SheetContentProps extends ComponentProps<typeof DialogPrimitive
   title: string;
   hideTitle?: boolean;
   /** 'right' (default): a full-height panel sliding in from the right edge
-   * — the trace and article-abstract sheets (DESIGN §6.3, §6.7). 'bottom':
-   * docked to the viewport's bottom edge, bounded to 85dvh with its own
-   * scroll and safe-area bottom padding — the corpus-list sheet the
-   * selection tray opens (DESIGN §6.7, §9.3). */
+   * — the trace and article-abstract sheets. 'bottom': docked to the
+   * viewport's bottom edge, bounded to 85dvh with its own scroll and
+   * safe-area bottom padding — the corpus-list sheet the selection tray
+   * opens. */
   side?: 'right' | 'bottom';
 }
 

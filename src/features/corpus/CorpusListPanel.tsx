@@ -99,8 +99,8 @@ export interface CorpusListPanelProps {
  * The corpus list itself, with no footer CTA: header (eyebrow, document
  * count, "Limpiar"/Clear), search, the one-line embeddings status, and the
  * scrollable row list (the checkbox selects, the title opens the abstract).
- * Shared, verbatim, between two hosts (DESIGN §6.1, §6.7): the persistent
- * `lg`+ `SelectionRail` sidebar (which adds its own pinned footer CTA around
+ * Shared, verbatim, between every host that needs it: the persistent `lg`+
+ * `SelectionRail` sidebar (which adds its own pinned footer CTA around
  * this), and, below `lg`, both the `SelectionTray`'s corpus-list bottom
  * sheet and the similarity screen's own main content before any pair is
  * selected — reused as-is rather than duplicated, so a change to a row's

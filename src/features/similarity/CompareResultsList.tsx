@@ -17,16 +17,16 @@ type AlgorithmSummary = ListSimilarityAlgorithmsResponse[number];
 export interface CompareResultsListProps {
   rows: CompareResponse;
   catalogueById: ReadonlyMap<string, AlgorithmSummary>;
-  /** Opens `algorithmId`'s trace as the full-height sheet (DESIGN §6.7),
-   * the same callback `SimilarityCompareView` already builds for
-   * `CompareTable` at `lg`+ — a row here never navigates anywhere else. */
+  /** Opens `algorithmId`'s trace as the full-height sheet, the same
+   * callback `SimilarityCompareView` already builds for `CompareTable`
+   * at `lg`+ — a row here never navigates anywhere else. */
   onOpenTrace: (algorithmId: string) => void;
   /** The algorithm id whose trace is currently open, if any. */
   openAlgorithmId?: string | null;
 }
 
 /**
- * The below-`lg` results list (DESIGN §6.7): the same six results
+ * The below-`lg` results list: the same six results
  * `CompareTable` renders as a table from `lg` up, here as a plain list of
  * ≥44px row buttons — family dot, mono id, score and a chevron on one line,
  * a quiet second line for the raw value and the computed time with its

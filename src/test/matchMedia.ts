@@ -25,11 +25,3 @@ function stubMatchMedia(matches: boolean) {
 export function stubNarrowViewport(): void {
   stubMatchMedia(false);
 }
-
-/** Simulates a viewport at or above the `lg` breakpoint — the same
- * default `src/test/setup.ts` already installs, exposed here only so a
- * test that toggles between widths can restore it explicitly instead of
- * relying on `vi.unstubAllGlobals()` alone. */
-export function stubWideViewport(): void {
-  stubMatchMedia(true);
-}

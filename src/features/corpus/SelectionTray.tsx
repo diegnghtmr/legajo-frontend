@@ -8,12 +8,12 @@ import { useSelectionStore } from './selectionStore';
 import { useAdaptiveSelectionCta } from './useAdaptiveSelectionCta';
 
 /** How many selected mono ids the tray's own summary line shows before
- * collapsing the rest into a "+N" overflow marker. Not a rule DESIGN.md
- * fixes to a specific number — a conservative, deterministic choice so the
- * summary line stays short and predictable at the 390px reference width
- * regardless of how many articles are selected; sorted rather than the raw
- * toggle order, so the visible ids and the "+N" count never reorder
- * themselves as more articles are toggled. */
+ * collapsing the rest into a "+N" overflow marker. Not fixed to a specific
+ * number by any external rule — a conservative, deterministic choice so
+ * the summary line stays short and predictable at the 390px reference
+ * width regardless of how many articles are selected; sorted rather than
+ * the raw toggle order, so the visible ids and the "+N" count never
+ * reorder themselves as more articles are toggled. */
 const MAX_VISIBLE_IDS = 3;
 
 export interface SelectionTrayProps {
@@ -24,15 +24,15 @@ export interface SelectionTrayProps {
    * `SimilarityWorkbenchLayout` uses this to know a comparison was
    * explicitly confirmed, as distinct from a pair merely existing, so
    * selecting a second article alone never swaps its own main content out
-   * from under the person mid-tap (DESIGN §6.7: select, select, compare is
-   * three interactions, not two). */
+   * from under the person mid-tap: a basic comparison stays select,
+   * select, compare — three interactions, not two. */
   onCtaActivate?: () => void;
 }
 
 /**
- * The rail's below-`lg` replacement (DESIGN §6.1, §6.7): docked at the
- * bottom, `paper-raised` with a hairline top border and safe-area bottom
- * padding. Its own summary line (the selected count and mono ids) opens the
+ * The rail's below-`lg` replacement: docked at the bottom, `paper-raised`
+ * with a hairline top border and safe-area bottom padding. Its own summary
+ * line (the selected count and mono ids) opens the
  * full corpus list as a bottom sheet on tap — reusing `CorpusListPanel`
  * verbatim, never a second copy of the rail's rows — while the same
  * adaptive CTA `SelectionRail` uses (`useAdaptiveSelectionCta`) stays
