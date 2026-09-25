@@ -49,7 +49,7 @@ describe('ArticleAbstract', () => {
     expect(screen.getByRole('status')).toBeInTheDocument();
   });
 
-  it('shows an alert when the document fails to load', async () => {
+  it('shows an alert with the exact mapped error message when the document fails to load', async () => {
     vi.spyOn(corpusApi, 'fetchCorpusDocument').mockRejectedValue({
       kind: 'network',
       cause: 'timeout',
@@ -58,7 +58,24 @@ describe('ArticleAbstract', () => {
 
     renderAbstract();
 
-    expect(await screen.findByRole('alert')).toBeInTheDocument();
+    const alert = await screen.findByRole('alert');
+    expect(alert).toHaveTextContent('No se pudo cargar el artículo');
+    expect(
+      screen.getByText(
+        'No se pudo contactar al servidor. Si es la primera solicitud en un rato, el servidor gratuito puede estar despertando: puede tardar hasta un minuto en responder.',
+      ),
+    ).toBeInTheDocument();
+  });
+
+  it('falls back to the generic unexpected-error message when the rejection carries no mapped i18nKey', async () => {
+    vi.spyOn(corpusApi, 'fetchCorpusDocument').mockRejectedValue({
+      kind: 'unexpected',
+      cause: 'boom',
+    });
+
+    renderAbstract();
+
+    expect(await screen.findByText('Ocurrió un error inesperado.')).toBeInTheDocument();
   });
 
   it('calls onClose when the close button is activated', async () => {

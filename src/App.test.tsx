@@ -51,7 +51,15 @@ describe('App', () => {
     ).toBeInTheDocument();
   });
 
-  it('redirects /corpus and /corpus/:id into the similarity workbench too', async () => {
+  it('redirects the bare /corpus path into the similarity workbench too', async () => {
+    renderAppAt('/corpus');
+
+    expect(
+      await screen.findByRole('heading', { name: 'Comparación de similitud' }),
+    ).toBeInTheDocument();
+  });
+
+  it('redirects /corpus/:id into the similarity workbench too', async () => {
     renderAppAt('/corpus/doc-01');
 
     expect(

@@ -16,16 +16,9 @@ import { Panel, PanelHeader } from '../../shared/components/Panel';
 import { AlgoTextList } from '../../shared/components/AlgoTextList';
 import { SegmentedControl, type SegmentedOption } from '../../shared/components/SegmentedControl';
 import { buttonVariants } from '../../shared/components/ui/button';
-import { useSelectionStore } from '../corpus/selectionStore';
+import { sortedPair, useSelectionStore } from '../corpus/selectionStore';
 import { algoFamilyFromKind } from './algorithmFamily';
 import { CompareTable } from './CompareTable';
-
-/**
- * Below two selected, the rail's own footer already carries the disabled
- * reason — this empty state only names the next step for the center, never
- * duplicating that reason text or pointing at a separate corpus screen the
- * persistent rail already replaces.
- */
 
 export const ALGORITHMS_QUERY_KEY = ['similarity', 'algorithms'] as const;
 
@@ -89,16 +82,14 @@ export function SimilarityPage() {
   const hasExactlyTwoSelected = selectedArticleIds.length === 2;
   const hasAlgorithmsSelected = selectedAlgorithmIds.length > 0;
 
+  // Sorted, never the raw toggle order — selecting d02 before d01 must
+  // still compare (and label) the pair as d01/d02, the same order the rail's
+  // own CTA uses (`sortedPair`).
+  const [documentIdA, documentIdB] = sortedPair(selectedArticleIds);
+
   const compareQuery = useQuery<CompareResponse, ApiError>({
-    queryKey: [
-      'similarity',
-      'compare',
-      selectedArticleIds[0],
-      selectedArticleIds[1],
-      selectedAlgorithmIds,
-    ] as const,
+    queryKey: ['similarity', 'compare', documentIdA, documentIdB, selectedAlgorithmIds] as const,
     queryFn: () => {
-      const [documentIdA, documentIdB] = selectedArticleIds;
       const body: CompareRequestBody = {
         documentIdA,
         documentIdB,
@@ -128,8 +119,6 @@ export function SimilarityPage() {
       </div>
     );
   }
-
-  const [documentIdA, documentIdB] = selectedArticleIds;
 
   const familyOptions: readonly SegmentedOption<FamilyFilter>[] = [
     { value: 'all', label: t('similarity.family.all') },

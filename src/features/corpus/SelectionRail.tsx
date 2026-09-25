@@ -12,7 +12,7 @@ import {
 import { Button } from '../../shared/components/ui/button';
 import { Checkbox } from '../../shared/components/ui/checkbox';
 import { cn } from '../../shared/lib/cn';
-import { useSelectionStore } from './selectionStore';
+import { sortedPair, useSelectionStore } from './selectionStore';
 
 export const CORPUS_LIST_QUERY_KEY = ['corpus', 'list'] as const;
 export const EMBEDDINGS_STATUS_QUERY_KEY = ['embeddings', 'status'] as const;
@@ -33,12 +33,16 @@ function matchesQuery(article: ArticleSummary, query: string): boolean {
 
 /** Both embedding families match the corpus, reduced to the rail's single
  * quiet status line — the full per-field breakdown only shows once the row
- * is opened in the detail panel. */
-function embeddingsSummaryState(
+ * is opened in the detail panel. Absent data (the defensive branch below;
+ * the caller only reaches this once the query has actually resolved
+ * successfully) never claims a match it has not actually observed — an
+ * honest "unknown" state instead of the dishonest default an earlier
+ * version silently fell back to. */
+export function embeddingsSummaryState(
   data: EmbeddingsStatusResponse | undefined,
-): 'allMatch' | 'mismatch' {
+): 'allMatch' | 'mismatch' | 'unknown' {
   if (!data) {
-    return 'allMatch';
+    return 'unknown';
   }
   return data.embeddingLocal.matchesCorpus && data.embeddingApi.matchesCorpus
     ? 'allMatch'
@@ -132,7 +136,12 @@ export function SelectionRail({ onOpenAbstract, onOpenEmbeddings }: SelectionRai
     modeText = t('corpus.rail.mode.reason');
     onCtaClick = () => {};
   } else if (selectedCount === 2) {
-    ctaLabel = t('corpus.rail.cta.comparePair', { a: selectedIds[0], b: selectedIds[1] });
+    // Sorted, never the raw toggle order — selecting d02 before d01 must
+    // still read "Comparar d01 y d02", the same order the compare screen
+    // itself derives (`sortedPair`), so the label never promises an order
+    // the results then contradict.
+    const [a, b] = sortedPair(selectedIds);
+    ctaLabel = t('corpus.rail.cta.comparePair', { a, b });
     ctaEnabled = true;
     modeText = t('corpus.rail.mode.pairwise');
     onCtaClick = () => void navigate('/similarity');

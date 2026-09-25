@@ -98,4 +98,34 @@ describe('SimilarityWorkbenchLayout', () => {
       await screen.findByRole('heading', { name: 'Estado de los embeddings' }),
     ).toBeInTheDocument();
   });
+
+  describe('closing the detail panel returns focus to the control that opened it', () => {
+    it('returns focus to the rail title after closing an abstract it opened', async () => {
+      const user = userEvent.setup();
+      renderLayout();
+
+      const title = await screen.findByRole('button', { name: 'A survey of string similarity' });
+      await user.click(title);
+      await screen.findByText('The full abstract.');
+
+      await user.click(screen.getByRole('button', { name: 'Cerrar' }));
+
+      expect(title).toHaveFocus();
+    });
+
+    it('returns focus to the embeddings status row after closing the embeddings detail it opened', async () => {
+      const user = userEvent.setup();
+      renderLayout();
+
+      const statusRow = await screen.findByRole('button', {
+        name: 'Ver el estado de los embeddings',
+      });
+      await user.click(statusRow);
+      await screen.findByRole('heading', { name: 'Estado de los embeddings' });
+
+      await user.click(screen.getByRole('button', { name: 'Cerrar' }));
+
+      expect(statusRow).toHaveFocus();
+    });
+  });
 });

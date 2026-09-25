@@ -56,6 +56,7 @@
         "errorValue": "Error",
         "allMatch": "Matches the corpus",
         "mismatch": "Check match",
+        "unknown": "Not verified yet",
         "openLabel": "View the embeddings status"
       }
     },

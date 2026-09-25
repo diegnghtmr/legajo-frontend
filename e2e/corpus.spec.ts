@@ -166,6 +166,45 @@ test.describe('corpus selection rail', () => {
     await expect(page.getByText('embedding-api')).toBeVisible();
   });
 
+  test('at 1440x900, the rail scrolls independently of the page: scrolled to the bottom of a long list, its footer CTA stays visible and the page itself never scrolls', async ({
+    page,
+  }) => {
+    const manySummaries = Array.from({ length: 30 }, (_unused, index) => ({
+      id: `doc-${String(index + 1).padStart(2, '0')}`,
+      title: `Article number ${index + 1}`,
+      authors: ['A. Author'],
+    }));
+    await page.route('**/api/v1/corpus', async (route) => {
+      await route.fulfill({ json: manySummaries });
+    });
+
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await page.goto('/');
+    await expect(page.getByRole('heading', { name: 'Comparación de similitud' })).toBeVisible();
+
+    const compareButton = page.getByRole('button', { name: 'Comparar' });
+    await expect(compareButton).toBeVisible();
+
+    // The page itself: no vertical scroll at all (the workbench fills the
+    // exact viewport height below the top bar and clips its own overflow).
+    const pageScrollHeight = await page.evaluate('document.documentElement.scrollHeight');
+    expect(pageScrollHeight).toBeLessThanOrEqual(900);
+
+    // Scroll the rail's own list region — not the page — all the way down.
+    const lastRow = page.getByRole('checkbox', { name: 'Article number 30' });
+    await lastRow.scrollIntoViewIfNeeded();
+    await expect(lastRow).toBeVisible();
+
+    // The footer CTA is still pinned in view after that internal scroll —
+    // never scrolled out alongside the list, and the page still has not
+    // scrolled at all.
+    await expect(compareButton).toBeVisible();
+    const pageScrollHeightAfter = await page.evaluate('document.documentElement.scrollHeight');
+    expect(pageScrollHeightAfter).toBeLessThanOrEqual(900);
+    const pageScrollY = await page.evaluate('window.scrollY');
+    expect(pageScrollY).toBe(0);
+  });
+
   test('has no automatically detectable WCAG 2.1 AA violations on the similarity workbench', async ({
     page,
   }) => {
@@ -179,23 +218,62 @@ test.describe('corpus selection rail', () => {
     expect(results.violations).toEqual([]);
   });
 
-  test('the rail stacks above the results with no page-level horizontal scroll and no axe violations at 390px', async ({
+  test('the rail stacks above the results with no page-level horizontal overflow and no axe violations at 390px', async ({
     page,
   }) => {
     await page.setViewportSize({ width: 390, height: 844 });
     await page.goto('/');
     await expect(page.getByRole('heading', { name: 'Comparación de similitud' })).toBeVisible();
 
-    // A string body (not an arrow function) evaluates in the browser
-    // without pulling the `dom` lib into this project's Node-typed e2e
-    // tsconfig, the same pattern the WCAG 2.4.11 test above uses.
-    const scrollWidth = await page.evaluate('document.documentElement.scrollWidth');
-    expect(scrollWidth).toBe(390);
+    // "No horizontal overflow" is `scrollWidth <= clientWidth`, not a pinned
+    // literal pixel value — a device pixel ratio, a scrollbar-gutter
+    // reservation, or a future content change could shift the exact number
+    // without there being any real overflow, and a pinned-to-390 assertion
+    // would then fail for a reason unrelated to what this test guards
+    // against. A string body (not an arrow function) evaluates in the
+    // browser without pulling the `dom` lib into this project's Node-typed
+    // e2e tsconfig, the same pattern the WCAG 2.4.11 test above uses.
+    const overflow = await page.evaluate(
+      '(() => { const el = document.documentElement; return { scrollWidth: el.scrollWidth, clientWidth: el.clientWidth }; })()',
+    );
+    expect(
+      (overflow as { scrollWidth: number; clientWidth: number }).scrollWidth,
+    ).toBeLessThanOrEqual((overflow as { scrollWidth: number; clientWidth: number }).clientWidth);
 
     const results = await new AxeBuilder({ page })
       .withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa'])
       .analyze();
     expect(results.violations).toEqual([]);
+  });
+
+  test('below lg (390px) the rail rows and the adaptive CTA render, are actually visible (the layout never collapses the list), and operate end to end', async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto('/');
+
+    const firstRow = page.getByRole('checkbox', { name: 'A survey of string similarity' });
+    const secondRow = page.getByRole('checkbox', { name: 'Embeddings for scientific text' });
+    // `toBeVisible()` fails on a zero-size box (e.g. the `h-full` /
+    // `flex-1 overflow-y-auto` rail layout collapsing to 0px because its
+    // ancestor has no bounded height below `lg`), not merely on DOM
+    // presence — a real regression this specific check would catch.
+    await expect(firstRow).toBeVisible();
+    await expect(secondRow).toBeVisible();
+    const rowBox = await firstRow.boundingBox();
+    expect(rowBox).not.toBeNull();
+    expect(rowBox!.height).toBeGreaterThan(0);
+
+    await firstRow.check();
+    await secondRow.check();
+
+    const compareButton = page.getByRole('button', { name: 'Comparar doc-01 y doc-02' });
+    await expect(compareButton).toBeVisible();
+    await expect(compareButton).toBeEnabled();
+    await compareButton.click();
+
+    await expect(page.getByRole('heading', { name: 'Comparación de similitud' })).toBeVisible();
+    await expect(page.getByText('Comparando doc-01 × doc-02')).toBeVisible();
   });
 
   for (const path of ['/corpus/doc-01', '/similarity', '/clustering', '/no-such-route']) {

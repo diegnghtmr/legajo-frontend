@@ -7,7 +7,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import * as corpusApi from '../../infrastructure/api/corpus';
 import * as embeddingsApi from '../../infrastructure/api/embeddings';
 import { useSelectionStore } from './selectionStore';
-import { SelectionRail } from './SelectionRail';
+import { embeddingsSummaryState, SelectionRail } from './SelectionRail';
 
 vi.mock('../../infrastructure/api/corpus');
 vi.mock('../../infrastructure/api/embeddings');
@@ -131,6 +131,43 @@ describe('SelectionRail', () => {
     expect(screen.getByText('Sin coincidencias')).toBeInTheDocument();
   });
 
+  describe('the article list states', () => {
+    it('shows a loading status before the corpus resolves', () => {
+      vi.spyOn(corpusApi, 'fetchCorpus').mockReturnValue(new Promise(() => {}));
+
+      renderRail();
+
+      expect(screen.getByRole('status')).toHaveTextContent('Cargando el corpus…');
+    });
+
+    it('shows an alert with the exact mapped error message when the corpus fails to load', async () => {
+      vi.spyOn(corpusApi, 'fetchCorpus').mockRejectedValue({
+        kind: 'network',
+        cause: 'timeout',
+        i18nKey: 'errors.network.coldStart',
+      });
+
+      renderRail();
+
+      const alert = await screen.findByRole('alert');
+      expect(alert).toHaveTextContent('No se pudo cargar el corpus');
+      expect(
+        screen.getByText(
+          'No se pudo contactar al servidor. Si es la primera solicitud en un rato, el servidor gratuito puede estar despertando: puede tardar hasta un minuto en responder.',
+        ),
+      ).toBeInTheDocument();
+    });
+
+    it('shows the empty-corpus message when the corpus has no articles, never the no-matches search line', async () => {
+      vi.spyOn(corpusApi, 'fetchCorpus').mockResolvedValue([]);
+
+      renderRail();
+
+      expect(await screen.findByText('El corpus no tiene artículos cargados.')).toBeInTheDocument();
+      expect(screen.queryByText('Sin coincidencias')).not.toBeInTheDocument();
+    });
+  });
+
   it('disables Limpiar with nothing selected, and clears the selection when enabled', async () => {
     const user = userEvent.setup();
     renderRail();
@@ -167,6 +204,19 @@ describe('SelectionRail', () => {
       expect(button).toBeEnabled();
     });
 
+    it('sorts the pair label regardless of click order, selecting doc-02 before doc-01', async () => {
+      const user = userEvent.setup();
+      renderRail();
+      await user.click(
+        await screen.findByRole('checkbox', { name: 'Embeddings for scientific text' }),
+      );
+      await user.click(screen.getByRole('checkbox', { name: 'A survey of string similarity' }));
+
+      // Never "Comparar doc-02 y doc-01" (the raw toggle order) — the label
+      // always agrees with the compare screen's own derivation.
+      expect(screen.getByRole('button', { name: 'Comparar doc-01 y doc-02' })).toBeEnabled();
+    });
+
     it('reads "Ver matriz de N" and never re-shows a wrong-count dead end at three or more selected', async () => {
       const user = userEvent.setup();
       renderRail();
@@ -185,15 +235,43 @@ describe('SelectionRail', () => {
     });
   });
 
-  it('shows a one-line embeddings summary that opens the embeddings detail on click', async () => {
-    const user = userEvent.setup();
-    const { onOpenEmbeddings } = renderRail();
+  describe('the embeddings status summary', () => {
+    it('shows a one-line embeddings summary that opens the embeddings detail on click', async () => {
+      const user = userEvent.setup();
+      const { onOpenEmbeddings } = renderRail();
 
-    const row = await screen.findByRole('button', { name: 'Ver el estado de los embeddings' });
-    await expect.poll(() => row.textContent).toContain('Coincide con el corpus');
+      const row = await screen.findByRole('button', { name: 'Ver el estado de los embeddings' });
+      await expect.poll(() => row.textContent).toContain('Coincide con el corpus');
 
-    await user.click(row);
+      await user.click(row);
 
-    expect(onOpenEmbeddings).toHaveBeenCalledTimes(1);
+      expect(onOpenEmbeddings).toHaveBeenCalledTimes(1);
+    });
+
+    it('reads "Revisar coincidencia" when either embedding family mismatches the corpus', async () => {
+      vi.spyOn(embeddingsApi, 'fetchEmbeddingsStatus').mockResolvedValue({
+        ...EMBEDDINGS_STATUS,
+        embeddingApi: { ...EMBEDDINGS_STATUS.embeddingApi, matchesCorpus: false },
+      });
+
+      renderRail();
+
+      const row = await screen.findByRole('button', { name: 'Ver el estado de los embeddings' });
+      await expect.poll(() => row.textContent).toContain('Revisar coincidencia');
+    });
+
+    it('shows a loading value, never a claimed match, while the status is still pending', () => {
+      vi.spyOn(embeddingsApi, 'fetchEmbeddingsStatus').mockReturnValue(new Promise(() => {}));
+
+      renderRail();
+
+      const row = screen.getByRole('button', { name: 'Ver el estado de los embeddings' });
+      expect(row).toHaveTextContent('Cargando…');
+      expect(row).not.toHaveTextContent('Coincide con el corpus');
+    });
+
+    it('the pure state helper never claims a match for absent data — an honest "unknown", not the corpus-matches default', () => {
+      expect(embeddingsSummaryState(undefined)).toBe('unknown');
+    });
   });
 });
