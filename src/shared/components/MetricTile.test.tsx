@@ -26,4 +26,16 @@ describe('MetricTile', () => {
 
     expect(screen.getByText('Tree')).toBeInTheDocument();
   });
+
+  it('renders the leader marker as an ink-bordered badge, not the soft-pill default', () => {
+    render(
+      <MetricTile eyebrow="Silhouette" label="ward" value="0.611" leader leaderLabel="Tree" />,
+    );
+
+    const marker = screen.getByText('Tree');
+    expect(marker.className).toContain('border-ink');
+    expect(marker.className).toContain('rounded-sm');
+    expect(marker.className).not.toContain('border-hairline-strong');
+    expect(marker.className).not.toContain('rounded-full');
+  });
 });
