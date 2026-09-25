@@ -69,8 +69,17 @@ describe('CorpusPage', () => {
     expect(
       screen.getByText('Selecciona un artículo para ver su resumen completo.'),
     ).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Comparar' })).toBeDisabled();
-    expect(screen.getByRole('button', { name: 'Ver matriz' })).toBeDisabled();
+    const compareButton = screen.getByRole('button', { name: 'Comparar' });
+    const matrixButton = screen.getByRole('button', { name: 'Ver matriz' });
+    expect(compareButton).toBeDisabled();
+    expect(matrixButton).toBeDisabled();
+    // Both CTAs share one sticky bottom bar (jsdom performs no real layout,
+    // so this asserts the CSS contract, not an actual scroll position —
+    // verified against a live render).
+    const ctaBar = compareButton.closest('.sticky');
+    expect(ctaBar).not.toBeNull();
+    expect(ctaBar).toHaveClass('bottom-0');
+    expect(ctaBar).toContainElement(matrixButton);
     expect(
       await screen.findByRole('heading', { name: 'Estado de los embeddings' }),
     ).toBeInTheDocument();
