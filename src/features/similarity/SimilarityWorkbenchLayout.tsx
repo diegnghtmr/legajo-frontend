@@ -85,6 +85,37 @@ export function SimilarityWorkbenchLayout() {
   // DIFFERENT pair assembled afterwards (or none at all) always needs its
   // own fresh confirmation, since it no longer matches this remembered key.
   const [confirmedPairKey, setConfirmedPairKey] = useState<string | null>(() => pairKey);
+  // Kept in sync with the pair's own existence and, at `lg` and above, its
+  // results already showing — adjusted during render (React's own pattern
+  // for resetting one piece of state in response to another changing, the
+  // same one `wasTraceOpen` below already uses), not an effect, so both
+  // corrections are visible in the very render that would otherwise show a
+  // stale confirmation.
+  //
+  // (a) The pair ceasing to exist clears it: without this, deselecting an
+  // article and then reselecting the exact same pair would reproduce the
+  // same `pairKey` as before — a value this state never otherwise forgets —
+  // and silently count as still confirmed, skipping the tray's own CTA
+  // confirmation a second, genuinely fresh pair always needs.
+  //
+  // (b) At `lg` and above, on the plain compare path, a pair's results are
+  // already showing (via the routed `Outlet`) with no separate CTA to
+  // confirm anything — neither a rail CTA activation nor simply already
+  // having results on screen up here ever reaches the setter above. Without
+  // this, shrinking below `lg` afterwards would find no confirmation on
+  // record and revert the main content to the corpus list out from under
+  // whatever was already showing.
+  if (pairKey === null) {
+    if (confirmedPairKey !== null) {
+      setConfirmedPairKey(null);
+    }
+  } else if (
+    isAtLeastLg &&
+    location.pathname === PLAIN_COMPARE_PATH &&
+    confirmedPairKey !== pairKey
+  ) {
+    setConfirmedPairKey(pairKey);
+  }
   const isPairConfirmed = pairKey !== null && pairKey === confirmedPairKey;
   // Below `lg`, before any comparison is confirmed on the plain compare path
   // (never its matrix or trace-deep-link siblings — see
@@ -319,7 +350,11 @@ export function SimilarityWorkbenchLayout() {
         // content (both below).
         rail={
           isAtLeastLg ? (
-            <SelectionRail onOpenAbstract={openAbstract} onOpenEmbeddings={openEmbeddings} />
+            <SelectionRail
+              onOpenAbstract={openAbstract}
+              onOpenEmbeddings={openEmbeddings}
+              onCtaActivate={() => setConfirmedPairKey(pairKey)}
+            />
           ) : undefined
         }
         detail={isAtLeastLg ? (detailContent ?? undefined) : undefined}
