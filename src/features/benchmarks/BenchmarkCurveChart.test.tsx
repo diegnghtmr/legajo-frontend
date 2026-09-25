@@ -1,9 +1,42 @@
-import { render, screen, within } from '@testing-library/react';
-import { describe, expect, it } from 'vitest';
+import { act, render, screen, within } from '@testing-library/react';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { BenchmarkCurveChart } from './BenchmarkCurveChart';
 import type { FamilySeries } from './grouping';
 import { dashPatternForIndex } from './seriesStyle';
+
+/**
+ * A controllable fake, installed per test via `vi.stubGlobal` — the same
+ * pattern `useElementWidth`'s own test and `DendrogramCard.test.tsx` use:
+ * jsdom's own default `ResizeObserver` stub never fires a callback, so a
+ * test that needs to observe a real resize installs this instead.
+ */
+class FakeResizeObserver implements ResizeObserver {
+  static instances: FakeResizeObserver[] = [];
+  private readonly callback: ResizeObserverCallback;
+
+  constructor(callback: ResizeObserverCallback) {
+    this.callback = callback;
+    FakeResizeObserver.instances.push(this);
+  }
+
+  observe(): void {}
+  unobserve(): void {}
+  disconnect(): void {}
+
+  trigger(width: number): void {
+    this.callback(
+      [{ contentRect: { width } } as ResizeObserverEntry],
+      this as unknown as ResizeObserver,
+    );
+  }
+}
+
+afterEach(() => {
+  vi.unstubAllGlobals();
+  vi.restoreAllMocks();
+  FakeResizeObserver.instances = [];
+});
 
 const SERIES: FamilySeries[] = [
   {
@@ -84,6 +117,13 @@ describe('BenchmarkCurveChart', () => {
     expect(within(dataTable).getByText('29.6 µs')).toBeInTheDocument();
     expect(within(dataTable).getByText('4.5 µs')).toBeInTheDocument();
     expect(within(dataTable).getByText('20.3 µs')).toBeInTheDocument();
+  });
+
+  it('never lets the shared Table primitive\'s own "w-full" survive on the sr-only data table (it would resolve against the viewport once absolutely positioned, widening the whole page)', () => {
+    renderChart();
+
+    const dataTable = screen.getByRole('table', { name: 'Valores medidos: pares clásicos' });
+    expect(dataTable.className).not.toMatch(/(?:^|\s)w-full(?:\s|$)/);
   });
 
   it('renders without throwing on the log-log scale', () => {
@@ -284,5 +324,21 @@ describe('BenchmarkCurveChart', () => {
     );
 
     expect(screen.queryByRole('list', { name: 'Leyenda de series' })).not.toBeInTheDocument();
+  });
+
+  it('fills its own measured container width instead of a fixed pixel width, once the container reports a wider measurement', () => {
+    vi.stubGlobal('ResizeObserver', FakeResizeObserver);
+
+    const { container } = renderChart();
+    const svgBefore = container.querySelector('svg.recharts-surface');
+    expect(svgBefore).not.toBeNull();
+    const widthBefore = Number(svgBefore?.getAttribute('width'));
+
+    act(() => {
+      FakeResizeObserver.instances[0]?.trigger(1200);
+    });
+
+    const svgAfter = container.querySelector('svg.recharts-surface');
+    expect(Number(svgAfter?.getAttribute('width'))).toBeGreaterThan(widthBefore);
   });
 });
