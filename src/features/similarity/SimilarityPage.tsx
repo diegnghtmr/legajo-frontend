@@ -1,7 +1,7 @@
-import { useMemo, useState } from 'react';
+import { useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
-import { Link } from 'react-router';
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router';
 
 import { DEFAULT_UNEXPECTED_I18N_KEY, type ApiError } from '../../infrastructure/apiError';
 import {
@@ -27,23 +27,54 @@ const DEFAULT_ALGORITHM_IDS = [...AlgorithmIdSchema.options];
 
 type FamilyFilter = 'all' | 'classic' | 'ai';
 
+function isFamilyFilter(value: string | null): value is FamilyFilter {
+  return value === 'all' || value === 'classic' || value === 'ai';
+}
+
+/** `null` (the param is absent) means "never touched" — default to every
+ * algorithm. A present-but-empty value means "the person deselected every
+ * algorithm", which must stay empty, never fall back to the default. */
+function parseAlgorithmIds(raw: string | null): AlgorithmId[] {
+  if (raw === null) {
+    return [...DEFAULT_ALGORITHM_IDS];
+  }
+  const known = new Set<string>(DEFAULT_ALGORITHM_IDS);
+  return raw
+    .split(',')
+    .filter((id) => known.has(id))
+    .map((id) => id as AlgorithmId);
+}
+
 /**
- * Similarity compare screen. Reads the two
- * selected articles from the shared corpus `selectionStore`; exactly two are
- * required and never auto-picked.
+ * Similarity compare screen. Reads the compared pair either from the trace
+ * deep link's own `documentIdA`/`documentIdB` search params (when this route
+ * matched `/similarity/:algorithmId/trace`) or, otherwise, from the shared
+ * corpus `selectionStore` — exactly two selected, never auto-picked. Both
+ * `/similarity` and `/similarity/:algorithmId/trace` render this same
+ * component: a trace deep link never swaps the pairwise results out for a
+ * trace-only screen, it only makes `SimilarityWorkbenchLayout` additionally
+ * open that algorithm's trace in the detail panel next to these same
+ * results (§6.3).
  *
- * `sortedPair` returns a pair only for exactly two selected ids — anything
- * else renders the empty state right here, before any compare-specific hook
- * or query exists. There is no blank-id fallback to guard: `pair` is either
- * `null` (empty state, nothing else rendered) or a real `[a, b]` tuple, and
- * only the latter is ever passed down to `SimilarityCompareView`, which is
- * the only place a compare query gets created.
+ * `pair` is either `null` (empty state, nothing else rendered) or a real
+ * `[a, b]` tuple, and only the latter is ever passed down to
+ * `SimilarityCompareView`, which is the only place a compare query gets
+ * created — there is no blank-id fallback to guard.
  */
 export function SimilarityPage() {
   const { t } = useTranslation();
+  const { algorithmId: traceAlgorithmId } = useParams<{ algorithmId?: string }>();
+  const [searchParams] = useSearchParams();
   const selectedArticleIds = useSelectionStore((state) => state.selectedIds);
   const canMatrix = useSelectionStore((state) => state.canMatrix);
-  const pair = sortedPair(selectedArticleIds);
+
+  const urlDocumentIdA = searchParams.get('documentIdA');
+  const urlDocumentIdB = searchParams.get('documentIdB');
+  const urlPair: readonly [string, string] | null =
+    traceAlgorithmId !== undefined && urlDocumentIdA && urlDocumentIdB
+      ? [urlDocumentIdA, urlDocumentIdB]
+      : null;
+  const pair = urlPair ?? sortedPair(selectedArticleIds);
 
   if (pair === null) {
     return (
@@ -65,13 +96,16 @@ export function SimilarityPage() {
     );
   }
 
-  return <SimilarityCompareView pair={pair} />;
+  return <SimilarityCompareView pair={pair} openAlgorithmId={traceAlgorithmId ?? null} />;
 }
 
 interface SimilarityCompareViewProps {
   /** Always a real, non-blank pair — `SimilarityPage` only mounts this
-   * component once `sortedPair` has resolved one. */
+   * component once a pair has resolved (from the URL or the rail). */
   pair: readonly [string, string];
+  /** The algorithm id whose trace is currently open in the detail panel, if
+   * this render came from the `/similarity/:algorithmId/trace` deep link. */
+  openAlgorithmId: string | null;
 }
 
 /**
@@ -88,12 +122,26 @@ interface SimilarityCompareViewProps {
  * keyed by `(documentIdA, documentIdB, selectedAlgorithmIds)`, so every
  * change to the selection issues a fresh request instead of reusing a stale
  * result.
+ *
+ * `family` and `selectedAlgorithmIds` live in the URL's own search params
+ * (`family`, `algorithms`), not local `useState`: this component unmounts and
+ * remounts whenever the selection moves away from a pair and back (rendered
+ * conditionally by `SimilarityPage`), which would silently reset plain local
+ * state on every such round-trip. The URL survives that unmount, so a filter
+ * or algorithm choice made before losing the pair is still there once it
+ * comes back.
  */
-function SimilarityCompareView({ pair }: SimilarityCompareViewProps) {
+function SimilarityCompareView({ pair, openAlgorithmId }: SimilarityCompareViewProps) {
   const { t } = useTranslation();
-  const [family, setFamily] = useState<FamilyFilter>('all');
-  const [selectedAlgorithmIds, setSelectedAlgorithmIds] =
-    useState<AlgorithmId[]>(DEFAULT_ALGORITHM_IDS);
+  const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
+
+  const rawFamily = searchParams.get('family');
+  const family: FamilyFilter = isFamilyFilter(rawFamily) ? rawFamily : 'all';
+  const selectedAlgorithmIds = useMemo(
+    () => parseAlgorithmIds(searchParams.get('algorithms')),
+    [searchParams],
+  );
 
   const algorithmsQuery = useQuery<ListSimilarityAlgorithmsResponse, ApiError>({
     queryKey: ALGORITHMS_QUERY_KEY,
@@ -116,14 +164,25 @@ function SimilarityCompareView({ pair }: SimilarityCompareViewProps) {
     [algorithmsQuery.data, family],
   );
 
-  const toggleAlgorithm = (id: string) => {
+  function setFamily(next: FamilyFilter) {
+    const nextParams = new URLSearchParams(searchParams);
+    if (next === 'all') {
+      nextParams.delete('family');
+    } else {
+      nextParams.set('family', next);
+    }
+    setSearchParams(nextParams, { replace: true });
+  }
+
+  function toggleAlgorithm(id: string) {
     const algorithmId = id as AlgorithmId;
-    setSelectedAlgorithmIds((previous) =>
-      previous.includes(algorithmId)
-        ? previous.filter((existing) => existing !== algorithmId)
-        : [...previous, algorithmId],
-    );
-  };
+    const nextIds = selectedAlgorithmIds.includes(algorithmId)
+      ? selectedAlgorithmIds.filter((existing) => existing !== algorithmId)
+      : [...selectedAlgorithmIds, algorithmId];
+    const nextParams = new URLSearchParams(searchParams);
+    nextParams.set('algorithms', nextIds.join(','));
+    setSearchParams(nextParams, { replace: true });
+  }
 
   const hasAlgorithmsSelected = selectedAlgorithmIds.length > 0;
 
@@ -150,6 +209,20 @@ function SimilarityCompareView({ pair }: SimilarityCompareViewProps) {
     { value: 'classic', label: t('similarity.family.classic') },
     { value: 'ai', label: t('similarity.family.ai') },
   ];
+
+  // A row's trace trigger opens the panel by navigating to the deep-link
+  // route with this exact pair, while keeping every other already-present
+  // search param (the family filter, the algorithm selection) instead of
+  // wiping them.
+  function openTrace(algorithmId: string) {
+    const nextParams = new URLSearchParams(searchParams);
+    nextParams.set('documentIdA', documentIdA);
+    nextParams.set('documentIdB', documentIdB);
+    navigate({
+      pathname: `/similarity/${encodeURIComponent(algorithmId)}/trace`,
+      search: `?${nextParams.toString()}`,
+    });
+  }
 
   return (
     <div className="flex flex-col gap-6">
@@ -210,8 +283,8 @@ function SimilarityCompareView({ pair }: SimilarityCompareViewProps) {
         <CompareTable
           rows={compareQuery.data}
           catalogueById={catalogueById}
-          documentIdA={documentIdA}
-          documentIdB={documentIdB}
+          onOpenTrace={openTrace}
+          openAlgorithmId={openAlgorithmId}
         />
       )}
     </div>

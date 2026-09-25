@@ -49,7 +49,10 @@ const ROWS: CompareResponse = [
 ];
 
 function renderTable(
-  overrides: Partial<{ onOpenTrace: (algorithmId: string) => void; openAlgorithmId: string | null }> = {},
+  overrides: Partial<{
+    onOpenTrace: (algorithmId: string) => void;
+    openAlgorithmId: string | null;
+  }> = {},
 ) {
   const onOpenTrace = overrides.onOpenTrace ?? vi.fn();
   const view = render(
@@ -57,8 +60,6 @@ function renderTable(
       <CompareTable
         rows={ROWS}
         catalogueById={CATALOGUE}
-        documentIdA="doc-01"
-        documentIdB="doc-02"
         onOpenTrace={onOpenTrace}
         openAlgorithmId={overrides.openAlgorithmId ?? null}
       />

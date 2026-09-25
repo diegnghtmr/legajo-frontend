@@ -90,7 +90,8 @@ export function CompareTable({
               aria-current={isOpen ? 'true' : undefined}
               className={cn(
                 'relative',
-                isOpen && "before:absolute before:inset-y-0 before:left-0 before:w-[2px] before:bg-ink before:content-['']",
+                isOpen &&
+                  "before:absolute before:inset-y-0 before:left-0 before:w-[2px] before:bg-ink before:content-['']",
               )}
             >
               <TableHead

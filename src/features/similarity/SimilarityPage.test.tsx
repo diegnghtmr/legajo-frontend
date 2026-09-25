@@ -1,8 +1,8 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { render, screen, waitFor, within } from '@testing-library/react';
+import { act, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import type { ReactNode } from 'react';
-import { MemoryRouter } from 'react-router';
+import { MemoryRouter, Route, Routes, useLocation } from 'react-router';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import type {
@@ -52,6 +52,34 @@ function renderWithProviders(ui: ReactNode) {
   const view = render(
     <QueryClientProvider client={queryClient}>
       <MemoryRouter>{ui}</MemoryRouter>
+    </QueryClientProvider>,
+  );
+  return { queryClient, ...view };
+}
+
+/** Prints the router's live location as text, so a test can assert on the
+ * URL a navigation actually produced without reaching into router
+ * internals. Works anywhere inside the `MemoryRouter`, matched route or
+ * not — `useLocation` is never scoped to a particular `Route`. */
+function LocationProbe() {
+  const location = useLocation();
+  return <p data-testid="location">{`${location.pathname}${location.search}`}</p>;
+}
+
+/** The same two routes `App.tsx` maps to `SimilarityPage` (the plain compare
+ * view and the trace deep link), so a row's own `navigate` call is exercised
+ * against real route matching instead of a router with nothing mounted. */
+function renderAtRoute(initialPath: string) {
+  const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  const view = render(
+    <QueryClientProvider client={queryClient}>
+      <MemoryRouter initialEntries={[initialPath]}>
+        <LocationProbe />
+        <Routes>
+          <Route path="/similarity" element={<SimilarityPage />} />
+          <Route path="/similarity/:algorithmId/trace" element={<SimilarityPage />} />
+        </Routes>
+      </MemoryRouter>
     </QueryClientProvider>,
   );
   return { queryClient, ...view };
@@ -219,7 +247,10 @@ describe('SimilarityPage — exactly two selected', () => {
 
     renderWithProviders(<SimilarityPage />);
 
-    await screen.findByRole('button', { name: 'embedding-api' });
+    // Scoped to the algorithm-selection group: once the table renders, each
+    // result row carries its own same-named trace trigger button too.
+    const algoGroup = await screen.findByRole('group', { name: 'Selección de algoritmos' });
+    within(algoGroup).getByRole('button', { name: 'embedding-api' });
     await waitFor(() =>
       expect(similarityApi.compareSimilarity).toHaveBeenLastCalledWith({
         documentIdA: 'doc-01',
@@ -228,7 +259,7 @@ describe('SimilarityPage — exactly two selected', () => {
       }),
     );
 
-    await user.click(screen.getByRole('button', { name: 'embedding-api' }));
+    await user.click(within(algoGroup).getByRole('button', { name: 'embedding-api' }));
 
     await waitFor(() =>
       expect(similarityApi.compareSimilarity).toHaveBeenLastCalledWith({
@@ -251,12 +282,15 @@ describe('SimilarityPage — exactly two selected', () => {
     const user = userEvent.setup();
 
     renderWithProviders(<SimilarityPage />);
-    await screen.findByRole('button', { name: 'embedding-api' });
+    // Scoped to the algorithm-selection group: once the table renders, each
+    // result row carries its own same-named trace trigger button too.
+    const algoGroup = await screen.findByRole('group', { name: 'Selección de algoritmos' });
+    within(algoGroup).getByRole('button', { name: 'embedding-api' });
     await waitFor(() => expect(similarityApi.compareSimilarity).toHaveBeenCalled());
 
     expect(ALL_SIX_IDS).toHaveLength(6);
     for (const id of ALL_SIX_IDS) {
-      await user.click(screen.getByRole('button', { name: id }));
+      await user.click(within(algoGroup).getByRole('button', { name: id }));
     }
     const callsWithNoSelection = vi.mocked(similarityApi.compareSimilarity).mock.calls.length;
 
@@ -300,5 +334,111 @@ describe('SimilarityPage — exactly two selected', () => {
     renderWithProviders(<SimilarityPage />);
 
     expect(await screen.findByText('Ocurrió un error inesperado.')).toBeInTheDocument();
+  });
+});
+
+describe('SimilarityPage — the trace deep link route', () => {
+  beforeEach(() => {
+    vi.spyOn(similarityApi, 'fetchSimilarityAlgorithms').mockResolvedValue(CATALOGUE);
+    vi.spyOn(similarityApi, 'compareSimilarity').mockResolvedValue(compareResponseFor(ALL_SIX_IDS));
+  });
+
+  it("reads the compared pair from the deep link's own document ids, even with nothing rail-selected", async () => {
+    renderAtRoute('/similarity/levenshtein/trace?documentIdA=doc-01&documentIdB=doc-02');
+
+    expect(await screen.findAllByRole('row')).toHaveLength(7);
+    expect(similarityApi.compareSimilarity).toHaveBeenCalledWith({
+      documentIdA: 'doc-01',
+      documentIdB: 'doc-02',
+      algorithmIds: [...ALL_SIX_IDS],
+    });
+  });
+
+  it('marks the deep-linked algorithm’s row as the currently-open trace', async () => {
+    renderAtRoute('/similarity/tfidf-cosine/trace?documentIdA=doc-01&documentIdB=doc-02');
+
+    const row = await screen.findByRole('row', { name: /tfidf-cosine/i });
+    expect(row).toHaveAttribute('aria-current', 'true');
+  });
+
+  it("opens a row's trace by navigating to its deep link, preserving the family filter and algorithm selection already in the URL", async () => {
+    useSelectionStore.setState({
+      selectedIds: ['doc-01', 'doc-02'],
+      canCompare: true,
+      canMatrix: false,
+    });
+    const user = userEvent.setup();
+
+    renderAtRoute('/similarity?family=classic&algorithms=levenshtein%2Cjaccard');
+
+    await screen.findByRole('group', { name: 'Selección de algoritmos' });
+    // Only the two URL-selected algorithms were requested — proof the
+    // selection itself (not only the family filter) came from the URL.
+    await waitFor(() =>
+      expect(similarityApi.compareSimilarity).toHaveBeenCalledWith({
+        documentIdA: 'doc-01',
+        documentIdB: 'doc-02',
+        algorithmIds: ['levenshtein', 'jaccard'],
+      }),
+    );
+
+    // The row's own trigger, scoped to the results table so it is never
+    // confused with the filter's same-named toggle button (that ambiguity
+    // is exercised directly by CompareTable.test.tsx).
+    const row = await screen.findByRole('row', { name: /^levenshtein/i });
+    await user.click(within(row).getByRole('button', { name: 'levenshtein' }));
+
+    const location = await screen.findByTestId('location');
+    expect(location).toHaveTextContent('/similarity/levenshtein/trace');
+    expect(location.textContent).toContain('documentIdA=doc-01');
+    expect(location.textContent).toContain('documentIdB=doc-02');
+    expect(location.textContent).toContain('family=classic');
+    expect(location.textContent).toContain('algorithms=levenshtein%2Cjaccard');
+  });
+
+  it('keeps the family filter and algorithm selection when the compare view remounts after losing, then regaining, a valid pair', async () => {
+    useSelectionStore.setState({
+      selectedIds: ['doc-01', 'doc-02'],
+      canCompare: true,
+      canMatrix: false,
+    });
+
+    renderAtRoute('/similarity?family=classic&algorithms=levenshtein');
+
+    await waitFor(() =>
+      expect(similarityApi.compareSimilarity).toHaveBeenLastCalledWith({
+        documentIdA: 'doc-01',
+        documentIdB: 'doc-02',
+        algorithmIds: ['levenshtein'],
+      }),
+    );
+
+    // Losing the pair unmounts `SimilarityCompareView` entirely (the wrong-
+    // count empty state renders instead) — a plain local `useState` would
+    // be destroyed here.
+    act(() => {
+      useSelectionStore.setState({ selectedIds: ['doc-01'], canCompare: false, canMatrix: false });
+    });
+    expect(
+      screen.getByText(
+        'Selecciona 2 artículos en el panel para comparar, o 3 o más para ver la matriz.',
+      ),
+    ).toBeInTheDocument();
+
+    act(() => {
+      useSelectionStore.setState({
+        selectedIds: ['doc-01', 'doc-02'],
+        canCompare: true,
+        canMatrix: false,
+      });
+    });
+
+    await waitFor(() =>
+      expect(similarityApi.compareSimilarity).toHaveBeenLastCalledWith({
+        documentIdA: 'doc-01',
+        documentIdB: 'doc-02',
+        algorithmIds: ['levenshtein'],
+      }),
+    );
   });
 });

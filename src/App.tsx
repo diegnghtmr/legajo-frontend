@@ -12,12 +12,21 @@ import { NotFoundPage } from './NotFoundPage';
 /**
  * Top-level route table. `AppLayout` is the layout route (header, section
  * nav, language switch) every screen renders inside via `Outlet`.
- * `SimilarityWorkbenchLayout` nests inside it for the three similarity
- * screens (compare, matrix, trace): it adds the persistent corpus selection
- * rail and the abstract/embeddings detail region around their own `Outlet`.
- * Corpus selection now lives entirely in that rail, so the former standalone
- * `/corpus` and `/corpus/:id` routes redirect into the similarity workbench
- * instead of rendering their own screen.
+ * `SimilarityWorkbenchLayout` nests inside it for the similarity screens
+ * (compare, matrix, trace deep link, full-screen trace): it adds the
+ * persistent corpus selection rail and the abstract/embeddings/trace detail
+ * region around their own `Outlet`. Corpus selection now lives entirely in
+ * that rail, so the former standalone `/corpus` and `/corpus/:id` routes
+ * redirect into the similarity workbench instead of rendering their own
+ * screen.
+ *
+ * `similarity/:algorithmId/trace` renders the same `SimilarityPage` as plain
+ * `similarity` — it never swaps the pairwise results out for a trace-only
+ * screen — and `SimilarityWorkbenchLayout` opens that algorithm's trace in
+ * the detail panel by matching this same path. The distinct
+ * `similarity/:algorithmId/trace/full` route is the panel's own "full
+ * screen" escape hatch: `SimilarityTracePage`, unconstrained by the panel's
+ * 460px width.
  */
 export function App() {
   return (
@@ -29,7 +38,8 @@ export function App() {
         <Route element={<SimilarityWorkbenchLayout />}>
           <Route path="similarity" element={<SimilarityPage />} />
           <Route path="similarity/matrix" element={<SimilarityMatrixPage />} />
-          <Route path="similarity/:algorithmId/trace" element={<SimilarityTracePage />} />
+          <Route path="similarity/:algorithmId/trace" element={<SimilarityPage />} />
+          <Route path="similarity/:algorithmId/trace/full" element={<SimilarityTracePage />} />
         </Route>
         <Route path="clustering" element={<ClusteringPage />} />
         <Route path="benchmarks" element={<BenchmarksPage />} />
