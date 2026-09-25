@@ -121,6 +121,32 @@ describe('SelectionRail', () => {
     expect(useSelectionStore.getState().selectedIds).toEqual(['doc-01']);
   });
 
+  it('filters rows by an id substring, case-insensitively', async () => {
+    const user = userEvent.setup();
+    renderRail();
+
+    await screen.findByRole('checkbox', { name: 'A survey of string similarity' });
+    await user.type(screen.getByRole('searchbox', { name: /buscar/i }), 'DOC-03');
+
+    expect(screen.queryByText('A survey of string similarity')).not.toBeInTheDocument();
+    expect(
+      screen.getByRole('checkbox', { name: 'Clustering theory refresher' }),
+    ).toBeInTheDocument();
+  });
+
+  it('filters rows by an author substring, case-insensitively', async () => {
+    const user = userEvent.setup();
+    renderRail();
+
+    await screen.findByRole('checkbox', { name: 'A survey of string similarity' });
+    await user.type(screen.getByRole('searchbox', { name: /buscar/i }), 'three');
+
+    expect(screen.queryByText('A survey of string similarity')).not.toBeInTheDocument();
+    expect(
+      screen.getByRole('checkbox', { name: 'Embeddings for scientific text' }),
+    ).toBeInTheDocument();
+  });
+
   it('shows a quiet no-matches line when the search matches nothing', async () => {
     const user = userEvent.setup();
     renderRail();
@@ -272,6 +298,24 @@ describe('SelectionRail', () => {
 
     it('the pure state helper never claims a match for absent data — an honest "unknown", not the corpus-matches default', () => {
       expect(embeddingsSummaryState(undefined)).toBe('unknown');
+    });
+
+    it('contains an embeddings-status failure to its own summary — the article list still renders, with at most one alert', async () => {
+      vi.spyOn(embeddingsApi, 'fetchEmbeddingsStatus').mockRejectedValue({
+        kind: 'network',
+        cause: 'timeout',
+        i18nKey: 'errors.network.coldStart',
+      });
+
+      renderRail();
+
+      const row = await screen.findByRole('button', { name: 'Ver el estado de los embeddings' });
+      await expect.poll(() => row.textContent).toContain('Error');
+
+      expect(
+        await screen.findByRole('button', { name: 'A survey of string similarity' }),
+      ).toBeInTheDocument();
+      expect(screen.queryAllByRole('alert')).toHaveLength(0);
     });
   });
 });
