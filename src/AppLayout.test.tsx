@@ -176,6 +176,20 @@ describe('AppLayout', () => {
       expect(hasClassToken(screen.getByRole('navigation'), 'hidden')).toBe(true);
     });
 
+    it('moves focus to the main content region after a nav link is activated, since the panel closes out from under it', async () => {
+      const user = userEvent.setup();
+      renderLayout();
+
+      await user.click(screen.getByRole('button', { name: 'Abrir navegación' }));
+      await user.click(screen.getByRole('link', { name: 'Agrupamiento' }));
+
+      expect(await screen.findByText('clustering page')).toBeInTheDocument();
+      // A navigation happened, so focus goes to the newly-routed content —
+      // never left behind on `document.body` once the panel that held the
+      // activated link closes.
+      expect(screen.getByRole('main')).toHaveFocus();
+    });
+
     it("closes when the current (already active) route's own link is activated, which never changes the pathname", async () => {
       const user = userEvent.setup();
       renderLayout('/similarity');

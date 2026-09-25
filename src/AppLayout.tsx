@@ -126,11 +126,13 @@ export function AppLayout() {
     setNavOpen(false);
   }
 
-  // Panel open: move focus onto its first link. Panel close (any path —
-  // Escape, an outside click, a link activation, the toggle itself, or the
-  // route-change check above): return focus to the toggle button, so the
-  // control that owns the panel's open state is where keyboard focus lands
-  // next either way.
+  // Panel open: move focus onto its first link. Panel close via Escape,
+  // an outside click on a non-focusable target, or the toggle button
+  // itself: return focus to that toggle button, so the control that owns
+  // the panel's open state is where keyboard focus lands next. A link
+  // activation is handled separately, by that link's own `onClick` below —
+  // a navigation just happened, so focus goes to the newly-routed content
+  // instead of back to the toggle.
   useEffect(() => {
     if (navOpen) {
       wasNavOpenRef.current = true;
@@ -228,8 +230,14 @@ export function AppLayout() {
               // `location.pathname`, so the render-time check above alone
               // would never close the panel for it — this closes
               // unconditionally on every link activation instead, whether
-              // or not the destination differs.
-              onClick={() => setNavOpen(false)}
+              // or not the destination differs. The panel becoming hidden
+              // right under the just-activated link would otherwise leave
+              // focus behind on it, so focus moves onto the routed content
+              // instead — the standard place to land it after a navigation.
+              onClick={() => {
+                setNavOpen(false);
+                mainRef.current?.focus();
+              }}
               className={({ isActive }) =>
                 cn(
                   'flex min-h-11 items-center rounded-btn px-3 text-label font-semibold lg:min-h-0 lg:px-3 lg:py-1.5',
