@@ -312,7 +312,31 @@ export function BenchmarkCurveChart({
         </Table>
       )}
 
-      <Table aria-label={dataTableCaption} className="sr-only">
+      {/*
+       * `Table`'s own base classes always include `w-full`, which
+       * `tailwind-merge` never treats as conflicting with `sr-only` (they
+       * sit in different utility groups), so plain `className="sr-only"`
+       * would leave `w-full` in the merged class list. `sr-only` correctly
+       * makes this table `position: absolute`, but with no `position:
+       * relative` ancestor its `width: 100%` then resolves against the
+       * viewport, not against this card -- silently widening the whole
+       * page. `w-px` shares `tailwind-merge`'s own "width" group with
+       * `w-full`, so adding it after `sr-only` drops `w-full` from the
+       * merge.
+       *
+       * `w-px` alone is still not enough (verified against a live render,
+       * same lesson `Dendrogram.tsx`'s own merge table already documents):
+       * with the default auto table layout, an explicit `width` is only a
+       * suggestion the browser overrides once a cell's *unbreakable*
+       * content is wider, and `sr-only` itself sets `white-space: nowrap`,
+       * making every cell's full text one such unbreakable run.
+       * `table-fixed` stops the table from growing past `width` to fit its
+       * content, and `whitespace-normal` lets that content wrap instead of
+       * forcing it, so together with `w-px` this table actually collapses
+       * to its narrowest single word instead of silently reverting to its
+       * full unwrapped content width.
+       */}
+      <Table aria-label={dataTableCaption} className="sr-only w-px table-fixed whitespace-normal">
         <TableCaption>{dataTableCaption}</TableCaption>
         <TableHeader>
           <TableRow>

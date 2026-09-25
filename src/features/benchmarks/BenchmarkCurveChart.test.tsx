@@ -119,6 +119,13 @@ describe('BenchmarkCurveChart', () => {
     expect(within(dataTable).getByText('20.3 µs')).toBeInTheDocument();
   });
 
+  it('never lets the shared Table primitive\'s own "w-full" survive on the sr-only data table (it would resolve against the viewport once absolutely positioned, widening the whole page)', () => {
+    renderChart();
+
+    const dataTable = screen.getByRole('table', { name: 'Valores medidos: pares clásicos' });
+    expect(dataTable.className).not.toMatch(/(?:^|\s)w-full(?:\s|$)/);
+  });
+
   it('renders without throwing on the log-log scale', () => {
     expect(() => renderChart('log-log')).not.toThrow();
   });
