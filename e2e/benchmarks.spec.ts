@@ -203,6 +203,46 @@ test.describe('benchmarks screen', () => {
     }
   });
 
+  test('at 1440px each chart fills its own card width instead of a fixed ~650px, and at 390px the page never scrolls horizontally', async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await page.goto('/benchmarks');
+
+    const group = page.getByRole('group', { name: 'Algoritmos clásicos por pares' });
+    await expect(group).toBeVisible();
+
+    // ResizeObserver settles asynchronously, so poll until the chart's own
+    // SVG has actually grown to fill its card's measured width -- well past
+    // the old fixed ~650px, and close to the card's own content width, not
+    // a coincidental match -- rather than asserting once right after the
+    // page loads.
+    await expect
+      .poll(
+        async () => {
+          const groupBox = await group.boundingBox();
+          const svgWidthAttr = await group
+            .locator('svg.recharts-surface')
+            .first()
+            .getAttribute('width');
+          if (!groupBox || !svgWidthAttr) {
+            return false;
+          }
+          const svgWidth = Number(svgWidthAttr);
+          return svgWidth > 900 && Math.abs(svgWidth - groupBox.width) < 20;
+        },
+        { message: 'the chart SVG should fill its own card width, not a fixed ~650px' },
+      )
+      .toBe(true);
+
+    await page.setViewportSize({ width: 390, height: 844 });
+    await expect
+      .poll(async () => page.evaluate<number>('document.documentElement.scrollWidth'), {
+        message: 'the page should never scroll horizontally at 390px',
+      })
+      .toBeLessThanOrEqual(390);
+  });
+
   test('has no automatically detectable WCAG 2.1 AA violations on the benchmarks screen', async ({
     page,
   }) => {
