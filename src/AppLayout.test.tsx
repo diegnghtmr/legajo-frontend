@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Route, Routes } from 'react-router';
 import { afterEach, describe, expect, it, vi } from 'vitest';
@@ -220,16 +220,24 @@ describe('AppLayout', () => {
       expect(screen.getByRole('button', { name: 'Abrir navegación' })).toHaveFocus();
     });
 
-    it('a click inside the open panel (e.g. on a link) is never treated as an outside click by itself', async () => {
+    it('a mousedown inside the open panel, on the nav itself rather than a link, is never treated as an outside click', async () => {
       const user = userEvent.setup();
       renderLayout('/clustering');
 
       await user.click(screen.getByRole('button', { name: 'Abrir navegación' }));
-      await user.click(screen.getByRole('link', { name: 'Similitud' }));
+      const nav = screen.getByRole('navigation');
 
-      // The panel closed because the link navigated (a different route),
-      // not because the outside-click handler double-fired on it.
-      expect(await screen.findByText('similarity page')).toBeInTheDocument();
+      // The nav element itself is "inside the panel" per the
+      // `navRef.current?.contains(target)` guard (it equals `navRef`), but
+      // it is not a link, so this only exercises that guard, never a
+      // link's own route-change close.
+      fireEvent.mouseDown(nav);
+
+      expect(screen.getByRole('button', { name: 'Cerrar navegación' })).toHaveAttribute(
+        'aria-expanded',
+        'true',
+      );
+      expect(hasClassToken(nav, 'hidden')).toBe(false);
     });
 
     it('lets an outside click reach its own target instead of swallowing its default action', async () => {
