@@ -11,6 +11,18 @@ describe('Button', () => {
     expect(screen.getByRole('button', { name: 'Comparar' })).toBeInTheDocument();
   });
 
+  it('defaults to type="button" so it never submits a surrounding form by accident', () => {
+    render(<Button>Comparar</Button>);
+
+    expect(screen.getByRole('button', { name: 'Comparar' })).toHaveAttribute('type', 'button');
+  });
+
+  it('lets a caller opt into type="submit"', () => {
+    render(<Button type="submit">Guardar</Button>);
+
+    expect(screen.getByRole('button', { name: 'Guardar' })).toHaveAttribute('type', 'submit');
+  });
+
   it('applies the ink-fill primary variant by default', () => {
     render(<Button>Primary</Button>);
 
