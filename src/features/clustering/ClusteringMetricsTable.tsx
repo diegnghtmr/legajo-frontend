@@ -11,10 +11,15 @@ import type { ClusteringRankingResult } from './ranking';
 
 export interface ClusteringMetricsTableProps {
   results: ClusteringResponse;
-  kRef: number;
+  /** `undefined` only for a malformed response the linkages disagree on
+   * (`sampleSizeFromResponse`/`kRefForSampleSize` in `ranking.ts`) — there is
+   * no principled "k_ref" to lead the table's columns with, so the table
+   * itself is skipped entirely rather than guessing one; the explanatory
+   * text below still renders. */
+  kRef: number | undefined;
   ranking: ClusteringRankingResult | undefined;
   representation: RepresentationId;
-  sampleSize: number;
+  sampleSize: number | undefined;
 }
 
 const HIGHLIGHT_CLASS_NAME = 'bg-paper-sunken';
@@ -45,11 +50,64 @@ export function ClusteringMetricsTable({
 }: ClusteringMetricsTableProps) {
   const { t } = useTranslation();
   const orderedResults = orderLinkagesForMetricsTable(results);
-  const secondaryKs = secondaryFixedKColumns(results, kRef);
   const undefinedLabel = t('clustering.metrics.undefinedValue');
 
   return (
     <Panel>
+      {kRef !== undefined && (
+        <ClusteringMetricsTableBody
+          orderedResults={orderedResults}
+          results={results}
+          kRef={kRef}
+          ranking={ranking}
+          undefinedLabel={undefinedLabel}
+        />
+      )}
+
+      {ranking ? (
+        ranking.copheneticTieSet.length > 1 && (
+          <p className="mt-3 text-body text-ink-secondary">
+            {t('clustering.tieSet', { linkages: ranking.copheneticTieSet.join(', ') })}
+          </p>
+        )
+      ) : (
+        <p className="mt-3 text-body text-ink-secondary">
+          {t('clustering.leadersRequireAllLinkages')}
+        </p>
+      )}
+
+      {sampleSize !== undefined && (
+        <p className="mt-3 text-body text-ink-muted">
+          {t('clustering.sampleSizeCaveat', { representation, count: sampleSize })}
+        </p>
+      )}
+    </Panel>
+  );
+}
+
+interface ClusteringMetricsTableBodyProps {
+  orderedResults: ClusteringResponse;
+  results: ClusteringResponse;
+  kRef: number;
+  ranking: ClusteringRankingResult | undefined;
+  undefinedLabel: string;
+}
+
+/** The table itself, split out so the parent only needs a resolved `kRef`
+ * to render it — the explanatory text and caveat above stay independent of
+ * whether a `kRef` could be resolved at all. */
+function ClusteringMetricsTableBody({
+  orderedResults,
+  results,
+  kRef,
+  ranking,
+  undefinedLabel,
+}: ClusteringMetricsTableBodyProps) {
+  const { t } = useTranslation();
+  const secondaryKs = secondaryFixedKColumns(results, kRef);
+
+  return (
+    <div className="mb-3">
       <div
         role="region"
         aria-label={t('clustering.metricsTable.regionLabel')}
@@ -177,22 +235,6 @@ export function ClusteringMetricsTable({
           </tbody>
         </table>
       </div>
-
-      {ranking ? (
-        ranking.copheneticTieSet.length > 1 && (
-          <p className="mt-3 text-body text-ink-secondary">
-            {t('clustering.tieSet', { linkages: ranking.copheneticTieSet.join(', ') })}
-          </p>
-        )
-      ) : (
-        <p className="mt-3 text-body text-ink-secondary">
-          {t('clustering.leadersRequireAllLinkages')}
-        </p>
-      )}
-
-      <p className="mt-3 text-body text-ink-muted">
-        {t('clustering.sampleSizeCaveat', { representation, count: sampleSize })}
-      </p>
-    </Panel>
+    </div>
   );
 }

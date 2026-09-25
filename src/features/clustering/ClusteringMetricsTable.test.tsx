@@ -219,6 +219,37 @@ describe('ClusteringMetricsTable', () => {
     expect(screen.queryByText('Líder')).not.toBeInTheDocument();
   });
 
+  it('renders no table, but still shows the requires-all-four explanation, when k_ref cannot be resolved (linkages disagree on n)', () => {
+    render(
+      <ClusteringMetricsTable
+        results={results()}
+        kRef={undefined}
+        ranking={undefined}
+        representation="tfidf-cosine"
+        sampleSize={undefined}
+      />,
+    );
+
+    expect(screen.queryByRole('table')).not.toBeInTheDocument();
+    expect(
+      screen.getByText('Los líderes se muestran cuando se comparan los cuatro enlaces.'),
+    ).toBeInTheDocument();
+  });
+
+  it('omits the sample-size caveat line when the sample size is undefined', () => {
+    render(
+      <ClusteringMetricsTable
+        results={results()}
+        kRef={undefined}
+        ranking={undefined}
+        representation="tfidf-cosine"
+        sampleSize={undefined}
+      />,
+    );
+
+    expect(screen.queryByText(/n = /)).not.toBeInTheDocument();
+  });
+
   it('shows the representation, distance-basis and sample-size caveat line', () => {
     render(
       <ClusteringMetricsTable
