@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { MouseEvent } from 'react';
 import { Menu, X } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
@@ -72,18 +72,77 @@ export function AppLayout() {
   const mainRef = useRef<HTMLElement>(null);
   const location = useLocation();
   const [navOpen, setNavOpen] = useState(false);
+  const navRef = useRef<HTMLElement>(null);
+  const toggleButtonRef = useRef<HTMLButtonElement>(null);
+  // Only actual open→close transitions return focus to the toggle button —
+  // guarded so the very first render (already closed) never steals focus.
+  const wasNavOpenRef = useRef(false);
+
   // A link inside the collapsed mobile nav navigates without ever closing
   // the panel on its own (a route change is the only signal available from
   // a plain `NavLink` click), so the panel closes deterministically whenever
   // the route itself changes — adjusted during render (React's documented
   // pattern for resetting state when a prop/derived value changes) rather
   // than an effect, which would call `setNavOpen` after an already-committed
-  // render and force a second, cascading one.
+  // render and force a second, cascading one. This alone misses a link to
+  // the *current* route (its own `onClick` below covers that: a same-route
+  // click never changes `location.pathname`, so this check alone would
+  // never fire for it).
   const [openedForPathname, setOpenedForPathname] = useState(location.pathname);
   if (location.pathname !== openedForPathname) {
     setOpenedForPathname(location.pathname);
     setNavOpen(false);
   }
+
+  // Panel open: move focus onto its first link. Panel close (any path —
+  // Escape, an outside click, a link activation, the toggle itself, or the
+  // route-change check above): return focus to the toggle button, so the
+  // control that owns the panel's open state is where keyboard focus lands
+  // next either way.
+  useEffect(() => {
+    if (navOpen) {
+      wasNavOpenRef.current = true;
+      navRef.current?.querySelector<HTMLElement>('a')?.focus();
+    } else if (wasNavOpenRef.current) {
+      wasNavOpenRef.current = false;
+      toggleButtonRef.current?.focus();
+    }
+  }, [navOpen]);
+
+  // Escape and an outside click both close the panel; only wired up while
+  // it is actually open. `mousedown` (not `click`) so the panel closes
+  // before a click on unrelated page content also activates that content.
+  useEffect(() => {
+    if (!navOpen) {
+      return;
+    }
+
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === 'Escape') {
+        setNavOpen(false);
+      }
+    }
+
+    function handlePointerDown(event: globalThis.MouseEvent) {
+      const target = event.target as Node;
+      if (navRef.current?.contains(target) || toggleButtonRef.current?.contains(target)) {
+        return;
+      }
+      // Without this, a mousedown's own default action shifts focus to the
+      // clicked target (or blurs to the document body for a non-focusable
+      // one) before the close effect below gets to move it to the toggle
+      // button, silently overriding that below.
+      event.preventDefault();
+      setNavOpen(false);
+    }
+
+    document.addEventListener('keydown', handleKeyDown);
+    document.addEventListener('mousedown', handlePointerDown);
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown);
+      document.removeEventListener('mousedown', handlePointerDown);
+    };
+  }, [navOpen]);
 
   // Native hash-navigation focus behavior is inconsistent across browsers
   // (Safari, notably, never moves focus on its own), so the skip link
@@ -106,6 +165,7 @@ export function AppLayout() {
         <h1 className="text-title font-semibold text-ink">{t('app.title')}</h1>
 
         <nav
+          ref={navRef}
           id={PRIMARY_NAV_ID}
           aria-label={t('app.eyebrow')}
           className={cn(
@@ -118,6 +178,12 @@ export function AppLayout() {
             <NavLink
               key={section.to}
               to={section.to}
+              // A link to the *current* route never changes
+              // `location.pathname`, so the render-time check above alone
+              // would never close the panel for it — this closes
+              // unconditionally on every link activation instead, whether
+              // or not the destination differs.
+              onClick={() => setNavOpen(false)}
               className={({ isActive }) =>
                 cn(
                   'flex min-h-11 items-center rounded-btn px-3 text-label font-semibold lg:min-h-0 lg:px-3 lg:py-1.5',
@@ -134,6 +200,7 @@ export function AppLayout() {
 
         <div className="ml-auto flex items-center gap-2">
           <button
+            ref={toggleButtonRef}
             type="button"
             aria-expanded={navOpen}
             aria-controls={PRIMARY_NAV_ID}

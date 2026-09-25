@@ -27,24 +27,50 @@ export interface WorkbenchLayoutProps {
  * docked in its own column; between `lg` and `xl` it overlays the right
  * edge of the center instead (the center floor is 480px, and 320 + 480 +
  * 460 already exceeds 1279px, which is why it cannot dock there without
- * shrinking the center below its floor). Below `lg` neither the rail nor
- * the detail column renders here — a narrow/mobile tray and sheet replace
- * them.
+ * shrinking the center below its floor).
+ *
+ * Below `lg` there is no persistent side rail and no side panel — the two
+ * regions are asymmetric there, on purpose: the rail's own content still
+ * stacks above the results in normal document flow (never `hidden`), since
+ * it is a corpus's primary, always-relevant selection surface with no
+ * narrow-width replacement yet (a dedicated bottom tray is a later
+ * addition); the detail region, by contrast, is fully `hidden` below `lg`
+ * — showing it as a third full-width stacked block here would bury the
+ * results between two unrelated regions, so a consumer instead renders its
+ * own detail content inline (within the results) or as a modal sheet for
+ * narrow widths, never through this slot.
+ *
+ * From `lg`, this fills the exact remaining viewport height below the
+ * 56px top bar (`3.5rem`, `h-14`) and clips its own overflow, so each
+ * region scrolls independently with its own header and footer pinned,
+ * instead of one long page scroll burying the rail's footer under a tall
+ * corpus list. `flex-1` (flex-basis: 0%) would win over that explicit
+ * height for this column flex child's main-axis size, per the flex sizing
+ * algorithm, so it is deliberately absent here.
  */
 export function WorkbenchLayout({ rail, detail, children }: WorkbenchLayoutProps) {
   return (
-    <div className={cn('-m-6 flex flex-1 flex-col lg:flex-row', detail && 'lg:relative')}>
+    <div
+      className={cn(
+        '-m-6 flex flex-col lg:h-[calc(100vh-3.5rem)] lg:flex-row lg:overflow-hidden',
+        detail && 'lg:relative',
+      )}
+    >
       {rail && (
-        <div className="hidden shrink-0 border-r border-hairline bg-paper-raised lg:block lg:w-[320px]">
+        <div
+          data-testid="workbench-rail"
+          className="shrink-0 border-b border-hairline bg-paper-raised lg:h-full lg:w-[320px] lg:overflow-y-auto lg:border-b-0 lg:border-r"
+        >
           {rail}
         </div>
       )}
       <div className="min-w-0 flex-1 p-6">{children}</div>
       {detail && (
         <div
+          data-testid="workbench-detail"
           className={cn(
-            'border-l border-hairline bg-paper-raised',
-            'lg:absolute lg:inset-y-0 lg:right-0 lg:w-[460px] lg:overflow-y-auto',
+            'hidden border-hairline bg-paper-raised',
+            'lg:block lg:absolute lg:inset-y-0 lg:right-0 lg:h-full lg:w-[460px] lg:overflow-y-auto lg:border-l',
             'xl:static xl:w-[460px] xl:shrink-0',
           )}
         >

@@ -10,6 +10,14 @@ afterEach(async () => {
   await i18n.changeLanguage('es');
 });
 
+/** True when `className` contains `token` as its own whitespace-delimited
+ * word — not merely as a substring (`toContain('flex')` would also match
+ * `flex-col`, `lg:flex`, or the mobile menu button's own `lg:hidden`, so it
+ * can never fail even for the wrong display value). */
+function hasClassToken(element: HTMLElement, token: string): boolean {
+  return element.className.split(/\s+/).includes(token);
+}
+
 function renderLayout(initialPath = '/similarity') {
   return render(
     <MemoryRouter initialEntries={[initialPath]}>
@@ -116,7 +124,7 @@ describe('AppLayout', () => {
 
       const nav = screen.getByRole('navigation');
       expect(nav.getAttribute('id')).toBe(toggle.getAttribute('aria-controls'));
-      expect(nav.className).toContain('hidden');
+      expect(hasClassToken(nav, 'hidden')).toBe(true);
     });
 
     it('opens the nav list on click, each item at least 44px tall, and relabels the toggle', async () => {
@@ -128,8 +136,11 @@ describe('AppLayout', () => {
       const toggle = screen.getByRole('button', { name: 'Cerrar navegación' });
       expect(toggle).toHaveAttribute('aria-expanded', 'true');
       const nav = screen.getByRole('navigation');
-      expect(nav.className).toContain('flex');
-      expect(nav.className).not.toContain('hidden');
+      // The real open/closed state: the exact class token, never a
+      // substring (`lg:flex` is present in both states and would make
+      // `toContain('flex')` pass even while still `hidden`).
+      expect(hasClassToken(nav, 'flex')).toBe(true);
+      expect(hasClassToken(nav, 'hidden')).toBe(false);
       for (const name of ['Similitud', 'Agrupamiento', 'Benchmarks']) {
         expect(screen.getByRole('link', { name }).className).toContain('min-h-11');
       }
@@ -147,6 +158,78 @@ describe('AppLayout', () => {
         'aria-expanded',
         'false',
       );
+      expect(hasClassToken(screen.getByRole('navigation'), 'hidden')).toBe(true);
+    });
+
+    it("closes when the current (already active) route's own link is activated, which never changes the pathname", async () => {
+      const user = userEvent.setup();
+      renderLayout('/similarity');
+
+      await user.click(screen.getByRole('button', { name: 'Abrir navegación' }));
+      await user.click(screen.getByRole('link', { name: 'Similitud' }));
+
+      expect(screen.getByRole('button', { name: 'Abrir navegación' })).toHaveAttribute(
+        'aria-expanded',
+        'false',
+      );
+      expect(hasClassToken(screen.getByRole('navigation'), 'hidden')).toBe(true);
+    });
+
+    it('moves focus into the panel — onto its first link — when opened', async () => {
+      const user = userEvent.setup();
+      renderLayout();
+
+      await user.click(screen.getByRole('button', { name: 'Abrir navegación' }));
+
+      expect(screen.getByRole('link', { name: 'Similitud' })).toHaveFocus();
+    });
+
+    it('returns focus to the menu button when closed via Escape', async () => {
+      const user = userEvent.setup();
+      renderLayout();
+
+      const toggle = screen.getByRole('button', { name: 'Abrir navegación' });
+      await user.click(toggle);
+      expect(screen.getByRole('link', { name: 'Similitud' })).toHaveFocus();
+
+      await user.keyboard('{Escape}');
+
+      expect(screen.getByRole('button', { name: 'Abrir navegación' })).toHaveAttribute(
+        'aria-expanded',
+        'false',
+      );
+      expect(hasClassToken(screen.getByRole('navigation'), 'hidden')).toBe(true);
+      expect(screen.getByRole('button', { name: 'Abrir navegación' })).toHaveFocus();
+    });
+
+    it('closes and returns focus to the menu button on an outside click', async () => {
+      const user = userEvent.setup();
+      renderLayout();
+
+      await user.click(screen.getByRole('button', { name: 'Abrir navegación' }));
+      expect(screen.getByRole('link', { name: 'Similitud' })).toHaveFocus();
+
+      // Outside both the panel and the toggle button.
+      await user.click(screen.getByRole('heading', { level: 1, name: 'Legajo' }));
+
+      expect(screen.getByRole('button', { name: 'Abrir navegación' })).toHaveAttribute(
+        'aria-expanded',
+        'false',
+      );
+      expect(hasClassToken(screen.getByRole('navigation'), 'hidden')).toBe(true);
+      expect(screen.getByRole('button', { name: 'Abrir navegación' })).toHaveFocus();
+    });
+
+    it('a click inside the open panel (e.g. on a link) is never treated as an outside click by itself', async () => {
+      const user = userEvent.setup();
+      renderLayout('/clustering');
+
+      await user.click(screen.getByRole('button', { name: 'Abrir navegación' }));
+      await user.click(screen.getByRole('link', { name: 'Similitud' }));
+
+      // The panel closed because the link navigated (a different route),
+      // not because the outside-click handler double-fired on it.
+      expect(await screen.findByText('similarity page')).toBeInTheDocument();
     });
   });
 });
