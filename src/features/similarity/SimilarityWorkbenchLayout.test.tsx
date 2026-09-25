@@ -1,7 +1,7 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { render, screen, within } from '@testing-library/react';
+import { act, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { MemoryRouter, Route, Routes } from 'react-router';
+import { MemoryRouter, Route, Routes, useLocation } from 'react-router';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import * as corpusApi from '../../infrastructure/api/corpus';
@@ -90,6 +90,15 @@ function renderLayout() {
   );
 }
 
+/** Prints the router's live location as text, so a test can assert on the
+ * URL a navigation actually produced without reaching into router
+ * internals. Works anywhere inside the `MemoryRouter`, matched route or
+ * not — `useLocation` is never scoped to a particular `Route`. */
+function LocationProbe() {
+  const location = useLocation();
+  return <p data-testid="location">{`${location.pathname}${location.search}`}</p>;
+}
+
 /** The same route shape `App.tsx` nests under the workbench layout, so a
  * trace opened from a row click is exercised against real route matching
  * (`SimilarityPage` renders for both `similarity` and its trace deep link). */
@@ -98,6 +107,7 @@ function renderLayoutAtRoute(initialPath: string) {
   return render(
     <QueryClientProvider client={queryClient}>
       <MemoryRouter initialEntries={[initialPath]}>
+        <LocationProbe />
         <Routes>
           <Route path="/similarity" element={<SimilarityWorkbenchLayout />}>
             <Route index element={<SimilarityPage />} />
@@ -292,11 +302,25 @@ describe('SimilarityWorkbenchLayout', () => {
       const user = userEvent.setup();
       renderLayoutAtRoute('/similarity/levenshtein/trace?documentIdA=doc-01&documentIdB=doc-02');
 
+      await waitForCompareTable();
+      const callsBeforeClose = vi.mocked(similarityApi.compareSimilarity).mock.calls.length;
+
       await screen.findByRole('button', { name: 'Cerrar traza' });
       await user.click(screen.getByRole('button', { name: 'Cerrar traza' }));
 
       expect(screen.queryByTestId('workbench-detail')).not.toBeInTheDocument();
       expect(screen.getByRole('heading', { name: 'Comparación de similitud' })).toBeInTheDocument();
+      // The table's own rows, not only its heading, are still there — header
+      // + the one result row this suite's catalogue produces — and the
+      // compare data behind them was never re-fetched, proof the table
+      // itself was never torn down and rebuilt as a side effect of closing.
+      expect(screen.getAllByRole('row')).toHaveLength(2);
+      expect(
+        within(screen.getByRole('row', { name: /^levenshtein/i })).getByRole('button', {
+          name: 'levenshtein',
+        }),
+      ).toBeInTheDocument();
+      expect(vi.mocked(similarityApi.compareSimilarity).mock.calls.length).toBe(callsBeforeClose);
     });
 
     it('closes on Escape at lg and above (the docked/overlay panel is non-modal, so it needs its own listener)', async () => {
@@ -322,6 +346,27 @@ describe('SimilarityWorkbenchLayout', () => {
       await user.click(screen.getByRole('button', { name: 'Cerrar traza' }));
 
       expect(rowButton).toHaveFocus();
+    });
+
+    it('closes the deep-linked trace and drops its document ids from the URL once the rail names a different pair', async () => {
+      renderLayoutAtRoute('/similarity/levenshtein/trace?documentIdA=doc-01&documentIdB=doc-02');
+
+      await screen.findByTestId('workbench-detail');
+
+      act(() => {
+        useSelectionStore.setState({
+          selectedIds: ['doc-03', 'doc-04'],
+          canCompare: true,
+          canMatrix: false,
+        });
+      });
+
+      await waitFor(() => expect(screen.queryByTestId('workbench-detail')).not.toBeInTheDocument());
+      const location = await screen.findByTestId('location');
+      expect(location).toHaveTextContent('/similarity');
+      expect(location.textContent).not.toContain('/trace');
+      expect(location.textContent).not.toContain('documentIdA');
+      expect(location.textContent).not.toContain('documentIdB');
     });
 
     describe('below lg', () => {
@@ -358,6 +403,80 @@ describe('SimilarityWorkbenchLayout', () => {
         expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
         expect(rowButton).toHaveFocus();
       });
+    });
+  });
+
+  describe('a partial trace URL (the trace path matched, but its document ids are missing)', () => {
+    it('normalizes the URL back to plain /similarity instead of leaving a stale trace path over a screen showing no panel', async () => {
+      renderLayoutAtRoute('/similarity/levenshtein/trace');
+
+      const location = await screen.findByTestId('location');
+      await waitFor(() => expect(location).toHaveTextContent('/similarity'));
+      expect(location.textContent).not.toContain('/trace');
+      expect(screen.queryByTestId('workbench-detail')).not.toBeInTheDocument();
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    });
+
+    it('normalizes the URL even with just one of the two document ids present', async () => {
+      renderLayoutAtRoute('/similarity/levenshtein/trace?documentIdA=doc-01');
+
+      const location = await screen.findByTestId('location');
+      await waitFor(() => expect(location).toHaveTextContent('/similarity'));
+      expect(location.textContent).not.toContain('/trace');
+      expect(location.textContent).not.toContain('documentIdA');
+      expect(screen.queryByTestId('workbench-detail')).not.toBeInTheDocument();
+    });
+  });
+
+  describe('a trace opened while a rail detail view is already showing', () => {
+    beforeEach(() => {
+      useSelectionStore.setState({
+        selectedIds: ['doc-01', 'doc-02'],
+        canCompare: true,
+        canMatrix: false,
+      });
+    });
+
+    it('replaces an open abstract when a trace opens — one panel at a time', async () => {
+      const user = userEvent.setup();
+      renderLayoutAtRoute('/similarity');
+
+      await user.click(
+        await screen.findByRole('button', { name: 'A survey of string similarity' }),
+      );
+      expect(await screen.findByText('The full abstract.')).toBeInTheDocument();
+
+      await waitForCompareTable();
+      const row = await screen.findByRole('row', { name: /^levenshtein/i });
+      await user.click(within(row).getByRole('button', { name: 'levenshtein' }));
+
+      const detail = await screen.findByTestId('workbench-detail');
+      expect(
+        await within(detail).findByRole('heading', { name: 'Levenshtein distance' }),
+      ).toBeInTheDocument();
+      expect(screen.queryByText('The full abstract.')).not.toBeInTheDocument();
+    });
+
+    it('does not resurrect the previously open abstract once the trace opened over it closes, and returns focus to the trace’s own row', async () => {
+      const user = userEvent.setup();
+      renderLayoutAtRoute('/similarity');
+
+      await user.click(
+        await screen.findByRole('button', { name: 'A survey of string similarity' }),
+      );
+      await screen.findByText('The full abstract.');
+
+      await waitForCompareTable();
+      const row = await screen.findByRole('row', { name: /^levenshtein/i });
+      const rowButton = within(row).getByRole('button', { name: 'levenshtein' });
+      await user.click(rowButton);
+      await screen.findByTestId('workbench-detail');
+
+      await user.click(await screen.findByRole('button', { name: 'Cerrar traza' }));
+
+      expect(screen.queryByTestId('workbench-detail')).not.toBeInTheDocument();
+      expect(screen.queryByText('The full abstract.')).not.toBeInTheDocument();
+      expect(rowButton).toHaveFocus();
     });
   });
 });

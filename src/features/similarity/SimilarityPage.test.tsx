@@ -361,6 +361,31 @@ describe('SimilarityPage — exactly two selected', () => {
     expect(classicRadio).toHaveAttribute('aria-checked', 'true');
   });
 
+  it('opens a row’s trace dispatched in the same tick as a family change, without losing the just-committed family param', async () => {
+    vi.spyOn(similarityApi, 'fetchSimilarityAlgorithms').mockResolvedValue(CATALOGUE);
+    vi.spyOn(similarityApi, 'compareSimilarity').mockResolvedValue(compareResponseFor(ALL_SIX_IDS));
+
+    renderAtRoute('/similarity');
+
+    const row = await screen.findByRole('row', { name: /^levenshtein/i });
+    const rowButton = within(row).getByRole('button', { name: 'levenshtein' });
+    const classicRadio = screen.getByRole('radio', { name: 'Clásico' });
+
+    // Both dispatched synchronously inside one `act`, so React never
+    // flushes a render between them — the same same-tick shape the test
+    // above proves for two `commitSearchParams` calls, but here the second
+    // is the row's own trace-opening `navigate` instead of a second
+    // `commitSearchParams` call.
+    act(() => {
+      fireEvent.click(classicRadio);
+      fireEvent.click(rowButton);
+    });
+
+    const location = await screen.findByTestId('location');
+    expect(location).toHaveTextContent('/similarity/levenshtein/trace');
+    expect(location.textContent).toContain('family=classic');
+  });
+
   it('shows the mapped error message when the algorithm catalogue fails to load', async () => {
     vi.spyOn(similarityApi, 'fetchSimilarityAlgorithms').mockRejectedValue({
       kind: 'network',
