@@ -57,7 +57,11 @@ describe('App', () => {
   it('renders the trace placeholder at /similarity/:algorithmId/trace', () => {
     renderAppAt('/similarity/levenshtein/trace?documentIdA=doc-01&documentIdB=doc-02');
 
-    expect(screen.getByRole('heading', { name: 'Traza: levenshtein' })).toBeInTheDocument();
+    // The algorithm catalogue is not mocked here (this is a routing smoke
+    // test, not a data test): the title falls back to the plain route id
+    // until — or unless — that fetch resolves, never to a repeat of the
+    // eyebrow.
+    expect(screen.getByRole('heading', { name: 'levenshtein' })).toBeInTheDocument();
   });
 
   it('renders the clustering placeholder at /clustering', () => {

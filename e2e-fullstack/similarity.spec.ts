@@ -99,7 +99,7 @@ test.describe('similarity compare + trace (full stack, Flow A)', () => {
     await expect(page.getByRole('heading', { name: 'Comparación de similitud' })).toBeVisible();
 
     await page.getByRole('link', { name: 'needleman-wunsch', exact: true }).click();
-    await expect(page.getByRole('heading', { name: 'Traza: needleman-wunsch' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Needleman-Wunsch' })).toBeVisible();
 
     // The real backend computes the trace for the real d01/d02 abstracts
     // (a genuinely larger matrix than the 4x4 mock), so the page's own
@@ -161,7 +161,7 @@ test.describe('similarity compare + trace (full stack, Flow A)', () => {
     expect(results.violations).toEqual([]);
 
     await page.getByRole('link', { name: 'needleman-wunsch', exact: true }).click();
-    await expect(page.getByRole('heading', { name: 'Traza: needleman-wunsch' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Needleman-Wunsch' })).toBeVisible();
     // Same real-backend loading race as the DP matrix test above: wait for
     // the trace's own content, not just the heading, before scanning.
     await expect(page.locator('table').first().locator('td').first()).toBeVisible({

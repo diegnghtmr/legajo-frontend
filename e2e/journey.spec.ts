@@ -249,7 +249,9 @@ test.describe('end-to-end journey', () => {
 
     // Step 3: open the Needleman–Wunsch trace and confirm the DP matrix/trace is visible.
     await page.getByRole('link', { name: 'needleman-wunsch', exact: true }).click();
-    await expect(page.getByRole('heading', { name: 'Traza: needleman-wunsch' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Needleman–Wunsch' })).toBeVisible();
+    await expect(page.getByText('Comparando doc-01 × doc-02')).toBeVisible();
+    await expect(page.getByTestId('dp-trace-family')).toHaveText('Clásico');
 
     // Every cell of the 4x4 matrix is present, never a truncated subset.
     await expect(page.locator('table').first().locator('td')).toHaveCount(16);

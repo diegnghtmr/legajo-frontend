@@ -4,29 +4,42 @@ import { Link, useParams, useSearchParams } from 'react-router';
 
 import { DEFAULT_UNEXPECTED_I18N_KEY, type ApiError } from '../../infrastructure/apiError';
 import {
+  fetchSimilarityAlgorithms,
   fetchSimilarityTrace,
+  type ListSimilarityAlgorithmsResponse,
   type SimilarityTraceResponse,
 } from '../../infrastructure/api/similarity';
+import type { AlgoFamily } from '../../shared/family';
 import { DpTracePanel } from './traces/DpTracePanel';
 import { EmbeddingApiTracePanel } from './traces/EmbeddingApiTracePanel';
 import { EmbeddingLocalTracePanel } from './traces/EmbeddingLocalTracePanel';
 import { JaccardTracePanel } from './traces/JaccardTracePanel';
 import { TfIdfTracePanel } from './traces/TfIdfTracePanel';
+import { algoFamilyFromKind } from './algorithmFamily';
+import { ALGORITHMS_QUERY_KEY } from './SimilarityPage';
 import { PanelHeader } from '../../shared/components/Panel';
+import { Button } from '../../shared/components/ui/button';
 
 /**
  * Routes one resolved trace to its panel by the `algorithmId` discriminator.
- * `levenshtein`/`needleman-wunsch` share `DpTracePanel`; every
- * other capability has exactly one panel. Zod already guarantees the
- * discriminator is one of these five variants (`AlgorithmTraceSchema`), so
- * there is no "unknown" branch to render — a rejected fetch is handled
- * separately by the query's error state, never here.
+ * `levenshtein`/`needleman-wunsch` share `DpTracePanel` — the only variant
+ * that needs the catalogue's `family`, for its required meta row; every
+ * other capability has exactly one panel and no such dependency. Zod already
+ * guarantees the discriminator is one of these five variants
+ * (`AlgorithmTraceSchema`), so there is no "unknown" branch to render — a
+ * rejected fetch is handled separately by the query's error state, never here.
  */
-function TracePanel({ trace }: { trace: SimilarityTraceResponse }) {
+function TracePanel({
+  trace,
+  family,
+}: {
+  trace: SimilarityTraceResponse;
+  family: AlgoFamily | undefined;
+}) {
   switch (trace.algorithmId) {
     case 'levenshtein':
     case 'needleman-wunsch':
-      return <DpTracePanel trace={trace} />;
+      return <DpTracePanel trace={trace} family={family} />;
     case 'jaccard':
       return <JaccardTracePanel trace={trace} />;
     case 'tfidf-cosine':
@@ -68,12 +81,53 @@ export function SimilarityTracePage() {
     enabled: Boolean(algorithmId),
   });
 
+  // The same catalogue query `SimilarityPage` already runs (same key: a
+  // cache hit when this page is reached through its own trace link) — the
+  // header needs the algorithm's own name and family, never a repeat of the
+  // eyebrow or a guess. A direct-navigated/bookmarked trace URL just pays
+  // for its own fetch; the title falls back to the plain id until it
+  // resolves rather than blocking the whole header on it.
+  const algorithmsQuery = useQuery<ListSimilarityAlgorithmsResponse, ApiError>({
+    queryKey: ALGORITHMS_QUERY_KEY,
+    queryFn: fetchSimilarityAlgorithms,
+  });
+  const algorithmSummary = algorithmsQuery.data?.find((algorithm) => algorithm.id === algorithmId);
+  const title = algorithmSummary?.displayName ?? algorithmId ?? '';
+  const family = algorithmSummary ? algoFamilyFromKind(algorithmSummary.kind) : undefined;
+  // Never a raw placeholder ("Comparando  ×  ") when a document id is
+  // missing from the URL: the subtitle is omitted entirely rather than
+  // interpolating an empty operand.
+  const hasBothDocumentIds = documentIdA !== '' && documentIdB !== '';
+
   return (
     <div className="flex flex-col gap-4">
       <PanelHeader
         eyebrow={t('similarity.trace.eyebrow')}
-        title={t('similarity.trace.title', { id: algorithmId ?? '' })}
+        title={title}
+        subtitle={
+          hasBothDocumentIds
+            ? t('similarity.trace.subtitle', { a: documentIdA, b: documentIdB })
+            : undefined
+        }
       />
+
+      {algorithmsQuery.isError && (
+        <div role="alert" className="flex flex-col items-start gap-1">
+          <p className="text-body font-semibold text-danger">
+            {t('similarity.trace.algorithmErrorTitle')}
+          </p>
+          <p className="text-body text-ink-secondary">
+            {t(algorithmsQuery.error.i18nKey ?? DEFAULT_UNEXPECTED_I18N_KEY)}
+          </p>
+          <Button
+            variant="secondary"
+            className="mt-1"
+            onClick={() => void algorithmsQuery.refetch()}
+          >
+            {t('similarity.trace.algorithmRetryLabel')}
+          </Button>
+        </div>
+      )}
 
       {traceQuery.isPending && (
         <p role="status" className="text-body text-ink-secondary">
@@ -90,7 +144,7 @@ export function SimilarityTracePage() {
         </div>
       )}
 
-      {traceQuery.data && <TracePanel trace={traceQuery.data} />}
+      {traceQuery.data && <TracePanel trace={traceQuery.data} family={family} />}
 
       <Link
         to="/similarity"
