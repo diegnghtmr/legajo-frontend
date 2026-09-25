@@ -375,6 +375,41 @@ describe('AppLayout', () => {
       expect(screen.getByRole('button', { name: 'Abrir navegación' })).toHaveFocus();
     });
 
+    it('treats contenteditable="false" as non-focusable, not merely any [contenteditable] attribute', async () => {
+      const user = userEvent.setup();
+      render(
+        <MemoryRouter initialEntries={['/similarity']}>
+          <Routes>
+            <Route path="/" element={<AppLayout />}>
+              <Route
+                path="similarity"
+                element={
+                  <div contentEditable="false" suppressContentEditableWarning>
+                    Read-only content
+                  </div>
+                }
+              />
+            </Route>
+          </Routes>
+        </MemoryRouter>,
+      );
+
+      await user.click(screen.getByRole('button', { name: 'Abrir navegación' }));
+      expect(screen.getByRole('link', { name: 'Similitud' })).toHaveFocus();
+
+      await user.click(screen.getByText('Read-only content'));
+
+      // Treated as non-focusable: the panel closes AND focus returns to the
+      // toggle button — `contenteditable="false"` grants no default focus
+      // action of its own, so leaving focus for the browser's own default
+      // (the bug this guards) would have dropped it to the document body.
+      expect(screen.getByRole('button', { name: 'Abrir navegación' })).toHaveAttribute(
+        'aria-expanded',
+        'false',
+      );
+      expect(screen.getByRole('button', { name: 'Abrir navegación' })).toHaveFocus();
+    });
+
     it('lets an outside click on a child of a focusable control focus that control', async () => {
       const user = userEvent.setup();
       render(
@@ -435,6 +470,55 @@ describe('AppLayout', () => {
       screen.getByRole('heading', { level: 1, name: 'Legajo' }).dispatchEvent(outsideEvent);
 
       expect(outsideEvent.defaultPrevented).toBe(false);
+    });
+
+    it('moves focus off the disappearing toggle button, onto the active section link, when widening past lg leaves it focused', async () => {
+      const mediaQueryList = stubMatchMedia(false);
+      const user = userEvent.setup();
+      renderLayout();
+
+      // Open, then close via Escape: the toggle button — not a link — ends
+      // up focused, the same way the "returns focus to the menu button
+      // when closed via Escape" test above already proves.
+      await user.click(screen.getByRole('button', { name: 'Abrir navegación' }));
+      await user.keyboard('{Escape}');
+      expect(screen.getByRole('button', { name: 'Abrir navegación' })).toHaveFocus();
+
+      // The toggle button is `lg:hidden`: widening past `lg` makes the
+      // browser drop its focus outright (it becomes `display: none`) unless
+      // something else claims it first.
+      act(() => {
+        mediaQueryList.fireChange(true);
+      });
+
+      expect(document.body).not.toHaveFocus();
+      expect(screen.getByRole('link', { name: 'Similitud' })).toHaveFocus();
+    });
+
+    it('falls back to the main content region when widening past lg leaves the toggle button focused on a route with no active section link', async () => {
+      const mediaQueryList = stubMatchMedia(false);
+      const user = userEvent.setup();
+      render(
+        <MemoryRouter initialEntries={['/no-such-route']}>
+          <Routes>
+            <Route path="/" element={<AppLayout />}>
+              <Route path="similarity" element={<p>similarity page</p>} />
+              <Route path="*" element={<p>not found</p>} />
+            </Route>
+          </Routes>
+        </MemoryRouter>,
+      );
+
+      await user.click(screen.getByRole('button', { name: 'Abrir navegación' }));
+      await user.keyboard('{Escape}');
+      expect(screen.getByRole('button', { name: 'Abrir navegación' })).toHaveFocus();
+
+      act(() => {
+        mediaQueryList.fireChange(true);
+      });
+
+      expect(document.body).not.toHaveFocus();
+      expect(screen.getByRole('main')).toHaveFocus();
     });
   });
 });

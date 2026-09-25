@@ -78,7 +78,7 @@ function isFocusableElement(node: Node): boolean {
   }
   return (
     node.closest(
-      'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [contenteditable], summary, label, [tabindex]:not([tabindex="-1"])',
+      'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [contenteditable]:not([contenteditable="false"]), summary, label, [tabindex]:not([tabindex="-1"])',
     ) !== null
   );
 }
@@ -128,6 +128,24 @@ export function AppLayout() {
       setNavOpen(false);
     }
   }
+
+  // The toggle button that reset above is the same one `lg:hidden` removes
+  // from the layout at this exact breakpoint — if it still held focus (the
+  // panel was closed, e.g. via Escape or an outside click, but focus was
+  // never moved off the button itself, and the viewport then widened
+  // without an intervening click elsewhere), the browser drops focus to
+  // the document outright the instant that button disappears. A plain
+  // ref mutation read here is unsafe during render, so this defers to an
+  // effect keyed on the same transition; the active section link (if the
+  // current route has one) is the most useful next landing spot, with
+  // `<main>` as a fallback for a route with none (e.g. the not-found page).
+  useEffect(() => {
+    if (!isAtLeastLg || document.activeElement !== toggleButtonRef.current) {
+      return;
+    }
+    const activeLink = navRef.current?.querySelector<HTMLElement>('a[aria-current="page"]');
+    (activeLink ?? mainRef.current)?.focus();
+  }, [isAtLeastLg]);
 
   // A link inside the collapsed mobile nav navigates without ever closing
   // the panel on its own (a route change is the only signal available from
