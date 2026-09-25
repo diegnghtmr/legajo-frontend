@@ -82,7 +82,7 @@ function CompareResultsListRow({
   const formattedRaw = formatRawValue(result.rawValue);
 
   function activateTrace() {
-    rememberTraceTrigger(triggerRef.current);
+    rememberTraceTrigger(triggerRef.current, algorithmId);
     onOpenTrace(algorithmId);
   }
 
@@ -93,6 +93,7 @@ function CompareResultsListRow({
         type="button"
         aria-current={isOpen ? 'true' : undefined}
         aria-labelledby={`compare-list-algo-${algorithmId}`}
+        data-algorithm-trigger={algorithmId}
         onClick={activateTrace}
         className="flex min-h-11 w-full items-center gap-3 px-3 py-2 text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus"
       >

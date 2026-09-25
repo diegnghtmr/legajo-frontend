@@ -333,6 +333,50 @@ describe('SimilarityWorkbenchLayout', () => {
       expect(rowButton).toHaveFocus();
     });
 
+    describe('a tablet rotation (or any resize) crossing the breakpoint while the trace stays open', () => {
+      afterEach(() => {
+        vi.unstubAllGlobals();
+      });
+
+      it('resolves the remembered trigger by algorithm id against whichever results view is mounted', async () => {
+        const mediaQueryList = stubMatchMedia(true);
+        const user = userEvent.setup();
+        renderLayoutAtRoute('/similarity');
+
+        await waitForCompareTable();
+        const tableRow = await screen.findByRole('row', { name: /^levenshtein/i });
+        await user.click(within(tableRow).getByRole('button', { name: 'levenshtein' }));
+        await screen.findByTestId('workbench-detail');
+
+        // The table unmounts in favor of the results list, and the row
+        // button `rememberTraceTrigger` captured is no longer in the
+        // document.
+        act(() => {
+          mediaQueryList.fireChange(false);
+        });
+
+        // The now-open below-`lg` trace sheet is a real Radix `Dialog`,
+        // which marks the rest of the page `aria-hidden` while it is open —
+        // `hidden: true` still finds the results list underneath it (its
+        // DOM node, and the row button's real focusability, are both
+        // unaffected by that accessibility-tree veil).
+        const list = await screen.findByRole('list', {
+          name: 'Resultados de similitud por algoritmo',
+          hidden: true,
+        });
+        const listRowButton = within(list).getByRole('button', {
+          name: 'levenshtein',
+          hidden: true,
+        });
+        const dialog = await screen.findByRole('dialog');
+
+        await user.click(within(dialog).getByRole('button', { name: 'Cerrar traza' }));
+
+        expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+        expect(listRowButton).toHaveFocus();
+      });
+    });
+
     it('closes the deep-linked trace and drops its document ids from the URL once the rail names a different pair', async () => {
       renderLayoutAtRoute('/similarity/levenshtein/trace?documentIdA=doc-01&documentIdB=doc-02');
 

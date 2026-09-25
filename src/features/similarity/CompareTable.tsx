@@ -130,7 +130,7 @@ function CompareTableRow({
   const formattedRaw = formatRawValue(result.rawValue);
 
   function activateTrace() {
-    rememberTraceTrigger(triggerRef.current);
+    rememberTraceTrigger(triggerRef.current, algorithmId);
     onOpenTrace(algorithmId);
   }
 
@@ -163,6 +163,7 @@ function CompareTableRow({
           ref={triggerRef}
           type="button"
           aria-labelledby={`compare-row-algo-${algorithmId}`}
+          data-algorithm-trigger={algorithmId}
           onClick={(event) => {
             event.stopPropagation();
             activateTrace();

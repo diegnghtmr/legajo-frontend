@@ -3,9 +3,12 @@ import { afterEach, describe, expect, it } from 'vitest';
 import { MAIN_CONTENT_ID } from '../../shared/lib/shellMetrics';
 import { clearTraceTrigger, rememberTraceTrigger, restoreTraceTrigger } from './traceFocusReturn';
 
-function appendButton(): HTMLButtonElement {
+function appendButton(algorithmId?: string): HTMLButtonElement {
   const button = document.createElement('button');
   button.type = 'button';
+  if (algorithmId !== undefined) {
+    button.setAttribute('data-algorithm-trigger', algorithmId);
+  }
   document.body.appendChild(button);
   return button;
 }
@@ -19,8 +22,8 @@ afterEach(() => {
 
 describe('traceFocusReturn', () => {
   it('focuses the remembered trigger and forgets it, so a second restore focuses nothing further', () => {
-    const button = appendButton();
-    rememberTraceTrigger(button);
+    const button = appendButton('levenshtein');
+    rememberTraceTrigger(button, 'levenshtein');
 
     restoreTraceTrigger();
     expect(button).toHaveFocus();
@@ -34,9 +37,9 @@ describe('traceFocusReturn', () => {
     expect(button).not.toHaveFocus();
   });
 
-  it('falls back to the main landmark when the remembered trigger is no longer connected to the document', () => {
-    const detachedButton = appendButton();
-    rememberTraceTrigger(detachedButton);
+  it('falls back to the main landmark when the remembered trigger is no longer connected to the document, and no same-algorithm trigger exists elsewhere', () => {
+    const detachedButton = appendButton('levenshtein');
+    rememberTraceTrigger(detachedButton, 'levenshtein');
     detachedButton.remove();
 
     const main = document.createElement('main');
@@ -49,9 +52,26 @@ describe('traceFocusReturn', () => {
     expect(main).toHaveFocus();
   });
 
+  it('resolves a same-algorithm trigger elsewhere in the document once the remembered element itself is disconnected — the breakpoint crossing lg while the trace stayed open, table swapped for list (or back)', () => {
+    const tableRowButton = appendButton('levenshtein');
+    rememberTraceTrigger(tableRowButton, 'levenshtein');
+    tableRowButton.remove();
+
+    // The below-`lg` list's own row button for that same algorithm, now the
+    // only one actually mounted.
+    const listRowButton = appendButton('levenshtein');
+    // A different algorithm's own trigger, also present, must never be
+    // mistaken for a match.
+    appendButton('jaccard');
+
+    restoreTraceTrigger();
+
+    expect(listRowButton).toHaveFocus();
+  });
+
   it('clearTraceTrigger forgets the trigger without focusing anything', () => {
-    const button = appendButton();
-    rememberTraceTrigger(button);
+    const button = appendButton('levenshtein');
+    rememberTraceTrigger(button, 'levenshtein');
     clearTraceTrigger();
 
     const main = document.createElement('main');
