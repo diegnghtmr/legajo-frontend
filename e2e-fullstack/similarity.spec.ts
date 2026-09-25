@@ -60,7 +60,10 @@ test.describe('similarity compare + trace (full stack, Flow A)', () => {
     // Header row + six real algorithm results.
     await expect(page.getByRole('row')).toHaveCount(7);
     for (const algorithmId of ALGORITHM_IDS) {
-      await expect(page.getByRole('button', { name: algorithmId, exact: true })).toBeVisible();
+      // Scoped to the row: the family filter above the table has its own
+      // same-named toggle button for every algorithm id.
+      const row = page.getByRole('row', { name: algorithmId });
+      await expect(row.getByRole('button', { name: algorithmId, exact: true })).toBeVisible();
     }
 
     // Cross-check the rendered needleman-wunsch score against the backend's
