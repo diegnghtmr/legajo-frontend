@@ -104,7 +104,7 @@ describe('Dendrogram', () => {
     expect(container.querySelector('[data-testid="dendrogram-cut-line"]')).not.toBeInTheDocument();
   });
 
-  it('draws exactly one dashed cut line and the cluster number per leaf once a cut is provided', () => {
+  it('draws exactly one dashed cut line and a compact cluster-number marker per leaf once a cut is provided', () => {
     const { container } = render(
       <Dendrogram
         rows={ROWS}
@@ -118,13 +118,78 @@ describe('Dendrogram', () => {
     const cutLines = container.querySelectorAll('[data-testid="dendrogram-cut-line"]');
     expect(cutLines).toHaveLength(1);
     expect(cutLines[0]?.getAttribute('stroke-dasharray')).toBeTruthy();
-    // labels = [0, 0, 1, 1, 2] -> two leaves in cluster 0, two in cluster 1, one in cluster 2.
-    expect(screen.getAllByText('Clúster 0')).toHaveLength(2);
-    expect(screen.getAllByText('Clúster 1')).toHaveLength(2);
-    expect(screen.getAllByText('Clúster 2')).toHaveLength(1);
+    // labels = [0, 0, 1, 1, 2] indexed by original leaf id; rendered in
+    // LEAF_ORDER's visual order ([2, 3, 0, 1, 4]) that is [1, 1, 0, 0, 2].
+    // A bare, compact number (not the full "Clúster N" word), so labels stay
+    // legible at the default leaf spacing instead of overlapping.
+    const markers = [...container.querySelectorAll('[data-testid="cluster-marker"]')];
+    expect(markers.map((marker) => marker.textContent)).toEqual(['1', '1', '0', '0', '2']);
+    // Each marker is aria-hidden — the full name is carried by the leaf's
+    // own <title> instead, asserted below — never announced as a bare digit.
+    for (const marker of markers) {
+      expect(marker).toHaveAttribute('aria-hidden', 'true');
+    }
   });
 
-  it('renders no cluster text for a leaf whose cut label is undefined, while other leaves still render', () => {
+  it("appends the cluster label to the leaf's own accessible title once a cut is provided", () => {
+    const { container } = render(
+      <Dendrogram
+        rows={ROWS}
+        leafOrder={LEAF_ORDER}
+        ariaLabel="Single dendrogram"
+        leafLabels={LEAF_LABELS}
+        cut={{ distance: 2.5, labels: [0, 0, 1, 1, 2] }}
+      />,
+    );
+
+    const leafZeroTitle = container.querySelector('[data-leaf-id="0"] title');
+    expect(leafZeroTitle).toHaveTextContent('Zeroth article — Clúster 0');
+  });
+
+  it('shows a legend captioning what the cluster numbers mean, naming k', () => {
+    render(
+      <Dendrogram
+        rows={ROWS}
+        leafOrder={LEAF_ORDER}
+        ariaLabel="Single dendrogram"
+        leafLabels={LEAF_LABELS}
+        cut={{ distance: 2.5, labels: [0, 0, 1, 1, 2] }}
+      />,
+    );
+
+    expect(screen.getByText('Números de clúster (k = 3) debajo de cada hoja')).toBeInTheDocument();
+  });
+
+  it('shows no legend without a cut', () => {
+    render(<Dendrogram rows={ROWS} leafOrder={LEAF_ORDER} ariaLabel="Single dendrogram" />);
+
+    expect(screen.queryByText(/Números de clúster/)).not.toBeInTheDocument();
+  });
+
+  it('makes the sr-only merge table collapse instead of growing to its content width', () => {
+    // jsdom performs no real layout, so this cannot assert an actual
+    // scrollWidth. The CSS contract that keeps the visually-hidden table
+    // from widening the page's own scrollable area in a real browser is
+    // `table-fixed` (stop growing to fit content) *and* `whitespace-normal`
+    // (override `sr-only`'s own `nowrap`, which otherwise still lets each
+    // cell's full text count as one unbreakable run even under
+    // `table-fixed` — verified against a live render); this asserts both
+    // classes are present together, since either alone left it overflowing.
+    const { container } = render(
+      <Dendrogram
+        rows={ROWS}
+        leafOrder={LEAF_ORDER}
+        ariaLabel="Single dendrogram"
+        leafLabels={LEAF_LABELS}
+      />,
+    );
+
+    const table = container.querySelector('table.sr-only');
+    expect(table).toHaveClass('table-fixed');
+    expect(table).toHaveClass('whitespace-normal');
+  });
+
+  it('renders no cluster marker for a leaf whose cut label is undefined, while other leaves still render one', () => {
     const { container } = render(
       <Dendrogram
         rows={ROWS}
@@ -135,13 +200,15 @@ describe('Dendrogram', () => {
       />,
     );
 
-    // Leaf id 1's cut label is undefined: its group gets no cluster-number
+    // Leaf id 1's cut label is undefined: its group gets no cluster-marker
     // <text> node at all (not merely a blank one), while every other leaf's
     // group still renders its own.
     for (const leafId of [0, 2, 3, 4]) {
-      expect(container.querySelector(`[data-leaf-id="${leafId}"] text.fill-ink`)).not.toBeNull();
+      expect(
+        container.querySelector(`[data-leaf-id="${leafId}"] [data-testid="cluster-marker"]`),
+      ).not.toBeNull();
     }
-    expect(container.querySelector('[data-leaf-id="1"] text.fill-ink')).toBeNull();
+    expect(container.querySelector('[data-leaf-id="1"] [data-testid="cluster-marker"]')).toBeNull();
     expect(screen.queryByText(/undefined/)).not.toBeInTheDocument();
   });
 
