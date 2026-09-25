@@ -59,18 +59,22 @@ const SECTIONS = [
 const MAIN_CONTENT_ID = 'main-content';
 const PRIMARY_NAV_ID = 'primary-nav';
 
-/** Whether `node` is a real, interactive focus target — the browser's own
- * default `mousedown` action would move focus onto it (or, for a link,
- * activate it) once nothing prevents that default action. Used to decide,
+/** Whether `node` is, or sits inside, a real interactive focus target — the
+ * browser's own default `mousedown` action would move focus onto that
+ * control (or, for a link, activate it) once nothing prevents that default
+ * action. A click on a control's label text or icon lands on a child node,
+ * so the check walks up to the nearest focusable ancestor. Used to decide,
  * for an outside click that closes the mobile nav, whether that click's own
- * target should keep the focus it is about to receive, instead of the
+ * control should keep the focus it is about to receive, instead of the
  * panel's close handler yanking focus back to its toggle button. */
 function isFocusableElement(node: Node): boolean {
-  if (!(node instanceof HTMLElement)) {
+  if (!(node instanceof Element)) {
     return false;
   }
-  return node.matches(
-    'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]',
+  return (
+    node.closest(
+      'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]',
+    ) !== null
   );
 }
 

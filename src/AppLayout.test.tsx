@@ -292,5 +292,34 @@ describe('AppLayout', () => {
       );
       expect(hasClassToken(screen.getByRole('navigation'), 'hidden')).toBe(true);
     });
+
+    it('lets an outside click on a child of a focusable control focus that control', async () => {
+      const user = userEvent.setup();
+      render(
+        <MemoryRouter initialEntries={['/similarity']}>
+          <Routes>
+            <Route path="/" element={<AppLayout />}>
+              <Route
+                path="similarity"
+                element={
+                  <button type="button">
+                    <span>Outside label</span>
+                  </button>
+                }
+              />
+            </Route>
+          </Routes>
+        </MemoryRouter>,
+      );
+
+      await user.click(screen.getByRole('button', { name: 'Abrir navegación' }));
+      await user.click(screen.getByText('Outside label'));
+
+      expect(screen.getByRole('button', { name: 'Outside label' })).toHaveFocus();
+      expect(screen.getByRole('button', { name: 'Abrir navegación' })).toHaveAttribute(
+        'aria-expanded',
+        'false',
+      );
+    });
   });
 });
