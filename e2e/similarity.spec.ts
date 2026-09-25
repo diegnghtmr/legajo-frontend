@@ -161,6 +161,30 @@ test.describe('similarity compare screen', () => {
     await expect(row).toHaveAttribute('aria-current', 'true');
   });
 
+  test("opens a row's trace from the keyboard alone (Tab to its own button, then Enter)", async ({
+    page,
+  }) => {
+    await page.goto('/');
+
+    await page.getByRole('checkbox', { name: 'A survey of string similarity' }).check();
+    await page.getByRole('checkbox', { name: 'Embeddings for scientific text' }).check();
+    await page.getByRole('button', { name: 'Comparar doc-01 y doc-02' }).click();
+
+    await expect(page.getByRole('row')).toHaveCount(7);
+
+    // Scoped to the row: the family filter above the table has its own
+    // same-named toggle button for every algorithm id.
+    const row = page.getByRole('row', { name: /^levenshtein/ });
+    const rowButton = row.getByRole('button', { name: 'levenshtein', exact: true });
+    await rowButton.focus();
+    await expect(rowButton).toBeFocused();
+
+    await page.keyboard.press('Enter');
+
+    await expect(page).toHaveURL(/\/similarity\/levenshtein\/trace/);
+    await expect(row).toHaveAttribute('aria-current', 'true');
+  });
+
   test('has no automatically detectable WCAG 2.1 AA violations on the compare results', async ({
     page,
   }) => {
