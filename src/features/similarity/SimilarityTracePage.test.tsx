@@ -1,9 +1,10 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { render, screen } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router';
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import * as similarityApi from '../../infrastructure/api/similarity';
+import type { ListSimilarityAlgorithmsResponse } from '../../infrastructure/api/similarity';
 import type {
   DpMatrixTrace,
   EmbeddingApiTrace,
@@ -14,6 +15,16 @@ import type {
 import { SimilarityTracePage } from './SimilarityTracePage';
 
 vi.mock('../../infrastructure/api/similarity');
+
+/** Same catalogue shape `SimilarityPage.test.tsx` and the e2e fixtures use. */
+const CATALOGUE: ListSimilarityAlgorithmsResponse = [
+  { id: 'levenshtein', displayName: 'Levenshtein distance', kind: 'CLASSIC' },
+  { id: 'needleman-wunsch', displayName: 'Needleman–Wunsch', kind: 'CLASSIC' },
+  { id: 'jaccard', displayName: 'Jaccard index', kind: 'CLASSIC' },
+  { id: 'tfidf-cosine', displayName: 'TF-IDF cosine', kind: 'CLASSIC' },
+  { id: 'embedding-local', displayName: 'Local embedding', kind: 'AI' },
+  { id: 'embedding-api', displayName: 'Live embedding API', kind: 'AI' },
+];
 
 const DP_TRACE: DpMatrixTrace = {
   algorithmId: 'levenshtein',
@@ -106,6 +117,10 @@ function renderAtRoute(path: string) {
 const ROUTE = '/similarity/levenshtein/trace?documentIdA=doc-01&documentIdB=doc-02';
 
 describe('SimilarityTracePage', () => {
+  beforeEach(() => {
+    vi.spyOn(similarityApi, 'fetchSimilarityAlgorithms').mockResolvedValue(CATALOGUE);
+  });
+
   it('shows a loading state before the trace resolves', () => {
     vi.spyOn(similarityApi, 'fetchSimilarityTrace').mockReturnValue(new Promise(() => {}));
 
@@ -206,11 +221,29 @@ describe('SimilarityTracePage', () => {
     );
   });
 
-  it('titles the page with the algorithm id from the route', async () => {
+  it('titles the page with the algorithm display name, not a repeat of the eyebrow', async () => {
     vi.spyOn(similarityApi, 'fetchSimilarityTrace').mockResolvedValue(JACCARD_TRACE);
 
     renderAtRoute('/similarity/jaccard/trace?documentIdA=doc-01&documentIdB=doc-02');
 
-    expect(await screen.findByRole('heading', { name: 'Traza: jaccard' })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Jaccard index' })).toBeInTheDocument();
+  });
+
+  it('shows a subtitle naming the two compared documents', async () => {
+    vi.spyOn(similarityApi, 'fetchSimilarityTrace').mockResolvedValue(JACCARD_TRACE);
+
+    renderAtRoute('/similarity/jaccard/trace?documentIdA=doc-01&documentIdB=doc-02');
+
+    expect(await screen.findByText('Comparando doc-01 × doc-02')).toBeInTheDocument();
+  });
+
+  it('shows the family and optimal-path-cost meta row for a DP trace', async () => {
+    vi.spyOn(similarityApi, 'fetchSimilarityTrace').mockResolvedValue(DP_TRACE);
+
+    renderAtRoute(ROUTE);
+
+    expect(await screen.findByTestId('dp-trace-family')).toHaveTextContent('Clásico');
+    // DP_TRACE's matrix bottom-right cell (the edit distance itself).
+    expect(screen.getByTestId('dp-trace-optimal-path')).toHaveTextContent('1');
   });
 });

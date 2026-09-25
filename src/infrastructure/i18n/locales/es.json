@@ -95,11 +95,13 @@
     },
     "trace": {
       "eyebrow": "Traza",
-      "title": "Traza: {{id}}",
+      "subtitle": "Comparando {{a}} × {{b}}",
       "backToCompare": "Volver a la comparación",
       "loading": "Cargando la traza…",
       "errorTitle": "No se pudo cargar la traza",
       "dp": {
+        "familyLabel": "Familia",
+        "optimalPathLabel": "Camino óptimo",
         "matrixCaption": "Matriz completa de {{id}}",
         "downloadCsv": "Descargar matriz completa (CSV)",
         "pathCellSuffix": "celda del camino óptimo",

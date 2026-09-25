@@ -19,7 +19,7 @@ import { useSelectionStore } from '../corpus/selectionStore';
 import { algoFamilyFromKind } from './algorithmFamily';
 import { CompareTable } from './CompareTable';
 
-const ALGORITHMS_QUERY_KEY = ['similarity', 'algorithms'] as const;
+export const ALGORITHMS_QUERY_KEY = ['similarity', 'algorithms'] as const;
 
 /** The six fixed capability ids, independent of the catalogue fetch. */
 const DEFAULT_ALGORITHM_IDS = [...AlgorithmIdSchema.options];
