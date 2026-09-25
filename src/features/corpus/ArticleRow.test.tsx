@@ -4,6 +4,7 @@ import { MemoryRouter } from 'react-router';
 import { describe, expect, it, vi } from 'vitest';
 
 import { ArticleRow } from './ArticleRow';
+import { STICKY_CTA_HEIGHT_VAR, STICKY_CTA_SCROLL_MARGIN_BOTTOM } from './stickyCta';
 
 const summary = { id: 'doc-01', title: 'A study of similarity', authors: ['A. One', 'B. Two'] };
 
@@ -66,13 +67,30 @@ describe('ArticleRow', () => {
   });
 
   it('gives both focusable elements enough scroll-margin-bottom to clear the sticky CTA bar (WCAG 2.4.11)', () => {
-    // jsdom performs no real layout, so this asserts the CSS contract
-    // (matching CorpusPage's own pb-48, the bar's measured tallest height),
-    // not an actual scroll position — verified separately against a live
-    // render in the corpus e2e suite.
+    // jsdom performs no real layout, so this asserts the CSS contract — a
+    // `scroll-margin-bottom` that reads the *same* shared custom property
+    // `CorpusPage` publishes (`stickyCta.ts`), not a hard-coded pixel value
+    // — not an actual scroll position, which is verified separately against
+    // a live render in the corpus e2e suite.
     renderRow();
 
-    expect(screen.getByRole('checkbox', { name: summary.title })).toHaveClass('scroll-mb-48');
-    expect(screen.getByRole('link', { name: summary.title })).toHaveClass('scroll-mb-48');
+    const checkbox = screen.getByRole('checkbox', { name: summary.title });
+    const link = screen.getByRole('link', { name: summary.title });
+    expect(checkbox.style.scrollMarginBottom).toContain(STICKY_CTA_HEIGHT_VAR);
+    expect(link.style.scrollMarginBottom).toContain(STICKY_CTA_HEIGHT_VAR);
+    expect(checkbox.style.scrollMarginBottom).toBe(link.style.scrollMarginBottom);
+    expect(checkbox.className).not.toContain('scroll-mb-48');
+    expect(link.className).not.toContain('scroll-mb-48');
+  });
+
+  it('gives both focusable elements exactly the shared scroll-margin-bottom constant', () => {
+    renderRow();
+
+    expect(screen.getByRole('checkbox', { name: summary.title }).style.scrollMarginBottom).toBe(
+      STICKY_CTA_SCROLL_MARGIN_BOTTOM,
+    );
+    expect(screen.getByRole('link', { name: summary.title }).style.scrollMarginBottom).toBe(
+      STICKY_CTA_SCROLL_MARGIN_BOTTOM,
+    );
   });
 });
