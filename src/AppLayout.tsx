@@ -58,6 +58,21 @@ const SECTIONS = [
 const MAIN_CONTENT_ID = 'main-content';
 const PRIMARY_NAV_ID = 'primary-nav';
 
+/** Whether `node` is a real, interactive focus target — the browser's own
+ * default `mousedown` action would move focus onto it (or, for a link,
+ * activate it) once nothing prevents that default action. Used to decide,
+ * for an outside click that closes the mobile nav, whether that click's own
+ * target should keep the focus it is about to receive, instead of the
+ * panel's close handler yanking focus back to its toggle button. */
+function isFocusableElement(node: Node): boolean {
+  if (!(node instanceof HTMLElement)) {
+    return false;
+  }
+  return node.matches(
+    'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]',
+  );
+}
+
 /**
  * App shell: a 56px top bar (wordmark, section nav, ES/EN switch) over the
  * routed page content through `Outlet`. Below the `lg` breakpoint (1024px)
@@ -77,6 +92,13 @@ export function AppLayout() {
   // Only actual open→close transitions return focus to the toggle button —
   // guarded so the very first render (already closed) never steals focus.
   const wasNavOpenRef = useRef(false);
+  // Whether the *next* close should send focus back to the toggle button.
+  // Escape and an outside click on a non-focusable target both opt in (the
+  // panel is going away and nothing else claims focus); a link activation,
+  // a route change, or an outside click on something itself focusable never
+  // do, so that click's own default action — moving focus onto it — is
+  // left alone instead of being overridden a moment later.
+  const returnFocusToToggleRef = useRef(false);
 
   // A link inside the collapsed mobile nav navigates without ever closing
   // the panel on its own (a route change is the only signal available from
@@ -102,10 +124,15 @@ export function AppLayout() {
   useEffect(() => {
     if (navOpen) {
       wasNavOpenRef.current = true;
+      // Reset for this open cycle; only Escape or an outside click on a
+      // non-focusable target opts back in below.
+      returnFocusToToggleRef.current = false;
       navRef.current?.querySelector<HTMLElement>('a')?.focus();
     } else if (wasNavOpenRef.current) {
       wasNavOpenRef.current = false;
-      toggleButtonRef.current?.focus();
+      if (returnFocusToToggleRef.current) {
+        toggleButtonRef.current?.focus();
+      }
     }
   }, [navOpen]);
 
@@ -119,6 +146,7 @@ export function AppLayout() {
 
     function handleKeyDown(event: KeyboardEvent) {
       if (event.key === 'Escape') {
+        returnFocusToToggleRef.current = true;
         setNavOpen(false);
       }
     }
@@ -128,11 +156,19 @@ export function AppLayout() {
       if (navRef.current?.contains(target) || toggleButtonRef.current?.contains(target)) {
         return;
       }
-      // Without this, a mousedown's own default action shifts focus to the
-      // clicked target (or blurs to the document body for a non-focusable
-      // one) before the close effect below gets to move it to the toggle
-      // button, silently overriding that below.
-      event.preventDefault();
+      const targetIsFocusable = isFocusableElement(target);
+      if (!targetIsFocusable) {
+        // The target itself has nothing to gain focus/activate — this
+        // suppresses the browser's own "blur to nothing" default action
+        // for a mousedown that lands on nothing interactive, so the close
+        // effect below can move focus to the toggle button deterministically
+        // instead of it landing on neither. A *focusable* target never hits
+        // this branch: its own default action (moving focus onto it, or a
+        // button/link's own click) is left alone instead of being
+        // overridden a moment later.
+        event.preventDefault();
+      }
+      returnFocusToToggleRef.current = !targetIsFocusable;
       setNavOpen(false);
     }
 

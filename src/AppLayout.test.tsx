@@ -1,7 +1,7 @@
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Route, Routes } from 'react-router';
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import i18n from './infrastructure/i18n';
 import { AppLayout } from './AppLayout';
@@ -230,6 +230,44 @@ describe('AppLayout', () => {
       // The panel closed because the link navigated (a different route),
       // not because the outside-click handler double-fired on it.
       expect(await screen.findByText('similarity page')).toBeInTheDocument();
+    });
+
+    it('lets an outside click reach its own target instead of swallowing its default action', async () => {
+      const user = userEvent.setup();
+      const handleOutsideClick = vi.fn();
+      render(
+        <MemoryRouter initialEntries={['/similarity']}>
+          <Routes>
+            <Route path="/" element={<AppLayout />}>
+              <Route
+                path="similarity"
+                element={
+                  <button type="button" onClick={handleOutsideClick}>
+                    Outside action
+                  </button>
+                }
+              />
+            </Route>
+          </Routes>
+        </MemoryRouter>,
+      );
+
+      await user.click(screen.getByRole('button', { name: 'Abrir navegación' }));
+      expect(screen.getByRole('link', { name: 'Similitud' })).toHaveFocus();
+
+      const outsideButton = screen.getByRole('button', { name: 'Outside action' });
+      await user.click(outsideButton);
+
+      // The click's default action (focus) and its own handler both still
+      // fire — a preceding `preventDefault()` on the outside-click's
+      // `mousedown` would silently swallow the first one.
+      expect(outsideButton).toHaveFocus();
+      expect(handleOutsideClick).toHaveBeenCalledTimes(1);
+      expect(screen.getByRole('button', { name: 'Abrir navegación' })).toHaveAttribute(
+        'aria-expanded',
+        'false',
+      );
+      expect(hasClassToken(screen.getByRole('navigation'), 'hidden')).toBe(true);
     });
   });
 });
