@@ -118,13 +118,13 @@ async function mockTrace(page: Page, algorithmId: string, trace: unknown) {
   });
 }
 
-test.describe('similarity trace view', () => {
+test.describe('standalone full-screen trace view', () => {
   test('DP trace: renders the complete matrix, marks the optimal path, and downloads the full CSV', async ({
     page,
   }) => {
     await mockTrace(page, 'levenshtein', DP_TRACE);
 
-    await page.goto('/similarity/levenshtein/trace?documentIdA=doc-01&documentIdB=doc-02');
+    await page.goto('/similarity/levenshtein/trace/full?documentIdA=doc-01&documentIdB=doc-02');
 
     await expect(page.getByRole('heading', { name: 'Levenshtein distance' })).toBeVisible();
     await expect(page.getByTestId('dp-trace-family')).toHaveText('Clásico');
@@ -163,7 +163,7 @@ test.describe('similarity trace view', () => {
   }) => {
     await mockTrace(page, 'jaccard', JACCARD_TRACE);
 
-    await page.goto('/similarity/jaccard/trace?documentIdA=doc-01&documentIdB=doc-02');
+    await page.goto('/similarity/jaccard/trace/full?documentIdA=doc-01&documentIdB=doc-02');
 
     await expect(page.getByRole('heading', { name: 'Jaccard index' })).toBeVisible();
     await expect(page.getByText('0.500000')).toBeVisible();
@@ -176,7 +176,7 @@ test.describe('similarity trace view', () => {
   }) => {
     await mockTrace(page, 'levenshtein', DP_TRACE);
 
-    await page.goto('/similarity/levenshtein/trace?documentIdA=doc-01&documentIdB=doc-02');
+    await page.goto('/similarity/levenshtein/trace/full?documentIdA=doc-01&documentIdB=doc-02');
     await expect(page.getByRole('heading', { name: 'Levenshtein distance' })).toBeVisible();
 
     const results = await new AxeBuilder({ page })
@@ -215,7 +215,9 @@ test.describe('similarity trace view', () => {
     }) => {
       await mockTrace(page, algorithmId, trace);
 
-      await page.goto(`/similarity/${algorithmId}/trace?documentIdA=doc-01&documentIdB=doc-02`);
+      await page.goto(
+        `/similarity/${algorithmId}/trace/full?documentIdA=doc-01&documentIdB=doc-02`,
+      );
       await expect(page.getByRole('heading', { name: headingName })).toBeVisible();
 
       const results = await new AxeBuilder({ page })

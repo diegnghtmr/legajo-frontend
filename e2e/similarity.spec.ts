@@ -122,7 +122,7 @@ test.describe('similarity compare screen', () => {
     await expect(rows).toHaveCount(7);
 
     for (const { algorithmId } of COMPARE_RESULTS) {
-      await expect(page.getByRole('link', { name: algorithmId, exact: true })).toBeVisible();
+      await expect(page.getByRole('button', { name: algorithmId, exact: true })).toBeVisible();
     }
 
     const degenerateRow = page.getByRole('row', { name: /tfidf-cosine/ });
