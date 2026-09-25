@@ -20,6 +20,16 @@
   --color-hairline-strong: #d4d4d4;
   --color-primary: #171717;
   --color-primary-foreground: #fafafa;
+  /*
+   * shadcn/ui theme aliases: every shadcn/Radix primitive under
+   * shared/components/ui/ reads these. They alias the tokens above, never a
+   * new color — background/foreground/border/ring only rename paper, ink,
+   * hairline and focus for the shadcn API surface.
+   */
+  --color-background: var(--color-paper);
+  --color-foreground: var(--color-ink);
+  --color-border: var(--color-hairline);
+  --color-ring: var(--color-focus);
   --color-classic: #b45309;
   --color-classic-soft: #fef3c7;
   --color-classic-foreground: #78350f;

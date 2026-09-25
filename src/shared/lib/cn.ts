@@ -1,27 +1,15 @@
-export type ClassValue =
-  string | number | null | undefined | false | Record<string, boolean | undefined>;
+import { type ClassValue, clsx } from 'clsx';
+import { twMerge } from 'tailwind-merge';
+
+export type { ClassValue };
 
 /**
- * Minimal class-name joiner: no `clsx`/`tailwind-merge` dependency, since
- * neither is part of the frontend's fixed stack. It never
- * deduplicates or resolves Tailwind conflicts — components here never pass
- * conflicting utility classes for the same property.
+ * Class-name joiner used across the app and by the shadcn/ui primitives in
+ * `shared/components/ui/`: `clsx` collects and flattens the truthy inputs,
+ * `tailwind-merge` then resolves conflicting Tailwind utilities for the same
+ * CSS property (e.g. a caller's `px-4` overriding a component's own `px-2`)
+ * by keeping only the last one, the way shadcn/ui's own `cn()` does.
  */
 export function cn(...values: readonly ClassValue[]): string {
-  const classes: string[] = [];
-
-  for (const value of values) {
-    if (!value) continue;
-
-    if (typeof value === 'string' || typeof value === 'number') {
-      classes.push(String(value));
-      continue;
-    }
-
-    for (const [key, enabled] of Object.entries(value)) {
-      if (enabled) classes.push(key);
-    }
-  }
-
-  return classes.join(' ');
+  return twMerge(clsx(values));
 }
