@@ -1,7 +1,21 @@
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router';
 
+import { SIMILARITY_RESULTS_REGION_ID } from '../similarity/similarityFocusTargets';
+import { useIsAtLeastLg } from '../../shared/lib/useIsAtLeastLg';
 import { sortedPair, useSelectionStore } from './selectionStore';
+
+/** Moves focus onto the similarity workbench's own results region instead of
+ * navigating — the keyboard/assistive-technology path once the center
+ * already shows the pair or the matrix with no click (at `lg` and above,
+ * `SimilarityWorkbenchLayout`'s `SIMILARITY_RESULTS_REGION_ID` landmark).
+ * `document.getElementById` (rather than a ref) is the only option here:
+ * this hook has no JSX of its own to attach one to, and the region it
+ * targets is owned by a layout several components away, not by whichever
+ * caller (`SelectionRail`, `SelectionTray`) happens to invoke this hook. */
+function focusResultsRegion(): void {
+  document.getElementById(SIMILARITY_RESULTS_REGION_ID)?.focus();
+}
 
 export interface AdaptiveSelectionCta {
   /** How many articles are currently selected — the desktop rail's footer
@@ -21,10 +35,20 @@ export interface AdaptiveSelectionCta {
  * disabled with a reason; at exactly two it opens the pairwise comparison;
  * at three or more it opens the similarity matrix. The CTA never leads to a
  * dead end: no error page, no blank result.
+ *
+ * At `lg` and above the center already shows that same result with no click
+ * at all (`SimilarityWorkbenchLayout`, `SimilarityPage`,
+ * `SimilarityMatrixPage`), so activating the CTA there is no longer a
+ * required step — it moves focus onto the results region instead
+ * (`focusResultsRegion`), the keyboard/assistive-technology equivalent of
+ * "the results are already right there". Below `lg` nothing changes: the
+ * corpus list stays the main content until this same CTA navigates and
+ * confirms the comparison.
  */
 export function useAdaptiveSelectionCta(): AdaptiveSelectionCta {
   const { t } = useTranslation();
   const navigate = useNavigate();
+  const isAtLeastLg = useIsAtLeastLg();
   const selectedIds = useSelectionStore((state) => state.selectedIds);
   const selectedCount = selectedIds.length;
 
@@ -55,7 +79,7 @@ export function useAdaptiveSelectionCta(): AdaptiveSelectionCta {
       ctaLabel: t('corpus.rail.cta.comparePair', { a, b }),
       ctaEnabled: true,
       modeText: t('corpus.rail.mode.pairwise'),
-      onCtaClick: () => void navigate('/similarity'),
+      onCtaClick: isAtLeastLg ? focusResultsRegion : () => void navigate('/similarity'),
     };
   }
 
@@ -64,6 +88,6 @@ export function useAdaptiveSelectionCta(): AdaptiveSelectionCta {
     ctaLabel: t('corpus.rail.cta.viewMatrix', { count: selectedCount }),
     ctaEnabled: true,
     modeText: t('corpus.rail.mode.matrix'),
-    onCtaClick: () => void navigate('/similarity/matrix'),
+    onCtaClick: isAtLeastLg ? focusResultsRegion : () => void navigate('/similarity/matrix'),
   };
 }

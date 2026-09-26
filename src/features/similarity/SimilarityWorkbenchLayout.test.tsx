@@ -726,6 +726,72 @@ describe('SimilarityWorkbenchLayout', () => {
     });
   });
 
+  describe('at lg and above, the center follows the corpus selection automatically', () => {
+    beforeEach(() => {
+      vi.spyOn(similarityApi, 'fetchSimilarityMatrix').mockResolvedValue([]);
+      vi.spyOn(corpusApi, 'fetchCorpus').mockResolvedValue([
+        { id: 'doc-01', title: 'A survey of string similarity', authors: ['A. One'] },
+        { id: 'doc-02', title: 'A second article', authors: ['B. Two'] },
+        { id: 'doc-03', title: 'A third article', authors: ['C. Three'] },
+      ]);
+    });
+
+    it('selecting a third article shows the matrix directly, with no click at all', async () => {
+      const user = userEvent.setup();
+      renderLayoutAtRoute('/similarity');
+
+      await user.click(
+        await screen.findByRole('checkbox', { name: 'A survey of string similarity' }),
+      );
+      await user.click(screen.getByRole('checkbox', { name: 'A second article' }));
+      await user.click(screen.getByRole('checkbox', { name: 'A third article' }));
+
+      expect(
+        await screen.findByRole('heading', { name: 'Matriz de similitud' }),
+      ).toBeInTheDocument();
+    });
+
+    it('dropping back to two after showing the matrix shows the pair instead, with no click', async () => {
+      useSelectionStore.setState({
+        selectedIds: ['doc-01', 'doc-02', 'doc-03'],
+        canCompare: true,
+        canMatrix: true,
+      });
+      renderLayoutAtRoute('/similarity');
+      await screen.findByRole('heading', { name: 'Matriz de similitud' });
+
+      act(() => {
+        useSelectionStore.setState({
+          selectedIds: ['doc-01', 'doc-02'],
+          canCompare: true,
+          canMatrix: false,
+        });
+      });
+
+      expect(
+        await screen.findByRole('heading', { name: 'doc-01 frente a doc-02' }),
+      ).toBeInTheDocument();
+    });
+
+    it('activating the rail CTA moves focus onto the already-shown results instead of navigating anywhere', async () => {
+      const user = userEvent.setup();
+      useSelectionStore.setState({
+        selectedIds: ['doc-01', 'doc-02'],
+        canCompare: true,
+        canMatrix: false,
+      });
+      renderLayoutAtRoute('/similarity');
+      await waitForCompareTable();
+      const location = await screen.findByTestId('location');
+      const locationBefore = location.textContent;
+
+      await user.click(screen.getByRole('button', { name: 'Comparar doc-01 y doc-02' }));
+
+      expect(location).toHaveTextContent(locationBefore ?? '');
+      expect(screen.getByTestId('similarity-results-region')).toHaveFocus();
+    });
+  });
+
   describe('a partial trace URL (the trace path matched, but its document ids are missing)', () => {
     it('normalizes the URL back to plain /similarity instead of leaving a stale trace path over a screen showing no panel', async () => {
       renderLayoutAtRoute('/similarity/levenshtein/trace');
