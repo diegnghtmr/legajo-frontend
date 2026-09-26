@@ -135,6 +135,8 @@
         "familyLabel": "Familia",
         "optimalPathLabel": "Camino óptimo",
         "matrixCaption": "Matriz completa de {{id}}",
+        "cornerLabel": "Prefijo",
+        "emptyPrefixLabel": "Prefijo de longitud {{index}}",
         "downloadCsv": "Descargar matriz completa (CSV)",
         "pathCellSuffix": "celda del camino óptimo",
         "legendHeading": "Leyenda de operaciones",
@@ -221,6 +223,7 @@
       "errorTitle": "No se pudo calcular la matriz",
       "table": {
         "caption": "Matriz de similitud por pares para el algoritmo elegido",
+        "cornerLabel": "Documento",
         "degenerateMarker": "caso degenerado"
       }
     }

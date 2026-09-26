@@ -73,7 +73,13 @@ export function MatrixTable({ documentIds, titleById, cells }: MatrixTableProps)
         <TableCaption className="sr-only">{t('similarity.matrix.table.caption')}</TableCaption>
         <TableHeader>
           <TableRow className="border-b-0">
-            <TableHead scope="col" className={STICKY_CORNER_CLASS} />
+            {/* Otherwise-empty `<th>` (`empty-table-header`): this corner
+             * sits at the intersection of the row axis and the column axis,
+             * both the same document-id list, so a generic axis label reads
+             * accurately from either side. */}
+            <TableHead scope="col" className={STICKY_CORNER_CLASS}>
+              <span className="sr-only">{t('similarity.matrix.table.cornerLabel')}</span>
+            </TableHead>
             {documentIds.map((id) => (
               <TableHead key={id} scope="col" className={STICKY_COLUMN_HEADER_CLASS}>
                 {id}

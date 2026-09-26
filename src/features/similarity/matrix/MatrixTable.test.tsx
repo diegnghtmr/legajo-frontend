@@ -54,6 +54,15 @@ describe('MatrixTable', () => {
     }
   });
 
+  it('gives the sticky top-left corner header a non-empty accessible name instead of leaving it blank (empty-table-header)', () => {
+    render(
+      <MatrixTable documentIds={DOCUMENT_IDS} titleById={TITLE_BY_ID} cells={SYMMETRIC_CELLS} />,
+    );
+
+    const cornerHeader = screen.getByRole('columnheader', { name: 'Documento' });
+    expect(cornerHeader.textContent?.trim()).toBe('Documento');
+  });
+
   it('marks a cached cell both visibly and accessibly', () => {
     render(
       <MatrixTable documentIds={DOCUMENT_IDS} titleById={TITLE_BY_ID} cells={SYMMETRIC_CELLS} />,

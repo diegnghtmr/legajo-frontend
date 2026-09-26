@@ -110,6 +110,23 @@ test.describe('similarity matrix screen', () => {
     expect(results.violations).toEqual([]);
   });
 
+  test('has no empty-table-header violation on the matrix’s own sticky corner cell', async ({
+    page,
+  }) => {
+    // `empty-table-header` is a best-practice rule, not one of the strict
+    // WCAG tags the axe pass above filters by — this one targets it
+    // directly, reproducing the reported violation on the sticky top-left
+    // corner `<th>`, which otherwise carries no text at all.
+    await selectThreeArticlesAndOpenMatrix(page);
+
+    await expect(page.getByRole('heading', { name: 'Matriz de similitud' })).toBeVisible();
+    await expect(page.getByText('1.000').first()).toBeVisible();
+
+    const results = await new AxeBuilder({ page }).withRules(['empty-table-header']).analyze();
+
+    expect(results.violations).toEqual([]);
+  });
+
   test('at lg and above, selecting a third article shows the matrix directly, with no click on the CTA', async ({
     page,
   }) => {

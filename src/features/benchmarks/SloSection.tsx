@@ -67,33 +67,47 @@ function SloTable({
   return (
     <Panel>
       <PanelHeader title={title} />
-      <Table aria-label={title}>
-        <TableCaption className="sr-only">{title}</TableCaption>
-        <TableHeader>
-          <TableRow>
-            <TableHead>{algorithmLabel}</TableHead>
-            <TableHead>{t('benchmarks.slo.valueLabel')}</TableHead>
-            <TableHead>{t('benchmarks.slo.thresholdLabel')}</TableHead>
-            <TableHead>{t('benchmarks.slo.statusLabel')}</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {evaluations.map(({ evaluation, label }) => (
-            <TableRow key={`${evaluation.family}-${evaluation.size}`}>
-              <TableCell className="font-mono text-mono text-ink">{label}</TableCell>
-              <TableCell className="font-mono text-mono text-ink">
-                {formatDuration(evaluation.valueMs * 1_000_000)}
-              </TableCell>
-              <TableCell className="font-mono text-mono text-ink-secondary">
-                {formatDuration(evaluation.thresholdMs * 1_000_000)}
-              </TableCell>
-              <TableCell>
-                <StatusLabel evaluation={evaluation} />
-              </TableCell>
+      {/* The single scroll container for this table (its own keyboard
+       * focusability and accessible name — WCAG 2.1.1's
+       * `scrollable-region-focusable`): none of its cells are themselves
+       * focusable, so — like the slope/data tables above — this region
+       * needs to be the one reachable, focusable ancestor itself.
+       * `Table`'s own default wrapper is skipped (`wrap={false}`) so this
+       * stays the only `overflow` ancestor. */}
+      <div
+        role="region"
+        aria-label={title}
+        tabIndex={0}
+        className="overflow-x-auto rounded-md focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus"
+      >
+        <Table wrap={false}>
+          <TableCaption className="sr-only">{title}</TableCaption>
+          <TableHeader>
+            <TableRow>
+              <TableHead>{algorithmLabel}</TableHead>
+              <TableHead>{t('benchmarks.slo.valueLabel')}</TableHead>
+              <TableHead>{t('benchmarks.slo.thresholdLabel')}</TableHead>
+              <TableHead>{t('benchmarks.slo.statusLabel')}</TableHead>
             </TableRow>
-          ))}
-        </TableBody>
-      </Table>
+          </TableHeader>
+          <TableBody>
+            {evaluations.map(({ evaluation, label }) => (
+              <TableRow key={`${evaluation.family}-${evaluation.size}`}>
+                <TableCell className="font-mono text-mono text-ink">{label}</TableCell>
+                <TableCell className="font-mono text-mono text-ink">
+                  {formatDuration(evaluation.valueMs * 1_000_000)}
+                </TableCell>
+                <TableCell className="font-mono text-mono text-ink-secondary">
+                  {formatDuration(evaluation.thresholdMs * 1_000_000)}
+                </TableCell>
+                <TableCell>
+                  <StatusLabel evaluation={evaluation} />
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </div>
     </Panel>
   );
 }
