@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
-import { useNavigate } from 'react-router';
+import { useNavigate, useSearchParams } from 'react-router';
 
 import { DEFAULT_UNEXPECTED_I18N_KEY, type ApiError } from '../../infrastructure/apiError';
 import { fetchCorpus, type ListCorpusResponse } from '../../infrastructure/api/corpus';
@@ -120,6 +120,7 @@ export function SimilarityMatrixView() {
 export function SimilarityMatrixPage() {
   const { t } = useTranslation();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const canMatrix = useSelectionStore((state) => state.canMatrix);
   const selectedArticleIds = useSelectionStore((state) => state.selectedIds);
 
@@ -130,9 +131,13 @@ export function SimilarityMatrixPage() {
     // Dropping below three while still on this exact deep link must never
     // leave a stale /similarity/matrix behind once the fallback below
     // already shows the pair or the guidance state — the URL now says
-    // exactly what plain /similarity itself would.
-    navigate('/similarity', { replace: true });
-  }, [canMatrix, navigate]);
+    // exactly what plain /similarity itself would. Any query string this
+    // route was reached with (there is none of this route's own today, but
+    // a future one, or a hand-edited link, might carry one) rides along
+    // rather than being silently dropped.
+    const search = searchParams.toString();
+    navigate(`/similarity${search ? `?${search}` : ''}`, { replace: true });
+  }, [canMatrix, navigate, searchParams]);
 
   if (canMatrix) {
     return <SimilarityMatrixView />;

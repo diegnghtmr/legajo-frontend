@@ -141,6 +141,19 @@ describe('SimilarityMatrixPage — exactly two selected (dropped below three whi
     const location = await screen.findByTestId('location');
     await waitFor(() => expect(location.textContent).toBe('/similarity'));
   });
+
+  it('preserves the URL search params through the redirect, never dropping them', async () => {
+    useSelectionStore.setState({
+      selectedIds: ['doc-01'],
+      canCompare: false,
+      canMatrix: false,
+    });
+
+    renderAtRoute('/similarity/matrix?lang=en');
+
+    const location = await screen.findByTestId('location');
+    await waitFor(() => expect(location.textContent).toBe('/similarity?lang=en'));
+  });
 });
 
 describe('SimilarityMatrixPage — 3 or more selected', () => {

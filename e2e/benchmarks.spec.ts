@@ -269,7 +269,14 @@ test.describe('benchmarks screen', () => {
           'Enlaces jerárquicos (HAC)',
           'Métricas internas de agrupamiento',
         ]) {
-          await expectNoTextOverlap(page.getByRole('group', { name }));
+          // The outer chart row, not the inner `role="group"` alone: the
+          // y-axis title renders as a sibling column outside that group
+          // (`BenchmarkCurveChart.tsx`), so scanning only the group would
+          // never catch it overlapping a tick label.
+          const chartRow = page
+            .getByTestId('benchmark-chart-row')
+            .filter({ has: page.getByRole('group', { name }) });
+          await expectNoTextOverlap(chartRow);
         }
       });
     }

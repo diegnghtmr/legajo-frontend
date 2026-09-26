@@ -161,35 +161,47 @@ describe('DpMatrix', () => {
   });
 
   describe('auto-scroll to the optimal path', () => {
-    // jsdom has no `scrollIntoView` implementation at all (the component's
-    // own call is optionally-chained for exactly that reason), so there is
-    // no existing property on the prototype for `vi.spyOn` to wrap — these
-    // tests install a plain fake instead, and remove it again afterward.
+    // jsdom implements neither `Element.scrollTo` nor a layout engine (every
+    // `getBoundingClientRect` is all zeros) — these tests install plain
+    // fakes for both, and remove them again afterward.
     afterEach(() => {
-      Reflect.deleteProperty(HTMLElement.prototype, 'scrollIntoView');
+      Reflect.deleteProperty(HTMLElement.prototype, 'scrollTo');
+      Reflect.deleteProperty(HTMLElement.prototype, 'getBoundingClientRect');
     });
 
-    it("scrolls the final optimal-path cell into view — the published score, not the path's first cell", () => {
-      const scrollIntoView = vi.fn();
-      HTMLElement.prototype.scrollIntoView = scrollIntoView;
+    it("scrolls only the matrix's own viewport (never scrollIntoView, which would also scroll every scrollable ancestor) to the final optimal-path cell — the published score, not the path's first cell", () => {
+      const scrollTo = vi.fn();
+      HTMLElement.prototype.scrollTo = scrollTo;
+      const getBoundingClientRect = vi
+        .fn()
+        .mockReturnValue({ left: 0, top: 0, width: 0, height: 0 });
+      HTMLElement.prototype.getBoundingClientRect = getBoundingClientRect;
 
       renderMatrix();
 
+      const region = screen.getByRole('region', { name: 'Levenshtein matrix' });
       const pathCells = screen.getAllByLabelText('Optimal path cell', { exact: false });
       const finalCell = pathCells[pathCells.length - 1];
 
-      expect(scrollIntoView).toHaveBeenCalledTimes(1);
-      expect(scrollIntoView.mock.instances[0]).toBe(finalCell);
-      // Never the path's first (origin) cell.
-      expect(scrollIntoView.mock.instances[0]).not.toBe(pathCells[0]);
+      // The region itself is scrolled — its own `scrollTo`, never
+      // `scrollIntoView` on the cell.
+      expect(scrollTo).toHaveBeenCalledTimes(1);
+      expect(scrollTo.mock.instances[0]).toBe(region);
+      // The position is computed from the FINAL path cell's own geometry…
+      expect(getBoundingClientRect.mock.instances).toContain(finalCell);
+      // …never the path's first (origin) cell.
+      expect(getBoundingClientRect.mock.instances).not.toContain(pathCells[0]);
     });
 
     it('re-scrolls to the new final cell when the matrix/path change (a different pair or algorithm)', () => {
-      const scrollIntoView = vi.fn();
-      HTMLElement.prototype.scrollIntoView = scrollIntoView;
+      const scrollTo = vi.fn();
+      HTMLElement.prototype.scrollTo = scrollTo;
+      HTMLElement.prototype.getBoundingClientRect = vi
+        .fn()
+        .mockReturnValue({ left: 0, top: 0, width: 0, height: 0 });
 
       const { rerender } = renderMatrix();
-      expect(scrollIntoView).toHaveBeenCalledTimes(1);
+      expect(scrollTo).toHaveBeenCalledTimes(1);
 
       const nextPath = [
         { row: 0, col: 0 },
@@ -209,9 +221,18 @@ describe('DpMatrix', () => {
         />,
       );
 
-      expect(scrollIntoView).toHaveBeenCalledTimes(2);
-      const pathCells = screen.getAllByLabelText('Optimal path cell', { exact: false });
-      expect(scrollIntoView.mock.instances[1]).toBe(pathCells[pathCells.length - 1]);
+      expect(scrollTo).toHaveBeenCalledTimes(2);
+    });
+
+    it('gracefully skips the font-load re-scroll when `document.fonts` is unavailable (this project never assumes it in a test environment)', () => {
+      const scrollTo = vi.fn();
+      HTMLElement.prototype.scrollTo = scrollTo;
+      HTMLElement.prototype.getBoundingClientRect = vi
+        .fn()
+        .mockReturnValue({ left: 0, top: 0, width: 0, height: 0 });
+
+      expect(() => renderMatrix()).not.toThrow();
+      expect(scrollTo).toHaveBeenCalledTimes(1);
     });
   });
 

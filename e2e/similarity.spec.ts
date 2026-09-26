@@ -395,4 +395,71 @@ test.describe('a cold deep link to the trace route with an empty rail selection'
       0,
     );
   });
+
+  test('a cold full-screen trace URL (/trace/full) also seeds the rail, not only the docked trace route', async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await page.goto('/similarity/levenshtein/trace/full?documentIdA=doc-01&documentIdB=doc-02');
+
+    await expect(page.getByRole('heading', { name: 'Levenshtein distance' })).toBeVisible();
+    await expect(
+      page.getByRole('checkbox', { name: 'A survey of string similarity' }),
+    ).toBeChecked();
+    await expect(
+      page.getByRole('checkbox', { name: 'Embeddings for scientific text' }),
+    ).toBeChecked();
+    await expect(page.getByRole('button', { name: 'Comparar doc-01 y doc-02' })).toBeEnabled();
+  });
+});
+
+/**
+ * A synthetic n×n matrix large enough that auto-scrolling to its final
+ * (bottom-right) path cell moves the viewport by more than a trivial
+ * amount — same fixture shape as the standalone full-screen suite's own.
+ */
+function buildLargeDpTrace(size: number) {
+  const rowLabels = Array.from({ length: size }, (_unused, index) => (index === 0 ? '' : 'a'));
+  const columnLabels = Array.from({ length: size }, (_unused, index) => (index === 0 ? '' : 'b'));
+  const matrix = Array.from({ length: size }, (_unused, row) =>
+    Array.from({ length: size }, (_unused2, col) => row + col),
+  );
+  const optimalPath = Array.from({ length: size }, (_unused, index) => ({
+    row: index,
+    col: index,
+  }));
+  const operations = optimalPath.slice(1).map((cell, index) => ({
+    from: optimalPath[index],
+    to: cell,
+    operation: 'MATCH',
+  }));
+  return { algorithmId: 'levenshtein', rowLabels, columnLabels, matrix, optimalPath, operations };
+}
+
+test.describe('the docked trace panel with a large DP matrix', () => {
+  test.beforeEach(async ({ page }) => {
+    await mockSimilarityApi(page);
+    await page.route('**/api/v1/similarity/levenshtein/trace**', async (route) => {
+      await route.fulfill({ json: buildLargeDpTrace(60) });
+    });
+  });
+
+  test('scrolls only the matrix viewport, keeping the panel header and the results in place', async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await page.goto('/similarity/levenshtein/trace?documentIdA=doc-01&documentIdB=doc-02');
+
+    const panel = page.getByTestId('workbench-detail');
+    await expect(panel).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Levenshtein distance' })).toBeVisible();
+    // The results table stays visible in the center region — a
+    // `scrollIntoView` on the matrix's final cell used to scroll every
+    // scrollable ancestor, including the panel and, at this width, the
+    // page itself.
+    await expect(page.getByRole('heading', { name: 'doc-01 frente a doc-02' })).toBeVisible();
+
+    const finalPathCell = page.locator('[data-optimal-path="true"]').last();
+    await expect(finalPathCell).toBeInViewport();
+  });
 });
