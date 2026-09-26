@@ -199,9 +199,14 @@ export function BenchmarkCurveChart({
        * (never the outer row, which would also include the y-axis title's
        * own column) so its bounding box keeps matching the SVG's measured
        * width one-to-one, the same invariant the "fills its own measured
-       * container width" test already relies on.
+       * container width" test already relies on. The outer row itself
+       * carries `data-testid="benchmark-chart-row"` (not unique — filtered
+       * by its own `role="group"` descendant's accessible name) purely so
+       * the e2e text-overlap guard can scan the y-axis title alongside the
+       * chart it is checked against, without disturbing that bounding-box
+       * invariant on the inner `role="group"` element itself.
        */}
-      <div className="flex items-stretch gap-2">
+      <div data-testid="benchmark-chart-row" className="flex items-stretch gap-2">
         <span
           className="flex w-5 shrink-0 items-center justify-center whitespace-nowrap text-mono text-ink-secondary"
           style={{ writingMode: 'vertical-rl', transform: 'rotate(180deg)' }}
