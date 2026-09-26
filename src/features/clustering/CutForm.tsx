@@ -54,6 +54,14 @@ function buildCutSchema(n: number) {
  * single-select linkage choice instead of hand-rolling a new radiogroup.
  * Submits `{linkage, k}`; the caller supplies `representation` since this
  * form has no opinion on it (the page's own current selection).
+ *
+ * Its own fields (the linkage choice, the k input, `Aplicar corte`) sit in
+ * one row when there is room, each keeping its intrinsic width — so this
+ * whole group stays close to the height of the control bar's other two
+ * groups instead of stacking into a visibly taller column — and wrap onto
+ * their own lines as the width shrinks, the same rule the control bar
+ * itself follows. The k-range error stays inside the k field's own column,
+ * directly under the input, never widening the row on its own.
  */
 export function CutForm({ linkages, n, defaultLinkage, onSubmit, isPending, error }: CutFormProps) {
   const { t } = useTranslation();
@@ -81,50 +89,53 @@ export function CutForm({ linkages, n, defaultLinkage, onSubmit, isPending, erro
       className="flex flex-col gap-3"
       noValidate
     >
-      <div className="flex flex-col gap-2">
-        <span className="text-label text-ink-secondary">
-          {t('clustering.cutForm.linkageGroupLabel')}
-        </span>
-        <Controller
-          control={control}
-          name="linkage"
-          render={({ field }) => (
-            <SegmentedControl
-              options={linkageOptions}
-              value={field.value}
-              onChange={field.onChange}
-              aria-label={t('clustering.cutForm.linkageGroupLabel')}
-            />
-          )}
-        />
-      </div>
-
-      {hasValidCutRange ? (
-        <label className="flex flex-col gap-1 text-label text-ink-secondary" htmlFor="cut-k">
-          {t('clustering.cutForm.kLabel', { min: 2, max: n - 1 })}
-          <input
-            id="cut-k"
-            type="number"
-            min={2}
-            max={n - 1}
-            step={1}
-            {...register('k', { valueAsNumber: true })}
-            className="w-24 rounded-md border border-hairline-strong bg-paper-raised px-2 py-1 text-body text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus"
+      <div className="flex flex-wrap items-end gap-4">
+        <div className="flex flex-col gap-2">
+          <span className="text-label text-ink-secondary">
+            {t('clustering.cutForm.linkageGroupLabel')}
+          </span>
+          <Controller
+            control={control}
+            name="linkage"
+            render={({ field }) => (
+              <SegmentedControl
+                options={linkageOptions}
+                value={field.value}
+                onChange={field.onChange}
+                aria-label={t('clustering.cutForm.linkageGroupLabel')}
+              />
+            )}
           />
-        </label>
-      ) : (
-        <p className="text-label text-ink-muted">{t('clustering.cutForm.noValidRange')}</p>
-      )}
+        </div>
 
-      {hasValidCutRange && errors.k && (
-        <p role="alert" className="text-body text-danger">
-          {t('clustering.cutForm.errors.kRange', { min: 2, max: n - 1 })}
-        </p>
-      )}
+        {hasValidCutRange ? (
+          <div className="flex flex-col gap-1">
+            <label className="flex flex-col gap-1 text-label text-ink-secondary" htmlFor="cut-k">
+              {t('clustering.cutForm.kLabel', { min: 2, max: n - 1 })}
+              <input
+                id="cut-k"
+                type="number"
+                min={2}
+                max={n - 1}
+                step={1}
+                {...register('k', { valueAsNumber: true })}
+                className="w-24 rounded-md border border-hairline-strong bg-paper-raised px-2 py-1 text-body text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus"
+              />
+            </label>
+            {errors.k && (
+              <p role="alert" className="text-body text-danger">
+                {t('clustering.cutForm.errors.kRange', { min: 2, max: n - 1 })}
+              </p>
+            )}
+          </div>
+        ) : (
+          <p className="text-label text-ink-muted">{t('clustering.cutForm.noValidRange')}</p>
+        )}
 
-      <Button type="submit" disabled={isPending || !hasValidCutRange} className="w-fit">
-        {isPending ? t('clustering.cutForm.pending') : t('clustering.cutForm.submit')}
-      </Button>
+        <Button type="submit" disabled={isPending || !hasValidCutRange} className="w-fit">
+          {isPending ? t('clustering.cutForm.pending') : t('clustering.cutForm.submit')}
+        </Button>
+      </div>
 
       {error && !errors.k && (
         <div role="alert" className="flex flex-col gap-1">

@@ -259,8 +259,10 @@ export function ClusteringPage() {
       <PanelHeader eyebrow={t('clustering.eyebrow')} title={t('clustering.title')} />
 
       {/* One control bar card: representation, linkage selection and the
-          free-cut group sit together and wrap onto new lines as the width
-          shrinks — the bar itself never scrolls horizontally. */}
+          free-cut group each take their own intrinsic width and sit
+          together — never stretched to fill the row — and wrap onto new
+          lines as the width shrinks. The bar itself never scrolls
+          horizontally. */}
       <Panel>
         <div className="flex flex-wrap items-start gap-6">
           <SegmentedControl
@@ -277,41 +279,39 @@ export function ClusteringPage() {
             aria-label={t('clustering.linkageGroupLabel')}
           />
 
-          <div className="min-w-[260px] flex-1">
-            {clusteringQuery.data && sampleSize !== undefined ? (
-              <CutForm
-                // Remounts (resetting react-hook-form's own default value)
-                // when the set of available linkages actually changes, so a
-                // stale default never lingers after the user deselects one.
-                key={clusteringQuery.data.map((result) => result.linkageId).join(',')}
-                linkages={clusteringQuery.data.map((result) => ({
-                  id: result.linkageId,
-                  displayName: result.linkageDisplayName,
-                }))}
-                n={sampleSize}
-                defaultLinkage={clusteringQuery.data[0]!.linkageId}
-                onSubmit={handleCutSubmit}
-                isPending={cutMutation.isPending}
-                error={activeCutError}
-              />
-            ) : (
-              <p className="text-body text-ink-muted">
-                {/*
-                 * The placeholder shown while no `CutForm` can be rendered
-                 * must name the actual reason: nothing is selected, the
-                 * request failed, or it is still loading. Showing the
-                 * "still loading" copy for the first two would be false —
-                 * nothing is loading, and reselecting a linkage (not
-                 * waiting) is what unblocks the cut in each case.
-                 */}
-                {!hasLinkagesSelected
-                  ? t('clustering.cutForm.unavailableNoLinkage')
-                  : clusteringQuery.isError
-                    ? t('clustering.cutForm.unavailableError')
-                    : t('clustering.cutForm.unavailable')}
-              </p>
-            )}
-          </div>
+          {clusteringQuery.data && sampleSize !== undefined ? (
+            <CutForm
+              // Remounts (resetting react-hook-form's own default value)
+              // when the set of available linkages actually changes, so a
+              // stale default never lingers after the user deselects one.
+              key={clusteringQuery.data.map((result) => result.linkageId).join(',')}
+              linkages={clusteringQuery.data.map((result) => ({
+                id: result.linkageId,
+                displayName: result.linkageDisplayName,
+              }))}
+              n={sampleSize}
+              defaultLinkage={clusteringQuery.data[0]!.linkageId}
+              onSubmit={handleCutSubmit}
+              isPending={cutMutation.isPending}
+              error={activeCutError}
+            />
+          ) : (
+            <p className="text-body text-ink-muted">
+              {/*
+               * The placeholder shown while no `CutForm` can be rendered
+               * must name the actual reason: nothing is selected, the
+               * request failed, or it is still loading. Showing the
+               * "still loading" copy for the first two would be false —
+               * nothing is loading, and reselecting a linkage (not
+               * waiting) is what unblocks the cut in each case.
+               */}
+              {!hasLinkagesSelected
+                ? t('clustering.cutForm.unavailableNoLinkage')
+                : clusteringQuery.isError
+                  ? t('clustering.cutForm.unavailableError')
+                  : t('clustering.cutForm.unavailable')}
+            </p>
+          )}
         </div>
 
         {!hasLinkagesSelected && (
