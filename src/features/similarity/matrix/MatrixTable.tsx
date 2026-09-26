@@ -45,6 +45,19 @@ const STICKY_ROW_HEADER_CLASS =
  * replacement for it (color is never the only channel), and
  * `cached`/`degenerate` get both a small visible glyph and sr-only text for
  * the same reason.
+ *
+ * That sr-only text is `position: absolute` (Tailwind's own `sr-only`
+ * recipe) with no offset, so its containing block is whichever ancestor is
+ * itself positioned — with none, that is the initial containing block (the
+ * viewport), which is never clipped by this container's own `overflow-auto`.
+ * At 20 selected, with any cached/degenerate cell present, those escaped
+ * spans' static position (derived from their place in a 1300+px-wide table)
+ * widened `document.documentElement.scrollWidth` past the viewport even
+ * though the table itself scrolled correctly inside this region. `relative`
+ * below makes this container the positioned ancestor instead, so every
+ * absolutely-positioned marker is confined to its own already-scrollable
+ * overflow — verified live: adding it alone drops the page's scroll width
+ * back to the viewport width with 20×20 cells and cached markers present.
  */
 export function MatrixTable({ documentIds, titleById, cells }: MatrixTableProps) {
   const { t } = useTranslation();
@@ -54,7 +67,7 @@ export function MatrixTable({ documentIds, titleById, cells }: MatrixTableProps)
       role="region"
       aria-label={t('similarity.matrix.table.caption')}
       tabIndex={0}
-      className="max-h-[420px] max-w-full overflow-auto rounded-md border border-hairline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus"
+      className="relative max-h-[420px] max-w-full overflow-auto rounded-md border border-hairline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus"
     >
       <Table wrap={false} className="text-center">
         <TableCaption className="sr-only">{t('similarity.matrix.table.caption')}</TableCaption>

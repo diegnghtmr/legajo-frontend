@@ -159,7 +159,10 @@ test.describe('similarity matrix screen', () => {
     );
   });
 
-  test('has no overlapping text in the matrix at 20 selected', async ({ page }) => {
+  /** 20 documents (the reference corpus size), so a 21-column/21-row table
+   * (id header + 20 data columns) is wide enough to expose a page-level
+   * horizontal scroll regression that a 3x3 matrix never would. */
+  function mockTwentyDocumentMatrix() {
     const documents = Array.from({ length: 20 }, (_unused, index) => ({
       id: `doc-${String(index + 1).padStart(2, '0')}`,
       title: `Article number ${index + 1}`,
@@ -167,9 +170,20 @@ test.describe('similarity matrix screen', () => {
     }));
     const matrix = documents.map((_row, rowIndex) =>
       documents.map((_col, colIndex) =>
-        cell(rowIndex === colIndex ? 1 : 0.1 * ((rowIndex + colIndex) % 9)),
+        // Half the off-diagonal cells are `cached: true` — the reference
+        // corpus's own symmetric-pair caching means this is the realistic
+        // shape (never all-false, which would hide the sr-only cached-marker
+        // spans this scroll regression is actually about).
+        cell(rowIndex === colIndex ? 1 : 0.1 * ((rowIndex + colIndex) % 9), {
+          cached: rowIndex !== colIndex && colIndex > rowIndex,
+        }),
       ),
     );
+    return { documents, matrix };
+  }
+
+  async function selectTwentyArticlesAndOpenMatrix(page: Page) {
+    const { documents, matrix } = mockTwentyDocumentMatrix();
     await page.route('**/api/v1/corpus', async (route) => {
       await route.fulfill({ json: documents });
     });
@@ -177,14 +191,27 @@ test.describe('similarity matrix screen', () => {
       await route.fulfill({ json: matrix });
     });
 
-    await page.setViewportSize({ width: 1440, height: 900 });
     await page.goto('/');
-
     for (const document of documents) {
       await page.getByRole('checkbox', { name: document.title, exact: true }).check();
     }
 
-    await expect(page.getByRole('heading', { name: 'Matriz de similitud' })).toBeVisible();
+    // At lg and above the matrix already shows with no click (the
+    // auto-follow rule); below lg the corpus list stays the main content
+    // until the tray's own CTA confirms it — the same distinction the
+    // "below lg" test above already exercises.
+    const isAtLeastLg = (page.viewportSize()?.width ?? 0) >= 1024;
+    const matrixHeading = page.getByRole('heading', { name: 'Matriz de similitud' });
+    if (!isAtLeastLg) {
+      await page.getByRole('button', { name: 'Ver matriz de 20' }).click();
+    }
+    await expect(matrixHeading).toBeVisible();
+  }
+
+  test('has no overlapping text in the matrix at 20 selected', async ({ page }) => {
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await selectTwentyArticlesAndOpenMatrix(page);
+
     await expect(
       page
         .getByRole('region', { name: 'Matriz de similitud por pares para el algoritmo elegido' })
@@ -196,4 +223,24 @@ test.describe('similarity matrix screen', () => {
       page.getByRole('region', { name: 'Matriz de similitud por pares para el algoritmo elegido' }),
     );
   });
+
+  for (const width of [1440, 1024, 390]) {
+    test(`at ${width}px, a 20x20 matrix scrolls inside its own region, never the page`, async ({
+      page,
+    }) => {
+      await page.setViewportSize({ width, height: 900 });
+      await selectTwentyArticlesAndOpenMatrix(page);
+
+      const matrixRegion = page.getByRole('region', {
+        name: 'Matriz de similitud por pares para el algoritmo elegido',
+      });
+      await expect(matrixRegion.getByText('1.000').first()).toBeVisible();
+
+      // The region's own internal scroll area is expected to be wider than
+      // the viewport (21 sticky columns at min-w-16 each) — only the
+      // document must never grow past its own viewport width.
+      const scrollWidth = await page.evaluate<number>('document.documentElement.scrollWidth');
+      expect(scrollWidth).toBeLessThanOrEqual(width);
+    });
+  }
 });

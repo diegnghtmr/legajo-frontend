@@ -408,4 +408,83 @@ test.describe('clustering screen', () => {
 
     expect(results.violations).toEqual([]);
   });
+
+  /**
+   * The reference corpus size (20 leaves): a valid n=20 linkage matrix built
+   * as a chain (merge leaf 0 with leaf 1, then fold in each remaining leaf
+   * one at a time) — every id is consumed exactly once, the same real
+   * invariant `DEFAULT_CLUSTERING_RESPONSE`'s own n=6 matrix satisfies, just
+   * generated instead of hand-written for 19 rows. The same rows/leafOrder
+   * are reused across all four linkages: this test is about the chart's own
+   * fit inside its card, not about the four linkages differing.
+   */
+  function goldenRowsAndOrderForLeafCount(leafCount: number) {
+    const rows = [{ idx1: 0, idx2: 1, mergeDistance: 1, size: 2 }];
+    for (let k = 1; k <= leafCount - 2; k += 1) {
+      // idx1 (the next leaf) is always the SMALLER id here, and idx2 (the
+      // growing cluster from the previous row) the larger one — idx1 must
+      // be strictly less than idx2 (`assertValidRows`).
+      rows.push({ idx1: k + 1, idx2: leafCount + k - 1, mergeDistance: k + 1, size: k + 2 });
+    }
+    return { rows, leafOrder: Array.from({ length: leafCount }, (_unused, index) => index) };
+  }
+
+  test.describe('a 20-leaf dendrogram (the reference corpus size)', () => {
+    test.beforeEach(async ({ page }) => {
+      const { rows, leafOrder } = goldenRowsAndOrderForLeafCount(20);
+      const documentIds = Array.from({ length: 20 }, (_unused, index) => `doc-${index + 1}`);
+      const response = ['single', 'complete', 'average', 'ward'].map((linkageId) => ({
+        linkageId,
+        linkageDisplayName: linkageId[0]!.toUpperCase() + linkageId.slice(1),
+        rows,
+        leafOrder,
+        documentIds,
+        evaluation: evaluation(0.5, 0.2, 0.3),
+      }));
+      await page.route('**/api/v1/corpus', async (route) => {
+        await route.fulfill({
+          json: documentIds.map((id) => ({ id, title: `Article ${id}`, authors: ['A. Author'] })),
+        });
+      });
+      await page.route('**/api/v1/clustering', async (route) => {
+        await route.fulfill({ json: response });
+      });
+    });
+
+    for (const width of [1440, 1024, 390]) {
+      test(`at ${width}px, every dendrogram's own SVG fits inside its card, with no internal horizontal scroll and no text overlap`, async ({
+        page,
+      }) => {
+        await page.setViewportSize({ width, height: 900 });
+        await page.goto('/clustering');
+        await expect(page.getByRole('heading', { name: 'Single' })).toBeVisible();
+
+        for (const linkageId of ['single', 'complete', 'average', 'ward']) {
+          const card = page.getByTestId(`linkage-dendrogram-${linkageId}`);
+          await expect(card).toBeVisible();
+
+          const region = card.getByRole('region', { name: new RegExp(linkageId, 'i') });
+          const [cardBox, svgWidth, regionScrollWidth, regionClientWidth] = await Promise.all([
+            card.boundingBox(),
+            card.locator('svg').getAttribute('width'),
+            region.evaluate((el) => el.scrollWidth),
+            region.evaluate((el) => el.clientWidth),
+          ]);
+          expect(cardBox).not.toBeNull();
+          // The card pads its own content (`Panel`'s own padding), so the
+          // SVG only needs to fit that inner content width, never the
+          // card's full outer box.
+          expect(Number(svgWidth)).toBeLessThanOrEqual(cardBox!.width);
+          // No internal horizontal scroll: the region's own scrollable
+          // content never exceeds what it visibly shows.
+          expect(regionScrollWidth).toBeLessThanOrEqual(regionClientWidth + 1);
+
+          await expectNoTextOverlap(card);
+        }
+
+        const scrollWidth = await page.evaluate<number>('document.documentElement.scrollWidth');
+        expect(scrollWidth).toBeLessThanOrEqual(width);
+      });
+    }
+  });
 });

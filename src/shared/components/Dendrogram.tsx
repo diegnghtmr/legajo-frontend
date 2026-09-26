@@ -44,20 +44,27 @@ export interface DendrogramProps {
 
 const DEFAULT_WIDTH = 640;
 const DEFAULT_HEIGHT = 220;
-const MARGIN_SIDE = 24;
+/** Small, label-free padding around the leaf (vertical) axis. */
 const MARGIN_TOP = 12;
-const MARGIN_BOTTOM = 44;
+const MARGIN_BOTTOM = 12;
+/** Small, label-free padding on the root side of the distance (horizontal) axis. */
+const MARGIN_LEFT = 16;
+/** Room on the leaf side of the distance axis for the tick, the mono id
+ * label and the cluster number, all on the leaf's own row (never stacked
+ * under it — see `MIN_LEAF_SPACING`'s own doc comment for why). */
+const MARGIN_RIGHT = 90;
 const LEAF_TICK_LENGTH = 6;
-const LEAF_ID_LABEL_OFFSET = 18;
-const LEAF_CLUSTER_LABEL_OFFSET = 34;
+const LEAF_ID_LABEL_OFFSET = 10;
+const LEAF_CLUSTER_LABEL_OFFSET = 64;
 /**
- * Minimum horizontal room per leaf, in px, so a mono leaf label never has to
- * shrink to fit: a narrow container widens the chart past `width` instead
- * (the wrapping scroll region below absorbs the overflow), rather than the
- * old behavior of letting `max-w-full` downscale the whole SVG — labels and
- * all — to whatever the container happened to be.
+ * Minimum vertical room per leaf, in px, so a mono leaf label never has to
+ * shrink to fit: a corpus with too many leaves for the requested height
+ * grows the chart past `height` instead, rather than cramming leaf rows
+ * together. Leaves run along the vertical axis precisely so this growth
+ * only ever makes a card taller — never wider than the card itself, which
+ * is what used to force a horizontal scroll on a large corpus.
  */
-const MIN_LEAF_SPACING = 32;
+const MIN_LEAF_SPACING = 24;
 
 function leafLabelFor(leafLabels: readonly DendrogramLeafLabel[] | undefined, id: number): string {
   return leafLabels?.[id]?.label ?? String(id);
@@ -96,12 +103,17 @@ export function Dendrogram({
 }: DendrogramProps) {
   const { t } = useTranslation();
   const titleId = useId();
-  const requestedChartWidth = Math.max(width - MARGIN_SIDE * 2, 0);
+  // The distance (horizontal) axis always renders at exactly the given
+  // `width` — the card's own measured, responsive width — and is never
+  // grown past it: a continuous distance scale always fits any width, so
+  // there is no per-unit minimum the way the leaf axis has.
+  const chartWidth = Math.max(width - MARGIN_LEFT - MARGIN_RIGHT, 0);
+  const renderWidth = width;
   const leafCount = leafOrder.length;
-  const minChartWidth = leafCount > 1 ? (leafCount - 1) * MIN_LEAF_SPACING : requestedChartWidth;
-  const chartWidth = Math.max(requestedChartWidth, minChartWidth);
-  const renderWidth = chartWidth + MARGIN_SIDE * 2;
-  const chartHeight = Math.max(height - MARGIN_TOP - MARGIN_BOTTOM, 0);
+  const requestedChartHeight = Math.max(height - MARGIN_TOP - MARGIN_BOTTOM, 0);
+  const minChartHeight = leafCount > 1 ? (leafCount - 1) * MIN_LEAF_SPACING : requestedChartHeight;
+  const chartHeight = Math.max(requestedChartHeight, minChartHeight);
+  const renderHeight = chartHeight + MARGIN_TOP + MARGIN_BOTTOM;
 
   let layout;
   try {
@@ -118,8 +130,8 @@ export function Dendrogram({
   const memberLabel = (id: number): string =>
     id < n ? leafLabelFor(leafLabels, id) : t('clustering.dendrogram.clusterLabel', { id });
 
-  const cutY =
-    cut?.distance !== undefined ? MARGIN_TOP + layout.distanceToY(cut.distance) : undefined;
+  const cutX =
+    cut?.distance !== undefined ? MARGIN_LEFT + layout.distanceToX(cut.distance) : undefined;
 
   return (
     <figure className="flex flex-col gap-2">
@@ -127,13 +139,17 @@ export function Dendrogram({
         {ariaLabel}
       </figcaption>
       {/*
-       * The scroll region — not the SVG itself — absorbs a narrow
-       * container: the SVG below always renders at its own intrinsic
-       * `renderWidth` (no `max-w-full`), so its 12px mono labels never get
+       * The SVG always renders at its own intrinsic `renderWidth`/
+       * `renderHeight` (no `max-w-full`), so its 12px mono labels never get
        * scaled down by the browser mapping a smaller viewport onto the
-       * `viewBox`'s coordinate space. `overflow-x-auto` lets this one
-       * bounded, focusable, labelled region scroll horizontally instead of
-       * the page.
+       * `viewBox`'s coordinate space. `renderWidth` always equals the given
+       * `width` (the card's own responsive width, never grown past it);
+       * only `renderHeight` can exceed the given `height`, when the leaf
+       * count needs more room than that — a card growing taller reflows
+       * the page normally, in the leaf (vertical) axis, so this region's
+       * own `overflow-x-auto` below is now a defensive no-op rather than a
+       * load-bearing scroll path (kept for a pathological caller-supplied
+       * `width` narrower than `MARGIN_LEFT + MARGIN_RIGHT`).
        */}
       <div
         role="region"
@@ -145,22 +161,22 @@ export function Dendrogram({
           role="img"
           aria-labelledby={titleId}
           width={renderWidth}
-          height={height}
-          viewBox={`0 0 ${renderWidth} ${height}`}
+          height={renderHeight}
+          viewBox={`0 0 ${renderWidth} ${renderHeight}`}
         >
-          {cutY !== undefined && (
+          {cutX !== undefined && (
             <line
               data-testid="dendrogram-cut-line"
-              x1={0}
-              y1={cutY}
-              x2={renderWidth}
-              y2={cutY}
+              x1={cutX}
+              y1={0}
+              x2={cutX}
+              y2={renderHeight}
               className="stroke-warning"
               strokeDasharray="6 4"
               strokeWidth={1.5}
             />
           )}
-          <g transform={`translate(${MARGIN_SIDE}, ${MARGIN_TOP})`}>
+          <g transform={`translate(${MARGIN_LEFT}, ${MARGIN_TOP})`}>
             {layout.links.map((link) => (
               <path
                 key={link.id}
@@ -173,41 +189,42 @@ export function Dendrogram({
               const clusterNumber = cut?.labels[leaf.id];
               const leafTitle = leafLabels?.[leaf.id]?.title ?? leafLabelFor(leafLabels, leaf.id);
               return (
-                <g key={leaf.id} data-leaf-id={leaf.id} data-leaf-x={leaf.x}>
+                <g key={leaf.id} data-leaf-id={leaf.id} data-leaf-y={leaf.y}>
                   <title>
                     {clusterNumber === undefined
                       ? leafTitle
                       : `${leafTitle} — ${t('clustering.dendrogram.clusterLabel', { id: clusterNumber })}`}
                   </title>
                   <line
-                    x1={leaf.x}
-                    y1={chartHeight}
-                    x2={leaf.x}
-                    y2={chartHeight + LEAF_TICK_LENGTH}
+                    x1={chartWidth}
+                    y1={leaf.y}
+                    x2={chartWidth + LEAF_TICK_LENGTH}
+                    y2={leaf.y}
                     className="stroke-ink-secondary"
                   />
                   <text
-                    x={leaf.x}
-                    y={chartHeight + LEAF_ID_LABEL_OFFSET}
-                    textAnchor="middle"
+                    x={chartWidth + LEAF_ID_LABEL_OFFSET}
+                    y={leaf.y}
+                    dominantBaseline="middle"
                     className="font-mono text-mono fill-ink-secondary"
                   >
                     {leafLabelFor(leafLabels, leaf.id)}
                   </text>
                   {clusterNumber !== undefined && (
-                    // A compact number, not the full "Clúster N" word: at the
-                    // default leaf spacing (chart width / (n - 1)) a full word
-                    // overlaps its neighbours long before a projector-legible
-                    // corpus size is reached. The full name stays available via
-                    // this leaf's own `<title>` above and the caption legend
-                    // below, so this mark is `aria-hidden` to avoid announcing
-                    // a bare, out-of-context number.
+                    // A compact number, not the full "Clúster N" word: on
+                    // the leaf's own row, right of its id label, a full
+                    // word would overlap the next leaf's row long before a
+                    // projector-legible corpus size is reached. The full
+                    // name stays available via this leaf's own `<title>`
+                    // above and the caption legend below, so this mark is
+                    // `aria-hidden` to avoid announcing a bare,
+                    // out-of-context number.
                     <text
                       data-testid="cluster-marker"
                       aria-hidden="true"
-                      x={leaf.x}
-                      y={chartHeight + LEAF_CLUSTER_LABEL_OFFSET}
-                      textAnchor="middle"
+                      x={chartWidth + LEAF_CLUSTER_LABEL_OFFSET}
+                      y={leaf.y}
+                      dominantBaseline="middle"
                       className="text-mono fill-ink"
                     >
                       {clusterNumber}
