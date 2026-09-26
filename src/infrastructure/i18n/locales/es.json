@@ -333,7 +333,7 @@
   "notFound": {
     "title": "Página no encontrada",
     "description": "La ruta solicitada no existe.",
-    "cta": "Ir al corpus"
+    "cta": "Ir a Similitud"
   },
   "errors": {
     "unknownDocument": "El documento solicitado no existe en el corpus.",

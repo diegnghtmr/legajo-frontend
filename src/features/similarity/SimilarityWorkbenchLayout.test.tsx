@@ -525,6 +525,54 @@ describe('SimilarityWorkbenchLayout', () => {
     });
   });
 
+  describe('an openAbstract query param (from /corpus/:id, CorpusArticleRedirect)', () => {
+    it('opens that article in the detail panel once the corpus resolves, then clears the query param', async () => {
+      renderLayoutAtRoute('/similarity?openAbstract=doc-01');
+
+      const panel = await screen.findByTestId('workbench-detail');
+      expect(
+        await within(panel).findByRole('heading', { name: 'A survey of string similarity' }),
+      ).toBeInTheDocument();
+
+      const location = await screen.findByTestId('location');
+      await waitFor(() => expect(location).toHaveTextContent('/similarity'));
+      expect(location.textContent).not.toContain('openAbstract');
+    });
+
+    it('never opens the panel for an unknown id, and still clears the query param down to plain /similarity', async () => {
+      renderLayoutAtRoute('/similarity?openAbstract=doc-99');
+
+      // Give the corpus fetch (and this effect) a chance to settle before
+      // asserting the negative — the same "wait, then assert nothing
+      // opened" shape the trace deep link's own unknown-id test uses.
+      await screen.findByRole('checkbox', { name: 'A survey of string similarity' });
+      expect(screen.queryByTestId('workbench-detail')).not.toBeInTheDocument();
+
+      const location = await screen.findByTestId('location');
+      await waitFor(() => expect(location.textContent).not.toContain('openAbstract'));
+      expect(location).toHaveTextContent('/similarity');
+    });
+
+    describe('below lg', () => {
+      beforeEach(() => {
+        stubNarrowViewport();
+      });
+
+      afterEach(() => {
+        vi.unstubAllGlobals();
+      });
+
+      it('opens the same article as a sheet instead of the docked panel', async () => {
+        renderLayoutAtRoute('/similarity?openAbstract=doc-01');
+
+        const dialog = await screen.findByRole('dialog');
+        expect(
+          await within(dialog).findByRole('heading', { name: 'A survey of string similarity' }),
+        ).toBeInTheDocument();
+      });
+    });
+  });
+
   describe('below lg, before any comparison, on the plain compare route', () => {
     beforeEach(() => {
       stubNarrowViewport();

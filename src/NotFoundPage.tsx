@@ -12,7 +12,11 @@ export function NotFoundPage() {
       <h2 className="text-title font-semibold text-ink">{t('notFound.title')}</h2>
       <p className="text-body text-ink-secondary">{t('notFound.description')}</p>
       <div>
-        <Link to="/corpus" className={buttonVariants({ variant: 'primary' })}>
+        {/* The top bar has no separate "Corpus" section any more — this
+         * names, and goes straight to, the screen it actually opens
+         * (`/similarity`), never the old `/corpus` alias that only
+         * redirects onward from here. */}
+        <Link to="/similarity" className={buttonVariants({ variant: 'primary' })}>
           {t('notFound.cta')}
         </Link>
       </div>

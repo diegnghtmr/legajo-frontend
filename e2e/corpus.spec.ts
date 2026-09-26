@@ -362,6 +362,28 @@ test.describe('corpus selection rail', () => {
     await expect(title).toBeFocused();
   });
 
+  test('an old /corpus/:id link opens that exact article on /similarity, never dropping the id', async ({
+    page,
+  }) => {
+    await page.goto('/corpus/doc-01');
+
+    await expect(page).toHaveURL(/\/similarity$/);
+    await expect(page.getByTestId('workbench-detail')).toBeVisible();
+    await expect(
+      page.getByText('This paper surveys classic and embedding-based similarity measures.'),
+    ).toBeVisible();
+  });
+
+  test('an unknown /corpus/:id link lands on plain /similarity with no panel open', async ({
+    page,
+  }) => {
+    await page.goto('/corpus/doc-99');
+
+    await expect(page).toHaveURL(/\/similarity$/);
+    await expect(page.getByRole('heading', { name: 'Comparación de similitud' })).toBeVisible();
+    await expect(page.getByTestId('workbench-detail')).toHaveCount(0);
+  });
+
   for (const path of ['/corpus/doc-01', '/similarity', '/clustering', '/no-such-route']) {
     test(`has no automatically detectable WCAG 2.1 AA violations on ${path}`, async ({ page }) => {
       await page.goto(path);

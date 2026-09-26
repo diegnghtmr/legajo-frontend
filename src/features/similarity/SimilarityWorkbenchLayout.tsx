@@ -274,6 +274,36 @@ export function SimilarityWorkbenchLayout() {
     corpusQuery.data,
   ]);
 
+  // `CorpusArticleRedirect` forwards an old `/corpus/:id` link's own id
+  // this way, since the redirect itself cannot know yet whether the corpus
+  // list will confirm it. Guarded the same way the pair-seeding effect
+  // above is: once the corpus resolves, this either opens that exact
+  // article's abstract (a known id) or does nothing beyond clearing the
+  // param (an unknown one) — never left dangling in the URL either way.
+  const openAbstractParam = searchParams.get('openAbstract');
+  const hasSeededOpenAbstractRef = useRef(false);
+  useEffect(() => {
+    if (hasSeededOpenAbstractRef.current) {
+      return;
+    }
+    if (openAbstractParam === null) {
+      return;
+    }
+    if (knownDocumentIds === undefined) {
+      return;
+    }
+    hasSeededOpenAbstractRef.current = true;
+    if (knownDocumentIds.has(openAbstractParam)) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- guarded to run at most once by `hasSeededOpenAbstractRef`, the same pattern the pair-seeding effect above already uses for the identical reason.
+      setDetail({ kind: 'abstract', id: openAbstractParam });
+    }
+    const nextParams = new URLSearchParams(searchParams);
+    nextParams.delete('openAbstract');
+    const search = nextParams.toString();
+    navigate(`/similarity${search ? `?${search}` : ''}`, { replace: true });
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- `knownDocumentIds` is a fresh `Set` every render (derived from `corpusQuery.data`, never memoized); `searchParams`/`navigate` are plain values recreated every render from the same location this already depends on via `openAbstractParam`.
+  }, [openAbstractParam, knownDocumentIds]);
+
   function navigateAwayFromTrace() {
     if (!isTraceOpen) {
       return;
