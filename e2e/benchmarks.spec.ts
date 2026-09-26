@@ -282,6 +282,46 @@ test.describe('benchmarks screen', () => {
     }
   }
 
+  test("on the log-log scale, every chart's y-axis ticks are powers of ten, never arbitrary sub-multiples", async ({
+    page,
+  }) => {
+    await page.goto('/benchmarks');
+
+    await page
+      .getByRole('radiogroup', { name: 'Escala' })
+      .getByRole('radio', { name: 'Log–log' })
+      .click();
+
+    for (const name of [
+      'Algoritmos clásicos por pares',
+      'Enlaces jerárquicos (HAC)',
+      'Métricas internas de agrupamiento',
+    ]) {
+      const group = page.getByRole('group', { name });
+      await expect(group).toHaveAttribute('data-scale', 'log');
+
+      // Both axes' tick-value text nodes share this one class; the x-axis
+      // ticks are bare input sizes (plain integers) while every y-axis
+      // (duration) tick carries a unit suffix, so filtering by that suffix
+      // picks out only the y-axis ticks without depending on document
+      // order or a compound `.recharts-yAxis …` selector (which Playwright
+      // could not resolve against this nested SVG structure, unlike a
+      // single class selector).
+      const allTickTexts = await group
+        .locator('.recharts-cartesian-axis-tick-value')
+        .allTextContents();
+      const durationTickTexts = allTickTexts.filter((text) => /[a-zµ]/.test(text));
+      expect(durationTickTexts.length).toBeGreaterThan(0);
+      for (const tick of durationTickTexts) {
+        // `formatDuration` always renders an exact power of ten as a bare
+        // 1/10/100 mantissa (its one-decimal rounding never applies to
+        // those) — an arbitrary sub-multiple like "40 µs" or "300 µs"
+        // fails this pattern.
+        expect(tick).toMatch(/^(1|10|100) (ns|µs|ms|s)$/);
+      }
+    }
+  });
+
   test('has no automatically detectable WCAG 2.1 AA violations on the benchmarks screen', async ({
     page,
   }) => {
