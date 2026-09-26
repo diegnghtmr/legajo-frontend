@@ -75,10 +75,29 @@ describe('App', () => {
     expect(screen.getByRole('heading', { name: 'Comparación de similitud' })).toBeInTheDocument();
   });
 
-  it('renders the matrix screen at /similarity/matrix', () => {
+  it('renders the matrix screen at /similarity/matrix, given a selection the matrix actually applies to', () => {
+    // With fewer than three selected, this exact route now normalizes back
+    // to plain /similarity instead of showing a screen with nothing to
+    // compare — this smoke test is for the route itself, not that
+    // fallback (covered on its own in `SimilarityMatrixPage.test.tsx`).
+    useSelectionStore.setState({
+      selectedIds: ['doc-01', 'doc-02', 'doc-03'],
+      canCompare: true,
+      canMatrix: true,
+    });
+
     renderAppAt('/similarity/matrix');
 
     expect(screen.getByRole('heading', { name: 'Matriz de similitud' })).toBeInTheDocument();
+  });
+
+  it('normalizes /similarity/matrix back to plain /similarity when the selection cannot use the matrix', async () => {
+    renderAppAt('/similarity/matrix');
+
+    expect(
+      await screen.findByRole('heading', { name: 'Comparación de similitud' }),
+    ).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: 'Matriz de similitud' })).not.toBeInTheDocument();
   });
 
   it('opens the trace deep link inside the workbench, over the pairwise results for that same pair', () => {

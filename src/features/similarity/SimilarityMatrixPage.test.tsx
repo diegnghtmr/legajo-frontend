@@ -2,7 +2,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import type { ReactNode } from 'react';
-import { MemoryRouter } from 'react-router';
+import { MemoryRouter, Route, Routes, useLocation } from 'react-router';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import * as corpusApi from '../../infrastructure/api/corpus';
@@ -10,6 +10,7 @@ import type { MatrixResponse } from '../../infrastructure/api/similarity';
 import * as similarityApi from '../../infrastructure/api/similarity';
 import { useSelectionStore } from '../corpus/selectionStore';
 import { SimilarityMatrixPage } from './SimilarityMatrixPage';
+import { SimilarityPage } from './SimilarityPage';
 
 vi.mock('../../infrastructure/api/corpus');
 vi.mock('../../infrastructure/api/similarity');
@@ -41,6 +42,32 @@ function renderWithProviders(ui: ReactNode) {
   return render(
     <QueryClientProvider client={queryClient}>
       <MemoryRouter>{ui}</MemoryRouter>
+    </QueryClientProvider>,
+  );
+}
+
+/** Prints the router's live location, so a test can prove the URL actually
+ * changed (or stayed put) without reaching into router internals. */
+function LocationProbe() {
+  const location = useLocation();
+  return <p data-testid="location">{`${location.pathname}${location.search}`}</p>;
+}
+
+/** The same two routes `App.tsx` maps to the plain compare path and the
+ * matrix deep link, so a redirect away from one is exercised against real
+ * route matching — proving the pair actually keeps rendering (now via
+ * `SimilarityPage`) across the hand-off, not just that the URL changed. */
+function renderAtRoute(initialPath: string) {
+  const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  return render(
+    <QueryClientProvider client={queryClient}>
+      <MemoryRouter initialEntries={[initialPath]}>
+        <LocationProbe />
+        <Routes>
+          <Route path="/similarity" element={<SimilarityPage />} />
+          <Route path="/similarity/matrix" element={<SimilarityMatrixPage />} />
+        </Routes>
+      </MemoryRouter>
     </QueryClientProvider>,
   );
 }
@@ -80,7 +107,7 @@ describe('SimilarityMatrixPage — fewer than 2 selected', () => {
 });
 
 describe('SimilarityMatrixPage — exactly two selected (dropped below three while on this deep link)', () => {
-  it('falls back to the pairwise view instead of a dead-end empty state', async () => {
+  it('normalizes the URL to plain /similarity and shows the pairwise view there, never a stale /similarity/matrix', async () => {
     useSelectionStore.setState({
       selectedIds: ['doc-01', 'doc-02'],
       canCompare: true,
@@ -102,12 +129,17 @@ describe('SimilarityMatrixPage — exactly two selected (dropped below three whi
       },
     ]);
 
-    renderWithProviders(<SimilarityMatrixPage />);
+    renderAtRoute('/similarity/matrix');
 
+    // The redirect hands off from `SimilarityMatrixPage` to `SimilarityPage`
+    // (real route matching, `renderAtRoute`'s own doc comment) — the pair
+    // keeps rendering across that hand-off, never a dead end.
     expect(
       await screen.findByRole('heading', { name: 'doc-01 frente a doc-02' }),
     ).toBeInTheDocument();
     expect(screen.queryByRole('heading', { name: 'Matriz de similitud' })).not.toBeInTheDocument();
+    const location = await screen.findByTestId('location');
+    await waitFor(() => expect(location.textContent).toBe('/similarity'));
   });
 });
 

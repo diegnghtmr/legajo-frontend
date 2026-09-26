@@ -170,7 +170,18 @@ export function SimilarityTracePage() {
       {traceQuery.data && <TracePanel trace={traceQuery.data} family={family} />}
 
       <Link
-        to="/similarity"
+        // Back to this exact trace in the docked workbench when both
+        // document ids are present — never a bare `/similarity`, which
+        // would land on whatever (or nothing) the rail happens to have
+        // selected and lose the pair this same view is already showing.
+        // Only a genuinely incomplete URL (a missing id) falls back to the
+        // plain compare path, the same "no pair to preserve" case the
+        // subtitle above already guards with `hasBothDocumentIds`.
+        to={
+          hasBothDocumentIds
+            ? `/similarity/${encodeURIComponent(algorithmId ?? '')}/trace?documentIdA=${encodeURIComponent(documentIdA)}&documentIdB=${encodeURIComponent(documentIdB)}`
+            : '/similarity'
+        }
         className="w-fit text-body font-semibold text-ink underline-offset-2 hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus"
       >
         {t('similarity.trace.backToCompare')}

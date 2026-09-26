@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router';
 
@@ -70,16 +70,36 @@ export function SimilarityPage() {
       ? sortedPair([urlDocumentIdA, urlDocumentIdB])
       : null;
   const railPair = sortedPair(selectedArticleIds);
-  const pair = railPair ?? urlPair;
+  // Whether the rail has ever named a real selection during this mount —
+  // monotonic (once true, never resets to false), adjusted during render
+  // the same way `SimilarityWorkbenchLayout`'s own `confirmedPairKey`
+  // is: a plain `useState` (never a ref; refs cannot be read during render
+  // under this same lint config) that survives a later Limpiar or
+  // deselection reducing `selectedArticleIds` back to zero. Distinguishes
+  // "the rail has never spoken yet" (still `[]`, a cold deep link whose own
+  // seed effect in the layout has not resolved) — where the URL pair is
+  // still the right thing to preview — from "the rail just spoke, and its
+  // answer is `[]` or an insufficient count" (a deselection, or Limpiar) —
+  // where the rail's own (non-)answer must win outright, never falling
+  // back to a now-stale URL pair.
+  const [railHasBeenTouched, setRailHasBeenTouched] = useState(selectedArticleIds.length > 0);
+  if (selectedArticleIds.length > 0 && !railHasBeenTouched) {
+    setRailHasBeenTouched(true);
+  }
+  const pair = railHasBeenTouched ? railPair : urlPair;
 
-  // The deep link's own pair is stale once the rail names a different, real
-  // one — leave the trace route and drop its now-mismatched document ids,
-  // carrying this same rail pair into the plain `/similarity` URL instead.
+  // The deep link's own pair is stale once the rail has spoken for itself
+  // and no longer agrees with it — whether by naming a different, real
+  // pair, or by no longer forming a pair at all (a deselection, or
+  // Limpiar) — leave the trace route and drop its now-mismatched document
+  // ids, carrying whatever the rail says now (a real pair, or nothing)
+  // into the plain `/similarity` URL instead of leaving the stale
+  // comparison and its trace panel on screen.
   const staleTracePair =
     isTraceRoute &&
-    railPair !== null &&
     urlPair !== null &&
-    (railPair[0] !== urlPair[0] || railPair[1] !== urlPair[1]);
+    railHasBeenTouched &&
+    (railPair === null || railPair[0] !== urlPair[0] || railPair[1] !== urlPair[1]);
 
   useEffect(() => {
     if (!staleTracePair) {
