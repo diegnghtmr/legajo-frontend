@@ -235,7 +235,9 @@ test.describe('standalone full-screen trace view', () => {
     // The view's own heading stays in view — never scrolled above the
     // viewport the way `scrollIntoView` on the final path cell used to,
     // since that call also scrolls every scrollable ancestor.
-    const headingBox = await page.getByRole('heading', { name: 'Levenshtein distance' }).boundingBox();
+    const headingBox = await page
+      .getByRole('heading', { name: 'Levenshtein distance' })
+      .boundingBox();
     expect(headingBox).not.toBeNull();
     expect(headingBox!.y).toBeGreaterThanOrEqual(0);
     const pageScrollTop = await page.evaluate<number>(
