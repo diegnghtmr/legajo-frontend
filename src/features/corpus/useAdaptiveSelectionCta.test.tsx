@@ -1,8 +1,10 @@
 import type { ReactNode } from 'react';
 import { act, renderHook, screen } from '@testing-library/react';
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router';
-import { beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { SIMILARITY_RESULTS_REGION_ID } from '../similarity/similarityFocusTargets';
+import { stubNarrowViewport } from '../../test/matchMedia';
 import { useSelectionStore } from './selectionStore';
 import { useAdaptiveSelectionCta } from './useAdaptiveSelectionCta';
 
@@ -49,44 +51,97 @@ describe('useAdaptiveSelectionCta', () => {
     expect(result.current.modeText).toBe('Selecciona al menos 2 para comparar.');
   });
 
-  it('reads the sorted pairwise label and navigates to /similarity at exactly two selected', () => {
-    useSelectionStore.setState({
-      selectedIds: ['doc-02', 'doc-01'],
-      canCompare: true,
-      canMatrix: false,
+  describe('at lg and above, the center already shows the result with no click', () => {
+    it('reads the sorted pairwise label and focuses the results region instead of navigating, at exactly two selected', () => {
+      useSelectionStore.setState({
+        selectedIds: ['doc-02', 'doc-01'],
+        canCompare: true,
+        canMatrix: false,
+      });
+      const region = document.createElement('div');
+      region.id = SIMILARITY_RESULTS_REGION_ID;
+      region.tabIndex = -1;
+      document.body.appendChild(region);
+      const { result } = renderHook(() => useAdaptiveSelectionCta(), { wrapper });
+
+      expect(result.current.ctaEnabled).toBe(true);
+      // Sorted, never the raw toggle order.
+      expect(result.current.ctaLabel).toBe('Comparar doc-01 y doc-02');
+      expect(result.current.modeText).toBe('Comparación por pares');
+
+      act(() => {
+        result.current.onCtaClick();
+      });
+
+      // Never navigates away — the pair already shows in place.
+      expect(screen.getByTestId('location').textContent).toBe('/elsewhere');
+      expect(region).toHaveFocus();
+      region.remove();
     });
-    const { result } = renderHook(() => useAdaptiveSelectionCta(), { wrapper });
 
-    expect(result.current.ctaEnabled).toBe(true);
-    // Sorted, never the raw toggle order.
-    expect(result.current.ctaLabel).toBe('Comparar doc-01 y doc-02');
-    expect(result.current.modeText).toBe('Comparación por pares');
+    it('reads the matrix label and focuses the results region instead of navigating, at three or more selected', () => {
+      useSelectionStore.setState({
+        selectedIds: ['doc-01', 'doc-02', 'doc-03'],
+        canCompare: true,
+        canMatrix: true,
+      });
+      const region = document.createElement('div');
+      region.id = SIMILARITY_RESULTS_REGION_ID;
+      region.tabIndex = -1;
+      document.body.appendChild(region);
+      const { result } = renderHook(() => useAdaptiveSelectionCta(), { wrapper });
 
-    act(() => {
-      result.current.onCtaClick();
+      expect(result.current.ctaEnabled).toBe(true);
+      expect(result.current.ctaLabel).toBe('Ver matriz de 3');
+      expect(result.current.modeText).toBe('Matriz de similitud');
+
+      act(() => {
+        result.current.onCtaClick();
+      });
+
+      expect(screen.getByTestId('location').textContent).toBe('/elsewhere');
+      expect(region).toHaveFocus();
+      region.remove();
     });
-
-    // Exact equality, not a substring match: `/similarity/matrix` (the
-    // matrix branch's own destination) must never satisfy this.
-    expect(screen.getByTestId('location').textContent).toBe('/similarity');
   });
 
-  it('reads the matrix label and navigates to /similarity/matrix at three or more selected', () => {
-    useSelectionStore.setState({
-      selectedIds: ['doc-01', 'doc-02', 'doc-03'],
-      canCompare: true,
-      canMatrix: true,
-    });
-    const { result } = renderHook(() => useAdaptiveSelectionCta(), { wrapper });
-
-    expect(result.current.ctaEnabled).toBe(true);
-    expect(result.current.ctaLabel).toBe('Ver matriz de 3');
-    expect(result.current.modeText).toBe('Matriz de similitud');
-
-    act(() => {
-      result.current.onCtaClick();
+  describe('below lg, nothing changes: activating the CTA still navigates and confirms', () => {
+    afterEach(() => {
+      vi.unstubAllGlobals();
     });
 
-    expect(screen.getByTestId('location')).toHaveTextContent('/similarity/matrix');
+    it('navigates to /similarity at exactly two selected', () => {
+      stubNarrowViewport();
+      useSelectionStore.setState({
+        selectedIds: ['doc-02', 'doc-01'],
+        canCompare: true,
+        canMatrix: false,
+      });
+      const { result } = renderHook(() => useAdaptiveSelectionCta(), { wrapper });
+
+      act(() => {
+        result.current.onCtaClick();
+      });
+
+      // Exact equality, not a substring match: `/similarity/matrix` (the
+      // matrix branch's own destination) must never satisfy this.
+      expect(screen.getByTestId('location').textContent).toBe('/similarity');
+    });
+
+    it('navigates to /similarity/matrix at three or more selected', () => {
+      stubNarrowViewport();
+      useSelectionStore.setState({
+        selectedIds: ['doc-01', 'doc-02', 'doc-03'],
+        canCompare: true,
+        canMatrix: true,
+      });
+      const { result } = renderHook(() => useAdaptiveSelectionCta(), { wrapper });
+
+      act(() => {
+        result.current.onCtaClick();
+      });
+
+      expect(screen.getByTestId('location')).toHaveTextContent('/similarity/matrix');
+    });
   });
 });

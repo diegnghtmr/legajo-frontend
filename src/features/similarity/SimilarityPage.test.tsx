@@ -95,8 +95,8 @@ beforeEach(() => {
   useSelectionStore.setState({ selectedIds: [], canCompare: false, canMatrix: false });
 });
 
-describe('SimilarityPage — wrong selection count', () => {
-  it.each([[[]], [['doc-01']], [['doc-01', 'doc-02', 'doc-03']]])(
+describe('SimilarityPage — wrong selection count (0 or 1, no matrix eligibility either)', () => {
+  it.each([[[]], [['doc-01']]])(
     'shows a designed empty state naming the next step for selection %j',
     (selectedIds) => {
       useSelectionStore.setState({ selectedIds, canCompare: false, canMatrix: false });
@@ -116,13 +116,13 @@ describe('SimilarityPage — wrong selection count', () => {
     },
   );
 
-  it.each([[[]], [['doc-01']], [['doc-01', 'doc-02', 'doc-03']]])(
+  it.each([[[]], [['doc-01']]])(
     'never registers a compare query — not even a disabled one holding blank ids — for selection %j',
     (selectedIds) => {
       useSelectionStore.setState({
         selectedIds,
         canCompare: false,
-        canMatrix: selectedIds.length >= 3,
+        canMatrix: false,
       });
 
       const { queryClient } = renderWithProviders(<SimilarityPage />);
@@ -141,8 +141,74 @@ describe('SimilarityPage — wrong selection count', () => {
   );
 });
 
-describe('SimilarityPage — three or more selected (wrong count for compare, matrix eligible)', () => {
-  it('shows a link to the similarity matrix in addition to the empty-state message', () => {
+describe('SimilarityPage — three or more selected, at lg and above', () => {
+  it('shows the similarity matrix directly in the center, with no click and no navigation', async () => {
+    vi.spyOn(similarityApi, 'fetchSimilarityMatrix').mockResolvedValue([]);
+    useSelectionStore.setState({
+      selectedIds: ['doc-01', 'doc-02', 'doc-03'],
+      canCompare: false,
+      canMatrix: true,
+    });
+
+    renderWithProviders(<SimilarityPage />);
+
+    expect(await screen.findByRole('heading', { name: 'Matriz de similitud' })).toBeInTheDocument();
+    expect(
+      screen.queryByText(
+        'Selecciona 2 artículos en el panel para comparar, o 3 o más para ver la matriz.',
+      ),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole('link', { name: 'Ver la matriz de similitud' }),
+    ).not.toBeInTheDocument();
+    expect(similarityApi.compareSimilarity).not.toHaveBeenCalled();
+  });
+
+  it('never registers a compare query for the matrix mode — only the matrix request', async () => {
+    vi.spyOn(similarityApi, 'fetchSimilarityMatrix').mockResolvedValue([]);
+    useSelectionStore.setState({
+      selectedIds: ['doc-01', 'doc-02', 'doc-03'],
+      canCompare: false,
+      canMatrix: true,
+    });
+
+    const { queryClient } = renderWithProviders(<SimilarityPage />);
+
+    await screen.findByRole('heading', { name: 'Matriz de similitud' });
+
+    expect(
+      queryClient.getQueryCache().findAll({ queryKey: ['similarity', 'compare'] }),
+    ).toHaveLength(0);
+    expect(similarityApi.compareSimilarity).not.toHaveBeenCalled();
+  });
+});
+
+describe('SimilarityPage — does not show the matrix link with fewer than 3 selected', () => {
+  it('shows no matrix link below 3 selected', () => {
+    useSelectionStore.setState({
+      selectedIds: ['doc-01'],
+      canCompare: false,
+      canMatrix: false,
+    });
+
+    renderWithProviders(<SimilarityPage />);
+
+    expect(
+      screen.queryByRole('link', { name: 'Ver la matriz de similitud' }),
+    ).not.toBeInTheDocument();
+  });
+});
+
+describe('SimilarityPage — three or more selected, below lg (unchanged)', () => {
+  beforeEach(() => {
+    stubNarrowViewport();
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it('shows the empty-state message with a link to the matrix instead of the matrix itself', () => {
     useSelectionStore.setState({
       selectedIds: ['doc-01', 'doc-02', 'doc-03'],
       canCompare: false,
@@ -158,21 +224,7 @@ describe('SimilarityPage — three or more selected (wrong count for compare, ma
     ).toBeInTheDocument();
     const matrixLink = screen.getByRole('link', { name: 'Ver la matriz de similitud' });
     expect(matrixLink).toHaveAttribute('href', '/similarity/matrix');
-    expect(matrixLink.className).toContain('border-hairline-strong');
-  });
-
-  it('does not show the matrix link with fewer than 3 selected', () => {
-    useSelectionStore.setState({
-      selectedIds: ['doc-01'],
-      canCompare: false,
-      canMatrix: false,
-    });
-
-    renderWithProviders(<SimilarityPage />);
-
-    expect(
-      screen.queryByRole('link', { name: 'Ver la matriz de similitud' }),
-    ).not.toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: 'Matriz de similitud' })).not.toBeInTheDocument();
   });
 });
 

@@ -101,7 +101,7 @@ test.describe('corpus selection rail', () => {
     ).toBeChecked();
   });
 
-  test('selecting three or more never lands on a wrong-count dead end: the adaptive CTA opens the matrix directly', async ({
+  test('selecting three or more never lands on a wrong-count dead end: the matrix shows directly, with no click needed', async ({
     page,
   }) => {
     const summaries = [
@@ -134,11 +134,11 @@ test.describe('corpus selection rail', () => {
     await page.getByRole('checkbox', { name: 'Embeddings for scientific text' }).check();
     await page.getByRole('checkbox', { name: 'Clustering theory refresher' }).check();
 
-    const matrixButton = page.getByRole('button', { name: 'Ver matriz de 3' });
-    await expect(matrixButton).toBeEnabled();
-    await matrixButton.click();
-
-    await expect(page).toHaveURL(/\/similarity\/matrix$/);
+    // The center follows the selection automatically at this width — the
+    // matrix already shows before the CTA is ever activated, still on the
+    // plain `/similarity` URL, never a dead end and never a separate route
+    // to navigate to first.
+    await expect(page).toHaveURL(/\/similarity$/);
     await expect(page.getByRole('heading', { name: 'Matriz de similitud' })).toBeVisible();
     // The dead end this guards against was the old "wrong count" empty
     // state (an exact string, never a "Comparar" click routing anywhere
@@ -150,6 +150,14 @@ test.describe('corpus selection rail', () => {
     ).toHaveCount(0);
     await expect(page.getByRole('alert')).toHaveCount(0);
     await expect(page.getByText('1.000').first()).toBeVisible();
+
+    // The rail's CTA stays enabled and, once activated, no longer needs to
+    // navigate anywhere — the keyboard/assistive-technology path onto
+    // results already on screen (`useAdaptiveSelectionCta`).
+    const matrixButton = page.getByRole('button', { name: 'Ver matriz de 3' });
+    await expect(matrixButton).toBeEnabled();
+    await matrixButton.click();
+    await expect(page).toHaveURL(/\/similarity$/);
   });
 
   test('shows a one-line embeddings status in the rail that opens the full detail', async ({

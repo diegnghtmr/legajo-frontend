@@ -52,8 +52,8 @@ beforeEach(() => {
   vi.spyOn(corpusApi, 'fetchCorpus').mockResolvedValue(CORPUS_SUMMARIES);
 });
 
-describe('SimilarityMatrixPage — fewer than 3 selected', () => {
-  it.each([[[]], [['doc-01']], [['doc-01', 'doc-02']]])(
+describe('SimilarityMatrixPage — fewer than 2 selected', () => {
+  it.each([[[]], [['doc-01']]])(
     'shows a designed empty state naming the next step for selection %j',
     async (selectedIds) => {
       useSelectionStore.setState({
@@ -77,6 +77,38 @@ describe('SimilarityMatrixPage — fewer than 3 selected', () => {
       expect(similarityApi.fetchSimilarityMatrix).not.toHaveBeenCalled();
     },
   );
+});
+
+describe('SimilarityMatrixPage — exactly two selected (dropped below three while on this deep link)', () => {
+  it('falls back to the pairwise view instead of a dead-end empty state', async () => {
+    useSelectionStore.setState({
+      selectedIds: ['doc-01', 'doc-02'],
+      canCompare: true,
+      canMatrix: false,
+    });
+    vi.spyOn(similarityApi, 'fetchSimilarityAlgorithms').mockResolvedValue([
+      { id: 'levenshtein', displayName: 'Levenshtein distance', kind: 'CLASSIC' },
+    ]);
+    vi.spyOn(similarityApi, 'compareSimilarity').mockResolvedValue([
+      {
+        algorithmId: 'levenshtein',
+        result: {
+          normalizedScore: 0.5,
+          rawValue: 1,
+          computedNanos: 100,
+          cached: false,
+          degenerate: false,
+        },
+      },
+    ]);
+
+    renderWithProviders(<SimilarityMatrixPage />);
+
+    expect(
+      await screen.findByRole('heading', { name: 'doc-01 frente a doc-02' }),
+    ).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: 'Matriz de similitud' })).not.toBeInTheDocument();
+  });
 });
 
 describe('SimilarityMatrixPage — 3 or more selected', () => {

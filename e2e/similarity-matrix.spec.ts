@@ -1,6 +1,8 @@
 import { AxeBuilder } from '@axe-core/playwright';
 import { expect, test, type Page } from '@playwright/test';
 
+import { expectNoTextOverlap } from './support/textOverlap.js';
+
 /**
  * Contract-shaped payloads (`GET /corpus`, `POST /similarity/matrix`)
  * — no live backend: `page.route` intercepts every request so this suite
@@ -106,5 +108,92 @@ test.describe('similarity matrix screen', () => {
       .analyze();
 
     expect(results.violations).toEqual([]);
+  });
+
+  test('at lg and above, selecting a third article shows the matrix directly, with no click on the CTA', async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await page.goto('/');
+
+    await page.getByRole('checkbox', { name: 'A survey of string similarity' }).check();
+    await page.getByRole('checkbox', { name: 'Embeddings for scientific text' }).check();
+    await page.getByRole('checkbox', { name: 'Clustering theory refresher' }).check();
+
+    await expect(page.getByRole('heading', { name: 'Matriz de similitud' })).toBeVisible();
+    await expect(page).toHaveURL(/\/similarity$/);
+  });
+
+  test('below lg (390px), the corpus list stays the main content until the tray CTA confirms the matrix', async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto('/');
+
+    await page.getByRole('checkbox', { name: 'A survey of string similarity' }).check();
+    await page.getByRole('checkbox', { name: 'Embeddings for scientific text' }).check();
+    await page.getByRole('checkbox', { name: 'Clustering theory refresher' }).check();
+
+    // Unchanged below lg: the matrix never shows until the tray's own CTA
+    // is activated.
+    await expect(page.getByRole('heading', { name: 'Matriz de similitud' })).toHaveCount(0);
+    await expect(
+      page.getByRole('checkbox', { name: 'A survey of string similarity' }),
+    ).toBeVisible();
+
+    const matrixButton = page.getByRole('button', { name: 'Ver matriz de 3' });
+    await expect(matrixButton).toBeEnabled();
+    await matrixButton.click();
+
+    await expect(page.getByRole('heading', { name: 'Matriz de similitud' })).toBeVisible();
+  });
+
+  test('has no overlapping text in the matrix at 3 selected', async ({ page }) => {
+    await selectThreeArticlesAndOpenMatrix(page);
+
+    await expect(page.getByRole('heading', { name: 'Matriz de similitud' })).toBeVisible();
+    await expect(page.getByText('1.000').first()).toBeVisible();
+
+    await expectNoTextOverlap(
+      page.getByRole('region', { name: 'Matriz de similitud por pares para el algoritmo elegido' }),
+    );
+  });
+
+  test('has no overlapping text in the matrix at 20 selected', async ({ page }) => {
+    const documents = Array.from({ length: 20 }, (_unused, index) => ({
+      id: `doc-${String(index + 1).padStart(2, '0')}`,
+      title: `Article number ${index + 1}`,
+      authors: ['A. Author'],
+    }));
+    const matrix = documents.map((_row, rowIndex) =>
+      documents.map((_col, colIndex) =>
+        cell(rowIndex === colIndex ? 1 : 0.1 * ((rowIndex + colIndex) % 9)),
+      ),
+    );
+    await page.route('**/api/v1/corpus', async (route) => {
+      await route.fulfill({ json: documents });
+    });
+    await page.route('**/api/v1/similarity/matrix', async (route) => {
+      await route.fulfill({ json: matrix });
+    });
+
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await page.goto('/');
+
+    for (const document of documents) {
+      await page.getByRole('checkbox', { name: document.title, exact: true }).check();
+    }
+
+    await expect(page.getByRole('heading', { name: 'Matriz de similitud' })).toBeVisible();
+    await expect(
+      page
+        .getByRole('region', { name: 'Matriz de similitud por pares para el algoritmo elegido' })
+        .getByText('1.000')
+        .first(),
+    ).toBeVisible();
+
+    await expectNoTextOverlap(
+      page.getByRole('region', { name: 'Matriz de similitud por pares para el algoritmo elegido' }),
+    );
   });
 });

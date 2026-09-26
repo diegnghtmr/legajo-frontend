@@ -112,7 +112,7 @@ describe('SelectionRail', () => {
       expect(button).not.toHaveAttribute('aria-describedby');
     });
 
-    it('reads "Ver matriz de N" and navigates to the matrix view at three or more selected', async () => {
+    it('reads "Ver matriz de N" at three or more selected, and never navigates away — the matrix already shows in place at lg', async () => {
       const user = userEvent.setup();
       renderRail();
       await user.click(
@@ -126,7 +126,7 @@ describe('SelectionRail', () => {
 
       await user.click(button);
 
-      expect(await screen.findByText('matrix view')).toBeInTheDocument();
+      expect(screen.queryByText('matrix view')).not.toBeInTheDocument();
     });
   });
 });

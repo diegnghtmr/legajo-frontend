@@ -5,6 +5,7 @@ import { matchPath, Outlet, useLocation, useNavigate, useSearchParams } from 're
 
 import type { ApiError } from '../../infrastructure/apiError';
 import { fetchCorpus, type ListCorpusResponse } from '../../infrastructure/api/corpus';
+import { cn } from '../../shared/lib/cn';
 import { useIsAtLeastLg } from '../../shared/lib/useIsAtLeastLg';
 import { WorkbenchLayout } from '../../shared/components/WorkbenchLayout';
 import { Button } from '../../shared/components/ui/button';
@@ -15,6 +16,7 @@ import { EmbeddingsStatusPanel } from '../corpus/EmbeddingsStatusPanel';
 import { SelectionRail } from '../corpus/SelectionRail';
 import { SelectionTray } from '../corpus/SelectionTray';
 import { sortedPair, useSelectionStore } from '../corpus/selectionStore';
+import { SIMILARITY_RESULTS_REGION_ID } from './similarityFocusTargets';
 import { clearTraceTrigger, restoreTraceTrigger } from './traceFocusReturn';
 import { TraceDetailPanel } from './traces/TraceDetailPanel';
 
@@ -451,7 +453,25 @@ export function SimilarityWorkbenchLayout() {
           // hit-test now catches (see `e2e/hit-areas.spec.ts`). `pb-52`
           // (208px) leaves comfortable room for that height plus a real
           // device's own `env(safe-area-inset-bottom)` on top of it.
-          <div className={!isAtLeastLg ? 'pb-52' : undefined}>
+          //
+          // At `lg` and above this is also the one landmark the rail's own
+          // adaptive CTA focuses instead of navigating
+          // (`useAdaptiveSelectionCta`, `SIMILARITY_RESULTS_REGION_ID`): the
+          // pair, the matrix, or the empty state is always exactly what
+          // `Outlet` renders here, so focusing this region always lands on
+          // whatever the center is already showing, with no separate ref
+          // per mode to keep in sync. `tabIndex={-1}` keeps it out of the
+          // normal Tab order (`AppLayout`'s own `<main>` landmark uses the
+          // same convention) while still being a valid `.focus()` target.
+          <div
+            id={SIMILARITY_RESULTS_REGION_ID}
+            data-testid="similarity-results-region"
+            tabIndex={-1}
+            className={cn(
+              !isAtLeastLg && 'pb-52',
+              'focus:outline focus:outline-2 focus:outline-offset-2 focus:outline-focus',
+            )}
+          >
             <Outlet />
           </div>
         )}
