@@ -23,6 +23,20 @@ export interface DpMatrixProps {
   downloadFileName: string;
   /** Accessible suffix appended to a path cell's own value, e.g. "Optimal path cell". */
   pathCellLabel: string;
+  /** Accessible name for the sticky top-left corner cell, which otherwise
+   * renders with no text at all (`empty-table-header`): it sits at the
+   * intersection of both strings' own zero-length prefix, so a short,
+   * axis-accurate label (e.g. "Prefix") reads correctly regardless of which
+   * two documents are being compared. */
+  cornerLabel: string;
+  /** Template for the sr-only fallback given to any row/column header whose
+   * own label is the empty string — by construction that is row/column 0
+   * (the zero-length prefix every DP alignment starts from), but this is
+   * applied at any index that comes in empty, so a `<th>` never ends up
+   * with zero accessible text (`empty-table-header`) regardless of why its
+   * own label came in blank. Must contain the literal placeholder
+   * `{{index}}`, e.g. "Prefix of length {{index}}". */
+  emptyPrefixLabelTemplate: string;
   /** Renders this component's own "Download CSV" button. Defaults to `true`
    * (the standalone full trace view's own layout). The docked/overlay trace
    * panel sets this to `false` and instead pins an equivalent action in its
@@ -61,6 +75,14 @@ function pathKey(row: number, col: number): string {
   return `${row}-${col}`;
 }
 
+/** Literal `{{index}}` replacement — deliberately not a full templating
+ * engine: the one caller (`DpTracePanel`) only ever needs this single
+ * placeholder, and this stays i18n-agnostic (the translated template
+ * string is already resolved by the caller). */
+function formatEmptyPrefixLabel(template: string, index: number): string {
+  return template.replace('{{index}}', String(index));
+}
+
 /**
  * Complete DP trace matrix (Levenshtein / Needleman–Wunsch), rendered in a
  * scrollable viewport. Lives in
@@ -82,6 +104,8 @@ export const DpMatrix = forwardRef<DpMatrixHandle, DpMatrixProps>(function DpMat
     downloadLabel,
     downloadFileName,
     pathCellLabel,
+    cornerLabel,
+    emptyPrefixLabelTemplate,
     showDownloadButton = true,
   }: DpMatrixProps,
   forwardedRef,
@@ -189,14 +213,22 @@ export const DpMatrix = forwardRef<DpMatrixHandle, DpMatrixProps>(function DpMat
           <caption className="sr-only">{ariaLabel}</caption>
           <thead>
             <tr>
-              <th scope="col" className="sticky top-0 left-0 z-20 bg-paper-sunken p-1" />
+              <th scope="col" className="sticky top-0 left-0 z-20 bg-paper-sunken p-1">
+                <span className="sr-only">{cornerLabel}</span>
+              </th>
               {columnLabels.map((label, col) => (
                 <th
                   key={col}
                   scope="col"
                   className="sticky top-0 z-10 min-w-8 bg-paper-sunken p-1 font-mono text-mono text-ink-secondary"
                 >
-                  {label}
+                  {label === '' ? (
+                    <span className="sr-only">
+                      {formatEmptyPrefixLabel(emptyPrefixLabelTemplate, col)}
+                    </span>
+                  ) : (
+                    label
+                  )}
                 </th>
               ))}
             </tr>
@@ -208,7 +240,13 @@ export const DpMatrix = forwardRef<DpMatrixHandle, DpMatrixProps>(function DpMat
                   scope="row"
                   className="sticky left-0 z-10 min-w-8 bg-paper-sunken p-1 font-mono text-mono text-ink-secondary"
                 >
-                  {rowLabels[row]}
+                  {rowLabels[row] === '' ? (
+                    <span className="sr-only">
+                      {formatEmptyPrefixLabel(emptyPrefixLabelTemplate, row)}
+                    </span>
+                  ) : (
+                    rowLabels[row]
+                  )}
                 </th>
                 {rowValues.map((value, col) => {
                   const isPath = pathSet.has(pathKey(row, col));

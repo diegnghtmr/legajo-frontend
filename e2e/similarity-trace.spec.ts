@@ -198,6 +198,21 @@ test.describe('standalone full-screen trace view', () => {
     expect(results.violations).toEqual([]);
   });
 
+  test('has no empty-table-header violation on the full-view DP matrix', async ({ page }) => {
+    // `empty-table-header` is a best-practice rule, not one of the strict
+    // WCAG tags the axe pass above filters by — this one targets it
+    // directly, reproducing the reported violation on the DP matrix's
+    // sticky top-left corner `<th>`.
+    await mockTrace(page, 'levenshtein', DP_TRACE);
+
+    await page.goto('/similarity/levenshtein/trace/full?documentIdA=doc-01&documentIdB=doc-02');
+    await expect(page.getByRole('heading', { name: 'Levenshtein distance' })).toBeVisible();
+
+    const results = await new AxeBuilder({ page }).withRules(['empty-table-header']).analyze();
+
+    expect(results.violations).toEqual([]);
+  });
+
   /**
    * A synthetic n×n matrix large enough that auto-scrolling to its final
    * (bottom-right) path cell moves the viewport by more than a trivial
@@ -221,6 +236,29 @@ test.describe('standalone full-screen trace view', () => {
     }));
     return { algorithmId: 'levenshtein', rowLabels, columnLabels, matrix, optimalPath, operations };
   }
+
+  test('has no empty-table-header violation even when a row header other than index 0 comes in empty (reproduces the reported tr:nth-child(107) finding against a real, long document pair)', async ({
+    page,
+  }) => {
+    const trace = buildLargeDpTrace(60);
+    // Every row/column label starts empty only at index 0 (the DP
+    // alignment's own zero-length-prefix border) — this fixture also
+    // blanks the LAST row's own label, the exact shape axe flagged live
+    // against a real corpus matrix, to prove the fallback applies at any
+    // index, not only 0.
+    const rowLabels = [...trace.rowLabels];
+    rowLabels[rowLabels.length - 1] = '';
+    await mockTrace(page, 'levenshtein', { ...trace, rowLabels });
+    await page.setViewportSize({ width: 1440, height: 900 });
+
+    await page.goto('/similarity/levenshtein/trace/full?documentIdA=doc-01&documentIdB=doc-02');
+    await expect(page.getByRole('heading', { name: 'Levenshtein distance' })).toBeVisible();
+    await expect(page.locator('[data-optimal-path="true"]')).toHaveCount(60);
+
+    const results = await new AxeBuilder({ page }).withRules(['empty-table-header']).analyze();
+
+    expect(results.violations).toEqual([]);
+  });
 
   test('a large DP trace scrolls only its own matrix viewport, keeping the standalone view at the top', async ({
     page,

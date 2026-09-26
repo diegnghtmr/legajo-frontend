@@ -135,6 +135,8 @@
         "familyLabel": "Family",
         "optimalPathLabel": "Optimal path",
         "matrixCaption": "Complete {{id}} matrix",
+        "cornerLabel": "Prefix",
+        "emptyPrefixLabel": "Prefix of length {{index}}",
         "downloadCsv": "Download the complete matrix (CSV)",
         "pathCellSuffix": "optimal path cell",
         "legendHeading": "Operation legend",
@@ -221,6 +223,7 @@
       "errorTitle": "Could not compute the matrix",
       "table": {
         "caption": "Pairwise similarity matrix for the chosen algorithm",
+        "cornerLabel": "Document",
         "degenerateMarker": "degenerate case"
       }
     }

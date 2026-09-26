@@ -33,6 +33,8 @@ function renderMatrix() {
       downloadLabel="Download CSV"
       downloadFileName="levenshtein-matrix.csv"
       pathCellLabel="Optimal path cell"
+      cornerLabel="Prefix"
+      emptyPrefixLabelTemplate="Prefix of length {{index}}"
     />,
   );
 }
@@ -97,6 +99,43 @@ describe('DpMatrix', () => {
     expect(screen.getByRole('rowheader', { name: 'k' })).toBeInTheDocument();
   });
 
+  it('gives the sticky top-left corner header a non-empty accessible name (empty-table-header)', () => {
+    renderMatrix();
+
+    const cornerHeader = screen.getByRole('columnheader', { name: 'Prefix' });
+    // The sticky corner, never one of the four real column headers (`s`,
+    // `i`, `t`, and their duplicate at row/column overlap) — this is the
+    // one column header with no visible text of its own.
+    expect(cornerHeader.textContent?.trim()).toBe('Prefix');
+  });
+
+  it('gives every empty-prefix row/column header its own non-empty sr-only fallback name instead of leaving it blank (empty-table-header) — checked at every index, not only 0, since a real corpus matrix reported the same violation on its own last row', () => {
+    // rowLabels/columnLabels[0] are the empty-prefix border every DP
+    // alignment starts from — mirroring the exact shape reported live
+    // against a real, long document pair, where axe flagged the LAST
+    // row's own header (not only index 0) as empty.
+    render(
+      <DpMatrix
+        rowLabels={['', 'k', 'i', '']}
+        columnLabels={['', 's', 'i', 't']}
+        matrix={MATRIX}
+        optimalPath={OPTIMAL_PATH}
+        ariaLabel="Levenshtein matrix"
+        downloadLabel="Download CSV"
+        downloadFileName="levenshtein-matrix.csv"
+        pathCellLabel="Optimal path cell"
+        cornerLabel="Prefix"
+        emptyPrefixLabelTemplate="Prefix of length {{index}}"
+      />,
+    );
+
+    expect(screen.getByRole('columnheader', { name: 'Prefix of length 0' })).toBeInTheDocument();
+    expect(screen.getByRole('rowheader', { name: 'Prefix of length 0' })).toBeInTheDocument();
+    // The last row's own label (index 3), empty in this fixture, gets the
+    // exact same fallback pattern — never left as a blank `<th>`.
+    expect(screen.getByRole('rowheader', { name: 'Prefix of length 3' })).toBeInTheDocument();
+  });
+
   it('downloads a CSV containing every cell value, in row order, when the button is clicked', async () => {
     const user = userEvent.setup();
     let capturedBlob: Blob | undefined;
@@ -149,6 +188,8 @@ describe('DpMatrix', () => {
           downloadLabel="Download CSV"
           downloadFileName="levenshtein-matrix.csv"
           pathCellLabel="Optimal path cell"
+          cornerLabel="Prefix"
+          emptyPrefixLabelTemplate="Prefix of length {{index}}"
         />
       </form>,
     );
@@ -218,6 +259,8 @@ describe('DpMatrix', () => {
           downloadLabel="Download CSV"
           downloadFileName="levenshtein-matrix.csv"
           pathCellLabel="Optimal path cell"
+          cornerLabel="Prefix"
+          emptyPrefixLabelTemplate="Prefix of length {{index}}"
         />,
       );
 
@@ -252,6 +295,8 @@ describe('DpMatrix', () => {
           downloadLabel="Download CSV"
           downloadFileName="levenshtein-matrix.csv"
           pathCellLabel="Optimal path cell"
+          cornerLabel="Prefix"
+          emptyPrefixLabelTemplate="Prefix of length {{index}}"
           showDownloadButton={false}
         />,
       );
@@ -279,6 +324,8 @@ describe('DpMatrix', () => {
           downloadLabel="Download CSV"
           downloadFileName="levenshtein-matrix.csv"
           pathCellLabel="Optimal path cell"
+          cornerLabel="Prefix"
+          emptyPrefixLabelTemplate="Prefix of length {{index}}"
           showDownloadButton={false}
         />,
       );

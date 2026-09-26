@@ -258,6 +258,35 @@ test.describe('similarity compare screen', () => {
     expect(results.violations).toEqual([]);
   });
 
+  test('has no empty-table-header violation on the docked DP trace panel’s own matrix', async ({
+    page,
+  }) => {
+    // `empty-table-header` is a best-practice rule, not one of the strict
+    // WCAG tags the compare-results axe pass above filters by — this one
+    // targets it directly, reproducing the reported violation on the DP
+    // matrix's sticky top-left corner `<th>`.
+    await page.route('**/api/v1/similarity/levenshtein/trace**', async (route) => {
+      await route.fulfill({ json: DP_TRACE });
+    });
+    await page.goto('/');
+
+    await page.getByRole('checkbox', { name: 'A survey of string similarity' }).check();
+    await page.getByRole('checkbox', { name: 'Embeddings for scientific text' }).check();
+    await page.getByRole('button', { name: 'Comparar doc-01 y doc-02' }).click();
+
+    const row = page.getByRole('row', { name: /^levenshtein/ });
+    await row.getByRole('button', { name: 'levenshtein', exact: true }).click();
+
+    await expect(page.getByTestId('workbench-detail')).toBeVisible();
+    await expect(
+      page.getByTestId('workbench-detail').getByRole('heading', { name: 'Levenshtein distance' }),
+    ).toBeVisible();
+
+    const results = await new AxeBuilder({ page }).withRules(['empty-table-header']).analyze();
+
+    expect(results.violations).toEqual([]);
+  });
+
   test('below lg (390px), the results render as a list of row buttons, and a row opens its trace as a full-height sheet', async ({
     page,
   }) => {

@@ -111,6 +111,8 @@ export const DpTracePanel = forwardRef<DpMatrixHandle, DpTracePanelProps>(functi
         downloadLabel={t('similarity.trace.dp.downloadCsv')}
         downloadFileName={`${trace.algorithmId}-matrix.csv`}
         pathCellLabel={t('similarity.trace.dp.pathCellSuffix')}
+        cornerLabel={t('similarity.trace.dp.cornerLabel')}
+        emptyPrefixLabelTemplate={t('similarity.trace.dp.emptyPrefixLabel')}
         showDownloadButton={!hideDownloadButton}
       />
 
