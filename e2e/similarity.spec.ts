@@ -424,7 +424,10 @@ function buildLargeDpTrace(size: number) {
   const matrix = Array.from({ length: size }, (_unused, row) =>
     Array.from({ length: size }, (_unused2, col) => row + col),
   );
-  const optimalPath = Array.from({ length: size }, (_unused, index) => ({ row: index, col: index }));
+  const optimalPath = Array.from({ length: size }, (_unused, index) => ({
+    row: index,
+    col: index,
+  }));
   const operations = optimalPath.slice(1).map((cell, index) => ({
     from: optimalPath[index],
     to: cell,
