@@ -1,7 +1,8 @@
 import type { Ref } from 'react';
+import { useEffect, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
-import { Link, useParams, useSearchParams } from 'react-router';
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router';
 
 import { DEFAULT_UNEXPECTED_I18N_KEY, type ApiError } from '../../infrastructure/apiError';
 import {
@@ -12,6 +13,7 @@ import {
 } from '../../infrastructure/api/similarity';
 import type { DpMatrixHandle } from '../../shared/components/DpMatrix';
 import type { AlgoFamily } from '../../shared/family';
+import { sortedPair, useSelectionStore } from '../corpus/selectionStore';
 import { DpTracePanel } from './traces/DpTracePanel';
 import { EmbeddingApiTracePanel } from './traces/EmbeddingApiTracePanel';
 import { EmbeddingLocalTracePanel } from './traces/EmbeddingLocalTracePanel';
@@ -19,6 +21,7 @@ import { JaccardTracePanel } from './traces/JaccardTracePanel';
 import { TfIdfTracePanel } from './traces/TfIdfTracePanel';
 import { algoFamilyFromKind } from './algorithmFamily';
 import { ALGORITHMS_QUERY_KEY } from './SimilarityPage';
+import { clearTraceTrigger } from './traceFocusReturn';
 import { PanelHeader } from '../../shared/components/Panel';
 import { Button } from '../../shared/components/ui/button';
 
@@ -75,19 +78,73 @@ export function TracePanel({
 }
 
 /**
- * One capability's complete audit trace (`/similarity/:algorithmId/trace`).
- * Reads `algorithmId` from the
+ * One capability's complete audit trace, rendered full-screen
+ * (`/similarity/:algorithmId/trace/full`). Reads `algorithmId` from the
  * route and `documentIdA`/`documentIdB` from the query string set by
  * `CompareTable`'s link. A rejected fetch renders the mapped `ApiError`:
  * 404 `unknown-algorithm` for a bad path segment, 400 `unknown-document` for
  * a bad query id.
+ *
+ * `SimilarityWorkbenchLayout` still renders its own persistent rail
+ * alongside this page (this route nests inside that same layout, exactly
+ * like the docked trace route) — the rail always wins once it names a real,
+ * different pair from the one this URL supplies, or names no pair at all
+ * (a deselection, or Limpiar), the same rule `SimilarityPage` already
+ * applies to the docked trace. Unlike the docked trace, though, there is no
+ * "different pair, same full view" case here: ANY mismatch between the
+ * rail and this URL's own pair leaves the full-screen route entirely, back
+ * to plain `/similarity` (with this same rail pair carried into the URL),
+ * where the plain compare screen's own auto-follow (the pair, the matrix,
+ * or the guidance) takes over — never a stale full-screen trace left open
+ * next to a rail that has since moved on.
  */
 export function SimilarityTracePage() {
   const { t } = useTranslation();
   const { algorithmId } = useParams<{ algorithmId: string }>();
   const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
   const documentIdA = searchParams.get('documentIdA') ?? '';
   const documentIdB = searchParams.get('documentIdB') ?? '';
+
+  const selectedArticleIds = useSelectionStore((state) => state.selectedIds);
+  const railPair = sortedPair(selectedArticleIds);
+  // The same-document-twice guard `SimilarityPage`'s own `urlPair` already
+  // applies to the docked trace route — a URL naming one id twice is
+  // degenerate, never a real pair to defend against the rail moving on.
+  const urlPair: readonly [string, string] | null =
+    documentIdA && documentIdB && documentIdA !== documentIdB
+      ? sortedPair([documentIdA, documentIdB])
+      : null;
+  // Whether the rail has ever named a real selection during this mount —
+  // monotonic, adjusted during render, the exact same pattern
+  // `SimilarityPage` already uses for the docked trace route (see its own
+  // doc comment for why this distinguishes a still-seeding cold deep link
+  // from a genuine deselection/Limpiar).
+  const [railHasBeenTouched, setRailHasBeenTouched] = useState(selectedArticleIds.length > 0);
+  if (selectedArticleIds.length > 0 && !railHasBeenTouched) {
+    setRailHasBeenTouched(true);
+  }
+  const staleTracePair =
+    urlPair !== null &&
+    railHasBeenTouched &&
+    (railPair === null || railPair[0] !== urlPair[0] || railPair[1] !== urlPair[1]);
+
+  useEffect(() => {
+    if (!staleTracePair) {
+      return;
+    }
+    // The rail — not the person's own close action — is what ends this full
+    // view, so its remembered focus-return target is dropped without
+    // focusing anything (`traceFocusReturn`'s own contract, mirrored from
+    // `SimilarityPage`'s identical effect for the docked trace route).
+    clearTraceTrigger();
+    const nextParams = new URLSearchParams(searchParams);
+    nextParams.delete('documentIdA');
+    nextParams.delete('documentIdB');
+    const search = nextParams.toString();
+    navigate(`/similarity${search ? `?${search}` : ''}`, { replace: true });
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- re-running this for every render `staleTracePair` stays true is harmless (the navigate below leaves this route on its very next commit, which flips the condition false); listing `searchParams`/`navigate` here would only make it re-run for reasons that never change what it does.
+  }, [staleTracePair]);
 
   const traceQuery = useQuery<SimilarityTraceResponse, ApiError>({
     queryKey: ['similarity', 'trace', algorithmId, documentIdA, documentIdB] as const,
