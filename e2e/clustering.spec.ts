@@ -383,6 +383,50 @@ test.describe('clustering screen', () => {
     });
   }
 
+  test('a long k-range error wraps inside the field column instead of pushing Aplicar corte onto its own row', async ({
+    page,
+  }) => {
+    await page.goto('/clustering');
+    await expect(page.getByRole('heading', { name: 'Single' })).toBeVisible();
+
+    await page.getByLabel('Número de clústeres k (entre 2 y 5)').fill('1');
+    const submitButton = page.getByRole('button', { name: 'Aplicar corte' });
+    await submitButton.click();
+
+    // A locator filtered by today's exact text would stop matching once the
+    // fault injection below rewrites that text — `getByRole('alert')` alone
+    // still resolves to the same live element, since it is the only alert
+    // present at this point.
+    const error = page.getByRole('alert');
+    await expect(error).toHaveText(/k debe ser un entero/);
+    const buttonBoxBefore = await submitButton.boundingBox();
+    expect(buttonBoxBefore).not.toBeNull();
+
+    // Fault injection: no real translation is this long today, but a
+    // future or English string could be. Replacing the error's own text
+    // with a much longer one, in place, proves the width constraint is
+    // load-bearing — not just coincidentally wide enough for today's exact
+    // Spanish sentence.
+    await error.evaluate((el) => {
+      el.textContent =
+        'k debe ser un número entero comprendido estrictamente entre 2 y 5, ambos inclusive, para que el corte sea válido en este corpus cargado actualmente.';
+    });
+
+    const errorBoxAfter = await error.boundingBox();
+    const buttonBoxAfter = await submitButton.boundingBox();
+    expect(errorBoxAfter).not.toBeNull();
+    expect(buttonBoxAfter).not.toBeNull();
+    // The error wrapped onto more lines (taller), but its own column never
+    // widened — a fixed max-width, not a shrink-to-fit one.
+    expect(errorBoxAfter!.width).toBeLessThanOrEqual(buttonBoxBefore!.x - errorBoxAfter!.x + 40);
+    // "Aplicar corte" stays in the same column, to the right of the k
+    // field — never wrapped down onto its own row (which would reset its
+    // x close to the group's own left edge). The row growing a little
+    // taller (bottom-aligned items following a taller neighbour) is
+    // expected and is not what this guards against.
+    expect(buttonBoxAfter!.x).toBeCloseTo(buttonBoxBefore!.x, 0);
+  });
+
   test('deselecting every linkage shows the reason and no linkage panels', async ({ page }) => {
     await page.goto('/clustering');
     await expect(page.getByRole('heading', { name: 'Single' })).toBeVisible();
