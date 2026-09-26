@@ -1,7 +1,7 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { render, screen } from '@testing-library/react';
+import { act, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { MemoryRouter, Route, Routes } from 'react-router';
+import { MemoryRouter, Route, Routes, useLocation } from 'react-router';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import * as similarityApi from '../../infrastructure/api/similarity';
@@ -13,6 +13,7 @@ import type {
   JaccardTrace,
   TfIdfCosineTrace,
 } from '../../infrastructure/schemas/similarity';
+import { useSelectionStore } from '../corpus/selectionStore';
 import { SimilarityTracePage } from './SimilarityTracePage';
 
 vi.mock('../../infrastructure/api/similarity');
@@ -102,12 +103,23 @@ const EMBEDDING_API_TRACE: EmbeddingApiTrace = {
   providerStatus: 'cached',
 };
 
+/** Prints the router's live location as text, so a test can assert on the
+ * URL a navigation actually produced without reaching into router
+ * internals — the same helper `SimilarityPage.test.tsx` uses for the same
+ * reason. */
+function LocationProbe() {
+  const location = useLocation();
+  return <p data-testid="location">{`${location.pathname}${location.search}`}</p>;
+}
+
 function renderAtRoute(path: string) {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return render(
     <QueryClientProvider client={queryClient}>
       <MemoryRouter initialEntries={[path]}>
+        <LocationProbe />
         <Routes>
+          <Route path="/similarity" element={<p>{'Plain compare screen'}</p>} />
           <Route path="/similarity/:algorithmId/trace" element={<SimilarityTracePage />} />
         </Routes>
       </MemoryRouter>
@@ -120,6 +132,7 @@ const ROUTE = '/similarity/levenshtein/trace?documentIdA=doc-01&documentIdB=doc-
 describe('SimilarityTracePage', () => {
   beforeEach(() => {
     vi.spyOn(similarityApi, 'fetchSimilarityAlgorithms').mockResolvedValue(CATALOGUE);
+    useSelectionStore.setState({ selectedIds: [], canCompare: false, canMatrix: false });
   });
 
   it('shows a loading state before the trace resolves', () => {
@@ -319,5 +332,95 @@ describe('SimilarityTracePage', () => {
     await screen.findByText('0.333300');
     expect(screen.queryByText(/frente a/)).not.toBeInTheDocument();
     expect(screen.queryByText('null')).not.toBeInTheDocument();
+  });
+
+  describe('following the rail once it has been touched', () => {
+    it('leaves the full view for plain /similarity once the rail names a different, valid pair', async () => {
+      useSelectionStore.setState({
+        selectedIds: ['doc-01', 'doc-02'],
+        canCompare: true,
+        canMatrix: false,
+      });
+      vi.spyOn(similarityApi, 'fetchSimilarityTrace').mockResolvedValue(DP_TRACE);
+
+      renderAtRoute(ROUTE);
+
+      await screen.findByRole('heading', { name: 'Levenshtein distance' });
+
+      // Picking an entirely different pair in the rail while the full view
+      // is still open for doc-01/doc-02 — never kept open for the new pair,
+      // unlike the docked trace route's own "different pair" case.
+      act(() => {
+        useSelectionStore.setState({
+          selectedIds: ['doc-03', 'doc-04'],
+          canCompare: true,
+          canMatrix: false,
+        });
+      });
+
+      const location = await screen.findByTestId('location');
+      await waitFor(() => expect(location.textContent).not.toContain('/trace'));
+      expect(location).toHaveTextContent('/similarity');
+      expect(location.textContent).not.toContain('documentIdA');
+      expect(location.textContent).not.toContain('documentIdB');
+    });
+
+    it('drops the stale full view once the rail shrinks below a pair (deselecting one article, never a genuinely new pair)', async () => {
+      useSelectionStore.setState({
+        selectedIds: ['doc-01', 'doc-02'],
+        canCompare: true,
+        canMatrix: false,
+      });
+      vi.spyOn(similarityApi, 'fetchSimilarityTrace').mockResolvedValue(DP_TRACE);
+
+      renderAtRoute(ROUTE);
+
+      await screen.findByRole('heading', { name: 'Levenshtein distance' });
+
+      act(() => {
+        useSelectionStore.setState({
+          selectedIds: ['doc-01'],
+          canCompare: false,
+          canMatrix: false,
+        });
+      });
+
+      const location = await screen.findByTestId('location');
+      await waitFor(() => expect(location.textContent).not.toContain('/trace'));
+      expect(location).toHaveTextContent('/similarity');
+    });
+
+    it('drops the stale full view once the rail is cleared to nothing (Limpiar), never keeping the old pair on screen', async () => {
+      useSelectionStore.setState({
+        selectedIds: ['doc-01', 'doc-02'],
+        canCompare: true,
+        canMatrix: false,
+      });
+      vi.spyOn(similarityApi, 'fetchSimilarityTrace').mockResolvedValue(DP_TRACE);
+
+      renderAtRoute(ROUTE);
+
+      await screen.findByRole('heading', { name: 'Levenshtein distance' });
+
+      act(() => {
+        useSelectionStore.setState({ selectedIds: [], canCompare: false, canMatrix: false });
+      });
+
+      const location = await screen.findByTestId('location');
+      await waitFor(() => expect(location.textContent).not.toContain('/trace'));
+      expect(location).toHaveTextContent('/similarity');
+    });
+
+    it('never redirects a cold visit whose rail is still empty — the deep link keeps resolving normally', async () => {
+      vi.spyOn(similarityApi, 'fetchSimilarityTrace').mockResolvedValue(DP_TRACE);
+
+      renderAtRoute(ROUTE);
+
+      expect(
+        await screen.findByRole('heading', { name: 'Levenshtein distance' }),
+      ).toBeInTheDocument();
+      const location = await screen.findByTestId('location');
+      expect(location.textContent).toContain('/trace');
+    });
   });
 });
