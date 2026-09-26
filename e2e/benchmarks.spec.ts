@@ -1,6 +1,8 @@
 import { AxeBuilder } from '@axe-core/playwright';
 import { expect, test, type Page } from '@playwright/test';
 
+import { expectNoTextOverlap } from './support/textOverlap.js';
+
 /**
  * Contract-shaped payload (`GET /benchmarks`) — no live
  * backend: `page.route` intercepts the request, same offline pattern every
@@ -242,6 +244,36 @@ test.describe('benchmarks screen', () => {
       })
       .toBeLessThanOrEqual(390);
   });
+
+  for (const width of [1440, 390]) {
+    for (const scale of ['linear', 'log-log'] as const) {
+      test(`at ${width}px on the ${scale} scale, no chart's axis title overlaps its own tick labels`, async ({
+        page,
+      }) => {
+        await page.setViewportSize({ width, height: width === 1440 ? 900 : 844 });
+        await page.goto('/benchmarks');
+
+        const group = page.getByRole('group', { name: 'Algoritmos clásicos por pares' });
+        await expect(group).toBeVisible();
+
+        if (scale === 'log-log') {
+          await page
+            .getByRole('radiogroup', { name: 'Escala' })
+            .getByRole('radio', { name: 'Log–log' })
+            .click();
+          await expect(group).toHaveAttribute('data-scale', 'log');
+        }
+
+        for (const name of [
+          'Algoritmos clásicos por pares',
+          'Enlaces jerárquicos (HAC)',
+          'Métricas internas de agrupamiento',
+        ]) {
+          await expectNoTextOverlap(page.getByRole('group', { name }));
+        }
+      });
+    }
+  }
 
   test('has no automatically detectable WCAG 2.1 AA violations on the benchmarks screen', async ({
     page,
