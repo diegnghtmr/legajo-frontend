@@ -1,3 +1,4 @@
+import { useId } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import type { TfIdfCosineTrace } from '../../../infrastructure/schemas/similarity';
@@ -31,6 +32,7 @@ const NUMERIC_TD_CLASS = 'p-2 font-mono text-mono text-ink';
  */
 export function TfIdfTracePanel({ trace }: TfIdfTracePanelProps) {
   const { t } = useTranslation();
+  const termsHeadingId = useId();
 
   return (
     <div className="flex flex-col gap-4">
@@ -40,11 +42,26 @@ export function TfIdfTracePanel({ trace }: TfIdfTracePanelProps) {
       </p>
 
       <div>
-        <h3 className="mb-1 text-eyebrow font-semibold uppercase tracking-wide text-ink-secondary">
+        <h3
+          id={termsHeadingId}
+          className="mb-1 text-eyebrow font-semibold uppercase tracking-wide text-ink-secondary"
+        >
           {t('similarity.trace.tfidf.termsHeading')}
         </h3>
-        <div className="max-w-full overflow-x-auto rounded-md border border-hairline">
-          <Table>
+        {/* The single scroll container for this table (both the region's own
+         * name and its keyboard focusability — WCAG 2.1.1's
+         * `scrollable-region-focusable`): `Table`'s own default wrapper is
+         * skipped (`wrap={false}`) so this stays the only `overflow`
+         * ancestor, the same technique `MatrixTable`/`DpTracePanel`'s
+         * operations table already use, rather than nesting two scrollable
+         * divs with only the inner one ever reachable by keyboard. */}
+        <div
+          role="region"
+          aria-labelledby={termsHeadingId}
+          tabIndex={0}
+          className="max-w-full overflow-x-auto rounded-md border border-hairline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus"
+        >
+          <Table wrap={false}>
             <TableHeader>
               <TableRow>
                 <TableHead className={NUMERIC_TH_CLASS}>

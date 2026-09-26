@@ -338,4 +338,26 @@ test.describe('benchmarks screen', () => {
 
     expect(results.violations).toEqual([]);
   });
+
+  test('has no automatically detectable WCAG 2.1 AA violations at 390px, where the family/exponent tables scroll horizontally', async ({
+    page,
+  }) => {
+    // The default (1440-ish) viewport's own axe pass above never scrolls
+    // any of these tables horizontally — this one reproduces the narrow
+    // viewport where the family/slope table's own scroll container was
+    // reported unreachable by keyboard (`scrollable-region-focusable`).
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto('/benchmarks');
+
+    await expect(
+      page.getByRole('heading', { name: 'Benchmarks de rendimiento (JMH)' }),
+    ).toBeVisible();
+    await expect(page.getByTestId('embedding-tile-1536')).toBeVisible();
+
+    const results = await new AxeBuilder({ page })
+      .withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa'])
+      .analyze();
+
+    expect(results.violations).toEqual([]);
+  });
 });

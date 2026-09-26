@@ -344,32 +344,48 @@ export function BenchmarkCurveChart({
       </ul>
 
       {familiesWithSlopes.length > 0 && (
-        <Table aria-label={slopeTableCaption} className="mt-3">
-          <TableCaption className="sr-only">{slopeTableCaption}</TableCaption>
-          <TableHeader>
-            <TableRow>
-              <TableHead>{t('benchmarks.curves.slopeTableFamily')}</TableHead>
-              <TableHead>{t('benchmarks.curves.slopeTableEmpirical')}</TableHead>
-              <TableHead>{t('benchmarks.curves.slopeTableTheoretical')}</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {familiesWithSlopes.map((entry) => {
-              const slope = slopes.get(entry.family)!;
-              return (
-                <TableRow key={entry.family}>
-                  <TableCell className="font-mono text-mono text-ink">{entry.family}</TableCell>
-                  <TableCell className="font-mono text-mono text-ink">
-                    {formatSlopeNumber(slope.empiricalSlope)}
-                  </TableCell>
-                  <TableCell className="font-mono text-mono text-ink">
-                    {formatSlopeNumber(slope.theoreticalExponent)}
-                  </TableCell>
-                </TableRow>
-              );
-            })}
-          </TableBody>
-        </Table>
+        // The single scroll container for this table (its own keyboard
+        // focusability and accessible name — WCAG 2.1.1's
+        // `scrollable-region-focusable`, reported live at 390px against the
+        // reference benchmarks screen): none of its cells are themselves
+        // focusable, unlike `CompareTable`'s own row-as-button results
+        // table, so — like `MatrixTable`/`TfIdfTracePanel`'s own term
+        // table — this region needs to be the one reachable, focusable
+        // ancestor itself. `Table`'s own default wrapper is skipped
+        // (`wrap={false}`) so this stays the only `overflow` ancestor.
+        <div
+          role="region"
+          aria-label={slopeTableCaption}
+          tabIndex={0}
+          className="mt-3 overflow-x-auto rounded-md focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus"
+        >
+          <Table wrap={false}>
+            <TableCaption className="sr-only">{slopeTableCaption}</TableCaption>
+            <TableHeader>
+              <TableRow>
+                <TableHead>{t('benchmarks.curves.slopeTableFamily')}</TableHead>
+                <TableHead>{t('benchmarks.curves.slopeTableEmpirical')}</TableHead>
+                <TableHead>{t('benchmarks.curves.slopeTableTheoretical')}</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {familiesWithSlopes.map((entry) => {
+                const slope = slopes.get(entry.family)!;
+                return (
+                  <TableRow key={entry.family}>
+                    <TableCell className="font-mono text-mono text-ink">{entry.family}</TableCell>
+                    <TableCell className="font-mono text-mono text-ink">
+                      {formatSlopeNumber(slope.empiricalSlope)}
+                    </TableCell>
+                    <TableCell className="font-mono text-mono text-ink">
+                      {formatSlopeNumber(slope.theoreticalExponent)}
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
+            </TableBody>
+          </Table>
+        </div>
       )}
 
       {/*

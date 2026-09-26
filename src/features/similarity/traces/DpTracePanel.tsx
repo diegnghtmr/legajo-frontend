@@ -141,7 +141,13 @@ export const DpTracePanel = forwardRef<DpMatrixHandle, DpTracePanelProps>(functi
           tabIndex={0}
           className="max-h-64 overflow-auto rounded-md border border-hairline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus"
         >
-          <Table>
+          {/* `wrap={false}`: this region is already the single scroll
+           * container (both axes) — nesting the primitive's own wrapper
+           * inside it would double up the `overflow-x-auto` ancestor
+           * (the exact hazard `Table`'s own `wrap` doc comment warns
+           * about) and add a second, redundant focusable region for the
+           * same content. */}
+          <Table wrap={false}>
             <TableCaption className="sr-only">
               {t('similarity.trace.dp.operationsTableCaption', { id: trace.algorithmId })}
             </TableCaption>
