@@ -123,7 +123,13 @@ export function CutForm({ linkages, n, defaultLinkage, onSubmit, isPending, erro
               />
             </label>
             {errors.k && (
-              <p role="alert" className="text-body text-danger">
+              // `max-w-40`: a fixed width, not the field column's own
+              // shrink-to-fit one, so a longer localized message wraps
+              // onto more lines within this same column instead of
+              // growing the column to fit one long line — which is what
+              // used to widen this whole group and push "Aplicar corte"
+              // away from it.
+              <p role="alert" className="max-w-40 text-body text-danger">
                 {t('clustering.cutForm.errors.kRange', { min: 2, max: n - 1 })}
               </p>
             )}

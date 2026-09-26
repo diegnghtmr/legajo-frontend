@@ -13,6 +13,7 @@ import {
   TableRow,
 } from '../../shared/components/ui/table';
 import { mergeSeriesIntoRows, type FamilySeries } from './grouping';
+import { logDecadeTicks } from './logDecadeTicks';
 import { dashPatternForIndex, markerShapeForIndex, type MarkerShape } from './seriesStyle';
 import { theoreticalCurvePoints } from './theoreticalCurve';
 import { formatDuration } from './units';
@@ -179,6 +180,34 @@ export function BenchmarkCurveChart({
   const axisScale = scale === 'log-log' ? 'log' : 'linear';
   const familiesWithSlopes = series.filter((entry) => slopes.has(entry.family));
 
+  // Recharts' own automatic log-scale ticks land on arbitrary sub-multiples
+  // of the domain (e.g. 40 µs, 300 µs, 800 µs), never true decades — explicit
+  // `ticks` (and a matching `domain`) fix the y-axis to powers of ten
+  // instead, computed from every value actually plotted on this scale
+  // (including the theoretical curves, which can extend past the empirical
+  // points' own range).
+  const yAxisTicks =
+    axisScale === 'log'
+      ? logDecadeTicks(
+          mergedData.flatMap((row) =>
+            Object.entries(row)
+              .filter(([key]) => key !== 'size')
+              .map(([, value]) => value),
+          ),
+        )
+      : [];
+  // Padded half a decade below/above the outermost ticks, in log space
+  // (never the bare tick bounds themselves): a domain that starts exactly
+  // at the lowest tick's own value plants that tick's label right where
+  // the x-axis's own first tick label already sits, in the plot's
+  // bottom-left corner — this keeps every tick's own row/column clear of
+  // that corner without adding a tick nothing plotted actually reaches.
+  const HALF_DECADE = Math.sqrt(10);
+  const yAxisDomain: [number | 'auto', number | 'auto'] =
+    yAxisTicks.length > 0
+      ? [yAxisTicks[0]! / HALF_DECADE, yAxisTicks[yAxisTicks.length - 1]! * HALF_DECADE]
+      : ['auto', 'auto'];
+
   return (
     <Panel>
       <PanelHeader title={title} />
@@ -238,7 +267,8 @@ export function BenchmarkCurveChart({
             <YAxis
               type="number"
               scale={axisScale}
-              domain={['auto', 'auto']}
+              domain={yAxisDomain}
+              ticks={yAxisTicks.length > 0 ? yAxisTicks : undefined}
               tickFormatter={(value: number) => formatDuration(value)}
               className="text-mono"
               width={72}

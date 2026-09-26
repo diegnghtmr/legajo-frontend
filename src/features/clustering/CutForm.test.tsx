@@ -60,6 +60,20 @@ describe('CutForm', () => {
     expect(onSubmit).not.toHaveBeenCalled();
   });
 
+  it('constrains the k-range error to the field column width so it wraps instead of widening the row', async () => {
+    const user = userEvent.setup();
+    renderForm();
+
+    await setK(user, '1');
+    await user.click(screen.getByRole('button', { name: 'Aplicar corte' }));
+
+    const error = await screen.findByRole('alert');
+    // A fixed max-width forces even a much longer localized message to wrap
+    // within the k field's own column instead of growing the column to fit
+    // one long line, which is what used to push "Aplicar corte" away.
+    expect(error.className).toMatch(/\bmax-w-40\b/);
+  });
+
   it('rejects k = n (above the maximum, n - 1) and does not submit', async () => {
     const user = userEvent.setup();
     const { onSubmit } = renderForm({ n: 6 });
