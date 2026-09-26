@@ -1,5 +1,29 @@
 import { AxeBuilder } from '@axe-core/playwright';
-import { expect, test, type Page } from '@playwright/test';
+import { expect, test, type Locator, type Page } from '@playwright/test';
+
+import { expectNoTextOverlap } from './support/textOverlap.js';
+
+/** The one DOM member this file's own browser-side callback needs, spelled
+ * out locally rather than adding the `dom` lib (which this project's
+ * Node-typed e2e tsconfig deliberately omits) — the same technique
+ * `hit-areas.spec.ts`'s own `HitSizeWindow` already uses. */
+interface FlexGrowComputedStyle {
+  flexGrow: string;
+}
+interface FlexGrowWindow {
+  getComputedStyle(element: unknown): FlexGrowComputedStyle;
+}
+
+/** The control bar group's own computed `flex-grow` — `0` unless something
+ * stretches it to fill the row (the exact CSS property the old
+ * `min-w-[260px] flex-1` regression set to `1` on the cut group's own
+ * wrapper). */
+async function computedFlexGrow(locator: Locator): Promise<string> {
+  return locator.evaluate((el) => {
+    const win = (globalThis as unknown as { window: FlexGrowWindow }).window;
+    return win.getComputedStyle(el).flexGrow;
+  });
+}
 
 /**
  * Contract-shaped payloads (`GET /corpus`, `POST /clustering`) — no
@@ -200,6 +224,12 @@ test.describe('clustering screen', () => {
       page.getByTestId('linkage-dendrogram-single').getByTestId('dendrogram-cut-line'),
     ).toHaveCount(0);
 
+    // No dendrogram's own leaf/cluster labels overlap each other, with the
+    // cut applied, at the default width.
+    for (const linkageId of ['single', 'complete', 'average', 'ward']) {
+      await expectNoTextOverlap(page.getByTestId(`linkage-dendrogram-${linkageId}`));
+    }
+
     // The per-linkage sr-only merge-order table (one per dendrogram, now
     // with cut cluster markers rendered too) must never widen the page's
     // own scrollable area at a narrow width — `table-fixed` is what keeps it
@@ -211,6 +241,11 @@ test.describe('clustering screen', () => {
     // e2e tsconfig (`tsconfig.node.json`).
     const scrollWidth = await page.evaluate<number>('document.documentElement.scrollWidth');
     expect(scrollWidth).toBeLessThanOrEqual(390);
+
+    // Same check, with the cut still applied, at 390px.
+    for (const linkageId of ['single', 'complete', 'average', 'ward']) {
+      await expectNoTextOverlap(page.getByTestId(`linkage-dendrogram-${linkageId}`));
+    }
   });
 
   test('at 1440px the control bar sits above a 2x2 dendrogram grid; at 390px the grid stacks into one column with no page-level horizontal scroll', async ({
@@ -252,6 +287,12 @@ test.describe('clustering screen', () => {
     expect(wideBoxes[2].x).toBeLessThan(wideBoxes[3].x);
     expect(wideBoxes[2].y).toBeGreaterThan(wideBoxes[0].y);
 
+    // No dendrogram's own leaf labels overlap each other, without a cut, at
+    // 1440px.
+    for (const card of cardLocators) {
+      await expectNoTextOverlap(card);
+    }
+
     await page.setViewportSize({ width: 390, height: 844 });
 
     // One column: every card shares (roughly) the same x, and each sits
@@ -281,7 +322,66 @@ test.describe('clustering screen', () => {
         message: 'the page should never scroll horizontally at 390px',
       })
       .toBeLessThanOrEqual(390);
+
+    // Same check, without a cut, once stacked into one column at 390px.
+    for (const card of cardLocators) {
+      await expectNoTextOverlap(card);
+    }
   });
+
+  for (const width of [1440, 1280, 1024, 768, 390]) {
+    test(`at ${width}px, the control bar's three groups never stretch and leave no dead block`, async ({
+      page,
+    }) => {
+      await page.setViewportSize({ width, height: 900 });
+      await page.goto('/clustering');
+      await expect(page.getByRole('heading', { name: 'Single' })).toBeVisible();
+
+      const representationGroup = page.getByRole('radiogroup', { name: 'Representación' });
+      const linkageGroup = page.getByRole('group', { name: 'Selección de enlaces' });
+      // The cut group's own outer box (the linkage radiogroup it applies
+      // to, the k field, and the submit button, whichever wrap the same
+      // row) — located by its own submit button's `<form>` ancestor, since
+      // the group itself has no single accessible role of its own.
+      const cutForm = page.locator('form', {
+        has: page.getByRole('button', { name: 'Aplicar corte' }),
+      });
+
+      // Never stretched to fill the remaining row width: each group's own
+      // computed `flex-grow` stays 0 — the exact CSS property the old
+      // `min-w-[260px] flex-1` regression set to 1 on the cut group's own
+      // wrapper. Read via a plain string body: this project's own `e2e/**`
+      // tsconfig is Node-typed, with no DOM lib for a typed callback.
+      for (const group of [representationGroup, linkageGroup, cutForm]) {
+        expect(await computedFlexGrow(group)).toBe('0');
+      }
+
+      const representationBox = await representationGroup.boundingBox();
+      const linkageBox = await linkageGroup.boundingBox();
+      const cutBox = await cutForm.boundingBox();
+      expect(representationBox).not.toBeNull();
+      expect(linkageBox).not.toBeNull();
+      expect(cutBox).not.toBeNull();
+
+      // While the three groups still share one row (their own top edges
+      // agree, `items-start`), no group towers over the shortest one: the
+      // old stacked cut group measured ~177px against the other two
+      // groups' ~36px. Once the row has actually wrapped (a shorter width),
+      // the groups' own top edges necessarily differ — that is the
+      // "wraps cleanly" behavior itself, not a dead block, so this height
+      // comparison only applies to the shared-row case.
+      const sameRow =
+        Math.abs(representationBox!.y - cutBox!.y) < 5 && Math.abs(linkageBox!.y - cutBox!.y) < 5;
+      if (sameRow) {
+        const heights = [representationBox!.height, linkageBox!.height, cutBox!.height];
+        expect(Math.max(...heights) - Math.min(...heights)).toBeLessThan(50);
+      }
+
+      // Never a horizontal scroll, wrapped or not.
+      const scrollWidth = await page.evaluate<number>('document.documentElement.scrollWidth');
+      expect(scrollWidth).toBeLessThanOrEqual(width);
+    });
+  }
 
   test('deselecting every linkage shows the reason and no linkage panels', async ({ page }) => {
     await page.goto('/clustering');
