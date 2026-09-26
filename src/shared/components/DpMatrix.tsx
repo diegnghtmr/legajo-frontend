@@ -98,15 +98,58 @@ export const DpMatrix = forwardRef<DpMatrixHandle, DpMatrixProps>(function DpMat
     if (!container) {
       return;
     }
-    // The optimal path always terminates at the matrix's own bottom-right
-    // cell (the published edit distance / alignment score) — the LAST
-    // `[data-optimal-path]` cell in this row-major-rendered table, never
-    // the first (the path's origin near (0,0), which is what an earlier
-    // version anchored on instead, leaving the actual score cell of a large
-    // real matrix off-screen).
-    const pathCells = container.querySelectorAll('[data-optimal-path="true"]');
-    const finalPathCell = pathCells[pathCells.length - 1];
-    finalPathCell?.scrollIntoView?.({ block: 'center', inline: 'center' });
+
+    // `scrollIntoView` scrolls every scrollable ANCESTOR too, not only this
+    // container — on the standalone full-screen trace view, a large real
+    // matrix pushed the page's own scroll position down, leaving the
+    // view's own heading and pair above the viewport on arrival. Computing
+    // the target scroll position from `getBoundingClientRect` deltas and
+    // setting THIS container's own `scrollTo` directly touches only this
+    // one scroll container, regardless of what (if anything) else on the
+    // page also scrolls.
+    function scrollToFinalPathCell() {
+      // The optimal path always terminates at the matrix's own bottom-right
+      // cell (the published edit distance / alignment score) — the LAST
+      // `[data-optimal-path]` cell in this row-major-rendered table, never
+      // the first (the path's origin near (0,0), which is what an earlier
+      // version anchored on instead, leaving the actual score cell of a
+      // large real matrix off-screen).
+      const pathCells = container!.querySelectorAll('[data-optimal-path="true"]');
+      const finalPathCell = pathCells[pathCells.length - 1];
+      if (!finalPathCell) {
+        return;
+      }
+      const containerRect = container!.getBoundingClientRect();
+      const cellRect = finalPathCell.getBoundingClientRect();
+      const left =
+        container!.scrollLeft +
+        (cellRect.left + cellRect.width / 2) -
+        (containerRect.left + containerRect.width / 2);
+      const top =
+        container!.scrollTop +
+        (cellRect.top + cellRect.height / 2) -
+        (containerRect.top + containerRect.height / 2);
+      // Optionally-chained: jsdom (this project's unit-test environment)
+      // implements neither `scrollIntoView` (the old call, also
+      // optionally-chained above) nor `Element.scrollTo`.
+      container!.scrollTo?.({ left, top });
+    }
+
+    scrollToFinalPathCell();
+    // A webfont finishing its load after this initial pass can still shift
+    // column/row widths enough to leave the just-computed offset short of
+    // the final cell; re-running once fonts have actually settled keeps
+    // that from leaving a stale scroll position behind. `document.fonts` is
+    // absent in some test environments (jsdom), so this stays optional.
+    let cancelled = false;
+    void document.fonts?.ready?.then(() => {
+      if (!cancelled) {
+        scrollToFinalPathCell();
+      }
+    });
+    return () => {
+      cancelled = true;
+    };
   }, [matrix, optimalPath]);
 
   function downloadCsv() {

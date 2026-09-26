@@ -198,6 +198,57 @@ test.describe('standalone full-screen trace view', () => {
     expect(results.violations).toEqual([]);
   });
 
+  /**
+   * A synthetic n×n matrix large enough that auto-scrolling to its final
+   * (bottom-right) path cell moves the viewport by more than a trivial
+   * amount — the 4x4 `DP_TRACE` fixture above is too small to expose an
+   * ancestor (page) scroll the way the real ~100-row corpus matrices did.
+   */
+  function buildLargeDpTrace(size: number) {
+    const rowLabels = Array.from({ length: size }, (_unused, index) => (index === 0 ? '' : 'a'));
+    const columnLabels = Array.from({ length: size }, (_unused, index) => (index === 0 ? '' : 'b'));
+    const matrix = Array.from({ length: size }, (_unused, row) =>
+      Array.from({ length: size }, (_unused2, col) => row + col),
+    );
+    const optimalPath = Array.from({ length: size }, (_unused, index) => ({
+      row: index,
+      col: index,
+    }));
+    const operations = optimalPath.slice(1).map((cell, index) => ({
+      from: optimalPath[index],
+      to: cell,
+      operation: 'MATCH',
+    }));
+    return { algorithmId: 'levenshtein', rowLabels, columnLabels, matrix, optimalPath, operations };
+  }
+
+  test('a large DP trace scrolls only its own matrix viewport, keeping the standalone view at the top', async ({
+    page,
+  }) => {
+    await mockTrace(page, 'levenshtein', buildLargeDpTrace(60));
+    await page.setViewportSize({ width: 1440, height: 900 });
+
+    await page.goto('/similarity/levenshtein/trace/full?documentIdA=doc-01&documentIdB=doc-02');
+    await expect(page.getByRole('heading', { name: 'Levenshtein distance' })).toBeVisible();
+    await expect(page.locator('[data-optimal-path="true"]')).toHaveCount(60);
+
+    // The view's own heading stays in view — never scrolled above the
+    // viewport the way `scrollIntoView` on the final path cell used to,
+    // since that call also scrolls every scrollable ancestor.
+    const headingBox = await page.getByRole('heading', { name: 'Levenshtein distance' }).boundingBox();
+    expect(headingBox).not.toBeNull();
+    expect(headingBox!.y).toBeGreaterThanOrEqual(0);
+    const pageScrollTop = await page.evaluate<number>(
+      'document.scrollingElement ? document.scrollingElement.scrollTop : 0',
+    );
+    expect(pageScrollTop).toBe(0);
+
+    // The matrix's own viewport did scroll to bring the final path cell —
+    // the published score — into view.
+    const finalPathCell = page.locator('[data-optimal-path="true"]').last();
+    await expect(finalPathCell).toBeInViewport();
+  });
+
   // Every non-DP trace panel gets its own axe pass, not only Jaccard: a
   // `role="region"`-inside-`dl` defect
   // was only caught because one of these panels had an axe-detectable
