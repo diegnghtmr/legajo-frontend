@@ -183,65 +183,90 @@ export function BenchmarkCurveChart({
     <Panel>
       <PanelHeader title={title} />
 
-      <div
-        ref={containerRef}
-        role="group"
-        aria-label={title}
-        data-scale={axisScale}
-        className="w-full"
-      >
-        <LineChart
-          width={width}
-          height={CHART_HEIGHT}
-          data={mergedData}
-          accessibilityLayer={false}
-          margin={{ top: 8, right: 16, bottom: 24, left: 8 }}
+      {/*
+       * The axis titles render as plain HTML text OUTSIDE the chart's own
+       * SVG, in their own flex cells — never Recharts' `label` prop (its
+       * `insideLeft`/`insideBottom` positions draw the title inside the
+       * same column the tick numbers occupy, which overlaps them at every
+       * width and on both scales; there is no tick-column width this
+       * project's own tick values stay short enough to always clear). A
+       * fixed-width column for the vertical y-axis title and a plain
+       * paragraph under the x-axis reserve their own space instead, so the
+       * two can never share a pixel with a tick label — both are plain,
+       * visible text, so they show for every viewer the same way the
+       * sr-only data table's already-complete raw values do for assistive
+       * tech. `role="group"` stays on the chart's own measured container
+       * (never the outer row, which would also include the y-axis title's
+       * own column) so its bounding box keeps matching the SVG's measured
+       * width one-to-one, the same invariant the "fills its own measured
+       * container width" test already relies on.
+       */}
+      <div className="flex items-stretch gap-2">
+        <span
+          className="flex w-5 shrink-0 items-center justify-center whitespace-nowrap text-mono text-ink-secondary"
+          style={{ writingMode: 'vertical-rl', transform: 'rotate(180deg)' }}
         >
-          <CartesianGrid stroke="var(--color-hairline)" strokeDasharray="3 3" />
-          <XAxis
-            dataKey="size"
-            type="number"
-            scale={axisScale}
-            domain={['auto', 'auto']}
-            label={{ value: xAxisLabel, position: 'insideBottom', offset: -12 }}
-            className="text-mono"
-          />
-          <YAxis
-            type="number"
-            scale={axisScale}
-            domain={['auto', 'auto']}
-            tickFormatter={(value: number) => formatDuration(value)}
-            label={{ value: yAxisLabel, angle: -90, position: 'insideLeft' }}
-            className="text-mono"
-            width={72}
-          />
-          {series.map((entry, index) => (
-            <Line
-              key={entry.family}
-              dataKey={entry.family}
-              name={entry.family}
-              stroke="var(--color-ink)"
-              strokeWidth={1.5}
-              strokeDasharray={dashPatternForIndex(index) || undefined}
-              dot={seriesDot(markerShapeForIndex(index))}
-              isAnimationActive={false}
-              connectNulls
+          {yAxisLabel}
+        </span>
+        <div
+          ref={containerRef}
+          role="group"
+          aria-label={title}
+          data-scale={axisScale}
+          className="min-w-0 flex-1"
+        >
+          <LineChart
+            width={width}
+            height={CHART_HEIGHT}
+            data={mergedData}
+            accessibilityLayer={false}
+            margin={{ top: 8, right: 16, bottom: 24, left: 8 }}
+          >
+            <CartesianGrid stroke="var(--color-hairline)" strokeDasharray="3 3" />
+            <XAxis
+              dataKey="size"
+              type="number"
+              scale={axisScale}
+              domain={['auto', 'auto']}
+              className="text-mono"
             />
-          ))}
-          {familiesWithSlopes.map((entry) => (
-            <Line
-              key={theoreticalKey(entry.family)}
-              dataKey={theoreticalKey(entry.family)}
-              name={t('benchmarks.curves.legendTheoretical', { family: entry.family })}
-              stroke="var(--color-ink-muted)"
-              strokeWidth={1}
-              strokeDasharray="2 2"
-              dot={false}
-              isAnimationActive={false}
-              connectNulls
+            <YAxis
+              type="number"
+              scale={axisScale}
+              domain={['auto', 'auto']}
+              tickFormatter={(value: number) => formatDuration(value)}
+              className="text-mono"
+              width={72}
             />
-          ))}
-        </LineChart>
+            {series.map((entry, index) => (
+              <Line
+                key={entry.family}
+                dataKey={entry.family}
+                name={entry.family}
+                stroke="var(--color-ink)"
+                strokeWidth={1.5}
+                strokeDasharray={dashPatternForIndex(index) || undefined}
+                dot={seriesDot(markerShapeForIndex(index))}
+                isAnimationActive={false}
+                connectNulls
+              />
+            ))}
+            {familiesWithSlopes.map((entry) => (
+              <Line
+                key={theoreticalKey(entry.family)}
+                dataKey={theoreticalKey(entry.family)}
+                name={t('benchmarks.curves.legendTheoretical', { family: entry.family })}
+                stroke="var(--color-ink-muted)"
+                strokeWidth={1}
+                strokeDasharray="2 2"
+                dot={false}
+                isAnimationActive={false}
+                connectNulls
+              />
+            ))}
+          </LineChart>
+          <p className="mt-1 text-center text-mono text-ink-secondary">{xAxisLabel}</p>
+        </div>
       </div>
 
       {/*

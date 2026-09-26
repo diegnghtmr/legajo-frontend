@@ -1,6 +1,8 @@
 import { AxeBuilder } from '@axe-core/playwright';
 import { expect, test, type Page } from '@playwright/test';
 
+import { expectNoTextOverlap } from './support/textOverlap.js';
+
 /**
  * Contract-shaped trace payloads (`GET /similarity/{algorithmId}/trace`)
  * — no live backend: `page.route` intercepts every request, per the other
@@ -156,6 +158,16 @@ test.describe('standalone full-screen trace view', () => {
         expect(lines[row + 1].split(',')).toContain(String(value));
       }
     }
+  });
+
+  test('has no overlapping text in the DP trace matrix', async ({ page }) => {
+    await mockTrace(page, 'levenshtein', DP_TRACE);
+
+    await page.goto('/similarity/levenshtein/trace/full?documentIdA=doc-01&documentIdB=doc-02');
+    await expect(page.getByRole('heading', { name: 'Levenshtein distance' })).toBeVisible();
+    await expect(page.locator('table').first().locator('td')).toHaveCount(16);
+
+    await expectNoTextOverlap(page.locator('table').first());
   });
 
   test('non-DP trace (Jaccard): renders the token sets, sizes, and coefficient', async ({
