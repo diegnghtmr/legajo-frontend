@@ -395,6 +395,22 @@ test.describe('a cold deep link to the trace route with an empty rail selection'
       0,
     );
   });
+
+  test('a cold full-screen trace URL (/trace/full) also seeds the rail, not only the docked trace route', async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await page.goto('/similarity/levenshtein/trace/full?documentIdA=doc-01&documentIdB=doc-02');
+
+    await expect(page.getByRole('heading', { name: 'Levenshtein distance' })).toBeVisible();
+    await expect(
+      page.getByRole('checkbox', { name: 'A survey of string similarity' }),
+    ).toBeChecked();
+    await expect(
+      page.getByRole('checkbox', { name: 'Embeddings for scientific text' }),
+    ).toBeChecked();
+    await expect(page.getByRole('button', { name: 'Comparar doc-01 y doc-02' })).toBeEnabled();
+  });
 });
 
 /**

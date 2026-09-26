@@ -34,6 +34,12 @@ type DetailView = { kind: 'abstract'; id: string } | { kind: 'embeddings' } | nu
  * sits one level above whichever route matched, `similarity` or its trace
  * deep link, so it reads the location directly instead). */
 const TRACE_ROUTE_PATTERN = '/similarity/:algorithmId/trace';
+/** The trace deep link's own "full screen" escape hatch (`SimilarityTracePage`
+ * rendered standalone, still inside this same layout for its rail/tray). Only
+ * ever used for the deep-link seeding effect below — never for `isTraceOpen`,
+ * since the full-screen route renders its own complete trace view, not this
+ * layout's docked/overlay panel. */
+const FULL_TRACE_ROUTE_PATTERN = '/similarity/:algorithmId/trace/full';
 
 /**
  * Layout route for the similarity screens (compare, matrix, trace): the
@@ -161,6 +167,11 @@ export function SimilarityWorkbenchLayout() {
   const traceAlgorithmId = traceMatch?.params.algorithmId;
   const traceDocumentIdA = searchParams.get('documentIdA');
   const traceDocumentIdB = searchParams.get('documentIdB');
+  // A cold visit to the full-screen route names a pair exactly the same way
+  // the docked route does — the seeding effect below treats the two alike,
+  // even though only the docked route ever opens this layout's own panel
+  // (`isTraceOpen`, further down).
+  const isOnFullTraceRoute = matchPath(FULL_TRACE_ROUTE_PATTERN, location.pathname) !== null;
 
   // A cold deep link into the trace route (bookmarked, or shared) resolves
   // its own comparison and trace straight from the URL — `SimilarityPage`
@@ -223,7 +234,9 @@ export function SimilarityWorkbenchLayout() {
       hasSeededDeepLinkPairRef.current = true;
       return;
     }
-    if (!isTraceOpen) {
+    // A cold full-screen visit names a pair the exact same way the docked
+    // route does — it just never opens this layout's own panel for it.
+    if (!isTraceOpen && !isOnFullTraceRoute) {
       return;
     }
     if (knownDocumentIds === undefined) {
@@ -252,7 +265,14 @@ export function SimilarityWorkbenchLayout() {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setConfirmedPairKey(`${seededPair[0]}:${seededPair[1]}`);
     // eslint-disable-next-line react-hooks/exhaustive-deps -- `knownDocumentIds` is a fresh `Set` every render (derived from `corpusQuery.data`, never memoized), so listing it here would re-run this effect on every render instead of only when the underlying data actually changes; `corpusQuery.data` is the stable value it is actually derived from.
-  }, [selectedIds.length, isTraceOpen, traceDocumentIdA, traceDocumentIdB, corpusQuery.data]);
+  }, [
+    selectedIds.length,
+    isTraceOpen,
+    isOnFullTraceRoute,
+    traceDocumentIdA,
+    traceDocumentIdB,
+    corpusQuery.data,
+  ]);
 
   function navigateAwayFromTrace() {
     if (!isTraceOpen) {
