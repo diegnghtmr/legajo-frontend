@@ -139,6 +139,30 @@ test.describe('similarity compare screen', () => {
     await expect(nonCachedRow.getByText('en caché')).toHaveCount(0);
   });
 
+  test('at lg and above, activating the CTA once the pair is already shown moves focus onto the results instead of navigating anywhere', async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await page.goto('/');
+
+    await page.getByRole('checkbox', { name: 'A survey of string similarity' }).check();
+    await page.getByRole('checkbox', { name: 'Embeddings for scientific text' }).check();
+
+    const compareButton = page.getByRole('button', { name: 'Comparar doc-01 y doc-02' });
+    await expect(page.getByRole('heading', { name: 'doc-01 frente a doc-02' })).toBeVisible();
+    await expect(page).toHaveURL(/\/similarity$/);
+
+    // The keyboard/assistive-technology path: focusing the button, then
+    // Enter — the same activation a real keyboard-only visitor uses,
+    // never a mouse click.
+    await compareButton.focus();
+    await page.keyboard.press('Enter');
+
+    // Never navigates away: the pair was already showing at this width.
+    await expect(page).toHaveURL(/\/similarity$/);
+    await expect(page.getByTestId('similarity-results-region')).toBeFocused();
+  });
+
   for (const width of [1440, 1024]) {
     test(`at ${width}px, the cached marker stays on one line in the time column, with no page-level horizontal overflow`, async ({
       page,

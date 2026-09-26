@@ -210,12 +210,32 @@ describe('SimilarityTracePage', () => {
     ).toBeInTheDocument();
   });
 
-  it('has a back link to the compare view', async () => {
+  it('has a back link that returns to this same trace in the workbench, keeping the compared pair', async () => {
     vi.spyOn(similarityApi, 'fetchSimilarityTrace').mockResolvedValue(JACCARD_TRACE);
 
     renderAtRoute('/similarity/jaccard/trace?documentIdA=doc-01&documentIdB=doc-02');
 
     await screen.findByText('0.333300');
+    // Never a bare `/similarity`: that would land on an unselected rail
+    // and lose the pair this same view is already showing.
+    expect(screen.getByRole('link', { name: 'Volver a la comparación' })).toHaveAttribute(
+      'href',
+      '/similarity/jaccard/trace?documentIdA=doc-01&documentIdB=doc-02',
+    );
+  });
+
+  it('falls back to a bare /similarity back link when a document id is missing from the URL', async () => {
+    vi.spyOn(similarityApi, 'fetchSimilarityTrace').mockRejectedValue({
+      kind: 'problem',
+      status: 400,
+      type: 'urn:legajo:problem:unknown-document',
+      title: 'Bad request',
+      i18nKey: 'errors.unknownDocument',
+    });
+
+    renderAtRoute('/similarity/jaccard/trace?documentIdA=doc-01');
+
+    await screen.findByText('El documento solicitado no existe en el corpus.');
     expect(screen.getByRole('link', { name: 'Volver a la comparación' })).toHaveAttribute(
       'href',
       '/similarity',

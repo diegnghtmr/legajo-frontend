@@ -1,6 +1,7 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
+import { useNavigate } from 'react-router';
 
 import { DEFAULT_UNEXPECTED_I18N_KEY, type ApiError } from '../../infrastructure/apiError';
 import { fetchCorpus, type ListCorpusResponse } from '../../infrastructure/api/corpus';
@@ -118,8 +119,20 @@ export function SimilarityMatrixView() {
  */
 export function SimilarityMatrixPage() {
   const { t } = useTranslation();
+  const navigate = useNavigate();
   const canMatrix = useSelectionStore((state) => state.canMatrix);
   const selectedArticleIds = useSelectionStore((state) => state.selectedIds);
+
+  useEffect(() => {
+    if (canMatrix) {
+      return;
+    }
+    // Dropping below three while still on this exact deep link must never
+    // leave a stale /similarity/matrix behind once the fallback below
+    // already shows the pair or the guidance state — the URL now says
+    // exactly what plain /similarity itself would.
+    navigate('/similarity', { replace: true });
+  }, [canMatrix, navigate]);
 
   if (canMatrix) {
     return <SimilarityMatrixView />;

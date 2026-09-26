@@ -619,6 +619,65 @@ describe('SimilarityPage — the trace deep link route', () => {
     );
   });
 
+  it('drops the stale deep-linked comparison once the rail shrinks below a pair (deselecting one article, never a genuinely new pair)', async () => {
+    useSelectionStore.setState({
+      selectedIds: ['doc-01', 'doc-02'],
+      canCompare: true,
+      canMatrix: false,
+    });
+
+    renderAtRoute('/similarity/levenshtein/trace?documentIdA=doc-01&documentIdB=doc-02');
+
+    expect(
+      await screen.findByRole('heading', { name: 'doc-01 frente a doc-02' }),
+    ).toBeInTheDocument();
+
+    // Deselects one article — the pair the URL still names no longer
+    // matches a real rail selection at all (never a pair-to-pair switch).
+    act(() => {
+      useSelectionStore.setState({ selectedIds: ['doc-01'], canCompare: false, canMatrix: false });
+    });
+
+    expect(
+      screen.getByText(
+        'Selecciona 2 artículos en el panel para comparar, o 3 o más para ver la matriz.',
+      ),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole('heading', { name: 'doc-01 frente a doc-02' }),
+    ).not.toBeInTheDocument();
+    const location = await screen.findByTestId('location');
+    await waitFor(() => expect(location.textContent).not.toContain('/trace'));
+    expect(location.textContent).not.toContain('documentIdA');
+    expect(location.textContent).not.toContain('documentIdB');
+  });
+
+  it('drops the stale deep-linked comparison once the rail is cleared to nothing (Limpiar), never keeping the old pair on screen', async () => {
+    useSelectionStore.setState({
+      selectedIds: ['doc-01', 'doc-02'],
+      canCompare: true,
+      canMatrix: false,
+    });
+
+    renderAtRoute('/similarity/levenshtein/trace?documentIdA=doc-01&documentIdB=doc-02');
+
+    expect(
+      await screen.findByRole('heading', { name: 'doc-01 frente a doc-02' }),
+    ).toBeInTheDocument();
+
+    act(() => {
+      useSelectionStore.setState({ selectedIds: [], canCompare: false, canMatrix: false });
+    });
+
+    expect(
+      screen.getByText(
+        'Selecciona 2 artículos en el panel para comparar, o 3 o más para ver la matriz.',
+      ),
+    ).toBeInTheDocument();
+    const location = await screen.findByTestId('location');
+    await waitFor(() => expect(location.textContent).not.toContain('/trace'));
+  });
+
   it("opens a row's trace by navigating to its deep link, preserving the family filter and algorithm selection already in the URL", async () => {
     useSelectionStore.setState({
       selectedIds: ['doc-01', 'doc-02'],

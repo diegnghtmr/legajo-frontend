@@ -161,13 +161,6 @@ export function SimilarityWorkbenchLayout() {
   const traceAlgorithmId = traceMatch?.params.algorithmId;
   const traceDocumentIdA = searchParams.get('documentIdA');
   const traceDocumentIdB = searchParams.get('documentIdB');
-  const isTraceOpen = Boolean(traceAlgorithmId && traceDocumentIdA && traceDocumentIdB);
-  // The trace route matched, but at least one of its own document ids is
-  // missing — a hand-edited or truncated URL, never one this layout's own
-  // navigations produce. Nothing renders for it (`isTraceOpen` is false), so
-  // the URL is normalized back to plain `/similarity` instead of leaving a
-  // trace path visible over a screen that shows no trace at all.
-  const hasPartialTraceRoute = traceAlgorithmId !== undefined && !isTraceOpen;
 
   // A cold deep link into the trace route (bookmarked, or shared) resolves
   // its own comparison and trace straight from the URL — `SimilarityPage`
@@ -193,6 +186,34 @@ export function SimilarityWorkbenchLayout() {
     queryKey: CORPUS_LIST_QUERY_KEY,
     queryFn: fetchCorpus,
   });
+  // `undefined` until the corpus list resolves — the seeding effect below
+  // stays conservative (never seeds from an id it cannot yet verify) until
+  // then, the same "don't guess ahead of real data" reasoning it already
+  // applied to its own separately-computed set before this was hoisted.
+  const knownDocumentIds = corpusQuery.data && new Set(corpusQuery.data.map((doc) => doc.id));
+  const hasBothTraceDocumentIds = Boolean(traceDocumentIdA && traceDocumentIdB);
+  // The same document named twice is degenerate, never a real pair to
+  // trace — a hand-edited URL, never one this layout's own navigations
+  // produce (`SimilarityPage`'s own `urlPair` already rejects this same
+  // shape for the center content; the panel needs its own check since it
+  // reads the URL directly, independent of that component). An unknown
+  // (but distinct) id is deliberately NOT checked here the same way: the
+  // trace fetch itself already rejects one with the backend's own mapped
+  // `unknown-document` error, a designed in-panel state
+  // (`SimilarityTracePage`'s own coverage of that same rejection) — closing
+  // the panel out from under that error instead would be a second,
+  // competing way of reporting the exact same thing.
+  const isDegenerateTraceDocumentIds =
+    hasBothTraceDocumentIds && traceDocumentIdA === traceDocumentIdB;
+  const isTraceOpen =
+    traceAlgorithmId !== undefined && hasBothTraceDocumentIds && !isDegenerateTraceDocumentIds;
+  // The trace route matched, but nothing renders for it (`isTraceOpen` is
+  // false) — a missing id or a degenerate pair, either a hand-edited or
+  // truncated URL, never one this layout's own navigations produce. The URL
+  // is normalized back to plain `/similarity` instead of leaving a trace
+  // path visible over a screen that shows no trace at all.
+  const hasPartialTraceRoute = traceAlgorithmId !== undefined && !isTraceOpen;
+
   const hasSeededDeepLinkPairRef = useRef(false);
   useEffect(() => {
     if (hasSeededDeepLinkPairRef.current) {
@@ -202,18 +223,17 @@ export function SimilarityWorkbenchLayout() {
       hasSeededDeepLinkPairRef.current = true;
       return;
     }
-    if (!isTraceOpen || traceDocumentIdA === traceDocumentIdB) {
+    if (!isTraceOpen) {
       return;
     }
-    if (corpusQuery.data === undefined) {
+    if (knownDocumentIds === undefined) {
       return;
     }
     hasSeededDeepLinkPairRef.current = true;
     if (!traceDocumentIdA || !traceDocumentIdB) {
       return;
     }
-    const knownIds = new Set(corpusQuery.data.map((article) => article.id));
-    if (!knownIds.has(traceDocumentIdA) || !knownIds.has(traceDocumentIdB)) {
+    if (!knownDocumentIds.has(traceDocumentIdA) || !knownDocumentIds.has(traceDocumentIdB)) {
       return;
     }
     const seededPair = sortedPair([traceDocumentIdA, traceDocumentIdB]);
@@ -231,6 +251,7 @@ export function SimilarityWorkbenchLayout() {
     // warning assumes.
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setConfirmedPairKey(`${seededPair[0]}:${seededPair[1]}`);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- `knownDocumentIds` is a fresh `Set` every render (derived from `corpusQuery.data`, never memoized), so listing it here would re-run this effect on every render instead of only when the underlying data actually changes; `corpusQuery.data` is the stable value it is actually derived from.
   }, [selectedIds.length, isTraceOpen, traceDocumentIdA, traceDocumentIdB, corpusQuery.data]);
 
   function navigateAwayFromTrace() {

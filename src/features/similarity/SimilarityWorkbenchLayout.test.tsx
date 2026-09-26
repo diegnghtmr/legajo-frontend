@@ -814,6 +814,16 @@ describe('SimilarityWorkbenchLayout', () => {
       expect(location.textContent).not.toContain('documentIdA');
       expect(screen.queryByTestId('workbench-detail')).not.toBeInTheDocument();
     });
+
+    it('never opens the panel for a degenerate trace URL naming the same document twice, and normalizes the URL', async () => {
+      renderLayoutAtRoute('/similarity/levenshtein/trace?documentIdA=doc-01&documentIdB=doc-01');
+
+      expect(screen.queryByTestId('workbench-detail')).not.toBeInTheDocument();
+      const location = await screen.findByTestId('location');
+      await waitFor(() => expect(location.textContent).not.toContain('/trace'));
+      expect(location.textContent).not.toContain('documentIdA');
+      expect(location.textContent).not.toContain('documentIdB');
+    });
   });
 
   describe('a trace opened while a rail detail view is already showing', () => {
