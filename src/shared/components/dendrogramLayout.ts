@@ -17,8 +17,10 @@ export interface DendrogramRow {
 export interface DendrogramLeafPosition {
   /** Original observation id, `0..n-1`. */
   id: number;
-  /** Pixel x, driven only by this id's position in `leafOrder` — never by `id` itself. */
-  x: number;
+  /** Pixel y, driven only by this id's position in `leafOrder` — never by
+   * `id` itself. The leaf axis: leaves run top to bottom, so a corpus with
+   * more leaves only ever needs more height, never more width. */
+  y: number;
 }
 
 export interface DendrogramNodePosition {
@@ -33,7 +35,8 @@ export interface DendrogramNodePosition {
 export interface DendrogramLink {
   /** The merge's own resulting cluster id (`n + row index`). */
   id: number;
-  /** Elbow ("U") SVG path: up from one child to the merge height, across, down to the other. */
+  /** Elbow ("U", rotated 90°) SVG path: across from one child to the merge
+   * distance, down/up to the other child's leaf-axis position, across to it. */
   path: string;
   distance: number;
   x: number;
@@ -48,8 +51,10 @@ export interface DendrogramLayoutResult {
   /** Same order as the input `rows`. */
   links: readonly DendrogramLink[];
   maxDistance: number;
-  /** Converts a merge distance (data units) into a pixel y: `height` at the leaves, `0` at the highest merge. */
-  distanceToY: (distance: number) => number;
+  /** Converts a merge distance (data units) into a pixel x: `width` at the
+   * leaves (distance 0), `0` at the highest merge (the root) — the tree
+   * reads left (root) to right (leaves), the distance axis. */
+  distanceToX: (distance: number) => number;
 }
 
 /**
@@ -118,6 +123,13 @@ export interface ComputeDendrogramLayoutInput {
  * Throws `DendrogramLayoutError` on a malformed matrix (wrong row count, a
  * non-increasing or out-of-range `idx1`/`idx2`, or a `leafOrder` that is not
  * a permutation of `0..n-1`) instead of drawing something wrong.
+ *
+ * Leaves run along the vertical axis (`y`, top to bottom, in `leafOrder`
+ * order) and merge distance runs along the horizontal axis (`x`, `width` at
+ * the leaves down to `0` at the root) — a corpus with more leaves only ever
+ * needs a taller chart, never a wider one, so `width` (the card's own
+ * measured, responsive width) is never grown past what was asked for; only
+ * `height` (the leaf axis) is.
  */
 export function computeDendrogramLayout({
   rows,
@@ -129,24 +141,29 @@ export function computeDendrogramLayout({
   assertValidLeafOrder(leafOrder);
   assertValidRows(rows, n);
 
-  const xScale = scaleLinear()
+  const yScale = scaleLinear()
     .domain([0, n - 1])
-    .range([0, width]);
+    .range([0, height]);
   const leaves: DendrogramLeafPosition[] = leafOrder.map((id, index) => ({
     id,
-    x: xScale(index),
+    y: yScale(index),
   }));
 
   const maxDistance = rows.reduce((max, row) => Math.max(max, row.mergeDistance), 0);
-  const yScale = scaleLinear()
+  const xScale = scaleLinear()
     .domain([0, maxDistance || 1])
-    .range([0, height]);
-  const distanceToY = (distance: number): number =>
-    maxDistance <= 0 ? height : height - yScale(distance);
+    .range([width, 0]);
+  const distanceToX = (distance: number): number => (maxDistance <= 0 ? width : xScale(distance));
 
   const nodes = new Map<number, DendrogramNodePosition>();
   for (const leaf of leaves) {
-    nodes.set(leaf.id, { id: leaf.id, x: leaf.x, y: height, isLeaf: true, distance: 0 });
+    nodes.set(leaf.id, {
+      id: leaf.id,
+      x: distanceToX(0),
+      y: leaf.y,
+      isLeaf: true,
+      distance: 0,
+    });
   }
 
   const links: DendrogramLink[] = [];
@@ -162,17 +179,17 @@ export function computeDendrogramLayout({
       );
     }
 
-    const y = distanceToY(row.mergeDistance);
-    const x = (child1.x + child2.x) / 2;
+    const x = distanceToX(row.mergeDistance);
+    const y = (child1.y + child2.y) / 2;
     nodes.set(clusterId, { id: clusterId, x, y, isLeaf: false, distance: row.mergeDistance });
     links.push({
       id: clusterId,
       distance: row.mergeDistance,
       x,
       y,
-      path: `M ${child1.x} ${child1.y} V ${y} H ${child2.x} V ${child2.y}`,
+      path: `M ${child1.x} ${child1.y} H ${x} V ${child2.y} H ${child2.x}`,
     });
   }
 
-  return { n, leaves, nodes, links, maxDistance, distanceToY };
+  return { n, leaves, nodes, links, maxDistance, distanceToX };
 }

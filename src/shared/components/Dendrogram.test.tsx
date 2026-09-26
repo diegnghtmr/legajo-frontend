@@ -54,7 +54,7 @@ describe('Dendrogram', () => {
     expect(screen.getByText('4', { selector: 'text' })).toBeInTheDocument();
   });
 
-  it('renders two dendrograms with different leafOrder at different leaf x positions for the same leaf id', () => {
+  it('renders two dendrograms with different leafOrder at different leaf y positions for the same leaf id', () => {
     const { container: first } = render(
       <Dendrogram rows={ROWS} leafOrder={[0, 1, 2, 3, 4]} ariaLabel="Identity order" />,
     );
@@ -62,20 +62,20 @@ describe('Dendrogram', () => {
       <Dendrogram rows={ROWS} leafOrder={LEAF_ORDER} ariaLabel="Custom order" />,
     );
 
-    function xById(container: HTMLElement): Map<string, string | null> {
+    function yById(container: HTMLElement): Map<string, string | null> {
       return new Map(
         [...container.querySelectorAll('[data-leaf-id]')].map((node) => [
           node.getAttribute('data-leaf-id')!,
-          node.getAttribute('data-leaf-x'),
+          node.getAttribute('data-leaf-y'),
         ]),
       );
     }
 
-    const firstXById = xById(first);
-    const secondXById = xById(second);
+    const firstYById = yById(first);
+    const secondYById = yById(second);
 
-    expect(firstXById.get('0')).not.toBe(secondXById.get('0'));
-    expect(firstXById.get('2')).not.toBe(secondXById.get('2'));
+    expect(firstYById.get('0')).not.toBe(secondYById.get('0'));
+    expect(firstYById.get('2')).not.toBe(secondYById.get('2'));
   });
 
   it('renders an accessible sr-only table listing every merge step in order', () => {
@@ -245,7 +245,7 @@ describe('Dendrogram', () => {
     expect(svg.className.baseVal).not.toContain('max-w-full');
   });
 
-  it('widens the rendered SVG to keep a minimum per-leaf spacing on a corpus too large for the requested width, rather than cramming leaves together', () => {
+  it('heightens the rendered SVG to keep a minimum per-leaf spacing on a corpus too large for the requested height, rather than cramming leaves together — while its width always stays exactly the given, responsive card width', () => {
     const manyLeaves = Array.from({ length: 10 }, (_unused, index) => ({
       idx1: index,
       idx2: index + 1,
@@ -256,28 +256,32 @@ describe('Dendrogram', () => {
       <Dendrogram
         rows={manyLeaves}
         leafOrder={Array.from({ length: 11 }, (_unused, index) => index)}
-        ariaLabel="Wide dendrogram"
+        ariaLabel="Tall dendrogram"
         width={200}
       />,
     );
 
     const svg = container.querySelector('svg')!;
     const renderedWidth = Number(svg.getAttribute('width'));
-    // A 200px request is far too narrow for 11 leaves at a legible spacing;
-    // the component must widen past what was asked for rather than shrink
-    // its labels to fit.
-    expect(renderedWidth).toBeGreaterThan(200);
-    expect(svg.getAttribute('viewBox')).toBe(`0 0 ${renderedWidth} 220`);
+    const renderedHeight = Number(svg.getAttribute('height'));
+    // The card's own width (leaves run vertically now) is never grown past
+    // what was given — a 200px card stays exactly 200px wide.
+    expect(renderedWidth).toBe(200);
+    // The default 220px height is far too short for 11 leaves at a legible
+    // spacing; the component must heighten past what was asked for rather
+    // than shrink its labels to fit.
+    expect(renderedHeight).toBeGreaterThan(220);
+    expect(svg.getAttribute('viewBox')).toBe(`0 0 ${renderedWidth} ${renderedHeight}`);
   });
 
-  it('keeps the default width when it already gives every leaf enough room', () => {
+  it('keeps the default height when it already gives every leaf enough room', () => {
     const { container } = render(
       <Dendrogram rows={ROWS} leafOrder={LEAF_ORDER} ariaLabel="Single dendrogram" />,
     );
 
     const svg = container.querySelector('svg')!;
-    // 5 leaves comfortably fit the 640px default; the fix must not widen a
-    // chart that was already wide enough.
-    expect(svg.getAttribute('width')).toBe('640');
+    // 5 leaves comfortably fit the 220px default; the fix must not
+    // heighten a chart that was already tall enough.
+    expect(svg.getAttribute('height')).toBe('220');
   });
 });
