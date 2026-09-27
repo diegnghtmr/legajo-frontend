@@ -27,7 +27,15 @@ export function TraceMetaFieldSkeleton({
         {label}
       </dt>
       <dd>
-        <Skeleton className={valueVariant === 'mono' ? 'h-3 w-10' : 'h-3.5 w-16'} />
+        {/* The real value's own line-height, at this font stack's own
+         * metrics — measured against the running app: `text-mono
+         * font-semibold` (18px) and `text-body font-semibold` (21px), both
+         * taller than either role's own nominal font size (12px/14px). A
+         * shorter bar left this field short of the real one, invisible
+         * while every caller kept it inside a bounded viewport (the docked
+         * trace panel), but visible once the full-screen trace view (no
+         * such bound) reserves this same row. */}
+        <Skeleton className={valueVariant === 'mono' ? 'h-[18px] w-10' : 'h-[21px] w-16'} />
       </dd>
     </div>
   );

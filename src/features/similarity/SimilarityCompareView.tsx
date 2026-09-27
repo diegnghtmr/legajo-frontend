@@ -20,6 +20,7 @@ import {
   Table,
   TableBody,
   TableCell,
+  TableHead,
   TableHeader,
   TableRow,
 } from '../../shared/components/ui/table';
@@ -29,6 +30,8 @@ import { CompareResultsList } from './CompareResultsList';
 import { CompareTable, CompareTableHeaderRow } from './CompareTable';
 
 export const ALGORITHMS_QUERY_KEY = ['similarity', 'algorithms'] as const;
+
+type AlgorithmSummary = ListSimilarityAlgorithmsResponse[number];
 
 /** The six fixed capability ids, independent of the catalogue fetch. */
 const DEFAULT_ALGORITHM_IDS = [...AlgorithmIdSchema.options];
@@ -52,23 +55,40 @@ function AlgorithmListSkeleton() {
 
 /** Mirrors one `CompareTable` result row's five data cells (family, score,
  * raw value, time, degenerate), keeping the real header row visible above
- * it — only the body swaps once the request resolves. */
-function CompareTableSkeletonRow() {
+ * it — only the body swaps once the request resolves. The first cell's
+ * own algorithm id is already known before the compare response resolves
+ * (the URL's own selection, `CompareTable`'s own catalogue-fetched
+ * `summary`), so it renders the exact same text `CompareTableRow` does
+ * instead of a bar guessing its width: the real mono id always, and the
+ * real display name too once the catalogue has resolved (near-simultaneous
+ * with the compare fetch in practice) — the one case that combination can
+ * still wrap onto a third line at a narrow column width (e.g.
+ * "needleman-" / "wunsch" over its own display name), which a generic bar
+ * pair could never reproduce. */
+function CompareTableSkeletonRow({
+  algorithmId,
+  summary,
+}: {
+  algorithmId: string;
+  summary: AlgorithmSummary | undefined;
+}) {
   return (
     <TableRow data-testid="compare-table-skeleton-row">
-      <TableCell>
-        {/* Two lines, like the real cell: the mono algorithm id over the
-         * catalogue's own display name (`CompareTableRow`'s `span` + `p`) —
-         * one bar here left this cell, and the whole row, one line short.
-         * Each bar is a full line box tall (not the bar height alone): a
-         * real text line's own line-height, at this font stack's own
-         * metrics, measures noticeably taller than the font's nominal
-         * size. */}
-        <div className="flex flex-col gap-1">
-          <Skeleton className="h-5 w-24" />
+      <TableHead
+        scope="row"
+        className="text-left text-body font-normal normal-case tracking-normal text-ink"
+      >
+        <span className="font-mono text-mono text-ink">{algorithmId}</span>
+        {summary ? (
+          <p className="text-label text-ink-muted">{summary.displayName}</p>
+        ) : (
+          // The catalogue fetch has not resolved yet (a rare near-tie with
+          // the compare fetch) — a placeholder bar stands in for the
+          // display name's own line until it does, the same box a real
+          // display name of typical length would take.
           <Skeleton className="h-4 w-32" />
-        </div>
-      </TableCell>
+        )}
+      </TableHead>
       <TableCell>
         <Skeleton className="h-3.5 w-16" />
       </TableCell>
@@ -94,15 +114,25 @@ function CompareTableSkeletonRow() {
   );
 }
 
-function CompareTableSkeleton({ rowCount }: { rowCount: number }) {
+function CompareTableSkeleton({
+  algorithmIds,
+  catalogueById,
+}: {
+  algorithmIds: readonly string[];
+  catalogueById: ReadonlyMap<string, AlgorithmSummary>;
+}) {
   return (
     <Table>
       <TableHeader>
         <CompareTableHeaderRow />
       </TableHeader>
       <TableBody>
-        {Array.from({ length: rowCount }, (_, index) => (
-          <CompareTableSkeletonRow key={index} />
+        {algorithmIds.map((algorithmId) => (
+          <CompareTableSkeletonRow
+            key={algorithmId}
+            algorithmId={algorithmId}
+            summary={catalogueById.get(algorithmId)}
+          />
         ))}
       </TableBody>
     </Table>
@@ -111,15 +141,19 @@ function CompareTableSkeleton({ rowCount }: { rowCount: number }) {
 
 /** Mirrors one `CompareResultsList` row's box: the family dot, the mono id
  * and score line, the quiet raw-value/time second line, and the trailing
- * chevron — both text lines at the same height as the real row's own mono
- * and label text, since that combined height (not the row's own `min-h-11`
- * floor alone) is what actually governs a real row past the shortest ones. */
-function CompareResultsListSkeletonRow() {
+ * chevron. The algorithm id is already known (see `CompareTableSkeletonRow`
+ * above), so it renders as real text over the score placeholder, and the
+ * real display name is never part of this row at all — nothing here would
+ * change box height by rendering it. */
+function CompareResultsListSkeletonRow({ algorithmId }: { algorithmId: string }) {
   return (
     <li className="flex min-h-11 w-full items-center gap-3 px-3 py-2">
       <Skeleton className="size-[6px] shrink-0 rounded-full" />
       <div className="flex min-w-0 flex-1 flex-col gap-0.5">
-        <Skeleton className="h-5 w-24" />
+        <div className="flex items-center justify-between gap-2">
+          <span className="font-mono text-mono text-ink">{algorithmId}</span>
+          <Skeleton className="h-5 w-10" />
+        </div>
         <Skeleton className="h-4 w-32" />
       </div>
       <Skeleton className="size-4 shrink-0" />
@@ -127,11 +161,11 @@ function CompareResultsListSkeletonRow() {
   );
 }
 
-function CompareResultsListSkeleton({ rowCount }: { rowCount: number }) {
+function CompareResultsListSkeleton({ algorithmIds }: { algorithmIds: readonly string[] }) {
   return (
     <ul data-testid="compare-list-skeleton" className="flex flex-col divide-y divide-hairline">
-      {Array.from({ length: rowCount }, (_, index) => (
-        <CompareResultsListSkeletonRow key={index} />
+      {algorithmIds.map((algorithmId) => (
+        <CompareResultsListSkeletonRow key={algorithmId} algorithmId={algorithmId} />
       ))}
     </ul>
   );
@@ -378,9 +412,12 @@ export function SimilarityCompareView({ pair, openAlgorithmId }: SimilarityCompa
             {t('similarity.compareLoading')}
           </p>
           {isAtLeastLg ? (
-            <CompareTableSkeleton rowCount={selectedAlgorithmIds.length} />
+            <CompareTableSkeleton
+              algorithmIds={selectedAlgorithmIds}
+              catalogueById={catalogueById}
+            />
           ) : (
-            <CompareResultsListSkeleton rowCount={selectedAlgorithmIds.length} />
+            <CompareResultsListSkeleton algorithmIds={selectedAlgorithmIds} />
           )}
         </>
       )}

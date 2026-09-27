@@ -931,4 +931,14 @@ describe('SimilarityWorkbenchLayout', () => {
  * has actually rendered its rows. */
 async function waitForCompareTable() {
   await screen.findAllByRole('row');
+  // The loading skeleton's own row (`compare-table-skeleton-row`) already
+  // carries its real mono algorithm id as text (it is known before the
+  // compare fetch resolves), so a bare `findAllByRole('row')` above is
+  // satisfied by the skeleton alone. Every caller of this helper goes on
+  // to find a specific row by that same mono id and click its trigger
+  // button — which only the real row has — so this waits past the
+  // skeleton explicitly instead of leaving that race to each call site.
+  await waitFor(() => {
+    expect(screen.queryAllByTestId('compare-table-skeleton-row')).toHaveLength(0);
+  });
 }

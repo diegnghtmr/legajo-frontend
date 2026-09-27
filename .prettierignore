@@ -5,3 +5,6 @@ test-results
 node_modules
 contract/openapi-legajo.yaml
 src/shared/types/api.ts
+# Captured backend responses, kept minified (no pretty-printing) to stay
+# small — Prettier's own default JSON style would re-expand them.
+e2e/fixtures/*.json

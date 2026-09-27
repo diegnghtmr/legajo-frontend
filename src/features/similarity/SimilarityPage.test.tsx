@@ -420,6 +420,16 @@ describe('SimilarityPage — exactly two selected', () => {
 
     renderAtRoute('/similarity');
 
+    // Waited explicitly, rather than assumed from the row's own accessible
+    // name: the loading skeleton's own row (`compare-table-skeleton-row`)
+    // now carries the same "levenshtein" mono id as real text (it is
+    // already known before the compare fetch resolves), so a bare
+    // `findByRole('row', { name: /^levenshtein/i })` can just as well match
+    // that skeleton row — which has no trigger button at all — as the real
+    // one.
+    await waitFor(() => {
+      expect(screen.queryAllByTestId('compare-table-skeleton-row')).toHaveLength(0);
+    });
     const row = await screen.findByRole('row', { name: /^levenshtein/i });
     const rowButton = within(row).getByRole('button', { name: 'levenshtein' });
     const classicRadio = screen.getByRole('radio', { name: 'Clásico' });
@@ -558,6 +568,13 @@ describe('SimilarityPage — the trace deep link route', () => {
   it('marks the deep-linked algorithm’s row as the currently-open trace', async () => {
     renderAtRoute('/similarity/tfidf-cosine/trace?documentIdA=doc-01&documentIdB=doc-02');
 
+    // See the identical wait above: the skeleton row already carries the
+    // real "tfidf-cosine" mono id as text, so it can transiently match this
+    // same name — but it never carries `aria-current`, which only the real
+    // row gets.
+    await waitFor(() => {
+      expect(screen.queryAllByTestId('compare-table-skeleton-row')).toHaveLength(0);
+    });
     const row = await screen.findByRole('row', { name: /tfidf-cosine/i });
     expect(row).toHaveAttribute('aria-current', 'true');
   });
@@ -701,7 +718,12 @@ describe('SimilarityPage — the trace deep link route', () => {
 
     // The row's own trigger, scoped to the results table so it is never
     // confused with the filter's same-named toggle button (that ambiguity
-    // is exercised directly by CompareTable.test.tsx).
+    // is exercised directly by CompareTable.test.tsx). Waited past the
+    // loading skeleton's own identically-named row first (see the earlier
+    // test's own comment on this same pattern).
+    await waitFor(() => {
+      expect(screen.queryAllByTestId('compare-table-skeleton-row')).toHaveLength(0);
+    });
     const row = await screen.findByRole('row', { name: /^levenshtein/i });
     await user.click(within(row).getByRole('button', { name: 'levenshtein' }));
 
