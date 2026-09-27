@@ -8,6 +8,7 @@ import {
 } from '../../shared/components/Dendrogram';
 import type { DendrogramRow } from '../../shared/components/dendrogramLayout';
 import { Panel, PanelHeader } from '../../shared/components/Panel';
+import { Skeleton } from '../../shared/components/ui/skeleton';
 import type { LinkageId } from '../../infrastructure/schemas/clustering';
 import { dendrogramCardHeight } from './dendrogramGridSizing';
 
@@ -32,6 +33,37 @@ const INITIAL_WIDTH = 640;
  * merges, the cut line, the cluster labels — stays entirely `Dendrogram`'s
  * own responsibility; this only measures and sizes.
  */
+export interface DendrogramCardSkeletonProps {
+  linkageId: LinkageId;
+  /** `dendrogramCardHeight(leafCount)` — the caller resolves `leafCount`
+   * (the corpus size once known, or a sensible default before it is) so
+   * this component stays a pure sizing mirror of the real card, never a
+   * second place that guesses a leaf count of its own. */
+  height: number;
+}
+
+/** Mirrors one `DendrogramCard`'s own chrome — the `Panel` and its title
+ * area — at the real card's own height, so the grid causes no shift once
+ * the real dendrograms replace these placeholders. The linkage id (already
+ * known from the selection) stands in for the title area instead of a
+ * guessed display name. */
+export function DendrogramCardSkeleton({ linkageId, height }: DendrogramCardSkeletonProps) {
+  return (
+    <div data-testid={`linkage-dendrogram-skeleton-${linkageId}`}>
+      <Panel>
+        <div className="mb-3 flex flex-col gap-1">
+          <Skeleton className="h-5 w-32" />
+        </div>
+        <Skeleton
+          data-testid="dendrogram-skeleton-chart"
+          className="w-full rounded-md"
+          style={{ height }}
+        />
+      </Panel>
+    </div>
+  );
+}
+
 export function DendrogramCard({
   linkageId,
   linkageDisplayName,

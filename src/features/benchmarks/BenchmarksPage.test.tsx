@@ -79,12 +79,32 @@ beforeEach(() => {
 });
 
 describe('BenchmarksPage', () => {
-  it('shows a loading state before the query resolves', () => {
+  it('shows a hidden loading status and a full skeleton layout before the query resolves', () => {
     vi.spyOn(benchmarksApi, 'fetchBenchmarks').mockReturnValue(new Promise(() => {}));
 
-    renderWithProviders(<BenchmarksPage />);
+    const { container } = renderWithProviders(<BenchmarksPage />);
 
-    expect(screen.getByRole('status')).toBeInTheDocument();
+    const status = screen.getByRole('status');
+    expect(status.className).toContain('sr-only');
+
+    // The harness, the three curve-chart cards (each reserving exactly its
+    // real chart height) and the SLO tables all show a placeholder before
+    // any request resolves — never an empty gap, and never the real
+    // interactive scale control with nothing yet to control.
+    expect(screen.getByText('Máquina de referencia')).toBeInTheDocument();
+    const charts = screen.getAllByTestId('benchmark-chart-skeleton');
+    expect(charts).toHaveLength(3);
+    for (const chart of charts) {
+      expect(chart.style.height).toBe('280px');
+    }
+    expect(
+      screen.getByRole('heading', { name: 'Primitivas de embeddings (O(d))' }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole('heading', { name: 'Objetivos de rendimiento (SLO)' }),
+    ).toBeInTheDocument();
+    expect(screen.queryByRole('radiogroup')).not.toBeInTheDocument();
+    expect(container.querySelectorAll('[data-slot="skeleton"]').length).toBeGreaterThan(0);
   });
 
   it('shows the mapped error message when the query rejects', async () => {

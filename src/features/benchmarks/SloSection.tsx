@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import type { BenchmarkReportResponse } from '../../infrastructure/api/benchmarks';
 import { cn } from '../../shared/lib/cn';
 import { Panel, PanelHeader } from '../../shared/components/Panel';
+import { Skeleton } from '../../shared/components/ui/skeleton';
 import {
   Table,
   TableBody,
@@ -109,6 +110,86 @@ function SloTable({
         </Table>
       </div>
     </Panel>
+  );
+}
+
+function SloTableSkeleton({
+  title,
+  rowCount,
+  algorithmLabel,
+}: {
+  title: string;
+  rowCount: number;
+  algorithmLabel: string;
+}) {
+  const { t } = useTranslation();
+
+  return (
+    <Panel>
+      <PanelHeader title={title} />
+      <div
+        role="region"
+        aria-label={title}
+        tabIndex={0}
+        className="overflow-x-auto rounded-md focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus"
+      >
+        <Table wrap={false}>
+          <TableCaption className="sr-only">{title}</TableCaption>
+          <TableHeader>
+            <TableRow>
+              <TableHead>{algorithmLabel}</TableHead>
+              <TableHead>{t('benchmarks.slo.valueLabel')}</TableHead>
+              <TableHead>{t('benchmarks.slo.thresholdLabel')}</TableHead>
+              <TableHead>{t('benchmarks.slo.statusLabel')}</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {Array.from({ length: rowCount }, (_unused, index) => (
+              <TableRow key={index}>
+                <TableCell>
+                  <Skeleton className="h-3.5 w-24" />
+                </TableCell>
+                <TableCell>
+                  <Skeleton className="h-3 w-14" />
+                </TableCell>
+                <TableCell>
+                  <Skeleton className="h-3 w-14" />
+                </TableCell>
+                <TableCell>
+                  <Skeleton className="h-3 w-14" />
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </div>
+    </Panel>
+  );
+}
+
+/** Mirrors `SloSection`'s own two tables — the classic comparisons (one row
+ * per fixed classic family) and the clustering table (one row, the fixed
+ * `slo-clustering` family) — both counts already known from `grouping.ts`,
+ * unlike the measured values themselves. */
+export function SloSectionSkeleton() {
+  const { t } = useTranslation();
+
+  return (
+    <section aria-labelledby="slo-skeleton-heading" className="flex flex-col gap-4">
+      <h2 id="slo-skeleton-heading" className="text-title font-semibold text-ink">
+        {t('benchmarks.slo.title')}
+      </h2>
+      <SloTableSkeleton
+        title={t('benchmarks.slo.classicTitle')}
+        rowCount={SLO_CLASSIC_FAMILIES.length}
+        algorithmLabel={t('benchmarks.slo.algorithmLabel')}
+      />
+      <SloTableSkeleton
+        title={t('benchmarks.slo.clusteringTitle')}
+        rowCount={1}
+        algorithmLabel={t('benchmarks.slo.familyLabel')}
+      />
+    </section>
   );
 }
 
