@@ -143,6 +143,38 @@ describe('TraceDetailPanel', () => {
     await waitFor(() => expect(title).toHaveFocus());
   });
 
+  it('shows placeholder value bars in the meta row and a generic body skeleton while every fetch is pending', () => {
+    vi.spyOn(similarityApi, 'fetchSimilarityAlgorithms').mockReturnValue(new Promise(() => {}));
+    vi.spyOn(similarityApi, 'fetchSimilarityTrace').mockReturnValue(new Promise(() => {}));
+    vi.spyOn(similarityApi, 'compareSimilarity').mockReturnValue(new Promise(() => {}));
+
+    renderPanel();
+
+    // Every meta field renders with a placeholder value instead of being
+    // silently omitted until its own fetch resolves — including the
+    // DP-only optimal path, since `levenshtein` (the default algorithmId)
+    // is already known to be a DP capability before the trace arrives.
+    expect(screen.getByText('Familia')).toBeInTheDocument();
+    expect(screen.getByText('Valor crudo')).toBeInTheDocument();
+    expect(screen.getByText('Puntaje')).toBeInTheDocument();
+    expect(screen.getByText('Camino óptimo')).toBeInTheDocument();
+
+    const status = screen.getByText('Cargando la traza…');
+    expect(status).toHaveAttribute('role', 'status');
+    expect(status.className).toContain('sr-only');
+    expect(screen.getByTestId('trace-body-skeleton')).toBeInTheDocument();
+  });
+
+  it('never shows the DP-only optimal-path field for a non-DP trace, even while every fetch is pending', () => {
+    vi.spyOn(similarityApi, 'fetchSimilarityAlgorithms').mockReturnValue(new Promise(() => {}));
+    vi.spyOn(similarityApi, 'fetchSimilarityTrace').mockReturnValue(new Promise(() => {}));
+    vi.spyOn(similarityApi, 'compareSimilarity').mockReturnValue(new Promise(() => {}));
+
+    renderPanel({ algorithmId: 'jaccard' });
+
+    expect(screen.queryByText('Camino óptimo')).not.toBeInTheDocument();
+  });
+
   it('shows the generic meta row (family, raw value, score) once both fetches resolve', async () => {
     vi.spyOn(similarityApi, 'fetchSimilarityTrace').mockResolvedValue(JACCARD_TRACE);
     vi.spyOn(similarityApi, 'compareSimilarity').mockResolvedValue(
@@ -163,9 +195,11 @@ describe('TraceDetailPanel', () => {
 
     renderPanel();
 
-    expect(await screen.findByText('Camino óptimo')).toBeInTheDocument();
-    // DP_TRACE.matrix's bottom-right cell.
-    expect(screen.getByText('1', { selector: 'dd' })).toBeInTheDocument();
+    expect(screen.getByText('Camino óptimo')).toBeInTheDocument();
+    // DP_TRACE.matrix's bottom-right cell — the label shows immediately
+    // (it is already known this algorithm is DP-only), but its own value
+    // still waits for the trace fetch to resolve.
+    expect(await screen.findByText('1', { selector: 'dd' })).toBeInTheDocument();
   });
 
   it('omits the optimal-path meta value for a non-DP trace', async () => {

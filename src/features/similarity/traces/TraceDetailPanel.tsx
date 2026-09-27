@@ -15,10 +15,12 @@ import {
 import type { AlgorithmId } from '../../../infrastructure/schemas/similarity';
 import type { DpMatrixHandle } from '../../../shared/components/DpMatrix';
 import { Button, buttonVariants } from '../../../shared/components/ui/button';
+import { Skeleton } from '../../../shared/components/ui/skeleton';
 import { algoFamilyFromKind } from '../algorithmFamily';
 import { formatRawValue, formatTraceNumber } from '../formatters';
 import { ALGORITHMS_QUERY_KEY } from '../SimilarityPage';
 import { TracePanel } from '../SimilarityTracePage';
+import { TraceBodySkeleton } from './TraceBodySkeleton';
 
 export interface TraceDetailPanelProps {
   algorithmId: string;
@@ -110,6 +112,17 @@ export function TraceDetailPanel({
       ? trace.matrix[trace.matrix.length - 1]?.[trace.matrix[trace.matrix.length - 1].length - 1]
       : undefined;
 
+  // Each field shows a placeholder value bar while its own fetch is still
+  // pending, instead of silently omitting the whole field until data
+  // arrives (the previous behavior) — never for a field this pair's
+  // algorithm can never have (a non-DP trace's optimal path, or a
+  // resolved-but-degenerate raw value, which stays hidden exactly as
+  // before).
+  const showFamilyField = algorithmsQuery.isPending || familyLabel !== undefined;
+  const showRawValueField = metaQuery.isPending || rawValueText !== null;
+  const showScoreField = metaQuery.isPending || scoreText !== undefined;
+  const showOptimalPathField = isDp && (traceQuery.isPending || optimalPathCost !== undefined);
+
   useEffect(() => {
     titleRef.current?.focus();
   }, []);
@@ -159,37 +172,47 @@ export function TraceDetailPanel({
       </header>
 
       <dl className="flex shrink-0 flex-wrap gap-x-8 gap-y-2 border-b border-hairline p-4">
-        {familyLabel !== undefined && (
+        {showFamilyField && (
           <div>
             <dt className="text-eyebrow font-semibold uppercase tracking-wide text-ink-secondary">
               {t('similarity.table.family')}
             </dt>
-            <dd className="text-body font-semibold text-ink">{familyLabel}</dd>
+            <dd className="text-body font-semibold text-ink">
+              {familyLabel !== undefined ? familyLabel : <Skeleton className="h-3.5 w-16" />}
+            </dd>
           </div>
         )}
-        {rawValueText !== null && rawValueText !== undefined && (
+        {showRawValueField && (
           <div>
             <dt className="text-eyebrow font-semibold uppercase tracking-wide text-ink-secondary">
               {t('similarity.table.raw')}
             </dt>
-            <dd className="font-mono text-mono font-semibold text-ink">{rawValueText}</dd>
+            <dd className="font-mono text-mono font-semibold text-ink">
+              {rawValueText !== null ? rawValueText : <Skeleton className="h-3 w-10" />}
+            </dd>
           </div>
         )}
-        {scoreText !== undefined && (
+        {showScoreField && (
           <div>
             <dt className="text-eyebrow font-semibold uppercase tracking-wide text-ink-secondary">
               {t('similarity.table.score')}
             </dt>
-            <dd className="font-mono text-mono font-semibold text-ink">{scoreText}</dd>
+            <dd className="font-mono text-mono font-semibold text-ink">
+              {scoreText !== undefined ? scoreText : <Skeleton className="h-3 w-10" />}
+            </dd>
           </div>
         )}
-        {optimalPathCost !== undefined && (
+        {showOptimalPathField && (
           <div>
             <dt className="text-eyebrow font-semibold uppercase tracking-wide text-ink-secondary">
               {t('similarity.trace.dp.optimalPathLabel')}
             </dt>
             <dd className="font-mono text-mono font-semibold text-ink">
-              {formatTraceNumber(optimalPathCost)}
+              {optimalPathCost !== undefined ? (
+                formatTraceNumber(optimalPathCost)
+              ) : (
+                <Skeleton className="h-3 w-10" />
+              )}
             </dd>
           </div>
         )}
@@ -197,9 +220,12 @@ export function TraceDetailPanel({
 
       <div className="flex-1 overflow-y-auto p-4">
         {traceQuery.isPending && (
-          <p role="status" className="text-body text-ink-secondary">
-            {t('similarity.trace.loading')}
-          </p>
+          <>
+            <p role="status" className="sr-only">
+              {t('similarity.trace.loading')}
+            </p>
+            <TraceBodySkeleton />
+          </>
         )}
         {traceQuery.isError && (
           <div role="alert" className="flex flex-col gap-1">

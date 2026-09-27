@@ -24,6 +24,7 @@ import { ALGORITHMS_QUERY_KEY } from './SimilarityPage';
 import { clearTraceTrigger } from './traceFocusReturn';
 import { PanelHeader } from '../../shared/components/Panel';
 import { Button } from '../../shared/components/ui/button';
+import { TraceBodySkeleton } from './traces/TraceBodySkeleton';
 
 /**
  * Routes one resolved trace to its panel by the `algorithmId` discriminator.
@@ -210,9 +211,12 @@ export function SimilarityTracePage() {
       )}
 
       {traceQuery.isPending && (
-        <p role="status" className="text-body text-ink-secondary">
-          {t('similarity.trace.loading')}
-        </p>
+        <>
+          <p role="status" className="sr-only">
+            {t('similarity.trace.loading')}
+          </p>
+          <TraceBodySkeleton />
+        </>
       )}
 
       {traceQuery.isError && (

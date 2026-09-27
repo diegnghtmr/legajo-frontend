@@ -15,15 +15,107 @@ import { AlgorithmIdSchema, type AlgorithmId } from '../../infrastructure/schema
 import { PanelHeader } from '../../shared/components/Panel';
 import { AlgoTextList } from '../../shared/components/AlgoTextList';
 import { SegmentedControl, type SegmentedOption } from '../../shared/components/SegmentedControl';
+import { Skeleton } from '../../shared/components/ui/skeleton';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHeader,
+  TableRow,
+} from '../../shared/components/ui/table';
 import { useIsAtLeastLg } from '../../shared/lib/useIsAtLeastLg';
 import { algoFamilyFromKind } from './algorithmFamily';
 import { CompareResultsList } from './CompareResultsList';
-import { CompareTable } from './CompareTable';
+import { CompareTable, CompareTableHeaderRow } from './CompareTable';
 
 export const ALGORITHMS_QUERY_KEY = ['similarity', 'algorithms'] as const;
 
 /** The six fixed capability ids, independent of the catalogue fetch. */
 const DEFAULT_ALGORITHM_IDS = [...AlgorithmIdSchema.options];
+
+/** The catalogue's real size is unknown before it resolves — six mono bars,
+ * one per fixed capability, mirror `AlgoTextList`'s own flex-wrap box. */
+const ALGORITHM_LIST_SKELETON_COUNT = 6;
+
+function AlgorithmListSkeleton() {
+  return (
+    <div
+      data-testid="algorithm-list-skeleton"
+      className="flex flex-wrap items-center gap-x-4 gap-y-6"
+    >
+      {Array.from({ length: ALGORITHM_LIST_SKELETON_COUNT }, (_, index) => (
+        <Skeleton key={index} className="h-3 w-20" />
+      ))}
+    </div>
+  );
+}
+
+/** Mirrors one `CompareTable` result row's five data cells (family, score,
+ * raw value, time, degenerate), keeping the real header row visible above
+ * it — only the body swaps once the request resolves. */
+function CompareTableSkeletonRow() {
+  return (
+    <TableRow data-testid="compare-table-skeleton-row">
+      <TableCell>
+        <Skeleton className="h-3.5 w-24" />
+      </TableCell>
+      <TableCell>
+        <Skeleton className="h-3 w-16" />
+      </TableCell>
+      <TableCell>
+        <Skeleton className="h-1.5 w-full rounded-full" />
+      </TableCell>
+      <TableCell>
+        <Skeleton className="h-3 w-10" />
+      </TableCell>
+      <TableCell>
+        <Skeleton className="h-3 w-14" />
+      </TableCell>
+      <TableCell>
+        <Skeleton className="h-3 w-8" />
+      </TableCell>
+    </TableRow>
+  );
+}
+
+function CompareTableSkeleton({ rowCount }: { rowCount: number }) {
+  return (
+    <Table>
+      <TableHeader>
+        <CompareTableHeaderRow />
+      </TableHeader>
+      <TableBody>
+        {Array.from({ length: rowCount }, (_, index) => (
+          <CompareTableSkeletonRow key={index} />
+        ))}
+      </TableBody>
+    </Table>
+  );
+}
+
+/** Mirrors one `CompareResultsList` row's box: the family dot, the mono id
+ * and score line, and the quiet raw-value/time second line. */
+function CompareResultsListSkeletonRow() {
+  return (
+    <li className="flex min-h-11 w-full items-center gap-3 px-3 py-2">
+      <Skeleton className="size-[6px] shrink-0 rounded-full" />
+      <div className="flex min-w-0 flex-1 flex-col gap-1">
+        <Skeleton className="h-3 w-24" />
+        <Skeleton className="h-3 w-32" />
+      </div>
+    </li>
+  );
+}
+
+function CompareResultsListSkeleton({ rowCount }: { rowCount: number }) {
+  return (
+    <ul data-testid="compare-list-skeleton" className="flex flex-col divide-y divide-hairline">
+      {Array.from({ length: rowCount }, (_, index) => (
+        <CompareResultsListSkeletonRow key={index} />
+      ))}
+    </ul>
+  );
+}
 
 type FamilyFilter = 'all' | 'classic' | 'ai';
 
@@ -230,9 +322,12 @@ export function SimilarityCompareView({ pair, openAlgorithmId }: SimilarityCompa
       />
 
       {algorithmsQuery.isPending && (
-        <p role="status" className="text-body text-ink-secondary">
-          {t('similarity.algorithmsLoading')}
-        </p>
+        <>
+          <p role="status" className="sr-only">
+            {t('similarity.algorithmsLoading')}
+          </p>
+          <AlgorithmListSkeleton />
+        </>
       )}
       {algorithmsQuery.isError && (
         <div role="alert" className="flex flex-col gap-1">
@@ -258,9 +353,16 @@ export function SimilarityCompareView({ pair, openAlgorithmId }: SimilarityCompa
       )}
 
       {compareQuery.isPending && hasAlgorithmsSelected && (
-        <p role="status" className="text-body text-ink-secondary">
-          {t('similarity.compareLoading')}
-        </p>
+        <>
+          <p role="status" className="sr-only">
+            {t('similarity.compareLoading')}
+          </p>
+          {isAtLeastLg ? (
+            <CompareTableSkeleton rowCount={selectedAlgorithmIds.length} />
+          ) : (
+            <CompareResultsListSkeleton rowCount={selectedAlgorithmIds.length} />
+          )}
+        </>
       )}
       {compareQuery.isError && (
         <div role="alert" className="flex flex-col gap-1">

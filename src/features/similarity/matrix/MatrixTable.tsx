@@ -10,6 +10,7 @@ import {
   TableHeader,
   TableRow,
 } from '../../../shared/components/ui/table';
+import { Skeleton } from '../../../shared/components/ui/skeleton';
 import { cn } from '../../../shared/lib/cn';
 import { matrixHeatClassName } from './matrixHeat';
 
@@ -59,6 +60,58 @@ const STICKY_ROW_HEADER_CLASS =
  * overflow — verified live: adding it alone drops the page's scroll width
  * back to the viewport width with 20×20 cells and cached markers present.
  */
+export interface MatrixTableSkeletonProps {
+  /** The selected document count — the real m×n grid is always square, so
+   * this one count also fixes the row and column total. */
+  documentCount: number;
+}
+
+/**
+ * Mirrors `MatrixTable`'s own sticky corner/header/row boxes and cell grid,
+ * at the one size already known before the request resolves: the selected
+ * document count.
+ */
+export function MatrixTableSkeleton({ documentCount }: MatrixTableSkeletonProps) {
+  const { t } = useTranslation();
+  const indices = Array.from({ length: documentCount }, (_unused, index) => index);
+
+  return (
+    <div
+      data-testid="matrix-skeleton"
+      className="relative max-h-[420px] max-w-full overflow-auto rounded-md border border-hairline"
+    >
+      <Table wrap={false} className="text-center">
+        <TableHeader>
+          <TableRow className="border-b-0">
+            <TableHead scope="col" className={STICKY_CORNER_CLASS}>
+              <span className="sr-only">{t('similarity.matrix.table.cornerLabel')}</span>
+            </TableHead>
+            {indices.map((index) => (
+              <TableHead key={index} scope="col" className={STICKY_COLUMN_HEADER_CLASS}>
+                <Skeleton className="mx-auto h-3 w-10" />
+              </TableHead>
+            ))}
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {indices.map((rowIndex) => (
+            <TableRow key={rowIndex}>
+              <TableHead scope="row" className={STICKY_ROW_HEADER_CLASS}>
+                <Skeleton className="mx-auto h-3 w-10" />
+              </TableHead>
+              {indices.map((colIndex) => (
+                <TableCell key={colIndex} className="min-w-16 p-1">
+                  <Skeleton className="mx-auto h-3 w-10" />
+                </TableCell>
+              ))}
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
+    </div>
+  );
+}
+
 export function MatrixTable({ documentIds, titleById, cells }: MatrixTableProps) {
   const { t } = useTranslation();
 
