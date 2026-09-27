@@ -63,6 +63,23 @@ export interface CompareTableProps {
  * begin with). The catalogue's `displayName` sits in a decorative paragraph
  * next to the button, not inside its accessible name.
  */
+/** The six-column header row, shared verbatim with the table's own loading
+ * skeleton (`SimilarityCompareView`) — a static header stays on screen while
+ * only the body swaps between skeleton rows and real ones. */
+export function CompareTableHeaderRow() {
+  const { t } = useTranslation();
+  return (
+    <TableRow>
+      <TableHead>{t('similarity.table.algorithm')}</TableHead>
+      <TableHead>{t('similarity.table.family')}</TableHead>
+      <TableHead>{t('similarity.table.score')}</TableHead>
+      <TableHead>{t('similarity.table.raw')}</TableHead>
+      <TableHead>{t('similarity.table.time')}</TableHead>
+      <TableHead>{t('similarity.table.degenerate')}</TableHead>
+    </TableRow>
+  );
+}
+
 export function CompareTable({
   rows,
   catalogueById,
@@ -75,14 +92,7 @@ export function CompareTable({
     <Table>
       <TableCaption className="sr-only">{t('similarity.table.caption')}</TableCaption>
       <TableHeader>
-        <TableRow>
-          <TableHead>{t('similarity.table.algorithm')}</TableHead>
-          <TableHead>{t('similarity.table.family')}</TableHead>
-          <TableHead>{t('similarity.table.score')}</TableHead>
-          <TableHead>{t('similarity.table.raw')}</TableHead>
-          <TableHead>{t('similarity.table.time')}</TableHead>
-          <TableHead>{t('similarity.table.degenerate')}</TableHead>
-        </TableRow>
+        <CompareTableHeaderRow />
       </TableHeader>
       <TableBody>
         {rows.map(({ algorithmId, result }) => (

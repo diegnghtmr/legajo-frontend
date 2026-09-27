@@ -203,7 +203,7 @@ describe('SimilarityMatrixPage — 3 or more selected', () => {
     );
   });
 
-  it('shows a loading state while the matrix request is pending', async () => {
+  it('shows a hidden loading status while the matrix request is pending', async () => {
     let resolveMatrix: (value: MatrixResponse) => void = () => {};
     vi.spyOn(similarityApi, 'fetchSimilarityMatrix').mockReturnValue(
       new Promise((resolve) => {
@@ -213,11 +213,26 @@ describe('SimilarityMatrixPage — 3 or more selected', () => {
 
     renderWithProviders(<SimilarityMatrixPage />);
 
-    expect(await screen.findByText('Calculando la matriz…')).toBeInTheDocument();
+    const status = await screen.findByText('Calculando la matriz…');
+    expect(status).toHaveAttribute('role', 'status');
+    expect(status.className).toContain('sr-only');
     resolveMatrix(MATRIX_3X3);
     await waitFor(() =>
       expect(screen.queryByText('Calculando la matriz…')).not.toBeInTheDocument(),
     );
+  });
+
+  it('shows a 3x3 skeleton grid, one row/column per selected document, while the matrix request is pending', () => {
+    vi.spyOn(similarityApi, 'fetchSimilarityMatrix').mockReturnValue(new Promise(() => {}));
+
+    renderWithProviders(<SimilarityMatrixPage />);
+
+    const skeleton = screen.getByTestId('matrix-skeleton');
+    // 3 selected documents: a header row of 3 column headers plus 3 body
+    // rows of 3 cells each — never a guess at some other, unrelated count.
+    expect(skeleton.querySelectorAll('th[scope="col"]')).toHaveLength(1 + 3);
+    expect(skeleton.querySelectorAll('th[scope="row"]')).toHaveLength(3);
+    expect(skeleton.querySelectorAll('td')).toHaveLength(9);
   });
 
   it('shows the mapped error message when the matrix request fails', async () => {

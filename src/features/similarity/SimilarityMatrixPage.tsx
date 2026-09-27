@@ -15,7 +15,7 @@ import { Panel, PanelHeader } from '../../shared/components/Panel';
 import { CORPUS_LIST_QUERY_KEY } from '../corpus/SelectionRail';
 import { sortedPair, useSelectionStore } from '../corpus/selectionStore';
 import { SimilarityCompareView } from './SimilarityCompareView';
-import { MatrixTable } from './matrix/MatrixTable';
+import { MatrixTable, MatrixTableSkeleton } from './matrix/MatrixTable';
 
 /**
  * The six fixed capability ids, the same fixed list the compare screen already
@@ -84,9 +84,12 @@ export function SimilarityMatrixView() {
       />
 
       {matrixQuery.isPending && (
-        <p role="status" className="text-body text-ink-secondary">
-          {t('similarity.matrix.loading')}
-        </p>
+        <>
+          <p role="status" className="sr-only">
+            {t('similarity.matrix.loading')}
+          </p>
+          <MatrixTableSkeleton documentCount={selectedArticleIds.length} />
+        </>
       )}
       {matrixQuery.isError && (
         <div role="alert" className="flex flex-col gap-1">
