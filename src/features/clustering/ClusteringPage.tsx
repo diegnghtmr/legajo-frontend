@@ -22,11 +22,12 @@ import { AlgoTextList, type AlgoOption } from '../../shared/components/AlgoTextL
 import { Panel, PanelHeader } from '../../shared/components/Panel';
 import { SegmentedControl, type SegmentedOption } from '../../shared/components/SegmentedControl';
 import { CORPUS_LIST_QUERY_KEY } from '../corpus/SelectionRail';
-import { ClusteringMetricsTable } from './ClusteringMetricsTable';
+import { ClusteringMetricsTable, ClusteringMetricsTableSkeleton } from './ClusteringMetricsTable';
 import { resolveCutLabelsForLinkage } from './cutLabels';
 import { tryComputeCutDistance } from './cutLine';
 import { CutForm, type CutFormValues } from './CutForm';
-import { DendrogramCard } from './DendrogramCard';
+import { DendrogramCard, DendrogramCardSkeleton } from './DendrogramCard';
+import { dendrogramCardHeight } from './dendrogramGridSizing';
 import { leafLabelsFromDocumentIds } from './leafLabels';
 import {
   hasCanonicalLinkageIds,
@@ -47,6 +48,12 @@ const LINKAGE_IDS = [...LinkageIdSchema.options];
 const LINKAGE_OPTIONS: readonly AlgoOption[] = LINKAGE_IDS.map((id) => ({ id }));
 
 const CLUSTERING_QUERY_KEY_PREFIX = 'clustering';
+
+/** The dendrogram skeleton's own height needs a leaf count before either
+ * the clustering or the corpus query has resolved — the reference corpus
+ * size, a reasonable size for a loading placeholder that never claims to
+ * know the real one. */
+const DEFAULT_SKELETON_LEAF_COUNT = 20;
 
 /**
  * Clustering screen: one control bar card at the top (representation
@@ -320,9 +327,23 @@ export function ClusteringPage() {
       </Panel>
 
       {clusteringQuery.isPending && hasLinkagesSelected && (
-        <p role="status" className="text-body text-ink-secondary">
-          {t('clustering.loading')}
-        </p>
+        <>
+          <p role="status" className="sr-only">
+            {t('clustering.loading')}
+          </p>
+          <ClusteringMetricsTableSkeleton linkageIds={selectedLinkages} />
+          <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+            {selectedLinkages.map((linkageId) => (
+              <DendrogramCardSkeleton
+                key={linkageId}
+                linkageId={linkageId}
+                height={dendrogramCardHeight(
+                  corpusQuery.data?.length ?? DEFAULT_SKELETON_LEAF_COUNT,
+                )}
+              />
+            ))}
+          </div>
+        </>
       )}
       {clusteringQuery.isError && (
         <div role="alert" className="flex flex-col gap-1">

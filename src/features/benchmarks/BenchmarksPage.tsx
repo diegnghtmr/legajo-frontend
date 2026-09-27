@@ -6,20 +6,40 @@ import { DEFAULT_UNEXPECTED_I18N_KEY, type ApiError } from '../../infrastructure
 import { fetchBenchmarks, type BenchmarkReportResponse } from '../../infrastructure/api/benchmarks';
 import { PanelHeader } from '../../shared/components/Panel';
 import { SegmentedControl, type SegmentedOption } from '../../shared/components/SegmentedControl';
-import { BenchmarkCurveChart, type FamilySlope } from './BenchmarkCurveChart';
-import { EmbeddingTiles } from './EmbeddingTiles';
+import { Skeleton } from '../../shared/components/ui/skeleton';
+import {
+  BenchmarkCurveChart,
+  BenchmarkCurveChartSkeleton,
+  type FamilySlope,
+} from './BenchmarkCurveChart';
+import { EmbeddingTiles, EmbeddingTilesSkeleton } from './EmbeddingTiles';
 import {
   HAC_LINKAGE_FAMILIES,
   INTERNAL_METRIC_FAMILIES,
   PAIRWISE_CLASSIC_FAMILIES,
   seriesForFamilies,
 } from './grouping';
-import { HarnessPanel } from './HarnessPanel';
-import { SloSection } from './SloSection';
+import { HarnessPanel, HarnessPanelSkeleton } from './HarnessPanel';
+import { SloSection, SloSectionSkeleton } from './SloSection';
 
 export const BENCHMARKS_QUERY_KEY = ['benchmarks'] as const;
 
 type Scale = 'linear' | 'log-log';
+
+/** The two fixed scale options (Lineal/Log-log) — a control that reacts to
+ * charts not yet on screen stays a placeholder rather than a working
+ * control with nothing to control. */
+const SCALE_OPTION_SKELETON_COUNT = 2;
+
+function ScaleSegmentedSkeleton() {
+  return (
+    <div className="inline-flex items-center gap-0.5 rounded-md border border-hairline bg-paper-sunken p-[3px]">
+      {Array.from({ length: SCALE_OPTION_SKELETON_COUNT }, (_unused, index) => (
+        <Skeleton key={index} className="h-6 w-16 rounded-btn" />
+      ))}
+    </div>
+  );
+}
 
 function slopesByFamily(
   slopes: BenchmarkReportResponse['slopes'],
@@ -64,9 +84,27 @@ export function BenchmarksPage() {
       <PanelHeader eyebrow={t('benchmarks.eyebrow')} title={t('benchmarks.title')} />
 
       {query.isPending && (
-        <p role="status" className="text-body text-ink-secondary">
-          {t('benchmarks.loading')}
-        </p>
+        <>
+          <p role="status" className="sr-only">
+            {t('benchmarks.loading')}
+          </p>
+          <HarnessPanelSkeleton />
+          <ScaleSegmentedSkeleton />
+          <BenchmarkCurveChartSkeleton
+            title={t('benchmarks.curves.pairwiseTitle')}
+            seriesCount={PAIRWISE_CLASSIC_FAMILIES.length}
+          />
+          <BenchmarkCurveChartSkeleton
+            title={t('benchmarks.curves.hacTitle')}
+            seriesCount={HAC_LINKAGE_FAMILIES.length}
+          />
+          <BenchmarkCurveChartSkeleton
+            title={t('benchmarks.curves.internalMetricsTitle')}
+            seriesCount={INTERNAL_METRIC_FAMILIES.length}
+          />
+          <EmbeddingTilesSkeleton />
+          <SloSectionSkeleton />
+        </>
       )}
       {query.isError && (
         <div role="alert" className="flex flex-col gap-1">

@@ -2,7 +2,39 @@ import { useTranslation } from 'react-i18next';
 
 import type { BenchmarkReportResponse } from '../../infrastructure/api/benchmarks';
 import { Panel, PanelHeader } from '../../shared/components/Panel';
+import { Skeleton } from '../../shared/components/ui/skeleton';
 import { formatMeasuredAt, formatRamBytes } from './formatHarness';
+
+/** The harness's own 6 fixed fields (CPU, cores, RAM, JDK, OS, measured
+ * at), mirrored one label/value pair at a time. */
+const HARNESS_FIELD_COUNT = 6;
+
+/** Mirrors `HarnessPanel`'s own header and `dl` grid, before the report
+ * resolves. */
+export function HarnessPanelSkeleton() {
+  const { t } = useTranslation();
+
+  return (
+    <Panel>
+      <PanelHeader
+        eyebrow={t('benchmarks.harness.eyebrow')}
+        title={t('benchmarks.harness.title')}
+      />
+      <dl className="grid grid-cols-1 gap-x-6 gap-y-2 sm:grid-cols-2 md:grid-cols-3">
+        {Array.from({ length: HARNESS_FIELD_COUNT }, (_unused, index) => (
+          <div key={index}>
+            <dt>
+              <Skeleton className="h-3 w-16" />
+            </dt>
+            <dd>
+              <Skeleton className="mt-1 h-3.5 w-24" />
+            </dd>
+          </div>
+        ))}
+      </dl>
+    </Panel>
+  );
+}
 
 type BenchmarkHarness = BenchmarkReportResponse['harness'];
 

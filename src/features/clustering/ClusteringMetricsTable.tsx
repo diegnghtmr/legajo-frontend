@@ -2,8 +2,9 @@ import { Fragment } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import type { ClusteringResponse } from '../../infrastructure/api/clustering';
-import type { RepresentationId } from '../../infrastructure/schemas/clustering';
+import type { LinkageId, RepresentationId } from '../../infrastructure/schemas/clustering';
 import { Panel } from '../../shared/components/Panel';
+import { Skeleton } from '../../shared/components/ui/skeleton';
 import { cn } from '../../shared/lib/cn';
 import { formatMetricValue } from './formatMetricValue';
 import { orderLinkagesForMetricsTable, secondaryFixedKColumns } from './metricsTable';
@@ -81,6 +82,99 @@ export function ClusteringMetricsTable({
           {t('clustering.sampleSizeCaveat', { representation, count: sampleSize })}
         </p>
       )}
+    </Panel>
+  );
+}
+
+export interface ClusteringMetricsTableSkeletonProps {
+  /** One row per selected linkage — the secondary per-k column group
+   * depends on the backend's own response and stays out of this skeleton,
+   * unlike the four lead columns this page already knows before the
+   * request resolves. */
+  linkageIds: readonly LinkageId[];
+}
+
+/** Mirrors `ClusteringMetricsTableBody`'s own region, table shell and lead
+ * columns (Enlace, Cofenética, Silueta, Davies–Bouldin), one skeleton row
+ * per selected linkage. */
+export function ClusteringMetricsTableSkeleton({
+  linkageIds,
+}: ClusteringMetricsTableSkeletonProps) {
+  const { t } = useTranslation();
+
+  return (
+    <Panel>
+      <div className="mb-3">
+        <div
+          role="region"
+          aria-label={t('clustering.metricsTable.regionLabel')}
+          tabIndex={0}
+          className="overflow-x-auto rounded-md focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus"
+        >
+          <table className="w-full border-collapse text-left">
+            <caption className="sr-only">{t('clustering.metricsTable.caption')}</caption>
+            <thead>
+              <tr className="border-b border-hairline bg-paper-sunken">
+                <th
+                  scope="col"
+                  className="p-2 text-eyebrow uppercase tracking-wide text-ink-secondary"
+                >
+                  {t('clustering.metricsTable.linkageHeader')}
+                </th>
+                <th
+                  scope="col"
+                  className="p-2 text-eyebrow uppercase tracking-wide text-ink-secondary"
+                >
+                  {t('clustering.metrics.cophenetic')}
+                </th>
+                {/* `k_ref` is only known once the response resolves — a
+                 * skeleton bar here, never the real header interpolated
+                 * with a blank k, which would read as broken text. */}
+                <th
+                  scope="col"
+                  className={cn(
+                    'p-2 text-eyebrow uppercase tracking-wide text-ink-secondary',
+                    HIGHLIGHT_CLASS_NAME,
+                  )}
+                >
+                  <Skeleton className="h-3 w-24" />
+                </th>
+                <th
+                  scope="col"
+                  className={cn(
+                    'p-2 text-eyebrow uppercase tracking-wide text-ink-secondary',
+                    HIGHLIGHT_CLASS_NAME,
+                  )}
+                >
+                  <Skeleton className="h-3 w-24" />
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              {linkageIds.map((linkageId) => (
+                <tr
+                  key={linkageId}
+                  data-testid={`metrics-row-skeleton-${linkageId}`}
+                  className="border-b border-hairline"
+                >
+                  <td className="p-2">
+                    <span className="font-mono text-mono text-ink-secondary">{linkageId}</span>
+                  </td>
+                  <td className="p-2">
+                    <Skeleton className="h-3 w-12" />
+                  </td>
+                  <td className={cn('p-2', HIGHLIGHT_CLASS_NAME)}>
+                    <Skeleton className="h-3 w-12" />
+                  </td>
+                  <td className={cn('p-2', HIGHLIGHT_CLASS_NAME)}>
+                    <Skeleton className="h-3 w-12" />
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
     </Panel>
   );
 }

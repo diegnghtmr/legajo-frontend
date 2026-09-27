@@ -2,6 +2,7 @@ import { CartesianGrid, Line, LineChart, XAxis, YAxis, type DotItemDotProps } fr
 import { useTranslation } from 'react-i18next';
 
 import { Panel, PanelHeader } from '../../shared/components/Panel';
+import { Skeleton } from '../../shared/components/ui/skeleton';
 import { useElementWidth } from '../../shared/hooks/useElementWidth';
 import {
   Table,
@@ -39,7 +40,9 @@ export interface BenchmarkCurveChartProps {
  * (also jsdom's own permanent width in a test with no fake observer
  * installed — see `useElementWidth`'s own doc comment). */
 const INITIAL_WIDTH = 640;
-const CHART_HEIGHT = 280;
+/** Exported so this chart's own loading skeleton reserves exactly this
+ * height, causing no shift once the real chart replaces it. */
+export const CHART_HEIGHT = 280;
 const DOT_RADIUS = 4;
 
 function theoreticalKey(family: string): string {
@@ -437,6 +440,41 @@ export function BenchmarkCurveChart({
           ))}
         </TableBody>
       </Table>
+    </Panel>
+  );
+}
+
+export interface BenchmarkCurveChartSkeletonProps {
+  title: string;
+  /** The group's own fixed family count (e.g. the four pairwise classic
+   * algorithms) — already known before the request resolves, unlike the
+   * per-size data points themselves. */
+  seriesCount: number;
+}
+
+/**
+ * Mirrors one `BenchmarkCurveChart` card: its real title (already known —
+ * every group's title is fixed chrome, not response data), a chart-height
+ * placeholder at exactly `CHART_HEIGHT` so the swap causes no shift, and a
+ * legend row with one swatch per series the group is known to have.
+ */
+export function BenchmarkCurveChartSkeleton({
+  title,
+  seriesCount,
+}: BenchmarkCurveChartSkeletonProps) {
+  return (
+    <Panel>
+      <PanelHeader title={title} />
+      <Skeleton
+        data-testid="benchmark-chart-skeleton"
+        className="w-full rounded-md"
+        style={{ height: CHART_HEIGHT }}
+      />
+      <div className="mt-3 flex flex-wrap gap-x-4 gap-y-2">
+        {Array.from({ length: seriesCount }, (_unused, index) => (
+          <Skeleton key={index} className="h-3 w-20" />
+        ))}
+      </div>
     </Panel>
   );
 }

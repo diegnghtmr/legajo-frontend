@@ -13,6 +13,7 @@ import * as corpusApi from '../../infrastructure/api/corpus';
 import type { ListCorpusResponse } from '../../infrastructure/api/corpus';
 import type { LinkageId } from '../../infrastructure/schemas/clustering';
 import { ClusteringPage } from './ClusteringPage';
+import { dendrogramCardHeight } from './dendrogramGridSizing';
 
 vi.mock('../../infrastructure/api/clustering');
 vi.mock('../../infrastructure/api/corpus');
@@ -160,6 +161,45 @@ describe('ClusteringPage', () => {
       screen.getByText('El corte estará disponible cuando termine de cargar el agrupamiento.'),
     ).toBeInTheDocument();
     expect(screen.queryByRole('radiogroup', { name: 'Enlace a cortar' })).not.toBeInTheDocument();
+  });
+
+  it('shows a metrics-table skeleton row and a dendrogram card skeleton per selected linkage while the clustering request is pending, sized from the corpus response', async () => {
+    vi.spyOn(corpusApi, 'fetchCorpus').mockResolvedValue(CORPUS);
+    vi.spyOn(clusteringApi, 'runClustering').mockImplementation(() => new Promise(() => {}));
+
+    renderPage();
+
+    const status = screen.getByText('Calculando el agrupamiento…');
+    expect(status).toHaveAttribute('role', 'status');
+    expect(status.className).toContain('sr-only');
+
+    for (const linkageId of ALL_FOUR) {
+      expect(screen.getByTestId(`metrics-row-skeleton-${linkageId}`)).toBeInTheDocument();
+      const card = screen.getByTestId(`linkage-dendrogram-skeleton-${linkageId}`);
+      // Waits for the corpus fetch (mocked resolved, but still async) to
+      // settle, so the height reflects its own 6-document response rather
+      // than the pre-resolution default.
+      await waitFor(() => {
+        const block = card.querySelector(
+          '[data-testid="dendrogram-skeleton-chart"]',
+        ) as HTMLElement | null;
+        expect(block?.style.height).toBe(`${dendrogramCardHeight(6)}px`);
+      });
+    }
+  });
+
+  it('defaults the dendrogram skeleton height to a corpus of 20 when the corpus query has not resolved yet', () => {
+    vi.spyOn(corpusApi, 'fetchCorpus').mockReturnValue(new Promise(() => {}));
+    vi.spyOn(clusteringApi, 'runClustering').mockImplementation(() => new Promise(() => {}));
+
+    renderPage();
+
+    const card = screen.getByTestId('linkage-dendrogram-skeleton-single');
+    const block = card.querySelector(
+      '[data-testid="dendrogram-skeleton-chart"]',
+    ) as HTMLElement | null;
+    expect(block).not.toBeNull();
+    expect(block?.style.height).toBe(`${dendrogramCardHeight(20)}px`);
   });
 
   it('shows a distinct cut-unavailable reason when the clustering request fails, never the "still loading" placeholder', async () => {
