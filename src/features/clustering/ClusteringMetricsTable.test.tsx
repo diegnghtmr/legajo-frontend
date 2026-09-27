@@ -266,22 +266,42 @@ describe('ClusteringMetricsTable', () => {
 });
 
 describe('ClusteringMetricsTableSkeleton', () => {
-  it('gives every column header real accessible text, even the two whose k is not known yet', () => {
+  it('gives every column header real accessible text, even the ones whose k is not known yet', () => {
     render(
       <ClusteringMetricsTableSkeleton
         linkageIds={['single', 'complete']}
         representation="tfidf-cosine"
+        sampleSizeEstimate={20}
       />,
     );
 
     for (const header of screen.getAllByRole('columnheader')) {
       expect(header.textContent?.trim()).not.toBe('');
     }
+    // n = 20 → k_ref = 4, so `estimatedSecondaryColumnCount` reserves the
+    // three other fixed cuts {2, 3, 5} as a secondary column pair each,
+    // one lead pair, plus the linkage and cophenetic columns: 4 + 3*2 = 10.
+    expect(screen.getAllByRole('columnheader')).toHaveLength(10);
     expect(
-      screen.getByRole('columnheader', { name: 'Silueta media (k pendiente)' }),
-    ).toBeInTheDocument();
+      screen.getAllByRole('columnheader', { name: 'Silueta media (k pendiente)' }),
+    ).toHaveLength(4);
     expect(
-      screen.getByRole('columnheader', { name: 'Davies–Bouldin (k pendiente)' }),
-    ).toBeInTheDocument();
+      screen.getAllByRole('columnheader', { name: 'Davies–Bouldin (k pendiente)' }),
+    ).toHaveLength(4);
+  });
+
+  it('reserves no secondary column pair for a sample size too small for any fixed cut but k_ref', () => {
+    render(
+      <ClusteringMetricsTableSkeleton
+        linkageIds={['single', 'complete']}
+        representation="tfidf-cosine"
+        sampleSizeEstimate={3}
+      />,
+    );
+
+    // n = 3 → k_ref = min(4, 2) = 2, and no other fixed cut in {2,3,4,5}
+    // fits `k <= n - 1 = 2` — the linkage, cophenetic and one lead pair
+    // only: 4 columns, no secondary group.
+    expect(screen.getAllByRole('columnheader')).toHaveLength(4);
   });
 });

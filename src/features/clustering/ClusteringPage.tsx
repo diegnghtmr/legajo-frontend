@@ -308,7 +308,10 @@ export function ClusteringPage() {
             // stacked at a narrow width) already reserves the right box at
             // any width — a fixed-height placeholder text cannot, since
             // the real form's height itself changes with the viewport.
-            <CutFormSkeleton linkageIds={selectedLinkages} />
+            <CutFormSkeleton
+              linkageIds={selectedLinkages}
+              sampleSizeEstimate={corpusQuery.data?.length ?? DEFAULT_SKELETON_LEAF_COUNT}
+            />
           ) : (
             <p className="text-body text-ink-muted">
               {/*
@@ -337,6 +340,7 @@ export function ClusteringPage() {
           <ClusteringMetricsTableSkeleton
             linkageIds={selectedLinkages}
             representation={representation}
+            sampleSizeEstimate={corpusQuery.data?.length ?? DEFAULT_SKELETON_LEAF_COUNT}
           />
           <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
             {selectedLinkages.map((linkageId) => (

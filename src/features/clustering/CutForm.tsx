@@ -166,6 +166,13 @@ export interface CutFormSkeletonProps {
    * width closely enough that the control wraps at the same point the real
    * one, with its real `displayName`, eventually will. */
   linkageIds: readonly string[];
+  /** The same corpus-size estimate the caller already builds for
+   * `ClusteringMetricsTableSkeleton`'s own invisible sizer (see that
+   * prop's own doc comment) — the k field's own label interpolates the
+   * exact same `n - 1` upper bound, and at this width that label's own
+   * real length is what decides whether the k field and the submit button
+   * still fit on the segmented control's own row or wrap below it. */
+  sampleSizeEstimate: number;
 }
 
 /**
@@ -175,8 +182,9 @@ export interface CutFormSkeletonProps {
  * form does at any width — a fixed pixel height cannot, since the real
  * form's own height changes with the viewport once its fields stack.
  */
-export function CutFormSkeleton({ linkageIds }: CutFormSkeletonProps) {
+export function CutFormSkeleton({ linkageIds, sampleSizeEstimate }: CutFormSkeletonProps) {
   const { t } = useTranslation();
+  const hasValidCutRangeEstimate = sampleSizeEstimate - 1 >= 2;
 
   return (
     <div className="flex flex-col gap-3">
@@ -197,10 +205,21 @@ export function CutFormSkeleton({ linkageIds }: CutFormSkeletonProps) {
           </div>
         </div>
 
-        <div className="flex flex-col gap-1">
-          <Skeleton className="h-4 w-40" />
-          <Skeleton className="h-8 w-24 rounded-md" />
-        </div>
+        {hasValidCutRangeEstimate ? (
+          <div className="flex flex-col gap-1">
+            {/* The real label's own text, built from the same estimate —
+             * its real width is exactly what decides this row's own wrap
+             * point at a narrow viewport; a generic bar guessed too
+             * narrow and left the button one row higher than the real
+             * form ever puts it. */}
+            <span className="flex flex-col gap-1 text-label text-ink-secondary">
+              {t('clustering.cutForm.kLabel', { min: 2, max: sampleSizeEstimate - 1 })}
+              <Skeleton className="h-8 w-24 rounded-md" />
+            </span>
+          </div>
+        ) : (
+          <span className="text-label text-ink-muted">{t('clustering.cutForm.noValidRange')}</span>
+        )}
 
         <Skeleton className="h-9 w-28" />
       </div>

@@ -42,27 +42,39 @@ export interface DendrogramCardSkeletonProps {
   height: number;
 }
 
-/** Mirrors one `DendrogramCard`'s own chrome — the `Panel` and its title
- * area — at the real card's own height, so the grid causes no shift once
- * the real dendrograms replace these placeholders. The linkage id (already
- * known from the selection) stands in for the title area instead of a
- * guessed display name. */
+/** Mirrors one `DendrogramCard`'s own chrome — the `Panel`, its title area
+ * and its figure's own caption line — at the real card's own height, so
+ * the grid causes no shift once the real dendrograms replace these
+ * placeholders. The linkage id (already known from the selection) stands
+ * in for the title area instead of a guessed display name. */
 export function DendrogramCardSkeleton({ linkageId, height }: DendrogramCardSkeletonProps) {
   return (
     <div data-testid={`linkage-dendrogram-skeleton-${linkageId}`}>
       <Panel>
         <div className="mb-3 flex flex-col gap-1">
-          <Skeleton className="h-6 w-32" />
+          {/* `h-[30px]`: a real `h2` title's own single-line box at this
+           * font stack's own metrics (`text-title font-semibold`) —
+           * measurably taller than the font's nominal size, the same
+           * reasoning every other real-text-line placeholder in this
+           * feature already follows. */}
+          <Skeleton className="h-[30px] w-32" />
         </div>
         {/* `mt-3`: the real card's own chart wrapper (`DendrogramCard`'s
          * `<div ref className="mt-3">`) carries this same margin below
          * `PanelHeader` — left out here, the chart sat 12px closer to the
          * title than the real one does. */}
-        <Skeleton
-          data-testid="dendrogram-skeleton-chart"
-          className="mt-3 w-full rounded-md"
-          style={{ height }}
-        />
+        <div className="mt-3 flex flex-col gap-2">
+          {/* The real figure's own `figcaption` (`Dendrogram`'s own
+           * `ariaLabel`, built from the response's own `linkageDisplayName`)
+           * — its exact text is not yet known, but a single `text-label`
+           * line's own real height already is. */}
+          <Skeleton className="h-[18px] w-40" />
+          <Skeleton
+            data-testid="dendrogram-skeleton-chart"
+            className="w-full rounded-md"
+            style={{ height }}
+          />
+        </div>
       </Panel>
     </div>
   );

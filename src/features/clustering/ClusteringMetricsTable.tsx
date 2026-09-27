@@ -8,7 +8,73 @@ import { Skeleton } from '../../shared/components/ui/skeleton';
 import { cn } from '../../shared/lib/cn';
 import { formatMetricValue } from './formatMetricValue';
 import { orderLinkagesForMetricsTable, secondaryFixedKColumns } from './metricsTable';
-import type { ClusteringRankingResult } from './ranking';
+import { kRefForSampleSize, type ClusteringRankingResult } from './ranking';
+
+/** `kRefForSampleSize`'s own fixed-cut set (`{2,3,4,5} ∩ [2, n-1]`) —
+ * mirrored here only to size the skeleton's own secondary column group
+ * (see `estimatedSecondaryColumnKs` below), never to compute a real
+ * value. */
+const FIXED_CUTS = [2, 3, 4, 5];
+
+/**
+ * The secondary (non-`k_ref`) fixed cuts the metrics table is likely to
+ * show, from a sample-size estimate alone: every fixed cut in
+ * `kRefForSampleSize`'s own set that both fits the estimated sample size
+ * and is not `k_ref` itself. The real set instead comes from whichever
+ * fixed cuts the response's own linkages actually carry
+ * (`secondaryFixedKColumns`) — an already-malformed or degenerate response
+ * can legitimately carry fewer, so this is a sizing aid for the common,
+ * well-formed case, never a substitute for that real set. Used both to
+ * count the secondary column pairs and, as an invisible per-header sizer
+ * (never shown — the visible header still only ever says "k pendiente"),
+ * to reserve each header's own real wrapped width: a plain generic bar
+ * cannot reproduce a real header label's own wrap once several column
+ * pairs squeeze this table's fixed `w-full` width at a narrow viewport.
+ */
+function estimatedSecondaryColumnKs(sampleSizeEstimate: number): number[] {
+  if (!Number.isInteger(sampleSizeEstimate) || sampleSizeEstimate < 3) {
+    return [];
+  }
+  const kRef = kRefForSampleSize(sampleSizeEstimate);
+  return FIXED_CUTS.filter((k) => k <= sampleSizeEstimate - 1 && k !== kRef);
+}
+
+/** `kRefForSampleSize`'s own estimated value, or `undefined` below its own
+ * valid domain — used only for the same invisible-sizer purpose. */
+function estimatedKRef(sampleSizeEstimate: number): number | undefined {
+  return Number.isInteger(sampleSizeEstimate) && sampleSizeEstimate >= 3
+    ? kRefForSampleSize(sampleSizeEstimate)
+    : undefined;
+}
+
+/** One metrics-table header cell: the real, always-visible "k pendiente"
+ * label plus an invisible sizer at the real header text's own length
+ * (`labelKey` interpolated with the estimated `k`) — reserves that real
+ * header's own wrapped width without claiming to know its exact `k`. */
+function MetricHeaderCellSkeleton({
+  pendingLabel,
+  realLabelKey,
+  k,
+  className,
+}: {
+  pendingLabel: string;
+  realLabelKey: 'clustering.metrics.silhouetteAtK' | 'clustering.metrics.daviesBouldinAtK';
+  k: number | undefined;
+  className?: string;
+}) {
+  const { t } = useTranslation();
+  return (
+    <th scope="col" className={className}>
+      <span className="sr-only">{pendingLabel}</span>
+      <span className="relative inline-block">
+        <span aria-hidden="true" className="invisible">
+          {k === undefined ? pendingLabel : t(realLabelKey, { k })}
+        </span>
+        <Skeleton className="absolute inset-0" />
+      </span>
+    </th>
+  );
+}
 
 export interface ClusteringMetricsTableProps {
   results: ClusteringResponse;
@@ -95,6 +161,16 @@ export interface ClusteringMetricsTableSkeletonProps {
   /** Already known before the request resolves (the page's own current
    * selection) — used only to size the invisible sizer below, never shown. */
   representation: RepresentationId;
+  /** The count the caveat's own invisible sizer below is built from. The
+   * clustering request carries no document selection of its own (unlike
+   * similarity's compare/matrix requests) — it always runs over the whole
+   * loaded corpus — so the corpus-list query's own count (once it has
+   * resolved; the caller falls back to a reasonable default before it has)
+   * already equals the sample size the response will report, without
+   * waiting for that response. This is a sizing aid only: `ranking.ts`'s
+   * own `sampleSizeFromResponse` still reads the real count from the
+   * response alone for anything that actually marks a leader. */
+  sampleSizeEstimate: number;
 }
 
 /** Mirrors `ClusteringMetricsTableBody`'s own region, table shell and lead
@@ -103,8 +179,13 @@ export interface ClusteringMetricsTableSkeletonProps {
 export function ClusteringMetricsTableSkeleton({
   linkageIds,
   representation,
+  sampleSizeEstimate,
 }: ClusteringMetricsTableSkeletonProps) {
   const { t } = useTranslation();
+  const secondaryKs = estimatedSecondaryColumnKs(sampleSizeEstimate);
+  const kRefEstimate = estimatedKRef(sampleSizeEstimate);
+  const silhouettePendingLabel = t('clustering.metrics.silhouetteAtKPending');
+  const daviesBouldinPendingLabel = t('clustering.metrics.daviesBouldinAtKPending');
 
   return (
     <Panel>
@@ -131,33 +212,56 @@ export function ClusteringMetricsTableSkeleton({
                 >
                   {t('clustering.metrics.cophenetic')}
                 </th>
-                {/* `k_ref` is only known once the response resolves — a
-                 * skeleton bar here, never the real header interpolated
-                 * with a blank k, which would read as broken text. */}
-                <th
-                  scope="col"
+                {/* `k_ref` is only known once the response resolves — the
+                 * visible header still only ever says "k pendiente", never
+                 * the real header interpolated with a blank k, which would
+                 * read as broken text. Each header cell's own invisible
+                 * sizer (see `MetricHeaderCellSkeleton`) is what actually
+                 * reserves this row's own real, possibly-wrapped height. */}
+                <MetricHeaderCellSkeleton
+                  pendingLabel={silhouettePendingLabel}
+                  realLabelKey="clustering.metrics.silhouetteAtK"
+                  k={kRefEstimate}
                   className={cn(
                     'p-2 text-eyebrow uppercase tracking-wide text-ink-secondary',
                     HIGHLIGHT_CLASS_NAME,
                   )}
-                >
-                  {/* `k_ref` itself is only known once the response
-                   * resolves, but the column it will head is already known
-                   * — a pending-k label, never an empty `<th>` (axe
-                   * `empty-table-header`). */}
-                  <span className="sr-only">{t('clustering.metrics.silhouetteAtKPending')}</span>
-                  <Skeleton className="h-3 w-24" />
-                </th>
-                <th
-                  scope="col"
+                />
+                <MetricHeaderCellSkeleton
+                  pendingLabel={daviesBouldinPendingLabel}
+                  realLabelKey="clustering.metrics.daviesBouldinAtK"
+                  k={kRefEstimate}
                   className={cn(
                     'p-2 text-eyebrow uppercase tracking-wide text-ink-secondary',
                     HIGHLIGHT_CLASS_NAME,
                   )}
-                >
-                  <span className="sr-only">{t('clustering.metrics.daviesBouldinAtKPending')}</span>
-                  <Skeleton className="h-3 w-24" />
-                </th>
+                />
+                {/* The secondary (non-`k_ref`) column group: its own real
+                 * count depends on the response, but a sample-size
+                 * estimate already fixes it for the common case (see
+                 * `estimatedSecondaryColumnKs`) — reserving that many pairs
+                 * now, rather than none, is what keeps this header row
+                 * from wrapping any further than the real one (mostly)
+                 * does. */}
+                {secondaryKs.map((k, index) => (
+                  <Fragment key={k}>
+                    <MetricHeaderCellSkeleton
+                      pendingLabel={silhouettePendingLabel}
+                      realLabelKey="clustering.metrics.silhouetteAtK"
+                      k={k}
+                      className={cn(
+                        'p-2 text-eyebrow uppercase tracking-wide text-ink-secondary',
+                        index === 0 && 'border-l border-hairline',
+                      )}
+                    />
+                    <MetricHeaderCellSkeleton
+                      pendingLabel={daviesBouldinPendingLabel}
+                      realLabelKey="clustering.metrics.daviesBouldinAtK"
+                      k={k}
+                      className="p-2 text-eyebrow uppercase tracking-wide text-ink-secondary"
+                    />
+                  </Fragment>
+                ))}
               </tr>
             </thead>
             <tbody>
@@ -179,6 +283,16 @@ export function ClusteringMetricsTableSkeleton({
                   <td className={cn('p-2', HIGHLIGHT_CLASS_NAME)}>
                     <Skeleton className="h-3 w-12" />
                   </td>
+                  {secondaryKs.map((k, index) => (
+                    <Fragment key={k}>
+                      <td className={cn('p-2', index === 0 && 'border-l border-hairline')}>
+                        <Skeleton className="h-3 w-12" />
+                      </td>
+                      <td className="p-2">
+                        <Skeleton className="h-3 w-12" />
+                      </td>
+                    </Fragment>
+                  ))}
                 </tr>
               ))}
             </tbody>
@@ -195,13 +309,15 @@ export function ClusteringMetricsTableSkeleton({
        * both at once — `ClusteringMetricsTable`'s own rule) is what stays:
        * a longer sentence built from the response's own sample size, whose
        * wrapped height this static fallback alone would then fall short
-       * of. An invisible sizer at that same sentence's real length (this
-       * page's own already-selected representation, with a placeholder
-       * count — never shown, only measured) reserves that real wrap point
-       * without inventing a sample size this skeleton does not have. */}
+       * of. An invisible sizer built from that same sentence — this page's
+       * own already-selected representation, plus `sampleSizeEstimate`
+       * (the caller's own already-known corpus size; see this prop's own
+       * doc comment) — reserves that real wrap point exactly whenever that
+       * estimate is the real count, which it always is once the corpus
+       * list has resolved. */}
       <div className="relative mt-3">
         <p aria-hidden="true" className="invisible text-body">
-          {t('clustering.sampleSizeCaveat', { representation, count: 20 })}
+          {t('clustering.sampleSizeCaveat', { representation, count: sampleSizeEstimate })}
         </p>
         <p className="absolute inset-0 text-body text-ink-secondary">
           {t('clustering.leadersRequireAllLinkages')}
