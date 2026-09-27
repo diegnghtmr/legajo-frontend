@@ -104,19 +104,37 @@ const LEVENSHTEIN_MATRIX_3X3 = [
   })),
 );
 
-const CORPUS_SIX = Array.from({ length: 6 }, (_unused, index) => ({
-  id: `doc-0${index + 1}`,
+/** The whole reference corpus (20 documents) — clustering carries no
+ * document selection of its own, unlike similarity's compare/matrix
+ * requests, so it always runs over every one of these. */
+const CLUSTERING_LEAF_COUNT = 20;
+
+const CORPUS_TWENTY = Array.from({ length: CLUSTERING_LEAF_COUNT }, (_unused, index) => ({
+  id: `doc-${String(index + 1).padStart(2, '0')}`,
   title: `Article ${index + 1}`,
   authors: ['A. Author'],
 }));
 
-const GOLDEN_ROWS_N6 = [
-  { idx1: 0, idx2: 1, mergeDistance: 0.1, size: 2 },
-  { idx1: 2, idx2: 3, mergeDistance: 0.2, size: 2 },
-  { idx1: 4, idx2: 5, mergeDistance: 0.3, size: 2 },
-  { idx1: 6, idx2: 7, mergeDistance: 0.4, size: 4 },
-  { idx1: 8, idx2: 9, mergeDistance: 0.5, size: 6 },
-];
+/** A valid linkage matrix for `CLUSTERING_LEAF_COUNT` leaves: a single
+ * merge chain (leaf 0 with leaf 1, then that cluster with leaf 2, and so
+ * on), `idx1 < idx2`, non-decreasing distances, and the standard `n + row
+ * index` cluster id — the same shape `dendrogramLayout.ts`'s own doc
+ * comment and `ClusteringPage.test.tsx`'s golden fixture both require. */
+function buildChainLinkageRows(leafCount: number) {
+  const rows: { idx1: number; idx2: number; mergeDistance: number; size: number }[] = [];
+  let previousClusterId = 0;
+  for (let leaf = 1; leaf < leafCount; leaf += 1) {
+    // `idx1 < idx2` always: the first row merges two leaves (0, 1), every
+    // later row merges the next leaf (always a smaller id than any cluster
+    // id, which starts at `leafCount`) with the running cluster.
+    const [idx1, idx2] = leaf === 1 ? [0, 1] : [leaf, previousClusterId];
+    rows.push({ idx1, idx2, mergeDistance: leaf / 10, size: leaf + 1 });
+    previousClusterId = leafCount + rows.length - 1;
+  }
+  return rows;
+}
+
+const GOLDEN_ROWS = buildChainLinkageRows(CLUSTERING_LEAF_COUNT);
 
 function clusteringEvaluation(
   cophenetic: number,
@@ -130,37 +148,43 @@ function clusteringEvaluation(
   };
 }
 
+const IDENTITY_LEAF_ORDER = Array.from({ length: CLUSTERING_LEAF_COUNT }, (_unused, i) => i);
+/** A different (still valid, still crossing-free-by-construction-here)
+ * leaf order for `complete`, the same way the existing `n = 6` fixtures
+ * (`e2e/clustering.spec.ts`) vary it across linkages. */
+const SWAPPED_LEAF_ORDER = [1, 0, ...IDENTITY_LEAF_ORDER.slice(2)];
+
 const CLUSTERING_RESPONSE = [
   {
     linkageId: 'single',
     linkageDisplayName: 'Single',
-    rows: GOLDEN_ROWS_N6,
-    leafOrder: [0, 1, 2, 3, 4, 5],
-    documentIds: CORPUS_SIX.map((document) => document.id),
+    rows: GOLDEN_ROWS,
+    leafOrder: IDENTITY_LEAF_ORDER,
+    documentIds: CORPUS_TWENTY.map((document) => document.id),
     evaluation: clusteringEvaluation(0.95, 0.2, 0.5),
   },
   {
     linkageId: 'complete',
     linkageDisplayName: 'Complete',
-    rows: GOLDEN_ROWS_N6,
-    leafOrder: [2, 3, 0, 1, 4, 5],
-    documentIds: CORPUS_SIX.map((document) => document.id),
+    rows: GOLDEN_ROWS,
+    leafOrder: SWAPPED_LEAF_ORDER,
+    documentIds: CORPUS_TWENTY.map((document) => document.id),
     evaluation: clusteringEvaluation(0.5, 0.9, 0.1),
   },
   {
     linkageId: 'average',
     linkageDisplayName: 'Average',
-    rows: GOLDEN_ROWS_N6,
-    leafOrder: [0, 1, 2, 3, 4, 5],
-    documentIds: CORPUS_SIX.map((document) => document.id),
+    rows: GOLDEN_ROWS,
+    leafOrder: IDENTITY_LEAF_ORDER,
+    documentIds: CORPUS_TWENTY.map((document) => document.id),
     evaluation: clusteringEvaluation(0.4, 0.3, 0.2),
   },
   {
     linkageId: 'ward',
     linkageDisplayName: 'Ward',
-    rows: GOLDEN_ROWS_N6,
-    leafOrder: [0, 1, 2, 3, 4, 5],
-    documentIds: CORPUS_SIX.map((document) => document.id),
+    rows: GOLDEN_ROWS,
+    leafOrder: IDENTITY_LEAF_ORDER,
+    documentIds: CORPUS_TWENTY.map((document) => document.id),
     evaluation: clusteringEvaluation(0.3, 0.1, null),
   },
 ];
@@ -341,16 +365,37 @@ interface RegionMeasurement {
 /** No `dom` lib under this project's Node-typed e2e tsconfig
  * (`tsconfig.node.json`), so `document` is read through `globalThis`
  * rather than referenced by its own global name — the same technique
- * `hit-areas.spec.ts`'s own `FlexGrowWindow` access already uses. */
+ * `hit-areas.spec.ts`'s own `FlexGrowWindow` access already uses.
+ *
+ * `document.body.scrollHeight`, not `document.documentElement.scrollHeight`:
+ * verified live against the clustering screen, the two disagree by exactly
+ * one sr-only accessibility table's own painted extent (`Dendrogram`'s own
+ * per-merge table, `position: absolute` with no positioned ancestor to
+ * clip it) — `documentElement.scrollHeight` counts that off-screen, never-
+ * visible box; `body.scrollHeight` does not, matching what a sighted
+ * visitor's own scrollbar actually reflects. Every real, visible layout
+ * shift this guard cares about still grows the body's own normal-flow
+ * content, so this substitution loses no real detection. */
 async function measure(page: Page, region: Locator): Promise<RegionMeasurement> {
+  // Every measurement waits for the page's own web fonts first: text
+  // still on a fallback font can wrap at a different point than it does
+  // once Geist/Geist Mono finish loading, which would otherwise make a
+  // text-wrap-sensitive region (a real caveat sentence, an invisible
+  // sizer built from one) measure differently run to run for a reason
+  // that has nothing to do with the skeleton itself.
+  await page.evaluate(
+    () =>
+      (globalThis as unknown as { document: { fonts: { ready: Promise<unknown> } } }).document.fonts
+        .ready,
+  );
   const box = await region.boundingBox();
   if (!box) {
     throw new Error('region has no bounding box — is it visible?');
   }
   const scrollHeight = await page.evaluate(
     () =>
-      (globalThis as unknown as { document: { documentElement: { scrollHeight: number } } })
-        .document.documentElement.scrollHeight,
+      (globalThis as unknown as { document: { body: { scrollHeight: number } } }).document.body
+        .scrollHeight,
   );
   return { width: box.width, height: box.height, scrollHeight };
 }
@@ -550,7 +595,7 @@ for (const viewport of VIEWPORTS) {
 
     test('clustering: the page region matches its loaded box', async ({ page }) => {
       await page.route('**/api/v1/corpus', async (route) => {
-        await route.fulfill({ json: CORPUS_SIX });
+        await route.fulfill({ json: CORPUS_TWENTY });
       });
       const clustering = await holdApi(page, [
         { pattern: '**/api/v1/clustering', json: CLUSTERING_RESPONSE },
@@ -567,26 +612,25 @@ for (const viewport of VIEWPORTS) {
       await expectLoadingSentencesHidden(page, LOADING_SENTENCES);
       const loaded = await measure(page, region);
 
-      // A larger, justified tolerance, wider at the narrow viewport, and
-      // wider still against the page's own `scrollHeight` than against
-      // this region's own box:
-      // - The metrics table's own explanatory line swaps, once the four
-      //   canonical linkages resolve without a cophenetic tie, from the
-      //   skeleton's static fallback ("Los líderes...") to the sample-size
-      //   caveat — reserved by an invisible sizer built from this page's
-      //   own known representation and a placeholder count (never the real
-      //   count, unknowable before the response resolves), which only
-      //   approximates the real sentence's own wrapped height.
-      // - At a small, `MIN_HEIGHT`-clamped leaf count (this suite's own
-      //   fixture), the real `Dendrogram`'s own D3-drawn leaf labels can
-      //   paint past its card's own declared `height` without growing that
-      //   card's own box — real, pre-existing chart-rendering behavior
-      //   this skeleton's flat placeholder block cannot reproduce, and out
-      //   of this guard's own scope to change. That painted-only overflow
-      //   still counts toward the page's `scrollHeight`, so four stacked
-      //   cards below `lg` compound it far more than this region's own
-      //   `getBoundingClientRect` ever reflects.
-      assertSameBox(skeleton, loaded, viewport.width >= 1024 ? 180 : 350);
+      // A small, localized, justified tolerance — every other cause this
+      // finding's own audit named is now fixed exactly (the control bar,
+      // the metrics table's real secondary-column count and its header
+      // row's own real wrap point, the caveat, and the dendrogram cards,
+      // all verified equal to the pixel against a real 20-leaf fixture:
+      // 1440x900 region 1778→1787, 390x844 region 3424→3450). What is left
+      // is two per-row behaviors this skeleton cannot predict without the
+      // response it is standing in for: which row(s), if any,
+      // `ClusteringMetricsTableBody` marks with a second, eyebrow line
+      // ("Árbol"/"Partición" — depends on which linkage's own cophenetic
+      // and silhouette actually lead), and whether a `null`
+      // `daviesBouldin` renders "no definido" (longer than a formatted
+      // number) in a cell narrow enough to wrap it. Reserving the taller,
+      // "every row is a leader" shape for all four rows measurably
+      // overshoots instead (1440x900 region 1844 vs 1787, 390x844 region
+      // 3490 vs 3450) — worse than reserving none. At most one such row's
+      // own extra line explains the remainder: 9px at 1440x900, 26px at
+      // 390x844.
+      assertSameBox(skeleton, loaded, viewport.width >= 1024 ? 12 : 28);
     });
 
     test('benchmarks: the page region matches its loaded box', async ({ page }) => {
