@@ -25,7 +25,10 @@
 # automatically via the image's PLAYWRIGHT_BROWSERS_PATH — no extra install
 # step, no override.
 #
-# Usage: scripts/e2e-in-docker.sh
+# Usage: scripts/e2e-in-docker.sh [playwright test args...]
+# Any argument is forwarded verbatim to `playwright test` (e.g. a spec path,
+# for a focused run), the same way `npm run e2e -- <args>` already forwards
+# its own trailing args to the script it wraps.
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -73,7 +76,7 @@ if [ "$installed" != "$PLAYWRIGHT_VERSION" ]; then
   exit 1
 fi
 
-npm run e2e
+npm run e2e -- "$@"
 INNER
 )"
 
@@ -92,4 +95,4 @@ docker run --rm \
   -v "${VOLUME}:/workspace/node_modules" \
   -w /workspace \
   "${IMAGE}" \
-  sh -c "${INNER_SCRIPT}"
+  sh -c "${INNER_SCRIPT}" -- "$@"
