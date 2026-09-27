@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { render, screen } from '@testing-library/react';
+import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -161,12 +161,46 @@ describe('CorpusListPanel', () => {
   });
 
   describe('the article list states', () => {
-    it('shows a loading status before the corpus resolves', () => {
+    it('hides the loading sentence from sighted users but keeps it for screen readers, showing row skeletons instead', () => {
       vi.spyOn(corpusApi, 'fetchCorpus').mockReturnValue(new Promise(() => {}));
 
       renderPanel();
 
-      expect(screen.getByRole('status')).toHaveTextContent('Cargando el corpus…');
+      const status = screen.getByRole('status');
+      expect(status).toHaveTextContent('Cargando el corpus…');
+      expect(status.className).toContain('sr-only');
+
+      const skeleton = screen.getByTestId('corpus-list-skeleton');
+      expect(skeleton.querySelectorAll('li')).toHaveLength(8);
+      expect(within(skeleton).queryAllByRole('checkbox')).toHaveLength(0);
+      expect(within(skeleton).queryAllByRole('button')).toHaveLength(0);
+      for (const block of skeleton.querySelectorAll('[data-slot="skeleton"]')) {
+        expect(block).toHaveAttribute('aria-hidden', 'true');
+      }
+    });
+
+    it('makes its own scroll region keyboard-reachable while it holds no focusable row, unlike once real rows load', async () => {
+      vi.spyOn(corpusApi, 'fetchCorpus').mockReturnValue(new Promise(() => {}));
+
+      renderPanel();
+
+      const region = screen.getByTestId('corpus-list-skeleton').parentElement;
+      expect(region).toHaveAttribute('tabindex', '0');
+      expect(region).toHaveAttribute('role', 'region');
+      expect(region).toHaveAccessibleName('Cargando el corpus…');
+    });
+
+    it('drops the scroll region role once real, focusable rows load', async () => {
+      renderPanel();
+
+      const scrollRegion = (
+        await screen.findByRole('checkbox', {
+          name: 'A survey of string similarity',
+        })
+      ).closest('.overflow-y-auto');
+
+      expect(scrollRegion).not.toHaveAttribute('role');
+      expect(scrollRegion).not.toHaveAttribute('tabindex');
     });
 
     it('shows an alert with the exact mapped error message when the corpus fails to load', async () => {
@@ -236,14 +270,15 @@ describe('CorpusListPanel', () => {
       await expect.poll(() => row.textContent).toContain('Revisar coincidencia');
     });
 
-    it('shows a loading value, never a claimed match, while the status is still pending', () => {
+    it('shows a placeholder value, never a claimed match, while the status is still pending', () => {
       vi.spyOn(embeddingsApi, 'fetchEmbeddingsStatus').mockReturnValue(new Promise(() => {}));
 
       renderPanel();
 
       const row = screen.getByRole('button', { name: 'Ver el estado de los embeddings' });
-      expect(row).toHaveTextContent('Cargando…');
       expect(row).not.toHaveTextContent('Coincide con el corpus');
+      expect(row).not.toHaveTextContent('Cargando');
+      expect(row.querySelector('[data-slot="skeleton"]')).not.toBeNull();
     });
 
     it('the pure state helper never claims a match for absent data — an honest "unknown", not the corpus-matches default', () => {

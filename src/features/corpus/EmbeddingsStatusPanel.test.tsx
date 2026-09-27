@@ -38,12 +38,17 @@ beforeEach(() => {
 });
 
 describe('EmbeddingsStatusPanel', () => {
-  it('shows a loading state before the query resolves', () => {
+  it('shows a hidden loading status and two family skeleton sections before the query resolves', () => {
     vi.spyOn(embeddingsApi, 'fetchEmbeddingsStatus').mockReturnValue(new Promise(() => {}));
 
     renderWithProviders(<EmbeddingsStatusPanel />);
 
-    expect(screen.getByRole('status')).toBeInTheDocument();
+    const status = screen.getByRole('status');
+    expect(status.className).toContain('sr-only');
+
+    const skeleton = screen.getByTestId('embeddings-status-skeleton');
+    expect(skeleton.children).toHaveLength(2);
+    expect(skeleton.querySelectorAll('[data-slot="skeleton"]').length).toBeGreaterThan(0);
   });
 
   it('renders both embedding families with their provider, model, dimension and device/mode', async () => {

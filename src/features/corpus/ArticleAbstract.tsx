@@ -7,6 +7,7 @@ import {
   type GetCorpusDocumentResponse,
 } from '../../infrastructure/api/corpus';
 import { Button } from '../../shared/components/ui/button';
+import { Skeleton } from '../../shared/components/ui/skeleton';
 
 export const corpusDocumentQueryKey = (id: string) => ['corpus', 'document', id] as const;
 
@@ -37,11 +38,18 @@ export function ArticleAbstract({ id, onClose }: ArticleAbstractProps) {
             {t('corpus.eyebrow')}
           </p>
           <h2 className="text-title font-semibold text-ink">{data?.title ?? id}</h2>
-          {data && (
+          {data ? (
             <>
               <p className="font-mono text-mono text-ink-muted">{data.id}</p>
               <p className="text-body text-ink-muted">{data.authors.join(', ')}</p>
             </>
+          ) : (
+            isPending && (
+              <>
+                <Skeleton className="h-3 w-20" />
+                <Skeleton className="h-3.5 w-40" />
+              </>
+            )
           )}
         </div>
         <Button variant="secondary" aria-label={t('corpus.detail.closeLabel')} onClick={onClose}>
@@ -50,9 +58,17 @@ export function ArticleAbstract({ id, onClose }: ArticleAbstractProps) {
       </header>
 
       {isPending && (
-        <p role="status" className="text-body text-ink-secondary">
-          {t('corpus.detail.loading')}
-        </p>
+        <>
+          <p role="status" className="sr-only">
+            {t('corpus.detail.loading')}
+          </p>
+          <div className="flex flex-col gap-2">
+            <Skeleton className="h-3.5 w-full" />
+            <Skeleton className="h-3.5 w-full" />
+            <Skeleton className="h-3.5 w-5/6" />
+            <Skeleton className="h-3.5 w-2/3" />
+          </div>
+        </>
       )}
       {isError && (
         <div role="alert" className="flex flex-col gap-1">

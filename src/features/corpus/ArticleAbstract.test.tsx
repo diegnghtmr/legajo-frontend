@@ -41,12 +41,18 @@ describe('ArticleAbstract', () => {
     expect(screen.queryByText(/·/)).not.toBeInTheDocument();
   });
 
-  it('shows a loading status before the document resolves', () => {
+  it('shows a hidden loading status and paragraph skeletons before the document resolves', () => {
     vi.spyOn(corpusApi, 'fetchCorpusDocument').mockReturnValue(new Promise(() => {}));
 
     renderAbstract();
 
-    expect(screen.getByRole('status')).toBeInTheDocument();
+    const status = screen.getByRole('status');
+    expect(status.className).toContain('sr-only');
+    const blocks = document.querySelectorAll('[data-slot="skeleton"]');
+    expect(blocks.length).toBeGreaterThan(0);
+    for (const block of blocks) {
+      expect(block).toHaveAttribute('aria-hidden', 'true');
+    }
   });
 
   it('shows an alert with the exact mapped error message when the document fails to load', async () => {

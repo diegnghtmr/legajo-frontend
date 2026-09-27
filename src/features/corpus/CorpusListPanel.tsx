@@ -9,8 +9,13 @@ import {
   type EmbeddingsStatusResponse,
 } from '../../infrastructure/api/embeddings';
 import { Checkbox } from '../../shared/components/ui/checkbox';
+import { Skeleton } from '../../shared/components/ui/skeleton';
 import { cn } from '../../shared/lib/cn';
 import { useSelectionStore } from './selectionStore';
+
+/** Fills the rail's scroll region with a plausible page of rows, since the
+ * real row count is unknown before the corpus resolves. */
+const ARTICLE_LIST_SKELETON_ROW_COUNT = 8;
 
 export const CORPUS_LIST_QUERY_KEY = ['corpus', 'list'] as const;
 export const EMBEDDINGS_STATUS_QUERY_KEY = ['embeddings', 'status'] as const;
@@ -51,6 +56,33 @@ interface ArticleRowProps {
   selected: boolean;
   onToggle: (id: string) => void;
   onOpenAbstract: (id: string) => void;
+}
+
+/** Mirrors `ArticleRow`'s box exactly: checkbox square, two title bars and
+ * the mono id bar underneath, so the swap to real rows causes no shift. */
+function ArticleRowSkeleton() {
+  return (
+    <li className="rounded-md p-3">
+      <div className="flex items-start gap-3">
+        <Skeleton className="mt-1 size-4 shrink-0" />
+        <div className="flex min-w-0 flex-1 flex-col gap-1">
+          <Skeleton className="h-3.5 w-full" />
+          <Skeleton className="h-3.5 w-2/3" />
+          <Skeleton className="h-3 w-16" />
+        </div>
+      </div>
+    </li>
+  );
+}
+
+function ArticleListSkeleton() {
+  return (
+    <ul data-testid="corpus-list-skeleton" className="flex flex-col gap-1 p-2">
+      {Array.from({ length: ARTICLE_LIST_SKELETON_ROW_COUNT }, (_, index) => (
+        <ArticleRowSkeleton key={index} />
+      ))}
+    </ul>
+  );
 }
 
 function ArticleRow({ article, selected, onToggle, onOpenAbstract }: ArticleRowProps) {
@@ -132,12 +164,6 @@ export function CorpusListPanel({
   const selectedCount = selectedIds.length;
   const filtered = (data ?? []).filter((article) => matchesQuery(article, query));
 
-  const embeddingsValue = embeddingsQuery.isPending
-    ? t('corpus.rail.embeddings.loading')
-    : embeddingsQuery.isError
-      ? t('corpus.rail.embeddings.errorValue')
-      : t(`corpus.rail.embeddings.${embeddingsSummaryState(embeddingsQuery.data)}`);
-
   return (
     <div className={cn('flex flex-col', className)}>
       <div className="flex flex-col gap-3 border-b border-hairline p-4">
@@ -181,15 +207,36 @@ export function CorpusListPanel({
           <span className="text-label font-semibold text-ink-secondary">
             {t('corpus.rail.embeddings.label')}
           </span>
-          <span className="font-mono text-mono text-ink">{embeddingsValue}</span>
+          <span className="font-mono text-mono text-ink">
+            {embeddingsQuery.isPending ? (
+              <Skeleton className="inline-block h-3 w-20 align-middle" />
+            ) : embeddingsQuery.isError ? (
+              t('corpus.rail.embeddings.errorValue')
+            ) : (
+              t(`corpus.rail.embeddings.${embeddingsSummaryState(embeddingsQuery.data)}`)
+            )}
+          </span>
         </button>
       </div>
 
-      <div className="flex-1 overflow-y-auto">
+      <div
+        className="flex-1 overflow-y-auto"
+        // The skeleton rows below are `aria-hidden`, on purpose: this region
+        // briefly has no focusable descendant while loading, unlike once
+        // real, checkbox-bearing rows arrive. A region that scrolls needs
+        // keyboard access regardless of what is inside it, the same rule
+        // `ClusteringMetricsTable`'s own scroll viewport already follows.
+        role={isPending ? 'region' : undefined}
+        aria-label={isPending ? t('corpus.loading') : undefined}
+        tabIndex={isPending ? 0 : undefined}
+      >
         {isPending && (
-          <p role="status" className="p-4 text-body text-ink-secondary">
-            {t('corpus.loading')}
-          </p>
+          <>
+            <p role="status" className="sr-only">
+              {t('corpus.loading')}
+            </p>
+            <ArticleListSkeleton />
+          </>
         )}
         {isError && (
           <div role="alert" className="flex flex-col gap-1 p-4">
