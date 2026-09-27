@@ -392,54 +392,54 @@ export function BenchmarkCurveChart({
       )}
 
       {/*
-       * `Table`'s own base classes always include `w-full`, which
-       * `tailwind-merge` never treats as conflicting with `sr-only` (they
-       * sit in different utility groups), so plain `className="sr-only"`
-       * would leave `w-full` in the merged class list. `sr-only` correctly
-       * makes this table `position: absolute`, but with no `position:
-       * relative` ancestor its `width: 100%` then resolves against the
-       * viewport, not against this card -- silently widening the whole
-       * page. `w-px` shares `tailwind-merge`'s own "width" group with
-       * `w-full`, so adding it after `sr-only` drops `w-full` from the
-       * merge.
-       *
-       * `w-px` alone is still not enough (verified against a live render,
-       * same lesson `Dendrogram.tsx`'s own merge table already documents):
-       * with the default auto table layout, an explicit `width` is only a
-       * suggestion the browser overrides once a cell's *unbreakable*
-       * content is wider, and `sr-only` itself sets `white-space: nowrap`,
-       * making every cell's full text one such unbreakable run.
-       * `table-fixed` stops the table from growing past `width` to fit its
-       * content, and `whitespace-normal` lets that content wrap instead of
-       * forcing it, so together with `w-px` this table actually collapses
-       * to its narrowest single word instead of silently reverting to its
-       * full unwrapped content width.
+       * `sr-only` on the wrapping `<div>`, never on `Table`'s own `<table>`
+       * element: a table generates two boxes, an anonymous "table wrapper
+       * box" that takes `position`/`margin`, and the "table box" proper
+       * that takes `width`/`height`/`overflow` — so `sr-only`'s own
+       * `overflow: hidden` and 1px box would only ever clip the grid of
+       * rows/cells, never this table's own `<TableCaption>`, which is laid
+       * out as a sibling of the table box *inside* that unclipped wrapper
+       * box (verified against a live render: the caption still rendered at
+       * its full wrapped size, overlapping the next chart's own section
+       * heading below it — same table wrapper-box split
+       * `Dendrogram.tsx`'s own merge table already documents). A plain
+       * `<div>` has no such wrapper/table split, so `sr-only` clips its
+       * whole subtree — caption included — to a single 1x1px box regardless
+       * of the table's own layout algorithm, which is also why this no
+       * longer needs `Table`'s own `w-px`/`table-fixed`/`whitespace-normal`
+       * (the div's own fixed size and `overflow: hidden` already keep this
+       * off the page's scrollable width no matter how wide the table would
+       * otherwise render) or `wrap`'s default scroll wrapper (`wrap={false}`
+       * skips it, since this div is already the only wrapper this table
+       * needs).
        */}
-      <Table aria-label={dataTableCaption} className="sr-only w-px table-fixed whitespace-normal">
-        <TableCaption>{dataTableCaption}</TableCaption>
-        <TableHeader>
-          <TableRow>
-            <TableHead>{t('benchmarks.curves.dataTableSize')}</TableHead>
-            {series.map((entry) => (
-              <TableHead key={entry.family}>{entry.family}</TableHead>
-            ))}
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {chartData.map((row) => (
-            <TableRow key={row.size}>
-              <TableCell>{row.size}</TableCell>
+      <div className="sr-only">
+        <Table aria-label={dataTableCaption} wrap={false}>
+          <TableCaption>{dataTableCaption}</TableCaption>
+          <TableHeader>
+            <TableRow>
+              <TableHead>{t('benchmarks.curves.dataTableSize')}</TableHead>
               {series.map((entry) => (
-                <TableCell key={entry.family}>
-                  {row[entry.family] === undefined
-                    ? t('benchmarks.curves.dataTableMissingValue')
-                    : formatDuration(row[entry.family]!)}
-                </TableCell>
+                <TableHead key={entry.family}>{entry.family}</TableHead>
               ))}
             </TableRow>
-          ))}
-        </TableBody>
-      </Table>
+          </TableHeader>
+          <TableBody>
+            {chartData.map((row) => (
+              <TableRow key={row.size}>
+                <TableCell>{row.size}</TableCell>
+                {series.map((entry) => (
+                  <TableCell key={entry.family}>
+                    {row[entry.family] === undefined
+                      ? t('benchmarks.curves.dataTableMissingValue')
+                      : formatDuration(row[entry.family]!)}
+                  </TableCell>
+                ))}
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </div>
     </Panel>
   );
 }

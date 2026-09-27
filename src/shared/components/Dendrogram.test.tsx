@@ -166,15 +166,19 @@ describe('Dendrogram', () => {
     expect(screen.queryByText(/Números de clúster/)).not.toBeInTheDocument();
   });
 
-  it('makes the sr-only merge table collapse instead of growing to its content width', () => {
+  it('wraps the merge table in a plain sr-only div, never `sr-only` on the table element itself', () => {
     // jsdom performs no real layout, so this cannot assert an actual
-    // scrollWidth. The CSS contract that keeps the visually-hidden table
-    // from widening the page's own scrollable area in a real browser is
-    // `table-fixed` (stop growing to fit content) *and* `whitespace-normal`
-    // (override `sr-only`'s own `nowrap`, which otherwise still lets each
-    // cell's full text count as one unbreakable run even under
-    // `table-fixed` — verified against a live render); this asserts both
-    // classes are present together, since either alone left it overflowing.
+    // clipped/visible pixel size (`e2e/sr-only-caption-clip.spec.ts` does,
+    // against a real browser). What jsdom CAN pin is the DOM shape the fix
+    // depends on: a table generates two boxes — an anonymous "table wrapper
+    // box" that takes `position`/`margin`, and the "table box" proper that
+    // takes `width`/`height`/`overflow` — so `sr-only` directly on a
+    // `<table>` clips only its grid of rows/cells, never its own
+    // `<caption>`, which sits in that unclipped wrapper box (verified
+    // against a live render: the caption escaped at its own full wrapped
+    // size). A plain `<div>` has no such split, so wrapping the whole table
+    // — caption included — in `sr-only` there clips everything to one box
+    // regardless of the table's own layout.
     const { container } = render(
       <Dendrogram
         rows={ROWS}
@@ -184,9 +188,12 @@ describe('Dendrogram', () => {
       />,
     );
 
-    const table = container.querySelector('table.sr-only');
-    expect(table).toHaveClass('table-fixed');
-    expect(table).toHaveClass('whitespace-normal');
+    expect(container.querySelector('table.sr-only')).not.toBeInTheDocument();
+    const wrapper = container.querySelector('div.sr-only');
+    expect(wrapper).toBeInTheDocument();
+    const table = wrapper?.querySelector('table');
+    expect(table).toBeInTheDocument();
+    expect(table?.querySelector('caption')).toBeInTheDocument();
   });
 
   it('renders no cluster marker for a leaf whose cut label is undefined, while other leaves still render one', () => {

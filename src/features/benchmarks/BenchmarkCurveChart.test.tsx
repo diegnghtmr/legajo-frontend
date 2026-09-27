@@ -116,18 +116,36 @@ describe('BenchmarkCurveChart', () => {
     renderChart();
 
     const dataTable = screen.getByRole('table', { name: 'Valores medidos: pares clásicos' });
-    expect(dataTable.className).toContain('sr-only');
     expect(within(dataTable).getByText('7.9 µs')).toBeInTheDocument();
     expect(within(dataTable).getByText('29.6 µs')).toBeInTheDocument();
     expect(within(dataTable).getByText('4.5 µs')).toBeInTheDocument();
     expect(within(dataTable).getByText('20.3 µs')).toBeInTheDocument();
   });
 
-  it('never lets the shared Table primitive\'s own "w-full" survive on the sr-only data table (it would resolve against the viewport once absolutely positioned, widening the whole page)', () => {
+  it('wraps the sr-only data table in a plain div, never `sr-only` on the table element itself', () => {
+    // A table generates two boxes — an anonymous "table wrapper box" that
+    // takes `position`/`margin`, and the "table box" proper that takes
+    // `width`/`height`/`overflow` — so `sr-only` directly on a `<table>`
+    // clips only its grid of rows/cells, never its own `<TableCaption>`,
+    // which sits in that unclipped wrapper box (verified against a live
+    // render: the caption escaped at its own full wrapped size). Wrapping
+    // the whole table in a plain `sr-only` div instead clips everything —
+    // caption included — leaves the table itself an ordinary static,
+    // in-flow element, and needs none of the previous `w-px`/`table-fixed`/
+    // `whitespace-normal` hacks: this table's own `w-full` now resolves
+    // against that div's own fixed 1px width (never the viewport, which is
+    // what `w-full` resolved against when `sr-only` made the table itself
+    // `position: absolute` with no `position: relative` ancestor).
     renderChart();
 
     const dataTable = screen.getByRole('table', { name: 'Valores medidos: pares clásicos' });
-    expect(dataTable.className).not.toMatch(/(?:^|\s)w-full(?:\s|$)/);
+    expect(dataTable.className).not.toMatch(/sr-only/);
+    const wrapper = dataTable.closest('.sr-only');
+    expect(wrapper?.tagName).toBe('DIV');
+    // `wrap={false}` on this `Table`: its own default scroll wrapper would
+    // otherwise sit between this div and the table, which is unnecessary
+    // once the outer div already does the only clipping this table needs.
+    expect(wrapper).toBe(dataTable.parentElement);
   });
 
   it('renders without throwing on the log-log scale', () => {
