@@ -244,40 +244,45 @@ export function Dendrogram({
       )}
 
       {/*
-       * `table-fixed` alone is not enough: an auto-layout table ignores an
-       * explicit CSS width when its content's min-content width is wider,
-       * so `table-layout: fixed` is required to stop the browser from
-       * growing the table to fit its content. But `sr-only` itself sets
-       * `white-space: nowrap`, and a fixed-layout table still sizes each
-       * column to its widest *unbreakable* run of text (verified against a
-       * live render) — with `nowrap`, every cell's full text counts as one
-       * such run, defeating `table-fixed` on its own. `whitespace-normal`
-       * lets that text wrap instead, so the table collapses to its
-       * narrowest single word rather than its widest full cell, keeping the
-       * merge table off the page's own scrollable width while it stays
-       * fully readable to assistive tech regardless of its rendered size.
+       * `sr-only` on the wrapping `<div>`, never on the `<table>` element
+       * itself: a table generates two boxes, an anonymous "table wrapper
+       * box" that takes `position`/`margin`, and the "table box" proper
+       * that takes `width`/`height`/`overflow` — so `sr-only`'s own
+       * `overflow: hidden` and 1px box would only ever clip the grid of
+       * rows/cells, never this table's own `<caption>`, which is laid out
+       * as a sibling of the table box *inside* that unclipped wrapper box
+       * (verified against a live render: the caption still rendered at its
+       * full wrapped size, overlapping the chart above it). A plain `<div>`
+       * has no such wrapper/table split, so `sr-only` clips its whole
+       * subtree — caption included — to a single 1x1px box regardless of
+       * the table's own layout algorithm, which is also why this no longer
+       * needs `table-fixed`/`whitespace-normal` (the div's own fixed size
+       * and `overflow: hidden` already keep this off the page's scrollable
+       * width no matter how wide the table would otherwise render).
        */}
-      <table className="sr-only table-fixed whitespace-normal">
-        <caption>{t('clustering.dendrogram.mergeTableCaption', { linkage: ariaLabel })}</caption>
-        <thead>
-          <tr>
-            <th scope="col">{t('clustering.dendrogram.mergeTableStep')}</th>
-            <th scope="col">{t('clustering.dendrogram.mergeTableLeft')}</th>
-            <th scope="col">{t('clustering.dendrogram.mergeTableRight')}</th>
-            <th scope="col">{t('clustering.dendrogram.mergeTableDistance')}</th>
-          </tr>
-        </thead>
-        <tbody>
-          {rows.map((row, index) => (
-            <tr key={index}>
-              <td>{index + 1}</td>
-              <td>{memberLabel(row.idx1)}</td>
-              <td>{memberLabel(row.idx2)}</td>
-              <td>{row.mergeDistance}</td>
+      <div className="sr-only">
+        <table>
+          <caption>{t('clustering.dendrogram.mergeTableCaption', { linkage: ariaLabel })}</caption>
+          <thead>
+            <tr>
+              <th scope="col">{t('clustering.dendrogram.mergeTableStep')}</th>
+              <th scope="col">{t('clustering.dendrogram.mergeTableLeft')}</th>
+              <th scope="col">{t('clustering.dendrogram.mergeTableRight')}</th>
+              <th scope="col">{t('clustering.dendrogram.mergeTableDistance')}</th>
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {rows.map((row, index) => (
+              <tr key={index}>
+                <td>{index + 1}</td>
+                <td>{memberLabel(row.idx1)}</td>
+                <td>{memberLabel(row.idx2)}</td>
+                <td>{row.mergeDistance}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
     </figure>
   );
 }
