@@ -8,6 +8,7 @@ import {
 } from '../../infrastructure/api/embeddings';
 import { cn } from '../../shared/lib/cn';
 import { Panel, PanelHeader } from '../../shared/components/Panel';
+import { Skeleton } from '../../shared/components/ui/skeleton';
 import { shortenHash } from './shortenHash';
 
 export const EMBEDDINGS_STATUS_QUERY_KEY = ['embeddings', 'status'] as const;
@@ -147,6 +148,46 @@ function FamilySection({
   );
 }
 
+/** One label/value bar, mirroring `Field`'s box so the swap to real data
+ * causes no shift. */
+function FieldSkeleton({ className }: { className?: string }) {
+  return (
+    <div className={className}>
+      <Skeleton className="h-3 w-16" />
+      <Skeleton className="mt-1 h-3.5 w-28" />
+    </div>
+  );
+}
+
+/** Mirrors one `FamilySection`: a heading bar over the same `dl` 2-column
+ * grid, with the hash and match fields spanning both columns like their
+ * real counterparts. */
+function FamilySectionSkeleton() {
+  return (
+    <div className="flex flex-col gap-2">
+      <Skeleton className="h-3 w-32" />
+      <div className="grid grid-cols-1 gap-x-6 gap-y-2 sm:grid-cols-2">
+        <FieldSkeleton />
+        <FieldSkeleton />
+        <FieldSkeleton />
+        <FieldSkeleton />
+        <FieldSkeleton className="sm:col-span-2" />
+        <FieldSkeleton className="sm:col-span-2" />
+      </div>
+    </div>
+  );
+}
+
+/** Both embedding families, before either has resolved. */
+function EmbeddingsStatusSkeleton() {
+  return (
+    <div data-testid="embeddings-status-skeleton" className="flex flex-col gap-6">
+      <FamilySectionSkeleton />
+      <FamilySectionSkeleton />
+    </div>
+  );
+}
+
 function EmbeddingsStatusContent({ data }: { data: EmbeddingsStatusResponse }) {
   const { t } = useTranslation();
   const modeLabel =
@@ -228,9 +269,12 @@ export function EmbeddingsStatusPanel() {
         title={t('corpus.embeddingsStatus.title')}
       />
       {isPending && (
-        <p role="status" className="text-body text-ink-secondary">
-          {t('corpus.embeddingsStatus.loading')}
-        </p>
+        <>
+          <p role="status" className="sr-only">
+            {t('corpus.embeddingsStatus.loading')}
+          </p>
+          <EmbeddingsStatusSkeleton />
+        </>
       )}
       {isError && (
         <div role="alert" className="flex flex-col gap-1">
