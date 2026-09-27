@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { render, screen, within } from '@testing-library/react';
+import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -166,8 +166,11 @@ describe('CorpusListPanel', () => {
 
       renderPanel();
 
-      const status = screen.getByRole('status');
-      expect(status).toHaveTextContent('Cargando el corpus…');
+      // Scoped by its own text, not `getByRole('status')` alone: the
+      // embeddings summary row has its own independent status while its
+      // own fetch is still pending too.
+      const status = screen.getByText('Cargando el corpus…');
+      expect(status).toHaveAttribute('role', 'status');
       expect(status.className).toContain('sr-only');
 
       const skeleton = screen.getByTestId('corpus-list-skeleton');
@@ -283,6 +286,26 @@ describe('CorpusListPanel', () => {
 
     it('the pure state helper never claims a match for absent data — an honest "unknown", not the corpus-matches default', () => {
       expect(embeddingsSummaryState(undefined)).toBe('unknown');
+    });
+
+    it('announces a hidden loading sentence for the inline embeddings value while it is still pending', async () => {
+      let resolveStatus: (value: typeof EMBEDDINGS_STATUS) => void = () => {};
+      vi.spyOn(embeddingsApi, 'fetchEmbeddingsStatus').mockReturnValue(
+        new Promise((resolve) => {
+          resolveStatus = resolve;
+        }),
+      );
+
+      renderPanel();
+
+      const status = screen.getByText(es.corpus.rail.embeddings.loading);
+      expect(status).toHaveAttribute('role', 'status');
+      expect(status.className).toContain('sr-only');
+
+      resolveStatus(EMBEDDINGS_STATUS);
+      await waitFor(() =>
+        expect(screen.queryByText(es.corpus.rail.embeddings.loading)).not.toBeInTheDocument(),
+      );
     });
 
     it('contains an embeddings-status failure to its own summary — the article list still renders, without raising an alert', async () => {

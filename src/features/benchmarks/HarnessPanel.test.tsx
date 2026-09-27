@@ -1,7 +1,7 @@
 import { render, screen } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 
-import { HarnessPanel } from './HarnessPanel';
+import { HarnessPanel, HarnessPanelSkeleton } from './HarnessPanel';
 
 const HARNESS = {
   cpuModel: '12th Gen Intel(R) Core(TM) i9-12900H',
@@ -27,5 +27,23 @@ describe('HarnessPanel', () => {
   it('renders the harness title', () => {
     render(<HarnessPanel harness={HARNESS} />);
     expect(screen.getByRole('heading', { name: /Máquina de referencia/ })).toBeInTheDocument();
+  });
+});
+
+describe('HarnessPanelSkeleton', () => {
+  it('shows every field label as real text, only the values as placeholder bars', () => {
+    render(<HarnessPanelSkeleton />);
+
+    for (const label of [
+      'CPU',
+      'Núcleos lógicos',
+      'RAM',
+      'JDK',
+      'Sistema operativo',
+      'Medido el',
+    ]) {
+      expect(screen.getByText(label)).toBeInTheDocument();
+    }
+    expect(document.querySelectorAll('[data-slot="skeleton"]')).toHaveLength(6);
   });
 });

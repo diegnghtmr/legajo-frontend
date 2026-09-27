@@ -148,32 +148,63 @@ function FamilySection({
   );
 }
 
-/** One label/value bar, mirroring `Field`'s box so the swap to real data
- * causes no shift. */
-function FieldSkeleton({ className }: { className?: string }) {
+/** One label/value bar: the real label immediately (every field's own
+ * label is fixed chrome, never response data), only the value stays a
+ * placeholder bar — mirroring `Field`'s own box so the swap to real data
+ * causes no shift. The bar's own height matches a real single mono value
+ * line's own line-height at this token stack (measurably taller than the
+ * font's nominal size), not the font size alone: every field here,
+ * including the model id (its real values never wrap at this panel's own
+ * column width, at any width this app supports), is exactly one such line. */
+function FieldSkeleton({ label, className }: { label: string; className?: string }) {
   return (
     <div className={className}>
-      <Skeleton className="h-3 w-16" />
-      <Skeleton className="mt-1 h-3.5 w-28" />
+      <dt className="text-eyebrow font-semibold uppercase tracking-wide text-ink-secondary">
+        {label}
+      </dt>
+      <dd>
+        <Skeleton className="h-4.5 w-28" />
+      </dd>
     </div>
   );
 }
 
-/** Mirrors one `FamilySection`: a heading bar over the same `dl` 2-column
- * grid, with the hash and match fields spanning both columns like their
- * real counterparts. */
-function FamilySectionSkeleton() {
+export interface FamilySectionSkeletonProps {
+  /** Both the section's own real heading text and the key for its fixed
+   * extra field's own label (`deviceLabel` for `embedding-local`,
+   * `modeLabel` for `embedding-api`) — the family id itself is a route
+   * constant, never response data. */
+  familyId: 'embedding-local' | 'embedding-api';
+}
+
+/** Mirrors one `FamilySection`: the real heading (dot + family id, exactly
+ * like the loaded section) over the same `dl` 2-column grid, every label
+ * shown as real text immediately, with the hash and match fields spanning
+ * both columns like their real counterparts. */
+function FamilySectionSkeleton({ familyId }: FamilySectionSkeletonProps) {
+  const { t } = useTranslation();
+  const extraFieldLabel =
+    familyId === 'embedding-local'
+      ? t('corpus.embeddingsStatus.deviceLabel')
+      : t('corpus.embeddingsStatus.modeLabel');
+
   return (
     <div className="flex flex-col gap-2">
-      <Skeleton className="h-3 w-32" />
-      <div className="grid grid-cols-1 gap-x-6 gap-y-2 sm:grid-cols-2">
-        <FieldSkeleton />
-        <FieldSkeleton />
-        <FieldSkeleton />
-        <FieldSkeleton />
-        <FieldSkeleton className="sm:col-span-2" />
-        <FieldSkeleton className="sm:col-span-2" />
-      </div>
+      <h3 className="flex items-center gap-2 text-eyebrow font-semibold uppercase tracking-wide text-ink-secondary">
+        <span aria-hidden="true" className="inline-block h-[6px] w-[6px] rounded-full bg-ai" />
+        <span className="font-mono text-mono normal-case tracking-normal">{familyId}</span>
+      </h3>
+      <dl className="grid grid-cols-1 gap-x-6 gap-y-2 sm:grid-cols-2">
+        <FieldSkeleton label={t('corpus.embeddingsStatus.providerLabel')} />
+        <FieldSkeleton label={t('corpus.embeddingsStatus.modelLabel')} />
+        <FieldSkeleton label={t('corpus.embeddingsStatus.dimensionLabel')} />
+        <FieldSkeleton label={extraFieldLabel} />
+        <FieldSkeleton
+          label={t('corpus.embeddingsStatus.corpusSha256Label')}
+          className="sm:col-span-2"
+        />
+        <FieldSkeleton label={t('corpus.embeddingsStatus.matchLabel')} className="sm:col-span-2" />
+      </dl>
     </div>
   );
 }
@@ -182,8 +213,8 @@ function FamilySectionSkeleton() {
 function EmbeddingsStatusSkeleton() {
   return (
     <div data-testid="embeddings-status-skeleton" className="flex flex-col gap-6">
-      <FamilySectionSkeleton />
-      <FamilySectionSkeleton />
+      <FamilySectionSkeleton familyId="embedding-local" />
+      <FamilySectionSkeleton familyId="embedding-api" />
     </div>
   );
 }
@@ -263,7 +294,7 @@ export function EmbeddingsStatusPanel() {
   });
 
   return (
-    <Panel>
+    <Panel data-testid="embeddings-status-panel">
       <PanelHeader
         eyebrow={t('corpus.embeddingsStatus.eyebrow')}
         title={t('corpus.embeddingsStatus.title')}

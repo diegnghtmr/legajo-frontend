@@ -52,11 +52,15 @@ export function DendrogramCardSkeleton({ linkageId, height }: DendrogramCardSkel
     <div data-testid={`linkage-dendrogram-skeleton-${linkageId}`}>
       <Panel>
         <div className="mb-3 flex flex-col gap-1">
-          <Skeleton className="h-5 w-32" />
+          <Skeleton className="h-6 w-32" />
         </div>
+        {/* `mt-3`: the real card's own chart wrapper (`DendrogramCard`'s
+         * `<div ref className="mt-3">`) carries this same margin below
+         * `PanelHeader` — left out here, the chart sat 12px closer to the
+         * title than the real one does. */}
         <Skeleton
           data-testid="dendrogram-skeleton-chart"
-          className="w-full rounded-md"
+          className="mt-3 w-full rounded-md"
           style={{ height }}
         />
       </Panel>

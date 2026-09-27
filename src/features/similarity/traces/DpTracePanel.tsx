@@ -17,7 +17,11 @@ import { formatTraceNumber } from '../formatters';
 import { DP_OPERATION_LEGEND, type DpOperationKind } from './dpOperationLegend';
 import { FormulaCaption } from './FormulaCaption';
 
-const DP_FORMULAS: Record<'levenshtein' | 'needleman-wunsch', string> = {
+/** Exported so the trace body skeleton (`TraceBodySkeleton`) can render the
+ * exact same formula caption immediately — it needs no fetched data, only
+ * the already-known DP algorithm id, so showing it early causes no shift
+ * once the trace itself resolves. */
+export const DP_FORMULAS: Record<'levenshtein' | 'needleman-wunsch', string> = {
   levenshtein:
     'D_{i,j}=\\min\\begin{cases}D_{i-1,j}+1\\\\D_{i,j-1}+1\\\\D_{i-1,j-1}+[a_i\\neq b_j]\\end{cases}',
   'needleman-wunsch':

@@ -35,7 +35,7 @@ function ScaleSegmentedSkeleton() {
   return (
     <div className="inline-flex items-center gap-0.5 rounded-md border border-hairline bg-paper-sunken p-[3px]">
       {Array.from({ length: SCALE_OPTION_SKELETON_COUNT }, (_unused, index) => (
-        <Skeleton key={index} className="h-6 w-16 rounded-btn" />
+        <Skeleton key={index} className="h-8 w-16 rounded-btn" />
       ))}
     </div>
   );
@@ -80,7 +80,7 @@ export function BenchmarksPage() {
   );
 
   return (
-    <div className="flex flex-col gap-6">
+    <div data-testid="benchmarks-page" className="flex flex-col gap-6">
       <PanelHeader eyebrow={t('benchmarks.eyebrow')} title={t('benchmarks.title')} />
 
       {query.isPending && (
@@ -92,15 +92,30 @@ export function BenchmarksPage() {
           <ScaleSegmentedSkeleton />
           <BenchmarkCurveChartSkeleton
             title={t('benchmarks.curves.pairwiseTitle')}
-            seriesCount={PAIRWISE_CLASSIC_FAMILIES.length}
+            xAxisLabel={t('benchmarks.curves.xAxisLength')}
+            yAxisLabel={t('benchmarks.curves.yAxisLabel')}
+            slopeTableCaption={t('benchmarks.curves.slopeTableCaption', {
+              group: t('benchmarks.curves.pairwiseTitle'),
+            })}
+            families={PAIRWISE_CLASSIC_FAMILIES}
           />
           <BenchmarkCurveChartSkeleton
             title={t('benchmarks.curves.hacTitle')}
-            seriesCount={HAC_LINKAGE_FAMILIES.length}
+            xAxisLabel={t('benchmarks.curves.xAxisN')}
+            yAxisLabel={t('benchmarks.curves.yAxisLabel')}
+            slopeTableCaption={t('benchmarks.curves.slopeTableCaption', {
+              group: t('benchmarks.curves.hacTitle'),
+            })}
+            families={HAC_LINKAGE_FAMILIES}
           />
           <BenchmarkCurveChartSkeleton
             title={t('benchmarks.curves.internalMetricsTitle')}
-            seriesCount={INTERNAL_METRIC_FAMILIES.length}
+            xAxisLabel={t('benchmarks.curves.xAxisN')}
+            yAxisLabel={t('benchmarks.curves.yAxisLabel')}
+            slopeTableCaption={t('benchmarks.curves.slopeTableCaption', {
+              group: t('benchmarks.curves.internalMetricsTitle'),
+            })}
+            families={INTERNAL_METRIC_FAMILIES}
           />
           <EmbeddingTilesSkeleton />
           <SloSectionSkeleton />

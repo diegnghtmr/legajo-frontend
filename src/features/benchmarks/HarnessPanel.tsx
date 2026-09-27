@@ -5,12 +5,10 @@ import { Panel, PanelHeader } from '../../shared/components/Panel';
 import { Skeleton } from '../../shared/components/ui/skeleton';
 import { formatMeasuredAt, formatRamBytes } from './formatHarness';
 
-/** The harness's own 6 fixed fields (CPU, cores, RAM, JDK, OS, measured
- * at), mirrored one label/value pair at a time. */
-const HARNESS_FIELD_COUNT = 6;
-
 /** Mirrors `HarnessPanel`'s own header and `dl` grid, before the report
- * resolves. */
+ * resolves: every field's own label is fixed chrome (never response data),
+ * so it renders as real text immediately — only the six values themselves
+ * stay placeholder bars. */
 export function HarnessPanelSkeleton() {
   const { t } = useTranslation();
 
@@ -21,10 +19,17 @@ export function HarnessPanelSkeleton() {
         title={t('benchmarks.harness.title')}
       />
       <dl className="grid grid-cols-1 gap-x-6 gap-y-2 sm:grid-cols-2 md:grid-cols-3">
-        {Array.from({ length: HARNESS_FIELD_COUNT }, (_unused, index) => (
-          <div key={index}>
-            <dt>
-              <Skeleton className="h-3 w-16" />
+        {[
+          t('benchmarks.harness.cpuModelLabel'),
+          t('benchmarks.harness.logicalCoresLabel'),
+          t('benchmarks.harness.ramLabel'),
+          t('benchmarks.harness.jdkLabel'),
+          t('benchmarks.harness.osLabel'),
+          t('benchmarks.harness.measuredAtLabel'),
+        ].map((label) => (
+          <div key={label}>
+            <dt className="text-eyebrow font-semibold uppercase tracking-wide text-ink-secondary">
+              {label}
             </dt>
             <dd>
               <Skeleton className="mt-1 h-3.5 w-24" />

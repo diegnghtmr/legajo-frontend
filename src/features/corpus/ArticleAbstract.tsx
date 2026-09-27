@@ -16,6 +16,30 @@ export interface ArticleAbstractProps {
   onClose: () => void;
 }
 
+/** Mirrors the header subtitle's own two lines (the mono id, then the
+ * authors) while the document is still pending. */
+function ArticleAbstractHeaderSkeleton() {
+  return (
+    <>
+      <Skeleton className="h-3 w-20" />
+      <Skeleton className="h-3.5 w-40" />
+    </>
+  );
+}
+
+/** Mirrors the abstract paragraph's own wrapped lines, varying each bar's
+ * width so the placeholder reads as text, not as one block. */
+function ArticleAbstractBodySkeleton() {
+  return (
+    <div className="flex flex-col gap-2">
+      <Skeleton className="h-3.5 w-full" />
+      <Skeleton className="h-3.5 w-full" />
+      <Skeleton className="h-3.5 w-5/6" />
+      <Skeleton className="h-3.5 w-2/3" />
+    </div>
+  );
+}
+
 /**
  * A rail row's title opens this in the workbench's detail region: the
  * article's full abstract (`GET /corpus/{id}`), with the mono id and the
@@ -31,7 +55,15 @@ export function ArticleAbstract({ id, onClose }: ArticleAbstractProps) {
   });
 
   return (
-    <div className="flex h-full flex-col gap-4 p-4">
+    <div data-testid="article-abstract" className="flex h-full flex-col gap-4 p-4">
+      {/* One status for the whole region — the header subtitle and the
+       * body below are both part of the same pending abstract, never two
+       * separate sentences for what is one loading region. */}
+      {isPending && (
+        <p role="status" className="sr-only">
+          {t('corpus.detail.loading')}
+        </p>
+      )}
       <header className="flex items-start justify-between gap-3">
         <div className="flex flex-col gap-1">
           <p className="text-eyebrow font-semibold uppercase tracking-wide text-ink-secondary">
@@ -44,12 +76,7 @@ export function ArticleAbstract({ id, onClose }: ArticleAbstractProps) {
               <p className="text-body text-ink-muted">{data.authors.join(', ')}</p>
             </>
           ) : (
-            isPending && (
-              <>
-                <Skeleton className="h-3 w-20" />
-                <Skeleton className="h-3.5 w-40" />
-              </>
-            )
+            isPending && <ArticleAbstractHeaderSkeleton />
           )}
         </div>
         <Button variant="secondary" aria-label={t('corpus.detail.closeLabel')} onClick={onClose}>
@@ -57,19 +84,7 @@ export function ArticleAbstract({ id, onClose }: ArticleAbstractProps) {
         </Button>
       </header>
 
-      {isPending && (
-        <>
-          <p role="status" className="sr-only">
-            {t('corpus.detail.loading')}
-          </p>
-          <div className="flex flex-col gap-2">
-            <Skeleton className="h-3.5 w-full" />
-            <Skeleton className="h-3.5 w-full" />
-            <Skeleton className="h-3.5 w-5/6" />
-            <Skeleton className="h-3.5 w-2/3" />
-          </div>
-        </>
-      )}
+      {isPending && <ArticleAbstractBodySkeleton />}
       {isError && (
         <div role="alert" className="flex flex-col gap-1">
           <p className="text-body font-semibold text-danger">{t('corpus.detail.errorTitle')}</p>

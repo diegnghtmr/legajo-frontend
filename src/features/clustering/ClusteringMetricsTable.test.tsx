@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 
 import type { ClusteringResponse } from '../../infrastructure/api/clustering';
 import type { LinkageId } from '../../infrastructure/schemas/clustering';
-import { ClusteringMetricsTable } from './ClusteringMetricsTable';
+import { ClusteringMetricsTable, ClusteringMetricsTableSkeleton } from './ClusteringMetricsTable';
 import type { ClusteringRankingResult } from './ranking';
 
 function linkageResult(
@@ -262,5 +262,26 @@ describe('ClusteringMetricsTable', () => {
     );
 
     expect(screen.getByText(/n = 6/)).toBeInTheDocument();
+  });
+});
+
+describe('ClusteringMetricsTableSkeleton', () => {
+  it('gives every column header real accessible text, even the two whose k is not known yet', () => {
+    render(
+      <ClusteringMetricsTableSkeleton
+        linkageIds={['single', 'complete']}
+        representation="tfidf-cosine"
+      />,
+    );
+
+    for (const header of screen.getAllByRole('columnheader')) {
+      expect(header.textContent?.trim()).not.toBe('');
+    }
+    expect(
+      screen.getByRole('columnheader', { name: 'Silueta media (k pendiente)' }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole('columnheader', { name: 'Davies–Bouldin (k pendiente)' }),
+    ).toBeInTheDocument();
   });
 });

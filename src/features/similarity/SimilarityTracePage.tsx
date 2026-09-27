@@ -210,12 +210,12 @@ export function SimilarityTracePage() {
         </div>
       )}
 
-      {traceQuery.isPending && (
+      {traceQuery.isPending && algorithmId && (
         <>
           <p role="status" className="sr-only">
             {t('similarity.trace.loading')}
           </p>
-          <TraceBodySkeleton />
+          <TraceBodySkeleton algorithmId={algorithmId} />
         </>
       )}
 

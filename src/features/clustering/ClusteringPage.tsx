@@ -25,7 +25,7 @@ import { CORPUS_LIST_QUERY_KEY } from '../corpus/SelectionRail';
 import { ClusteringMetricsTable, ClusteringMetricsTableSkeleton } from './ClusteringMetricsTable';
 import { resolveCutLabelsForLinkage } from './cutLabels';
 import { tryComputeCutDistance } from './cutLine';
-import { CutForm, type CutFormValues } from './CutForm';
+import { CutForm, CutFormSkeleton, type CutFormValues } from './CutForm';
 import { DendrogramCard, DendrogramCardSkeleton } from './DendrogramCard';
 import { dendrogramCardHeight } from './dendrogramGridSizing';
 import { leafLabelsFromDocumentIds } from './leafLabels';
@@ -262,7 +262,7 @@ export function ClusteringPage() {
   };
 
   return (
-    <div className="flex flex-col gap-6">
+    <div data-testid="clustering-page" className="flex flex-col gap-6">
       <PanelHeader eyebrow={t('clustering.eyebrow')} title={t('clustering.title')} />
 
       {/* One control bar card: representation, linkage selection and the
@@ -302,21 +302,24 @@ export function ClusteringPage() {
               isPending={cutMutation.isPending}
               error={activeCutError}
             />
+          ) : clusteringQuery.isPending && hasLinkagesSelected ? (
+            // The `CutForm` that will occupy this exact slot once the
+            // request resolves: its own responsive wrap (one row at rest,
+            // stacked at a narrow width) already reserves the right box at
+            // any width — a fixed-height placeholder text cannot, since
+            // the real form's height itself changes with the viewport.
+            <CutFormSkeleton linkageIds={selectedLinkages} />
           ) : (
             <p className="text-body text-ink-muted">
               {/*
                * The placeholder shown while no `CutForm` can be rendered
-               * must name the actual reason: nothing is selected, the
-               * request failed, or it is still loading. Showing the
-               * "still loading" copy for the first two would be false —
-               * nothing is loading, and reselecting a linkage (not
-               * waiting) is what unblocks the cut in each case.
+               * (and none is loading) must name the actual reason: nothing
+               * is selected, or the request failed. Reselecting a linkage
+               * — not waiting — is what unblocks the cut in each case.
                */}
               {!hasLinkagesSelected
                 ? t('clustering.cutForm.unavailableNoLinkage')
-                : clusteringQuery.isError
-                  ? t('clustering.cutForm.unavailableError')
-                  : t('clustering.cutForm.unavailable')}
+                : t('clustering.cutForm.unavailableError')}
             </p>
           )}
         </div>
@@ -331,7 +334,10 @@ export function ClusteringPage() {
           <p role="status" className="sr-only">
             {t('clustering.loading')}
           </p>
-          <ClusteringMetricsTableSkeleton linkageIds={selectedLinkages} />
+          <ClusteringMetricsTableSkeleton
+            linkageIds={selectedLinkages}
+            representation={representation}
+          />
           <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
             {selectedLinkages.map((linkageId) => (
               <DendrogramCardSkeleton

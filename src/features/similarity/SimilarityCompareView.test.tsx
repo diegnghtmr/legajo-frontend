@@ -58,6 +58,11 @@ describe('SimilarityCompareView loading skeletons', () => {
     expect(rows).toHaveLength(2);
     for (const row of rows) {
       expect(row.querySelectorAll('[data-slot="skeleton"]').length).toBeGreaterThan(0);
+      // The algorithm cell mirrors the real row's two lines (the mono id and
+      // the catalogue's own display name below it) — a single bar here is
+      // one line short of the real cell's own height.
+      const algorithmCell = row.querySelectorAll('td')[0]!;
+      expect(algorithmCell.querySelectorAll('[data-slot="skeleton"]')).toHaveLength(2);
     }
   });
 

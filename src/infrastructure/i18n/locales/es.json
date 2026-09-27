@@ -246,6 +246,8 @@
       "cophenetic": "Cofenética",
       "silhouetteAtK": "Silueta media (k={{k}})",
       "daviesBouldinAtK": "Davies–Bouldin (k={{k}})",
+      "silhouetteAtKPending": "Silueta media (k pendiente)",
+      "daviesBouldinAtKPending": "Davies–Bouldin (k pendiente)",
       "undefinedValue": "no definido"
     },
     "metricsTable": {

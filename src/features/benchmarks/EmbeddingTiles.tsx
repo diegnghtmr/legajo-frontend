@@ -33,7 +33,13 @@ export function EmbeddingTilesSkeleton() {
               <div className="flex flex-wrap gap-3">
                 {EMBEDDING_FAMILIES.map((family) => (
                   <div key={family} className={cn(cardSurfaceClassName, 'flex flex-col gap-1 p-3')}>
-                    <Skeleton className="h-3 w-20" />
+                    {/* The family id itself is a fixed constant
+                     * (`EMBEDDING_FAMILIES`), never response data — real
+                     * text, at its own real width, so this chip wraps onto
+                     * a new row at exactly the width the real, longer
+                     * family id would, rather than a shorter guessed bar
+                     * fitting where the real text no longer does. */}
+                    <p className="text-label text-ink-secondary">{family}</p>
                     <Skeleton className="h-3.5 w-16" />
                   </div>
                 ))}

@@ -78,7 +78,10 @@ export function MatrixTableSkeleton({ documentCount }: MatrixTableSkeletonProps)
   return (
     <div
       data-testid="matrix-skeleton"
-      className="relative max-h-[420px] max-w-full overflow-auto rounded-md border border-hairline"
+      role="region"
+      aria-label={t('similarity.matrix.table.caption')}
+      tabIndex={0}
+      className="relative max-h-[420px] max-w-full overflow-auto rounded-md border border-hairline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus"
     >
       <Table wrap={false} className="text-center">
         <TableHeader>
@@ -88,7 +91,11 @@ export function MatrixTableSkeleton({ documentCount }: MatrixTableSkeletonProps)
             </TableHead>
             {indices.map((index) => (
               <TableHead key={index} scope="col" className={STICKY_COLUMN_HEADER_CLASS}>
-                <Skeleton className="mx-auto h-3 w-10" />
+                {/* Never an empty `<th>` (axe `empty-table-header`): the
+                 * real header's own document id is unknown yet, but the
+                 * axis it stands for (a document) already is. */}
+                <span className="sr-only">{t('similarity.matrix.table.cornerLabel')}</span>
+                <Skeleton className="mx-auto h-4.5 w-10" />
               </TableHead>
             ))}
           </TableRow>
@@ -97,11 +104,12 @@ export function MatrixTableSkeleton({ documentCount }: MatrixTableSkeletonProps)
           {indices.map((rowIndex) => (
             <TableRow key={rowIndex}>
               <TableHead scope="row" className={STICKY_ROW_HEADER_CLASS}>
-                <Skeleton className="mx-auto h-3 w-10" />
+                <span className="sr-only">{t('similarity.matrix.table.cornerLabel')}</span>
+                <Skeleton className="mx-auto h-4.5 w-10" />
               </TableHead>
               {indices.map((colIndex) => (
                 <TableCell key={colIndex} className="min-w-16 p-1">
-                  <Skeleton className="mx-auto h-3 w-10" />
+                  <Skeleton className="mx-auto h-4.5 w-10" />
                 </TableCell>
               ))}
             </TableRow>

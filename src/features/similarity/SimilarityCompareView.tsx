@@ -57,13 +57,29 @@ function CompareTableSkeletonRow() {
   return (
     <TableRow data-testid="compare-table-skeleton-row">
       <TableCell>
-        <Skeleton className="h-3.5 w-24" />
+        {/* Two lines, like the real cell: the mono algorithm id over the
+         * catalogue's own display name (`CompareTableRow`'s `span` + `p`) —
+         * one bar here left this cell, and the whole row, one line short.
+         * Each bar is a full line box tall (not the bar height alone): a
+         * real text line's own line-height, at this font stack's own
+         * metrics, measures noticeably taller than the font's nominal
+         * size. */}
+        <div className="flex flex-col gap-1">
+          <Skeleton className="h-5 w-24" />
+          <Skeleton className="h-4 w-32" />
+        </div>
       </TableCell>
       <TableCell>
-        <Skeleton className="h-3 w-16" />
+        <Skeleton className="h-3.5 w-16" />
       </TableCell>
       <TableCell>
-        <Skeleton className="h-1.5 w-full rounded-full" />
+        {/* `ScoreBar`'s own row: the mono value beside the fill track, not
+         * the 6px track alone — a bar-only placeholder left this cell
+         * shorter than every other one in the row. */}
+        <div className="flex items-center gap-2">
+          <Skeleton className="h-3.5 w-10" />
+          <Skeleton className="h-1.5 w-24 rounded-full" />
+        </div>
       </TableCell>
       <TableCell>
         <Skeleton className="h-3 w-10" />
@@ -94,15 +110,19 @@ function CompareTableSkeleton({ rowCount }: { rowCount: number }) {
 }
 
 /** Mirrors one `CompareResultsList` row's box: the family dot, the mono id
- * and score line, and the quiet raw-value/time second line. */
+ * and score line, the quiet raw-value/time second line, and the trailing
+ * chevron — both text lines at the same height as the real row's own mono
+ * and label text, since that combined height (not the row's own `min-h-11`
+ * floor alone) is what actually governs a real row past the shortest ones. */
 function CompareResultsListSkeletonRow() {
   return (
     <li className="flex min-h-11 w-full items-center gap-3 px-3 py-2">
       <Skeleton className="size-[6px] shrink-0 rounded-full" />
-      <div className="flex min-w-0 flex-1 flex-col gap-1">
-        <Skeleton className="h-3 w-24" />
-        <Skeleton className="h-3 w-32" />
+      <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+        <Skeleton className="h-5 w-24" />
+        <Skeleton className="h-4 w-32" />
       </div>
+      <Skeleton className="size-4 shrink-0" />
     </li>
   );
 }

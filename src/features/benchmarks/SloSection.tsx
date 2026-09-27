@@ -115,11 +115,13 @@ function SloTable({
 
 function SloTableSkeleton({
   title,
-  rowCount,
+  labels,
   algorithmLabel,
 }: {
   title: string;
-  rowCount: number;
+  /** Every row's own real label, already known from `grouping.ts`'s fixed
+   * family list: real text, since it never depends on the response. */
+  labels: readonly string[];
   algorithmLabel: string;
 }) {
   const { t } = useTranslation();
@@ -144,19 +146,29 @@ function SloTableSkeleton({
             </TableRow>
           </TableHeader>
           <TableBody>
-            {Array.from({ length: rowCount }, (_unused, index) => (
-              <TableRow key={index}>
+            {labels.map((label) => (
+              <TableRow key={label}>
+                <TableCell className="font-mono text-mono text-ink">{label}</TableCell>
                 <TableCell>
-                  <Skeleton className="h-3.5 w-24" />
+                  <Skeleton className="h-4 w-14" />
                 </TableCell>
                 <TableCell>
-                  <Skeleton className="h-3 w-14" />
+                  <Skeleton className="h-4 w-14" />
                 </TableCell>
                 <TableCell>
-                  <Skeleton className="h-3 w-14" />
-                </TableCell>
-                <TableCell>
-                  <Skeleton className="h-3 w-14" />
+                  {/* The status text's own real width (an invisible sizer,
+                   * never announced) reserves this cell's real wrap point:
+                   * at a narrow width, the other three columns' own
+                   * not-yet-known values can squeeze this column below
+                   * this text's own single-line width, wrapping it onto a
+                   * second line — a fixed-width bar would silently miss
+                   * that and leave this row short once it does. */}
+                  <span className="relative inline-block">
+                    <span aria-hidden="true" className="invisible">
+                      {t('benchmarks.slo.statusWithin')}
+                    </span>
+                    <Skeleton className="absolute inset-0" />
+                  </span>
                 </TableCell>
               </TableRow>
             ))}
@@ -169,8 +181,9 @@ function SloTableSkeleton({
 
 /** Mirrors `SloSection`'s own two tables — the classic comparisons (one row
  * per fixed classic family) and the clustering table (one row, the fixed
- * `slo-clustering` family) — both counts already known from `grouping.ts`,
- * unlike the measured values themselves. */
+ * `slo-clustering` family) — both the row count and each row's own label
+ * already known from `grouping.ts`'s fixed families, unlike the measured
+ * values themselves. */
 export function SloSectionSkeleton() {
   const { t } = useTranslation();
 
@@ -181,12 +194,12 @@ export function SloSectionSkeleton() {
       </h2>
       <SloTableSkeleton
         title={t('benchmarks.slo.classicTitle')}
-        rowCount={SLO_CLASSIC_FAMILIES.length}
+        labels={SLO_CLASSIC_FAMILIES.map(algorithmIdFromSloFamily)}
         algorithmLabel={t('benchmarks.slo.algorithmLabel')}
       />
       <SloTableSkeleton
         title={t('benchmarks.slo.clusteringTitle')}
-        rowCount={1}
+        labels={[algorithmIdFromSloFamily(SLO_CLUSTERING_FAMILY)]}
         algorithmLabel={t('benchmarks.slo.familyLabel')}
       />
     </section>
