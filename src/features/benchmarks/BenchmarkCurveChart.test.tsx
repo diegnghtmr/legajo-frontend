@@ -1,7 +1,11 @@
 import { act, render, screen, within } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import { BenchmarkCurveChart } from './BenchmarkCurveChart';
+import {
+  BenchmarkCurveChart,
+  BenchmarkCurveChartSkeleton,
+  CHART_HEIGHT,
+} from './BenchmarkCurveChart';
 import type { FamilySeries } from './grouping';
 import { dashPatternForIndex } from './seriesStyle';
 
@@ -340,5 +344,44 @@ describe('BenchmarkCurveChart', () => {
 
     const svgAfter = container.querySelector('svg.recharts-surface');
     expect(Number(svgAfter?.getAttribute('width'))).toBeGreaterThan(widthBefore);
+  });
+});
+
+describe('BenchmarkCurveChartSkeleton', () => {
+  it('mirrors the real card past the chart itself: the x-axis label below it and the slope table region', () => {
+    render(
+      <BenchmarkCurveChartSkeleton
+        title="Comparaciones por pares"
+        xAxisLabel="Longitud (caracteres)"
+        yAxisLabel="Tiempo (ns)"
+        slopeTableCaption="Pendiente log–log: Comparaciones por pares"
+        families={['levenshtein', 'needleman-wunsch', 'jaccard', 'tfidf-cosine']}
+      />,
+    );
+
+    expect(screen.getByRole('heading', { name: 'Comparaciones por pares' })).toBeInTheDocument();
+    const chart = screen.getByTestId('benchmark-chart-skeleton');
+    expect(chart.style.height).toBe(`${CHART_HEIGHT}px`);
+
+    // The x-axis title is fixed chrome (never response data) — real text
+    // immediately, in the same place the real card renders it below the
+    // chart, not omitted from the skeleton.
+    expect(screen.getByText('Longitud (caracteres)')).toBeInTheDocument();
+    expect(screen.getByText('Tiempo (ns)')).toBeInTheDocument();
+
+    // The legend already shows every fixed family id as real text (never
+    // a generic bar a longer real id would then wrap past).
+    const legend = screen.getByRole('list', { name: 'Leyenda de series' });
+    expect(within(legend).getByText('needleman-wunsch')).toBeInTheDocument();
+
+    // The slope table's own scroll region, one row per known family
+    // (its own id as real text) — its real header labels are fixed
+    // chrome too.
+    const slopeRegion = screen.getByRole('region', { name: /pares/ });
+    expect(within(slopeRegion).getByText('Familia')).toBeInTheDocument();
+    expect(within(slopeRegion).getByText('Pendiente empírica')).toBeInTheDocument();
+    expect(within(slopeRegion).getByText('Exponente teórico')).toBeInTheDocument();
+    expect(within(slopeRegion).getByText('tfidf-cosine')).toBeInTheDocument();
+    expect(within(slopeRegion).getAllByRole('row')).toHaveLength(1 + 4);
   });
 });

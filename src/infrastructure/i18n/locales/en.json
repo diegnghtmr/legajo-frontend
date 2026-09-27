@@ -246,6 +246,8 @@
       "cophenetic": "Cophenetic",
       "silhouetteAtK": "Mean silhouette (k={{k}})",
       "daviesBouldinAtK": "Davies–Bouldin (k={{k}})",
+      "silhouetteAtKPending": "Mean silhouette (k pending)",
+      "daviesBouldinAtKPending": "Davies–Bouldin (k pending)",
       "undefinedValue": "undefined"
     },
     "metricsTable": {

@@ -8,6 +8,7 @@ import { DEFAULT_UNEXPECTED_I18N_KEY, type ApiError } from '../../infrastructure
 import { LinkageIdSchema, type LinkageId } from '../../infrastructure/schemas/clustering';
 import { SegmentedControl, type SegmentedOption } from '../../shared/components/SegmentedControl';
 import { Button } from '../../shared/components/ui/button';
+import { Skeleton } from '../../shared/components/ui/skeleton';
 
 export interface CutFormLinkageOption {
   id: LinkageId;
@@ -154,5 +155,55 @@ export function CutForm({ linkages, n, defaultLinkage, onSubmit, isPending, erro
         </div>
       )}
     </form>
+  );
+}
+
+export interface CutFormSkeletonProps {
+  /** The page's own current linkage selection — already known before the
+   * clustering request resolves, unlike the linkages' own `displayName`
+   * (the response's own text). The mono id itself is shown as real text
+   * (never a generic bar): its width already tracks a real segment's own
+   * width closely enough that the control wraps at the same point the real
+   * one, with its real `displayName`, eventually will. */
+  linkageIds: readonly string[];
+}
+
+/**
+ * Mirrors `CutForm`'s own three-field row (the linkage segmented control,
+ * the k input, `Aplicar corte`) in the same responsive `flex flex-wrap
+ * items-end gap-4` row, so this placeholder wraps exactly the way the real
+ * form does at any width — a fixed pixel height cannot, since the real
+ * form's own height changes with the viewport once its fields stack.
+ */
+export function CutFormSkeleton({ linkageIds }: CutFormSkeletonProps) {
+  const { t } = useTranslation();
+
+  return (
+    <div className="flex flex-col gap-3">
+      <div className="flex flex-wrap items-end gap-4">
+        <div className="flex flex-col gap-2">
+          <span className="text-label text-ink-secondary">
+            {t('clustering.cutForm.linkageGroupLabel')}
+          </span>
+          <div className="inline-flex items-center gap-0.5 rounded-md border border-hairline bg-paper-sunken p-[3px]">
+            {linkageIds.map((linkageId) => (
+              <span
+                key={linkageId}
+                className="rounded-btn px-3 py-1.5 font-mono text-label font-medium text-ink-secondary"
+              >
+                {linkageId}
+              </span>
+            ))}
+          </div>
+        </div>
+
+        <div className="flex flex-col gap-1">
+          <Skeleton className="h-4 w-40" />
+          <Skeleton className="h-8 w-24 rounded-md" />
+        </div>
+
+        <Skeleton className="h-9 w-28" />
+      </div>
+    </div>
   );
 }

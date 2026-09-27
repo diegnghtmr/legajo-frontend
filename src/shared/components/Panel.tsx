@@ -6,6 +6,9 @@ import { cardSurfaceClassName } from './ui/card';
 export interface PanelProps {
   children: ReactNode;
   className?: string;
+  /** Forwarded verbatim, e.g. for an e2e test to select this exact panel
+   * across both its skeleton and loaded states. */
+  'data-testid'?: string;
 }
 
 /**
@@ -16,8 +19,12 @@ export interface PanelProps {
  * `CardHeader`/`CardContent` children carry it), so Panel keeps its own flat
  * `p-4` for its simpler single-region usage.
  */
-export function Panel({ children, className }: PanelProps) {
-  return <section className={cn(cardSurfaceClassName, 'p-4', className)}>{children}</section>;
+export function Panel({ children, className, ...props }: PanelProps) {
+  return (
+    <section className={cn(cardSurfaceClassName, 'p-4', className)} {...props}>
+      {children}
+    </section>
+  );
 }
 
 export interface PanelHeaderProps {

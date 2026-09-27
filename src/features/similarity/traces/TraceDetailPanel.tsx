@@ -15,12 +15,12 @@ import {
 import type { AlgorithmId } from '../../../infrastructure/schemas/similarity';
 import type { DpMatrixHandle } from '../../../shared/components/DpMatrix';
 import { Button, buttonVariants } from '../../../shared/components/ui/button';
-import { Skeleton } from '../../../shared/components/ui/skeleton';
 import { algoFamilyFromKind } from '../algorithmFamily';
 import { formatRawValue, formatTraceNumber } from '../formatters';
 import { ALGORITHMS_QUERY_KEY } from '../SimilarityPage';
 import { TracePanel } from '../SimilarityTracePage';
 import { TraceBodySkeleton } from './TraceBodySkeleton';
+import { TraceMetaFieldSkeleton } from './TraceMetaFieldSkeleton';
 
 export interface TraceDetailPanelProps {
   algorithmId: string;
@@ -171,62 +171,66 @@ export function TraceDetailPanel({
         </Button>
       </header>
 
+      {/* One status for the whole panel below the header — the meta row
+       * and the body are both part of the same pending trace, never two
+       * separate sentences for what is one loading region. */}
+      {(algorithmsQuery.isPending || metaQuery.isPending || traceQuery.isPending) && (
+        <p role="status" className="sr-only">
+          {t('similarity.trace.loading')}
+        </p>
+      )}
+
       <dl className="flex shrink-0 flex-wrap gap-x-8 gap-y-2 border-b border-hairline p-4">
-        {showFamilyField && (
-          <div>
-            <dt className="text-eyebrow font-semibold uppercase tracking-wide text-ink-secondary">
-              {t('similarity.table.family')}
-            </dt>
-            <dd className="text-body font-semibold text-ink">
-              {familyLabel !== undefined ? familyLabel : <Skeleton className="h-3.5 w-16" />}
-            </dd>
-          </div>
-        )}
-        {showRawValueField && (
-          <div>
-            <dt className="text-eyebrow font-semibold uppercase tracking-wide text-ink-secondary">
-              {t('similarity.table.raw')}
-            </dt>
-            <dd className="font-mono text-mono font-semibold text-ink">
-              {rawValueText !== null ? rawValueText : <Skeleton className="h-3 w-10" />}
-            </dd>
-          </div>
-        )}
-        {showScoreField && (
-          <div>
-            <dt className="text-eyebrow font-semibold uppercase tracking-wide text-ink-secondary">
-              {t('similarity.table.score')}
-            </dt>
-            <dd className="font-mono text-mono font-semibold text-ink">
-              {scoreText !== undefined ? scoreText : <Skeleton className="h-3 w-10" />}
-            </dd>
-          </div>
-        )}
-        {showOptimalPathField && (
-          <div>
-            <dt className="text-eyebrow font-semibold uppercase tracking-wide text-ink-secondary">
-              {t('similarity.trace.dp.optimalPathLabel')}
-            </dt>
-            <dd className="font-mono text-mono font-semibold text-ink">
-              {optimalPathCost !== undefined ? (
-                formatTraceNumber(optimalPathCost)
-              ) : (
-                <Skeleton className="h-3 w-10" />
-              )}
-            </dd>
-          </div>
-        )}
+        {showFamilyField &&
+          (familyLabel !== undefined ? (
+            <div>
+              <dt className="text-eyebrow font-semibold uppercase tracking-wide text-ink-secondary">
+                {t('similarity.table.family')}
+              </dt>
+              <dd className="text-body font-semibold text-ink">{familyLabel}</dd>
+            </div>
+          ) : (
+            <TraceMetaFieldSkeleton label={t('similarity.table.family')} valueVariant="body" />
+          ))}
+        {showRawValueField &&
+          (rawValueText !== null ? (
+            <div>
+              <dt className="text-eyebrow font-semibold uppercase tracking-wide text-ink-secondary">
+                {t('similarity.table.raw')}
+              </dt>
+              <dd className="font-mono text-mono font-semibold text-ink">{rawValueText}</dd>
+            </div>
+          ) : (
+            <TraceMetaFieldSkeleton label={t('similarity.table.raw')} />
+          ))}
+        {showScoreField &&
+          (scoreText !== undefined ? (
+            <div>
+              <dt className="text-eyebrow font-semibold uppercase tracking-wide text-ink-secondary">
+                {t('similarity.table.score')}
+              </dt>
+              <dd className="font-mono text-mono font-semibold text-ink">{scoreText}</dd>
+            </div>
+          ) : (
+            <TraceMetaFieldSkeleton label={t('similarity.table.score')} />
+          ))}
+        {showOptimalPathField &&
+          (optimalPathCost !== undefined ? (
+            <div>
+              <dt className="text-eyebrow font-semibold uppercase tracking-wide text-ink-secondary">
+                {t('similarity.trace.dp.optimalPathLabel')}
+              </dt>
+              <dd className="font-mono text-mono font-semibold text-ink">
+                {formatTraceNumber(optimalPathCost)}
+              </dd>
+            </div>
+          ) : (
+            <TraceMetaFieldSkeleton label={t('similarity.trace.dp.optimalPathLabel')} />
+          ))}
       </dl>
 
       <div className="flex-1 overflow-y-auto p-4">
-        {traceQuery.isPending && (
-          <>
-            <p role="status" className="sr-only">
-              {t('similarity.trace.loading')}
-            </p>
-            <TraceBodySkeleton />
-          </>
-        )}
+        {traceQuery.isPending && <TraceBodySkeleton algorithmId={algorithmId} hideDownloadButton />}
         {traceQuery.isError && (
           <div role="alert" className="flex flex-col gap-1">
             <p className="text-body font-semibold text-danger">

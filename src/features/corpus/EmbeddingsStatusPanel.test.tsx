@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { render, screen } from '@testing-library/react';
+import { render, screen, within } from '@testing-library/react';
 import type { ReactNode } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -49,6 +49,16 @@ describe('EmbeddingsStatusPanel', () => {
     const skeleton = screen.getByTestId('embeddings-status-skeleton');
     expect(skeleton.children).toHaveLength(2);
     expect(skeleton.querySelectorAll('[data-slot="skeleton"]').length).toBeGreaterThan(0);
+
+    // Every field, including the model id, is a single line: at this
+    // panel's own column width, at any width this app supports, a real
+    // model id (even a long one like "gemini-embedding-2-preview") never
+    // actually wraps.
+    for (const label of ['Proveedor', 'Modelo', 'Dimensión']) {
+      const dt = within(skeleton).getAllByText(label)[0]!;
+      const valueBars = dt.parentElement?.querySelectorAll('[data-slot="skeleton"]');
+      expect(valueBars).toHaveLength(1);
+    }
   });
 
   it('renders both embedding families with their provider, model, dimension and device/mode', async () => {
@@ -56,9 +66,13 @@ describe('EmbeddingsStatusPanel', () => {
 
     renderWithProviders(<EmbeddingsStatusPanel />);
 
-    expect(await screen.findByText('embedding-local')).toBeInTheDocument();
+    // `embedding-local`/`embedding-api` are the section headings' own real
+    // text, shown immediately even while the request is still pending
+    // (they are route constants, never response data) — waited on a value
+    // that only exists once the response actually resolves instead.
+    expect(await screen.findByText('sentence-transformers')).toBeInTheDocument();
+    expect(screen.getByText('embedding-local')).toBeInTheDocument();
     expect(screen.getByText('embedding-api')).toBeInTheDocument();
-    expect(screen.getByText('sentence-transformers')).toBeInTheDocument();
     expect(screen.getByText('all-MiniLM-L6-v2')).toBeInTheDocument();
     expect(screen.getByText('384')).toBeInTheDocument();
     expect(screen.getByText('cpu')).toBeInTheDocument();

@@ -92,6 +92,9 @@ export interface ClusteringMetricsTableSkeletonProps {
    * unlike the four lead columns this page already knows before the
    * request resolves. */
   linkageIds: readonly LinkageId[];
+  /** Already known before the request resolves (the page's own current
+   * selection) — used only to size the invisible sizer below, never shown. */
+  representation: RepresentationId;
 }
 
 /** Mirrors `ClusteringMetricsTableBody`'s own region, table shell and lead
@@ -99,6 +102,7 @@ export interface ClusteringMetricsTableSkeletonProps {
  * per selected linkage. */
 export function ClusteringMetricsTableSkeleton({
   linkageIds,
+  representation,
 }: ClusteringMetricsTableSkeletonProps) {
   const { t } = useTranslation();
 
@@ -137,6 +141,11 @@ export function ClusteringMetricsTableSkeleton({
                     HIGHLIGHT_CLASS_NAME,
                   )}
                 >
+                  {/* `k_ref` itself is only known once the response
+                   * resolves, but the column it will head is already known
+                   * — a pending-k label, never an empty `<th>` (axe
+                   * `empty-table-header`). */}
+                  <span className="sr-only">{t('clustering.metrics.silhouetteAtKPending')}</span>
                   <Skeleton className="h-3 w-24" />
                 </th>
                 <th
@@ -146,6 +155,7 @@ export function ClusteringMetricsTableSkeleton({
                     HIGHLIGHT_CLASS_NAME,
                   )}
                 >
+                  <span className="sr-only">{t('clustering.metrics.daviesBouldinAtKPending')}</span>
                   <Skeleton className="h-3 w-24" />
                 </th>
               </tr>
@@ -174,6 +184,28 @@ export function ClusteringMetricsTableSkeleton({
             </tbody>
           </table>
         </div>
+      </div>
+      {/* The real table's own default explanatory line (`ranking`, like
+       * `kRef`, is only known once the response resolves) — static text,
+       * never response data, so it renders for real immediately instead of
+       * being left out of the skeleton entirely.
+       *
+       * Once the response actually resolves without a cophenetic tie, this
+       * exact line disappears and the sample-size caveat below it (never
+       * both at once — `ClusteringMetricsTable`'s own rule) is what stays:
+       * a longer sentence built from the response's own sample size, whose
+       * wrapped height this static fallback alone would then fall short
+       * of. An invisible sizer at that same sentence's real length (this
+       * page's own already-selected representation, with a placeholder
+       * count — never shown, only measured) reserves that real wrap point
+       * without inventing a sample size this skeleton does not have. */}
+      <div className="relative mt-3">
+        <p aria-hidden="true" className="invisible text-body">
+          {t('clustering.sampleSizeCaveat', { representation, count: 20 })}
+        </p>
+        <p className="absolute inset-0 text-body text-ink-secondary">
+          {t('clustering.leadersRequireAllLinkages')}
+        </p>
       </div>
     </Panel>
   );

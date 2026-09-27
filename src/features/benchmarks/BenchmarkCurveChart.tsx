@@ -446,34 +446,103 @@ export function BenchmarkCurveChart({
 
 export interface BenchmarkCurveChartSkeletonProps {
   title: string;
+  /** Fixed chrome (never response data): the x-axis title below the chart
+   * and the y-axis title beside it, the same real text the loaded card
+   * shows in the same two places. */
+  xAxisLabel: string;
+  yAxisLabel: string;
+  /** Fixed chrome for the slope table's own accessible name. */
+  slopeTableCaption: string;
   /** The group's own fixed family count (e.g. the four pairwise classic
    * algorithms) — already known before the request resolves, unlike the
-   * per-size data points themselves. */
-  seriesCount: number;
+   * per-size data points themselves. Every fixed family always carries an
+   * empirical/theoretical slope, so this also fixes the slope table's own
+   * row count, and — since every family id in this fixed list is a static
+   * constant, never response data — its own real text for the legend and
+   * the slope table's own family column, at that text's own real width
+   * (never a shorter guessed bar a longer real id would then wrap past). */
+  families: readonly string[];
 }
 
 /**
- * Mirrors one `BenchmarkCurveChart` card: its real title (already known —
- * every group's title is fixed chrome, not response data), a chart-height
- * placeholder at exactly `CHART_HEIGHT` so the swap causes no shift, and a
- * legend row with one swatch per series the group is known to have.
+ * Mirrors one `BenchmarkCurveChart` card past the chart itself: the real
+ * title, axis titles, chart-height placeholder (at exactly `CHART_HEIGHT`,
+ * so the swap causes no shift), the legend row and the slope table's own
+ * scroll region — real header row, one placeholder row per known series —
+ * which the original skeleton omitted entirely, leaving that whole box
+ * height unreserved.
  */
 export function BenchmarkCurveChartSkeleton({
   title,
-  seriesCount,
+  xAxisLabel,
+  yAxisLabel,
+  slopeTableCaption,
+  families,
 }: BenchmarkCurveChartSkeletonProps) {
+  const { t } = useTranslation();
+
   return (
     <Panel>
       <PanelHeader title={title} />
-      <Skeleton
-        data-testid="benchmark-chart-skeleton"
-        className="w-full rounded-md"
-        style={{ height: CHART_HEIGHT }}
-      />
-      <div className="mt-3 flex flex-wrap gap-x-4 gap-y-2">
-        {Array.from({ length: seriesCount }, (_unused, index) => (
-          <Skeleton key={index} className="h-3 w-20" />
+
+      <div className="flex items-stretch gap-2">
+        <span
+          className="flex w-5 shrink-0 items-center justify-center whitespace-nowrap text-mono text-ink-secondary"
+          style={{ writingMode: 'vertical-rl', transform: 'rotate(180deg)' }}
+        >
+          {yAxisLabel}
+        </span>
+        <div className="min-w-0 flex-1">
+          <Skeleton
+            data-testid="benchmark-chart-skeleton"
+            className="w-full rounded-md"
+            style={{ height: CHART_HEIGHT }}
+          />
+          <p className="mt-1 text-center text-mono text-ink-secondary">{xAxisLabel}</p>
+        </div>
+      </div>
+
+      <ul
+        aria-label={t('benchmarks.curves.legend')}
+        className="mt-3 flex flex-wrap gap-x-4 gap-y-2"
+      >
+        {families.map((family) => (
+          <li key={family} className="flex items-center gap-2">
+            <Skeleton className="h-2.5 w-5 rounded-none" />
+            <span className="font-mono text-mono text-ink">{family}</span>
+          </li>
         ))}
+      </ul>
+
+      <div
+        role="region"
+        aria-label={slopeTableCaption}
+        tabIndex={0}
+        className="mt-3 overflow-x-auto rounded-md focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus"
+      >
+        <Table wrap={false}>
+          <TableCaption className="sr-only">{slopeTableCaption}</TableCaption>
+          <TableHeader>
+            <TableRow>
+              <TableHead>{t('benchmarks.curves.slopeTableFamily')}</TableHead>
+              <TableHead>{t('benchmarks.curves.slopeTableEmpirical')}</TableHead>
+              <TableHead>{t('benchmarks.curves.slopeTableTheoretical')}</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {families.map((family) => (
+              <TableRow key={family}>
+                <TableCell className="font-mono text-mono text-ink">{family}</TableCell>
+                <TableCell>
+                  <Skeleton className="h-3 w-10" />
+                </TableCell>
+                <TableCell>
+                  <Skeleton className="h-3 w-10" />
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
       </div>
     </Panel>
   );

@@ -198,6 +198,11 @@ export function CorpusListPanel({
       </div>
 
       <div className="border-b border-hairline p-4">
+        {embeddingsQuery.isPending && (
+          <p role="status" className="sr-only">
+            {t('corpus.rail.embeddings.loading')}
+          </p>
+        )}
         <button
           type="button"
           onClick={onOpenEmbeddings}

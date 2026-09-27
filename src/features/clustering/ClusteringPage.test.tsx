@@ -151,16 +151,29 @@ describe('ClusteringPage', () => {
     expect(dendrogramCard.parentElement).toHaveClass('grid', 'grid-cols-1', 'lg:grid-cols-2');
   });
 
-  it('shows the cut-unavailable placeholder before the clustering response resolves, never an empty gap', () => {
+  it('shows a cut-form skeleton before the clustering response resolves, never an empty gap or the still-loading text', () => {
     vi.spyOn(corpusApi, 'fetchCorpus').mockResolvedValue(CORPUS);
     vi.spyOn(clusteringApi, 'runClustering').mockImplementation(() => new Promise(() => {}));
 
     renderPage();
 
+    // The real form's own responsive row (segmented control, k field,
+    // submit button), reserved before the request resolves — never the
+    // "still loading" text this replaced, which stayed the same fixed
+    // height regardless of viewport while the real form's own height
+    // changes once its three fields wrap.
     expect(
-      screen.getByText('El corte estará disponible cuando termine de cargar el agrupamiento.'),
-    ).toBeInTheDocument();
+      screen.queryByText('El corte estará disponible cuando termine de cargar el agrupamiento.'),
+    ).not.toBeInTheDocument();
     expect(screen.queryByRole('radiogroup', { name: 'Enlace a cortar' })).not.toBeInTheDocument();
+    expect(screen.getByText('Enlace a cortar')).toBeInTheDocument();
+    // The segmented control's own placeholder segments, scoped to the
+    // group below its label (never the page's own, real linkage-selection
+    // buttons elsewhere, which carry the same mono ids).
+    const segmentedGroup = screen.getByText('Enlace a cortar').parentElement;
+    for (const linkageId of ALL_FOUR) {
+      expect(segmentedGroup).toHaveTextContent(linkageId);
+    }
   });
 
   it('shows a metrics-table skeleton row and a dendrogram card skeleton per selected linkage while the clustering request is pending, sized from the corpus response', async () => {
