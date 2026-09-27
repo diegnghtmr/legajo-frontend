@@ -348,8 +348,8 @@ const EMBEDDINGS_STATUS = {
 
 const DP_TRACE = {
   algorithmId: 'levenshtein',
-  rowLabels: ['', 'k', 'i', 't'],
-  columnLabels: ['', 's', 'i', 't'],
+  rowLabels: ['k', 'i', 't'],
+  columnLabels: ['s', 'i', 't'],
   matrix: [
     [0, 1, 2, 3],
     [1, 1, 2, 3],
@@ -480,10 +480,13 @@ test.describe('a cold deep link to the trace route with an empty rail selection'
  * A synthetic n×n matrix large enough that auto-scrolling to its final
  * (bottom-right) path cell moves the viewport by more than a trivial
  * amount — same fixture shape as the standalone full-screen suite's own.
+ * `rowLabels`/`columnLabels` carry `size - 1` tokens each, one shorter
+ * than the matrix itself (the backend's own contract: neither array
+ * carries an entry for the empty-prefix border at index 0).
  */
 function buildLargeDpTrace(size: number) {
-  const rowLabels = Array.from({ length: size }, (_unused, index) => (index === 0 ? '' : 'a'));
-  const columnLabels = Array.from({ length: size }, (_unused, index) => (index === 0 ? '' : 'b'));
+  const rowLabels = Array.from({ length: size - 1 }, () => 'a');
+  const columnLabels = Array.from({ length: size - 1 }, () => 'b');
   const matrix = Array.from({ length: size }, (_unused, row) =>
     Array.from({ length: size }, (_unused2, col) => row + col),
   );

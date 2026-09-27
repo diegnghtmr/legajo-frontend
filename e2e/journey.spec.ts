@@ -99,8 +99,8 @@ const COMPARE_RESULTS = [
 
 const NEEDLEMAN_WUNSCH_TRACE = {
   algorithmId: 'needleman-wunsch',
-  rowLabels: ['', 'k', 'i', 't'],
-  columnLabels: ['', 's', 'i', 't'],
+  rowLabels: ['k', 'i', 't'],
+  columnLabels: ['s', 'i', 't'],
   matrix: [
     [0, -1, -2, -3],
     [-1, -1, -2, -3],

@@ -10,8 +10,8 @@ import { expectNoTextOverlap } from './support/textOverlap.js';
  */
 const DP_TRACE = {
   algorithmId: 'levenshtein',
-  rowLabels: ['', 'k', 'i', 't'],
-  columnLabels: ['', 's', 'i', 't'],
+  rowLabels: ['k', 'i', 't'],
+  columnLabels: ['s', 'i', 't'],
   matrix: [
     [0, 1, 2, 3],
     [1, 1, 2, 3],
@@ -218,10 +218,13 @@ test.describe('standalone full-screen trace view', () => {
    * (bottom-right) path cell moves the viewport by more than a trivial
    * amount — the 4x4 `DP_TRACE` fixture above is too small to expose an
    * ancestor (page) scroll the way the real ~100-row corpus matrices did.
+   * `rowLabels`/`columnLabels` carry `size - 1` tokens each, one shorter
+   * than the `size x size` matrix itself — the backend's own contract:
+   * neither array carries an entry for the empty-prefix border at index 0.
    */
   function buildLargeDpTrace(size: number) {
-    const rowLabels = Array.from({ length: size }, (_unused, index) => (index === 0 ? '' : 'a'));
-    const columnLabels = Array.from({ length: size }, (_unused, index) => (index === 0 ? '' : 'b'));
+    const rowLabels = Array.from({ length: size - 1 }, () => 'a');
+    const columnLabels = Array.from({ length: size - 1 }, () => 'b');
     const matrix = Array.from({ length: size }, (_unused, row) =>
       Array.from({ length: size }, (_unused2, col) => row + col),
     );
@@ -237,18 +240,17 @@ test.describe('standalone full-screen trace view', () => {
     return { algorithmId: 'levenshtein', rowLabels, columnLabels, matrix, optimalPath, operations };
   }
 
-  test('has no empty-table-header violation even when a row header other than index 0 comes in empty (reproduces the reported tr:nth-child(107) finding against a real, long document pair)', async ({
+  test('has no empty-table-header violation on a large, real-shaped DP matrix — every row/column header past index 0 comes from a `labels[i - 1]` lookup that stays in bounds for the whole matrix, not only its first row/column', async ({
     page,
   }) => {
+    // `rowLabels`/`columnLabels` (`size - 1` entries) are one shorter than
+    // the `size x size` matrix itself, the exact shape a real, long
+    // document pair produces (106 row labels for a 107-row matrix) — this
+    // reproduces the reported `tr:nth-child(107)` finding, which traced
+    // back to that same off-by-one, not to any one row's own label
+    // content.
     const trace = buildLargeDpTrace(60);
-    // Every row/column label starts empty only at index 0 (the DP
-    // alignment's own zero-length-prefix border) — this fixture also
-    // blanks the LAST row's own label, the exact shape axe flagged live
-    // against a real corpus matrix, to prove the fallback applies at any
-    // index, not only 0.
-    const rowLabels = [...trace.rowLabels];
-    rowLabels[rowLabels.length - 1] = '';
-    await mockTrace(page, 'levenshtein', { ...trace, rowLabels });
+    await mockTrace(page, 'levenshtein', trace);
     await page.setViewportSize({ width: 1440, height: 900 });
 
     await page.goto('/similarity/levenshtein/trace/full?documentIdA=doc-01&documentIdB=doc-02');
