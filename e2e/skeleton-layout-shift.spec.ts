@@ -180,6 +180,20 @@ function assertSameBox(
   ).toBeLessThanOrEqual(tolerancePx);
 }
 
+/** A wide formula or table must scroll inside its own box, never widen the
+ * page: the document is exactly as wide as the viewport. */
+async function expectNoPageHorizontalScroll(page: Page) {
+  const { scrollWidth, clientWidth } = await page.evaluate(() => {
+    const root = (
+      globalThis as unknown as {
+        document: { documentElement: { scrollWidth: number; clientWidth: number } };
+      }
+    ).document.documentElement;
+    return { scrollWidth: root.scrollWidth, clientWidth: root.clientWidth };
+  });
+  expect(scrollWidth, 'page scrollWidth vs viewport clientWidth').toBe(clientWidth);
+}
+
 const AXE_TAGS = ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'best-practice'];
 
 async function expectAxeClean(page: Page) {
@@ -499,10 +513,10 @@ for (const viewport of VIEWPORTS) {
        * `JACCARD_TRACE_MEDIAN`'s own doc comment above. */
       documentIdA?: string;
       documentIdB?: string;
-      /** Only the two DP capabilities render a KaTeX formula caption at
-       * all (`FormulaCaption`) — Jaccard, TF-IDF and both embedding bodies
-       * never do, so waiting on `.katex` for those would time out on a
-       * perfectly correct render, not a real defect. */
+      /** Only the two DP capabilities and TF-IDF render a KaTeX formula
+       * caption at all (`FormulaCaption`) — Jaccard and both embedding
+       * bodies never do, so waiting on `.katex` for those would time out on
+       * a perfectly correct render, not a real defect. */
       hasFormula: boolean;
       waitForLoaded: (page: Page) => Promise<unknown>;
       /** Only the terms table (181 real rows for the median pair) needs a
@@ -558,7 +572,7 @@ for (const viewport of VIEWPORTS) {
         fixture: TFIDF_TRACE_MEDIAN,
         documentIdA: MEDIAN_DOC_A_ID,
         documentIdB: MEDIAN_DOC_B_ID,
-        hasFormula: false,
+        hasFormula: true,
         waitForLoaded: (page) =>
           expect(page.getByRole('region', { name: 'Pesos término a término' })).toBeVisible(),
         // The median pair's own term count (180) is one row short of the
@@ -616,6 +630,7 @@ for (const viewport of VIEWPORTS) {
           await expect(page.locator('.katex').first()).toBeVisible();
         }
         const skeleton = await measure(page, region);
+        await expectNoPageHorizontalScroll(page);
         // A single representative axe pass at the widest viewport: the
         // findings this guard actually reproduced (`empty-table-header`,
         // `scrollable-region-focusable`) are structural, not width-
@@ -629,7 +644,11 @@ for (const viewport of VIEWPORTS) {
         held.release();
         await waitForLoaded(page);
         await expectLoadingSentencesHidden(page, LOADING_SENTENCES);
+        if (hasFormula) {
+          await expect(page.locator('.katex').first()).toBeVisible();
+        }
         const loaded = await measure(page, region);
+        await expectNoPageHorizontalScroll(page);
         if (viewport.width === 1440) {
           await expectAxeClean(page);
         }

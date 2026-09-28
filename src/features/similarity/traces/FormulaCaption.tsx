@@ -1,4 +1,4 @@
-import { Component, lazy, Suspense, type ReactNode } from 'react';
+import { Component, lazy, Suspense, useId, type ReactNode } from 'react';
 
 const KatexFormula = lazy(() => import('./KatexFormula'));
 
@@ -43,16 +43,29 @@ class KatexErrorBoundary extends Component<KatexErrorBoundaryProps, KatexErrorBo
  * if the chunk fails to load, so a network error never crashes the page.
  */
 export function FormulaCaption({ tex, caption }: FormulaCaptionProps) {
+  const captionId = useId();
   const rawTexFallback = <p className="font-mono text-mono text-ink-muted">{tex}</p>;
 
   return (
     <figure className="mt-2 flex flex-col gap-1">
-      <KatexErrorBoundary fallback={rawTexFallback}>
-        <Suspense fallback={rawTexFallback}>
-          <KatexFormula tex={tex} />
-        </Suspense>
-      </KatexErrorBoundary>
-      <figcaption className="text-label text-ink-muted">{caption}</figcaption>
+      {/* A formula never widens the page: a wide one scrolls inside this
+       * box, which is a labelled, focusable region so a keyboard can reach
+       * the scrolling. */}
+      <div
+        role="region"
+        aria-labelledby={captionId}
+        tabIndex={0}
+        className="max-w-full overflow-x-auto rounded-md focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus"
+      >
+        <KatexErrorBoundary fallback={rawTexFallback}>
+          <Suspense fallback={rawTexFallback}>
+            <KatexFormula tex={tex} />
+          </Suspense>
+        </KatexErrorBoundary>
+      </div>
+      <figcaption id={captionId} className="text-label text-ink-muted">
+        {caption}
+      </figcaption>
     </figure>
   );
 }
