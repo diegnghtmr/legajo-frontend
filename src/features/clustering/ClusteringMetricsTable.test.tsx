@@ -266,7 +266,7 @@ describe('ClusteringMetricsTable', () => {
 });
 
 describe('ClusteringMetricsTableSkeleton', () => {
-  it('gives every column header real accessible text, even the ones whose k is not known yet', () => {
+  it('renders the real column headers, k included, from the sample-size estimate', () => {
     render(
       <ClusteringMetricsTableSkeleton
         linkageIds={['single', 'complete']}
@@ -275,19 +275,16 @@ describe('ClusteringMetricsTableSkeleton', () => {
       />,
     );
 
-    for (const header of screen.getAllByRole('columnheader')) {
-      expect(header.textContent?.trim()).not.toBe('');
-    }
-    // n = 20 → k_ref = 4, so `estimatedSecondaryColumnCount` reserves the
-    // three other fixed cuts {2, 3, 5} as a secondary column pair each,
-    // one lead pair, plus the linkage and cophenetic columns: 4 + 3*2 = 10.
+    // n = 20 → k_ref = 4, so the three other fixed cuts {2, 3, 5} get a
+    // secondary column pair each, beside one lead pair and the linkage and
+    // cophenetic columns: 4 + 3*2 = 10. Every header is the same plain text
+    // the loaded table shows, so it wraps at the same point.
     expect(screen.getAllByRole('columnheader')).toHaveLength(10);
-    expect(
-      screen.getAllByRole('columnheader', { name: 'Silueta media (k pendiente)' }),
-    ).toHaveLength(4);
-    expect(
-      screen.getAllByRole('columnheader', { name: 'Davies–Bouldin (k pendiente)' }),
-    ).toHaveLength(4);
+    for (const k of [4, 2, 3, 5]) {
+      expect(screen.getByRole('columnheader', { name: `Silueta media (k=${k})` })).toBeVisible();
+      expect(screen.getByRole('columnheader', { name: `Davies–Bouldin (k=${k})` })).toBeVisible();
+    }
+    expect(screen.queryByText(/k pendiente/)).not.toBeInTheDocument();
   });
 
   it('reserves no secondary column pair for a sample size too small for any fixed cut but k_ref', () => {

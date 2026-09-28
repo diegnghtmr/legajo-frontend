@@ -11,7 +11,7 @@ import { orderLinkagesForMetricsTable, secondaryFixedKColumns } from './metricsT
 import { kRefForSampleSize, type ClusteringRankingResult } from './ranking';
 
 /** `kRefForSampleSize`'s own fixed-cut set (`{2,3,4,5} ∩ [2, n-1]`) —
- * mirrored here only to size the skeleton's own secondary column group
+ * mirrored here only to lay out the skeleton's own secondary column group
  * (see `estimatedSecondaryColumnKs` below), never to compute a real
  * value. */
 const FIXED_CUTS = [2, 3, 4, 5];
@@ -39,12 +39,8 @@ const TYPICAL_LINKAGE_DISPLAY_NAME: Record<string, string> = {
  * fixed cuts the response's own linkages actually carry
  * (`secondaryFixedKColumns`) — an already-malformed or degenerate response
  * can legitimately carry fewer, so this is a sizing aid for the common,
- * well-formed case, never a substitute for that real set. Used both to
- * count the secondary column pairs and, as an invisible per-header sizer
- * (never shown — the visible header still only ever says "k pendiente"),
- * to reserve each header's own real wrapped width: a plain generic bar
- * cannot reproduce a real header label's own wrap once several column
- * pairs squeeze this table's fixed `w-full` width at a narrow viewport.
+ * well-formed case, never a substitute for that real set. Used to count the
+ * secondary column pairs and to label each of their headers.
  */
 function estimatedSecondaryColumnKs(sampleSizeEstimate: number): number[] {
   if (!Number.isInteger(sampleSizeEstimate) || sampleSizeEstimate < 3) {
@@ -55,18 +51,19 @@ function estimatedSecondaryColumnKs(sampleSizeEstimate: number): number[] {
 }
 
 /** `kRefForSampleSize`'s own estimated value, or `undefined` below its own
- * valid domain — used only for the same invisible-sizer purpose. */
+ * valid domain — used to label the lead column pair. */
 function estimatedKRef(sampleSizeEstimate: number): number | undefined {
   return Number.isInteger(sampleSizeEstimate) && sampleSizeEstimate >= 3
     ? kRefForSampleSize(sampleSizeEstimate)
     : undefined;
 }
 
-/** One metrics-table header cell: the real, always-visible "k pendiente"
- * label plus an invisible sizer at the real header text's own length
- * (`labelKey` interpolated with the estimated `k`) — reserves that real
- * header's own wrapped width without claiming to know its exact `k`. */
-function MetricHeaderCellSkeleton({
+/** One metrics-table header cell of the skeleton: the real header text, k
+ * included, from the sample-size estimate. The labels are known before the
+ * response, and a plain text node directly in the `<th>` wraps exactly like
+ * the loaded header does. Only when no `k_ref` can be estimated does it fall
+ * back to the "k pending" wording. */
+function MetricHeaderCell({
   pendingLabel,
   realLabelKey,
   k,
@@ -79,31 +76,8 @@ function MetricHeaderCellSkeleton({
 }) {
   const { t } = useTranslation();
   return (
-    // `relative`: Tailwind's own `sr-only` utility is itself
-    // `position: absolute` (a common a11y off-screen technique). With no
-    // positioned ancestor of its own, it falls back to the page's initial
-    // containing block rather than this cell's own `overflow-x-auto`
-    // ancestor — invisible either way, but `document.documentElement`'s
-    // own `scrollWidth` still counts that unclipped box (the same
-    // pre-existing quirk this file's own `measure` helper already
-    // documents for `scrollHeight`), reporting a horizontal page overflow
-    // the real header (a plain text node, no `sr-only` span) never has.
-    <th scope="col" className={cn('relative', className)}>
-      <span className="sr-only">{pendingLabel}</span>
-      {/* `block`, not `inline-block`: the real header is a plain text node
-       * directly inside the `<th>`, which wraps according to whatever
-       * width the table's own column-width negotiation gives that cell.
-       * An `inline-block` sizer wraps according to its OWN shrink-to-fit
-       * width instead, which can differ from that negotiated column width
-       * — at a narrow viewport, it wrapped this invisible text later (onto
-       * fewer, longer lines) than the real header's plain text does,
-       * under-reserving this row's own real, possibly-wrapped height. */}
-      <span className="relative block">
-        <span aria-hidden="true" className="invisible">
-          {k === undefined ? pendingLabel : t(realLabelKey, { k })}
-        </span>
-        <Skeleton className="absolute inset-0" />
-      </span>
+    <th scope="col" className={className}>
+      {k === undefined ? pendingLabel : t(realLabelKey, { k })}
     </th>
   );
 }
@@ -244,13 +218,10 @@ export function ClusteringMetricsTableSkeleton({
                 >
                   {t('clustering.metrics.cophenetic')}
                 </th>
-                {/* `k_ref` is only known once the response resolves — the
-                 * visible header still only ever says "k pendiente", never
-                 * the real header interpolated with a blank k, which would
-                 * read as broken text. Each header cell's own invisible
-                 * sizer (see `MetricHeaderCellSkeleton`) is what actually
-                 * reserves this row's own real, possibly-wrapped height. */}
-                <MetricHeaderCellSkeleton
+                {/* `k_ref` comes from the sample-size estimate (the corpus
+                 * size, which is what the response will report), so the
+                 * header reads exactly as the loaded one does. */}
+                <MetricHeaderCell
                   pendingLabel={silhouettePendingLabel}
                   realLabelKey="clustering.metrics.silhouetteAtK"
                   k={kRefEstimate}
@@ -259,7 +230,7 @@ export function ClusteringMetricsTableSkeleton({
                     HIGHLIGHT_CLASS_NAME,
                   )}
                 />
-                <MetricHeaderCellSkeleton
+                <MetricHeaderCell
                   pendingLabel={daviesBouldinPendingLabel}
                   realLabelKey="clustering.metrics.daviesBouldinAtK"
                   k={kRefEstimate}
@@ -277,7 +248,7 @@ export function ClusteringMetricsTableSkeleton({
                  * does. */}
                 {secondaryKs.map((k, index) => (
                   <Fragment key={k}>
-                    <MetricHeaderCellSkeleton
+                    <MetricHeaderCell
                       pendingLabel={silhouettePendingLabel}
                       realLabelKey="clustering.metrics.silhouetteAtK"
                       k={k}
@@ -286,7 +257,7 @@ export function ClusteringMetricsTableSkeleton({
                         index === 0 && 'border-l border-hairline',
                       )}
                     />
-                    <MetricHeaderCellSkeleton
+                    <MetricHeaderCell
                       pendingLabel={daviesBouldinPendingLabel}
                       realLabelKey="clustering.metrics.daviesBouldinAtK"
                       k={k}
