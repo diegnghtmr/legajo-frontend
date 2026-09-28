@@ -341,3 +341,42 @@ describe('ClusteringMetricsTableSkeleton', () => {
     expect(screen.getByText('Complete linkage')).toHaveClass('invisible');
   });
 });
+
+describe('metrics table column layout', () => {
+  function layoutOf(container: HTMLElement) {
+    const table = container.querySelector('table')!;
+    return {
+      tableClassName: table.className,
+      minWidth: table.style.minWidth,
+      cols: Array.from(table.querySelectorAll('colgroup > col')).map((col) => col.className),
+    };
+  }
+
+  it('gives the skeleton and the loaded table the same fixed column widths, so the header wraps identically whatever the body holds', () => {
+    const loaded = render(
+      <ClusteringMetricsTable
+        results={results()}
+        kRef={4}
+        ranking={DIFFERING_RANKING}
+        representation="tfidf-cosine"
+        sampleSize={20}
+      />,
+    );
+    const loadedLayout = layoutOf(loaded.container);
+    loaded.unmount();
+
+    const skeleton = render(
+      <ClusteringMetricsTableSkeleton
+        linkageIds={['single', 'complete', 'average', 'ward']}
+        representation="tfidf-cosine"
+        sampleSizeEstimate={20}
+      />,
+    );
+    const skeletonLayout = layoutOf(skeleton.container);
+
+    expect(loadedLayout.cols).toHaveLength(10);
+    expect(loadedLayout.tableClassName).toContain('table-fixed');
+    expect(loadedLayout.minWidth).not.toBe('');
+    expect(skeletonLayout).toEqual(loadedLayout);
+  });
+});

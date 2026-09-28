@@ -811,3 +811,41 @@ for (const viewport of VIEWPORTS) {
     });
   });
 }
+
+/**
+ * The metrics table sits at its widest at these desktop widths, where a
+ * header wraps or not depending on the exact width its column gets. Its
+ * columns hold the same fixed widths in both states, so the header row is
+ * the same height whether the body holds placeholder bars or real numbers.
+ */
+for (const width of [1440, 1280] as const) {
+  test(`clustering metrics header row keeps its height between skeleton and loaded at ${width}`, async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width, height: 900 });
+    await page.route('**/api/v1/embeddings/status', async (route) => {
+      await route.fulfill({ json: EMBEDDINGS_STATUS });
+    });
+    const pending = await holdApi(page, [
+      { pattern: '**/api/v1/corpus', json: CORPUS_TWENTY },
+      { pattern: '**/api/v1/clustering', json: CLUSTERING_RESPONSE },
+    ]);
+
+    await page.goto('/clustering');
+    const headerRow = page.locator('table thead tr').first();
+    await expect(page.getByText('Calculando el agrupamiento…')).toHaveCount(1);
+    const skeletonHeader = await measure(page, headerRow);
+    await expectSkeletonsHoldNoFocusable(page);
+
+    pending.release();
+    await expect(page.getByRole('heading', { name: 'Single linkage' })).toBeVisible();
+    await expectLoadingSentencesHidden(page, LOADING_SENTENCES);
+    const loadedHeader = await measure(page, headerRow);
+
+    expect(
+      Math.abs(loadedHeader.height - skeletonHeader.height),
+      `metrics header row: ${skeletonHeader.height} (skeleton) vs ${loadedHeader.height} (loaded)`,
+    ).toBeLessThanOrEqual(1);
+    expect(loadedHeader.width).toBeCloseTo(skeletonHeader.width, 0);
+  });
+}
