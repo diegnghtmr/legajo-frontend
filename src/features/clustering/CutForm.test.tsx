@@ -2,7 +2,7 @@ import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 
-import { CutForm } from './CutForm';
+import { CutForm, CutFormSkeleton } from './CutForm';
 
 const LINKAGES = [
   { id: 'single' as const, displayName: 'Single' },
@@ -173,5 +173,37 @@ describe('CutForm', () => {
     await user.click(screen.getByRole('button', { name: 'Aplicar corte' }));
 
     expect(onSubmit).toHaveBeenCalledWith({ linkage: 'single', k: 2 });
+  });
+});
+
+describe('CutFormSkeleton', () => {
+  it("reserves each segmented item's own real display-name width, not the shorter mono id alone", () => {
+    render(<CutFormSkeleton linkageIds={['single', 'complete']} sampleSizeEstimate={20} />);
+
+    // The mono id is the real, visible text (already known before the
+    // clustering request resolves); a same-named invisible sizer beside
+    // it reserves the real `linkageDisplayName`'s own width ("Single
+    // linkage" / "Complete linkage"), which the id alone measures well
+    // short of — the exact gap that once left this segmented control (and
+    // the row wrapping around it) narrower than the real one.
+    expect(screen.getByText('single')).toBeInTheDocument();
+    expect(screen.getByText('Single linkage')).toHaveClass('invisible');
+    expect(screen.getByText('complete')).toBeInTheDocument();
+    expect(screen.getByText('Complete linkage')).toHaveClass('invisible');
+  });
+
+  it("mirrors the real form's own k-field label, built from the same sample-size estimate", () => {
+    render(<CutFormSkeleton linkageIds={['single']} sampleSizeEstimate={20} />);
+
+    expect(screen.getByText('Número de clústeres k (entre 2 y 19)')).toBeInTheDocument();
+  });
+
+  it('shows the no-valid-range message instead of the k field when the estimate leaves no valid k', () => {
+    render(<CutFormSkeleton linkageIds={['single']} sampleSizeEstimate={2} />);
+
+    expect(
+      screen.getByText('No hay una cantidad de clústeres válida para cortar este corpus.'),
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/Número de clústeres k/)).not.toBeInTheDocument();
   });
 });

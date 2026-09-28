@@ -175,6 +175,24 @@ export interface CutFormSkeletonProps {
   sampleSizeEstimate: number;
 }
 
+/** The real per-linkage display names, captured against the reference
+ * corpus: a fixed "<Name> linkage" shape for each of the four canonical
+ * ids, always noticeably longer than the mono id alone
+ * ("single" vs "Single linkage"). Used only to size each segmented item's
+ * own invisible sizer below — the fake control still shows the already-
+ * known mono id as its visible text, never this string. Reserving the mono
+ * id's own (shorter) width instead left this whole segmented control
+ * narrower than the real one once its `displayName` labels arrived,
+ * changing where the row wraps its `k` field and submit button relative to
+ * it — moving them here without moving the metrics table below, which is
+ * what actually produced the residual. */
+const TYPICAL_LINKAGE_DISPLAY_NAME: Record<string, string> = {
+  single: 'Single linkage',
+  complete: 'Complete linkage',
+  average: 'Average linkage',
+  ward: 'Ward linkage',
+};
+
 /**
  * Mirrors `CutForm`'s own three-field row (the linkage segmented control,
  * the k input, `Aplicar corte`) in the same responsive `flex flex-wrap
@@ -197,9 +215,22 @@ export function CutFormSkeleton({ linkageIds, sampleSizeEstimate }: CutFormSkele
             {linkageIds.map((linkageId) => (
               <span
                 key={linkageId}
-                className="rounded-btn px-3 py-1.5 font-mono text-label font-medium text-ink-secondary"
+                className="relative rounded-btn px-3 py-1.5 font-mono text-label font-medium text-ink-secondary"
               >
-                {linkageId}
+                {/* No `whitespace-nowrap`: the real `ToggleGroupItem` never
+                 * sets it either, so its own label can wrap onto a second
+                 * line and let the item itself shrink at a narrow
+                 * viewport — forcing this sizer to stay unwrapped instead
+                 * kept this whole segmented control, and the flex row
+                 * around it, wider than the real one ever needs to be,
+                 * which is what pushed the page into a horizontal scroll
+                 * the real one never has. */}
+                <span aria-hidden="true" className="invisible">
+                  {TYPICAL_LINKAGE_DISPLAY_NAME[linkageId] ?? linkageId}
+                </span>
+                <span className="absolute inset-0 flex items-center justify-center px-3 py-1.5">
+                  {linkageId}
+                </span>
               </span>
             ))}
           </div>
