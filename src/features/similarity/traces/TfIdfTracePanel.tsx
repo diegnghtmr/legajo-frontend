@@ -13,7 +13,12 @@ import {
 import { formatTraceNumber } from '../formatters';
 import { FormulaCaption } from './FormulaCaption';
 
-const TF_IDF_FORMULA =
+/** Exported so the trace body skeleton (`TraceBodySkeleton`) can render the
+ * exact same formula caption immediately — it needs no fetched data at
+ * all, so showing it early causes no shift once the trace itself resolves
+ * (the same reasoning `DpTracePanel`'s own exported `DP_FORMULAS` already
+ * documents). */
+export const TF_IDF_FORMULA =
   '\\cos\\theta=\\dfrac{\\sum_t w(t,A)\\,w(t,B)}{\\lVert w_A\\rVert\\,\\lVert w_B\\rVert},\\quad \\theta=\\arccos(\\cos\\theta)';
 
 export interface TfIdfTracePanelProps {

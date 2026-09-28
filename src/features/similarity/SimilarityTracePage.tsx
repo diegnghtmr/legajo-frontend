@@ -181,7 +181,7 @@ export function SimilarityTracePage() {
   const hasBothDocumentIds = documentIdA !== '' && documentIdB !== '';
 
   return (
-    <div className="flex flex-col gap-4">
+    <div data-testid="similarity-trace-page" className="flex flex-col gap-4">
       <PanelHeader
         eyebrow={t('similarity.trace.eyebrow')}
         title={title}

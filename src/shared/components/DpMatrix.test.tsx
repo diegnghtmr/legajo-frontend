@@ -6,8 +6,17 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { DpMatrix, type DpMatrixHandle } from './DpMatrix';
 
-const ROW_LABELS = ['', 'k', 'i', 't'];
-const COLUMN_LABELS = ['', 's', 'i', 't'];
+// The backend's own contract (`MatrixCell`/`DpMatrixTrace`): `rowLabels`/
+// `columnLabels` carry the compared strings' own tokens ONLY, one entry
+// each — never an entry for the empty-prefix border. The matrix itself
+// always has exactly one more row and one more column than that: row/column
+// 0 is the empty prefix every DP alignment starts from, and row/column
+// i >= 1 is `labels[i - 1]`. For "kit" vs "sit" (3 tokens each), the matrix
+// is 4x4 but `ROW_LABELS`/`COLUMN_LABELS` below have only 3 entries each —
+// mirroring the real d01/d02 Levenshtein trace's own shape (107x84 matrix,
+// 106 row labels, 83 column labels).
+const ROW_LABELS = ['k', 'i', 't'];
+const COLUMN_LABELS = ['s', 'i', 't'];
 // 4x4 Levenshtein-shaped matrix (kit vs sit): row/col 0 are the empty-prefix border.
 const MATRIX = [
   [0, 1, 2, 3],
@@ -92,51 +101,61 @@ describe('DpMatrix', () => {
     expect(region).toHaveAttribute('tabindex', '0');
   });
 
-  it('renders row and column token labels', () => {
-    renderMatrix();
+  describe('the empty-prefix border and the token-label alignment', () => {
+    it('renders exactly one header per data column/row: the empty prefix at index 0, one per real token after it — never one column or row short', () => {
+      renderMatrix();
 
-    expect(screen.getByRole('columnheader', { name: 's' })).toBeInTheDocument();
-    expect(screen.getByRole('rowheader', { name: 'k' })).toBeInTheDocument();
+      // 4 data columns (3 tokens + the empty-prefix border) — never 3 (the
+      // previous bug: a header per `columnLabels` entry, one short of the
+      // real matrix width).
+      expect(screen.getAllByRole('columnheader')).toHaveLength(MATRIX[0].length + 1); // +1 for the sticky corner
+      expect(screen.getAllByRole('rowheader')).toHaveLength(MATRIX.length);
+    });
+
+    it('gives the first data column its own empty-prefix header, and column 1 columnLabels[0] — never columnLabels[0] at column 0', () => {
+      renderMatrix();
+
+      const headerRow = screen.getAllByRole('row')[0];
+      // Corner header, then one per data column: empty prefix, then the
+      // real tokens in order.
+      const dataColumnHeaders = headerRow.querySelectorAll('th[scope="col"]');
+      expect(dataColumnHeaders).toHaveLength(MATRIX[0].length + 1);
+      expect(dataColumnHeaders[0]).toHaveTextContent('Prefix'); // the sticky corner
+      expect(dataColumnHeaders[1]).toHaveAccessibleName('Prefix of length 0');
+      expect(dataColumnHeaders[2]).toHaveTextContent(COLUMN_LABELS[0]);
+      expect(dataColumnHeaders[3]).toHaveTextContent(COLUMN_LABELS[1]);
+      expect(dataColumnHeaders[4]).toHaveTextContent(COLUMN_LABELS[2]);
+    });
+
+    it('gives the first data row its own empty-prefix header, and row 1 rowLabels[0] — never rowLabels[0] at row 0', () => {
+      renderMatrix();
+
+      const rowHeaders = screen.getAllByRole('rowheader');
+      expect(rowHeaders[0]).toHaveAccessibleName('Prefix of length 0');
+      expect(rowHeaders[1]).toHaveTextContent(ROW_LABELS[0]);
+      expect(rowHeaders[2]).toHaveTextContent(ROW_LABELS[1]);
+      expect(rowHeaders[3]).toHaveTextContent(ROW_LABELS[2]);
+    });
+
+    it('renders row and column token labels as real, visible text (never behind the empty-prefix sr-only fallback)', () => {
+      renderMatrix();
+
+      expect(screen.getByRole('columnheader', { name: 's' })).toBeInTheDocument();
+      expect(screen.getByRole('rowheader', { name: 'k' })).toBeInTheDocument();
+    });
+
+    it('gives the sticky top-left corner header a non-empty accessible name (empty-table-header)', () => {
+      renderMatrix();
+
+      const cornerHeader = screen.getByRole('columnheader', { name: 'Prefix' });
+      // The sticky corner, never one of the four real column headers (the
+      // empty prefix, `s`, `i`, `t`) — this is the one column header with
+      // no visible text of its own.
+      expect(cornerHeader.textContent?.trim()).toBe('Prefix');
+    });
   });
 
-  it('gives the sticky top-left corner header a non-empty accessible name (empty-table-header)', () => {
-    renderMatrix();
-
-    const cornerHeader = screen.getByRole('columnheader', { name: 'Prefix' });
-    // The sticky corner, never one of the four real column headers (`s`,
-    // `i`, `t`, and their duplicate at row/column overlap) — this is the
-    // one column header with no visible text of its own.
-    expect(cornerHeader.textContent?.trim()).toBe('Prefix');
-  });
-
-  it('gives every empty-prefix row/column header its own non-empty sr-only fallback name instead of leaving it blank (empty-table-header) — checked at every index, not only 0, since a real corpus matrix reported the same violation on its own last row', () => {
-    // rowLabels/columnLabels[0] are the empty-prefix border every DP
-    // alignment starts from — mirroring the exact shape reported live
-    // against a real, long document pair, where axe flagged the LAST
-    // row's own header (not only index 0) as empty.
-    render(
-      <DpMatrix
-        rowLabels={['', 'k', 'i', '']}
-        columnLabels={['', 's', 'i', 't']}
-        matrix={MATRIX}
-        optimalPath={OPTIMAL_PATH}
-        ariaLabel="Levenshtein matrix"
-        downloadLabel="Download CSV"
-        downloadFileName="levenshtein-matrix.csv"
-        pathCellLabel="Optimal path cell"
-        cornerLabel="Prefix"
-        emptyPrefixLabelTemplate="Prefix of length {{index}}"
-      />,
-    );
-
-    expect(screen.getByRole('columnheader', { name: 'Prefix of length 0' })).toBeInTheDocument();
-    expect(screen.getByRole('rowheader', { name: 'Prefix of length 0' })).toBeInTheDocument();
-    // The last row's own label (index 3), empty in this fixture, gets the
-    // exact same fallback pattern — never left as a blank `<th>`.
-    expect(screen.getByRole('rowheader', { name: 'Prefix of length 3' })).toBeInTheDocument();
-  });
-
-  it('downloads a CSV containing every cell value, in row order, when the button is clicked', async () => {
+  it('downloads a CSV containing every cell value, with the empty-prefix border aligned the same way the table itself is', async () => {
     const user = userEvent.setup();
     let capturedBlob: Blob | undefined;
     const createObjectURL = vi.fn((blob: Blob) => {
@@ -155,11 +174,14 @@ describe('DpMatrix', () => {
     const text = await capturedBlob?.text();
     const lines = text?.split('\r\n') ?? [];
 
-    // Header row (blank corner + column labels) + one row per matrix row.
+    // Header row (blank corner + one column label per data column,
+    // starting with the empty prefix) + one row per matrix row.
     expect(lines).toHaveLength(MATRIX.length + 1);
+    const headerCells = lines[0].split(',');
+    expect(headerCells).toEqual(['', '', ...COLUMN_LABELS]);
     for (let row = 0; row < MATRIX.length; row += 1) {
       const cells = lines[row + 1].split(',');
-      expect(cells[0]).toBe(ROW_LABELS[row]);
+      expect(cells[0]).toBe(row === 0 ? '' : ROW_LABELS[row - 1]);
       for (let col = 0; col < MATRIX[row].length; col += 1) {
         expect(cells[col + 1]).toBe(String(MATRIX[row][col]));
       }

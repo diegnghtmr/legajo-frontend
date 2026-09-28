@@ -13,7 +13,9 @@ import {
 import { DP_FORMULAS } from './DpTracePanel';
 import { DP_OPERATION_LEGEND } from './dpOperationLegend';
 import { FormulaCaption } from './FormulaCaption';
+import { TF_IDF_FORMULA } from './TfIdfTracePanel';
 import { TraceFieldSkeleton } from './TraceFieldSkeleton';
+import { TraceMetaFieldSkeleton } from './TraceMetaFieldSkeleton';
 
 export interface TraceBodySkeletonProps {
   /** Already known before the trace fetch resolves (the route param or the
@@ -25,6 +27,14 @@ export interface TraceBodySkeletonProps {
    * `hideDownloadButton`, so the two never disagree about where that
    * control's box lives. */
   hideDownloadButton?: boolean;
+  /** Set by the docked/overlay trace panel, whose own header already
+   * renders the generic Familia/raw-value/score/optimal-path meta row —
+   * mirrors `DpTracePanel`'s own `hideOwnMetaRow`, so the two never
+   * disagree about whether this row's box is reserved here or there. The
+   * standalone full trace view leaves this unset, reserving the same
+   * `Familia`/`Camino óptimo` row `DpTracePanel` renders for real once the
+   * trace and the algorithm catalogue have both resolved. */
+  hideDpMetaRow?: boolean;
 }
 
 const DP_ALGORITHM_IDS = ['levenshtein', 'needleman-wunsch'] as const;
@@ -47,9 +57,11 @@ function isDpAlgorithmId(algorithmId: string): algorithmId is DpAlgorithmId {
 function DpTraceBodySkeleton({
   algorithmId,
   hideDownloadButton = false,
+  hideMetaRow = false,
 }: {
   algorithmId: DpAlgorithmId;
   hideDownloadButton: boolean;
+  hideMetaRow: boolean;
 }) {
   const { t } = useTranslation();
   const legendHeadingId = useId();
@@ -57,6 +69,16 @@ function DpTraceBodySkeleton({
 
   return (
     <div className="flex flex-col gap-4">
+      {!hideMetaRow && (
+        <dl className="flex flex-wrap gap-x-8 gap-y-2">
+          <TraceMetaFieldSkeleton
+            label={t('similarity.trace.dp.familyLabel')}
+            valueVariant="body"
+          />
+          <TraceMetaFieldSkeleton label={t('similarity.trace.dp.optimalPathLabel')} />
+        </dl>
+      )}
+
       <div className="flex flex-col gap-2">
         <div
           role="region"
@@ -124,13 +146,29 @@ function isEmbeddingAlgorithmId(algorithmId: string): algorithmId is EmbeddingAl
   return (EMBEDDING_ALGORITHM_IDS as readonly string[]).includes(algorithmId);
 }
 
+/** Eight comma-joined placeholder numbers at this field's own typical
+ * length (a signed 6-decimal value, e.g. `-0.021680`, the longest shape
+ * `formatTraceNumber` produces for a raw embedding component) — sized so
+ * the invisible sizer below wraps exactly the way a real excerpt of eight
+ * such numbers would, at whatever width this render actually has, rather
+ * than guessing a fixed line count that only holds at one viewport. */
+const TYPICAL_VECTOR_EXCERPT = Array.from({ length: 8 }, () => '-0.000000').join(', ');
+
+/** The real `embedding-api` model id, captured against the reference
+ * corpus — this app talks to one configured provider model, so this
+ * length is not really "typical", it is the actual value; used only to
+ * size the invisible sizer below, never asserted as the real response. */
+const TYPICAL_EMBEDDING_API_MODEL = 'gemini-embedding-2-preview';
+
 /**
  * Mirrors `EmbeddingLocalTracePanel`/`EmbeddingApiTracePanel`: every field
  * this shape ever has is fixed (never a variable-length list), so every
- * label renders as real text immediately, over a placeholder value bar.
- * The two vector excerpts and (for `embedding-api`) the configured model id
- * reserve a second line — both are known to wrap at this grid's own column
- * width, unlike the shorter fixed-precision numeric fields.
+ * label renders as real text immediately, over a placeholder value. The
+ * two vector excerpts and (for `embedding-api`) the model id size their
+ * own placeholder from a representative real value instead of a fixed
+ * line count: whether either actually wraps onto a second line depends on
+ * the viewport's own current width, which a fixed count can only ever
+ * match at one width and overshoot or undershoot at every other.
  */
 function EmbeddingTraceBodySkeleton({ algorithmId }: { algorithmId: EmbeddingAlgorithmId }) {
   const { t } = useTranslation();
@@ -141,18 +179,18 @@ function EmbeddingTraceBodySkeleton({ algorithmId }: { algorithmId: EmbeddingAlg
       <TraceFieldSkeleton label={t(`similarity.trace.${ns}.providerLabel`)} />
       <TraceFieldSkeleton
         label={t(`similarity.trace.${ns}.modelLabel`)}
-        valueLines={algorithmId === 'embedding-api' ? 2 : 1}
+        typicalValue={algorithmId === 'embedding-api' ? TYPICAL_EMBEDDING_API_MODEL : undefined}
       />
       <TraceFieldSkeleton label={t(`similarity.trace.${ns}.dimensionLabel`)} />
       <TraceFieldSkeleton
         className="sm:col-span-2"
         label={t(`similarity.trace.${ns}.vectorAExcerptLabel`)}
-        valueLines={2}
+        typicalValue={TYPICAL_VECTOR_EXCERPT}
       />
       <TraceFieldSkeleton
         className="sm:col-span-2"
         label={t(`similarity.trace.${ns}.vectorBExcerptLabel`)}
-        valueLines={2}
+        typicalValue={TYPICAL_VECTOR_EXCERPT}
       />
       <TraceFieldSkeleton label={t(`similarity.trace.${ns}.preNormL2ALabel`)} />
       <TraceFieldSkeleton label={t(`similarity.trace.${ns}.preNormL2BLabel`)} />
@@ -175,10 +213,76 @@ function EmbeddingTraceBodySkeleton({ algorithmId }: { algorithmId: EmbeddingAlg
   );
 }
 
+/**
+ * How many tokens the real corpus's own document pairs typically produce
+ * for each Jaccard field — the corpus-wide median over every one of the
+ * reference corpus's 190 possible pairs for `union` (181, quartiles
+ * 169/197), and a 25-pair sample's own median for the rest (`setA` 100,
+ * range 64–142; `setB` 107, range 64–142; `intersection` 15, range 5–27).
+ * Deliberately NOT measured from one single pair: d01/d02 (the guard's own
+ * previous source for this constant) is the SMALLEST of all 190 pairs
+ * (union 134), so sizing from it undershoots almost every real response.
+ * The exact response still differs by pair, but per the design rule for a
+ * response-dependent size, reserving this typical, corpus-wide shape —
+ * rather than one fixed-width bar, or one single pair's own shape — is
+ * what keeps the full-screen trace view from shifting by hundreds of
+ * pixels once these token lists (which wrap over several lines) actually
+ * arrive.
+ */
+const JACCARD_TYPICAL_TOKEN_COUNTS = {
+  setA: 100,
+  setB: 107,
+  intersection: 15,
+  union: 181,
+} as const;
+
+/**
+ * A representative English-token length distribution (the reference
+ * corpus's own tokens average 7–8 characters, sampled across several
+ * pairs), not one uniform length: a comma-joined list of same-length
+ * filler words packs measurably more tokens per wrapped line than a real
+ * list of varied-length words does (real words leave a bigger, more
+ * irregular gap at the end of each line), which under-reserves this
+ * placeholder's own real height. Cycling through a small spread of
+ * lengths instead reproduces that same per-line waste, without shipping a
+ * long list of real corpus words merely to size a placeholder.
+ */
+const JACCARD_TYPICAL_TOKEN_LENGTHS = [5, 7, 9, 6, 11, 8, 4, 10, 7, 12, 6, 8];
+
+function typicalTokenListText(tokenCount: number): string {
+  return Array.from({ length: tokenCount }, (_unused, index) =>
+    'x'.repeat(JACCARD_TYPICAL_TOKEN_LENGTHS[index % JACCARD_TYPICAL_TOKEN_LENGTHS.length]),
+  ).join(', ');
+}
+
+/** Mirrors `TokenSet`'s own box. A real token list's wrapped height depends
+ * on the response, so — instead of one fixed-height bar — an invisible
+ * span of the typical token count (`JACCARD_TYPICAL_TOKEN_COUNTS`) at the
+ * typical token length sizes this placeholder at whatever height that
+ * many comma-joined tokens actually wrap to at the current viewport
+ * width, the same "invisible sizer under a `Skeleton` overlay" technique
+ * the clustering metrics header skeleton already uses for its own
+ * response-dependent width. */
+function TokenSetSkeleton({ tokenCount }: { tokenCount: number }) {
+  return (
+    // A `<div>`, not the real `TokenSet`'s own `<p>`: a `Skeleton` renders a
+    // `<div>`, which HTML forbids inside `<p>` (phrasing content only).
+    // Tailwind's own preflight already zeroes `<p>` margins, so this stays
+    // the identical box either way.
+    <div className="relative break-words font-mono text-mono text-ink-secondary">
+      <span aria-hidden="true" className="invisible">
+        {typicalTokenListText(tokenCount)}
+      </span>
+      <Skeleton className="absolute inset-0" />
+    </div>
+  );
+}
+
 /** Mirrors `JaccardTracePanel`'s own fixed labels (both set names, the
- * intersection/union headings and the coefficient) as real text; only the
- * token sets themselves — a variable-length list per document pair — stay
- * placeholder bars. */
+ * intersection/union headings, their size labels and the coefficient) as
+ * real text; only the token sets themselves — each a variable-length list
+ * per document pair — stay placeholder boxes, sized to this corpus's own
+ * typical token count (see `JACCARD_TYPICAL_TOKEN_COUNTS`). */
 function JaccardTraceBodySkeleton() {
   const { t } = useTranslation();
   const intersectionHeadingId = useId();
@@ -187,27 +291,55 @@ function JaccardTraceBodySkeleton() {
   return (
     <div className="flex flex-col gap-4">
       <dl className="flex flex-col gap-4">
-        <TraceFieldSkeleton label={t('similarity.trace.jaccard.setALabel')} />
-        <TraceFieldSkeleton label={t('similarity.trace.jaccard.setBLabel')} />
+        <div>
+          <dt className="text-eyebrow font-semibold uppercase tracking-wide text-ink-secondary">
+            {t('similarity.trace.jaccard.setALabel')}
+          </dt>
+          <dd>
+            <TokenSetSkeleton tokenCount={JACCARD_TYPICAL_TOKEN_COUNTS.setA} />
+          </dd>
+        </div>
+        <div>
+          <dt className="text-eyebrow font-semibold uppercase tracking-wide text-ink-secondary">
+            {t('similarity.trace.jaccard.setBLabel')}
+          </dt>
+          <dd>
+            <TokenSetSkeleton tokenCount={JACCARD_TYPICAL_TOKEN_COUNTS.setB} />
+          </dd>
+        </div>
       </dl>
-      <div className="flex flex-col gap-1">
+
+      <section aria-labelledby={intersectionHeadingId} className="flex flex-col gap-1">
         <h3
           id={intersectionHeadingId}
           className="text-eyebrow font-semibold uppercase tracking-wide text-ink-secondary"
         >
           {t('similarity.trace.jaccard.intersectionLabel')}
         </h3>
-        <Skeleton className="h-3 w-40" />
-      </div>
-      <div className="flex flex-col gap-1">
+        {/* A `<div>`, not a `<p>`: HTML forbids a `Skeleton`'s own `<div>`
+         * inside a `<p>` (phrasing content only) — Tailwind's own preflight
+         * already zeroes `<p>` margins, so this stays the identical box. */}
+        <div className="flex items-baseline gap-2 text-label text-ink-secondary">
+          <span>{t('similarity.trace.jaccard.intersectionSizeLabel')}</span>
+          <Skeleton className="h-3 w-10" />
+        </div>
+        <TokenSetSkeleton tokenCount={JACCARD_TYPICAL_TOKEN_COUNTS.intersection} />
+      </section>
+
+      <section aria-labelledby={unionHeadingId} className="flex flex-col gap-1">
         <h3
           id={unionHeadingId}
           className="text-eyebrow font-semibold uppercase tracking-wide text-ink-secondary"
         >
           {t('similarity.trace.jaccard.unionLabel')}
         </h3>
-        <Skeleton className="h-3 w-40" />
-      </div>
+        <div className="flex items-baseline gap-2 text-label text-ink-secondary">
+          <span>{t('similarity.trace.jaccard.unionSizeLabel')}</span>
+          <Skeleton className="h-3 w-10" />
+        </div>
+        <TokenSetSkeleton tokenCount={JACCARD_TYPICAL_TOKEN_COUNTS.union} />
+      </section>
+
       <dl>
         <TraceFieldSkeleton label={t('similarity.trace.jaccard.coefficientLabel')} />
       </dl>
@@ -215,20 +347,37 @@ function JaccardTraceBodySkeleton() {
   );
 }
 
+/**
+ * The terms table carries no bounded viewport of its own (unlike the DP
+ * matrix/operations regions): on the docked panel that is absorbed by the
+ * panel's own scrollable body, but on the full-screen view every row
+ * this table ends up with pushes the whole page taller. The term count is
+ * always the union of the two documents' own vocabularies (the same field
+ * `JaccardTracePanel`'s own `unionSize` reports for the same pair), so
+ * this reuses the identical corpus-wide median already measured for that
+ * field (`JACCARD_TYPICAL_TOKEN_COUNTS.union`, 181) rather than a second,
+ * separately-tuned constant for what is the same real-world quantity.
+ */
+const TFIDF_TYPICAL_TERM_ROW_COUNT = JACCARD_TYPICAL_TOKEN_COUNTS.union;
+
 /** Mirrors `TfIdfTracePanel`'s own fixed corpus-size field and the terms
  * table's real header row (every column label is fixed chrome); the term
  * rows themselves depend on the union of the two documents' own tokens, so
- * they stay placeholder bars inside the table's own scrollable region. */
+ * they stay placeholder bars inside the table's own scrollable region,
+ * sized to this corpus's own typical term count
+ * (`TFIDF_TYPICAL_TERM_ROW_COUNT`). */
 function TfIdfTraceBodySkeleton() {
   const { t } = useTranslation();
   const termsHeadingId = useId();
 
   return (
     <div className="flex flex-col gap-4">
-      <p className="flex items-baseline gap-2 text-label text-ink-secondary">
+      {/* A `<div>`, not a `<p>`: see the identical fix on the Jaccard
+       * skeleton's own size-label lines above. */}
+      <div className="flex items-baseline gap-2 text-label text-ink-secondary">
         <span>{t('similarity.trace.tfidf.corpusSizeLabel')}</span>
         <Skeleton className="h-3 w-10" />
-      </p>
+      </div>
       <div>
         <h3
           id={termsHeadingId}
@@ -245,27 +394,42 @@ function TfIdfTraceBodySkeleton() {
           <Table wrap={false}>
             <TableHeader>
               <TableRow>
-                <TableHead>{t('similarity.trace.tfidf.termLabel')}</TableHead>
-                <TableHead>{t('similarity.trace.tfidf.frequencyALabel')}</TableHead>
-                <TableHead>{t('similarity.trace.tfidf.frequencyBLabel')}</TableHead>
-                <TableHead>{t('similarity.trace.tfidf.documentFrequencyLabel')}</TableHead>
+                {/* Every real column (`TfIdfTracePanel`'s own eleven
+                 * `TableHead`s) — the previous four-column shell left the
+                 * table's own natural width one third of its real one,
+                 * changing how much the "Término" column itself wraps at a
+                 * narrow viewport once every other column also claims
+                 * space. */}
+                <TableHead className="p-2">{t('similarity.trace.tfidf.termLabel')}</TableHead>
+                <TableHead className="p-2">{t('similarity.trace.tfidf.frequencyALabel')}</TableHead>
+                <TableHead className="p-2">{t('similarity.trace.tfidf.frequencyBLabel')}</TableHead>
+                <TableHead className="p-2">
+                  {t('similarity.trace.tfidf.documentFrequencyLabel')}
+                </TableHead>
+                <TableHead className="p-2">{t('similarity.trace.tfidf.tfALabel')}</TableHead>
+                <TableHead className="p-2">{t('similarity.trace.tfidf.tfBLabel')}</TableHead>
+                <TableHead className="p-2">{t('similarity.trace.tfidf.idfLabel')}</TableHead>
+                <TableHead className="p-2">{t('similarity.trace.tfidf.rawWeightALabel')}</TableHead>
+                <TableHead className="p-2">{t('similarity.trace.tfidf.rawWeightBLabel')}</TableHead>
+                <TableHead className="p-2">
+                  {t('similarity.trace.tfidf.normalizedWeightALabel')}
+                </TableHead>
+                <TableHead className="p-2">
+                  {t('similarity.trace.tfidf.normalizedWeightBLabel')}
+                </TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {Array.from({ length: 3 }, (_unused, index) => (
+              {Array.from({ length: TFIDF_TYPICAL_TERM_ROW_COUNT }, (_unused, index) => (
                 <TableRow key={index}>
-                  <TableCell>
-                    <Skeleton className="h-3 w-16" />
+                  <TableCell className="p-2">
+                    <Skeleton className="h-[18px] w-16" />
                   </TableCell>
-                  <TableCell>
-                    <Skeleton className="h-3 w-8" />
-                  </TableCell>
-                  <TableCell>
-                    <Skeleton className="h-3 w-8" />
-                  </TableCell>
-                  <TableCell>
-                    <Skeleton className="h-3 w-8" />
-                  </TableCell>
+                  {Array.from({ length: 10 }, (_unused2, column) => (
+                    <TableCell key={column} className="p-2">
+                      <Skeleton className="h-[18px] w-8" />
+                    </TableCell>
+                  ))}
                 </TableRow>
               ))}
             </TableBody>
@@ -279,6 +443,13 @@ function TfIdfTraceBodySkeleton() {
         <TraceFieldSkeleton label={t('similarity.trace.tfidf.cosineLabel')} />
         <TraceFieldSkeleton label={t('similarity.trace.tfidf.angleLabel')} />
       </dl>
+
+      {/* Needs no fetched data at all (the same reasoning `DpTraceBodySkeleton`
+       * already applies to its own formula caption) — omitted here
+       * entirely until now, which the docked panel's own bounded,
+       * scrollable body absorbed silently but the full-screen view could
+       * not. */}
+      <FormulaCaption tex={TF_IDF_FORMULA} caption={t('similarity.trace.tfidf.formula')} />
     </div>
   );
 }
@@ -295,11 +466,16 @@ function TfIdfTraceBodySkeleton() {
 export function TraceBodySkeleton({
   algorithmId,
   hideDownloadButton = false,
+  hideDpMetaRow = false,
 }: TraceBodySkeletonProps) {
   return (
     <div data-testid="trace-body-skeleton">
       {isDpAlgorithmId(algorithmId) ? (
-        <DpTraceBodySkeleton algorithmId={algorithmId} hideDownloadButton={hideDownloadButton} />
+        <DpTraceBodySkeleton
+          algorithmId={algorithmId}
+          hideDownloadButton={hideDownloadButton}
+          hideMetaRow={hideDpMetaRow}
+        />
       ) : isEmbeddingAlgorithmId(algorithmId) ? (
         <EmbeddingTraceBodySkeleton algorithmId={algorithmId} />
       ) : algorithmId === 'jaccard' ? (

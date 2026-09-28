@@ -230,7 +230,9 @@ export function TraceDetailPanel({
       </dl>
 
       <div className="flex-1 overflow-y-auto p-4">
-        {traceQuery.isPending && <TraceBodySkeleton algorithmId={algorithmId} hideDownloadButton />}
+        {traceQuery.isPending && (
+          <TraceBodySkeleton algorithmId={algorithmId} hideDownloadButton hideDpMetaRow />
+        )}
         {traceQuery.isError && (
           <div role="alert" className="flex flex-col gap-1">
             <p className="text-body font-semibold text-danger">

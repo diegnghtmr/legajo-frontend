@@ -96,7 +96,7 @@ describe('TraceBodySkeleton', () => {
     expect(screen.queryByText('Estado del proveedor')).not.toBeInTheDocument();
   });
 
-  it('for Jaccard, shows the fixed set/coefficient labels as real text', () => {
+  it("for Jaccard, shows the fixed set/coefficient labels as real text, each token list sized to this corpus's own typical token count", () => {
     render(<TraceBodySkeleton algorithmId="jaccard" />);
 
     expect(screen.getByText('Conjunto A')).toBeInTheDocument();
@@ -104,14 +104,52 @@ describe('TraceBodySkeleton', () => {
     expect(screen.getByText('Intersección')).toBeInTheDocument();
     expect(screen.getByText('Unión')).toBeInTheDocument();
     expect(screen.getByText('Coeficiente de Jaccard')).toBeInTheDocument();
+
+    // Every token-list placeholder is an invisible sizer (the real corpus's
+    // own typical token count) under a `Skeleton` overlay — never a single
+    // fixed-width bar, which a long real token list would overflow well
+    // past on a full-screen page with no bounded viewport of its own.
+    const invisibleSizers = document.querySelectorAll('span.invisible');
+    expect(invisibleSizers).toHaveLength(4);
+    const tokenCounts = [...invisibleSizers].map((sizer) => sizer.textContent!.split(', ').length);
+    expect(tokenCounts.sort((a, b) => a - b)).toEqual([15, 100, 107, 181]);
   });
 
-  it('for TF-IDF/cosine, shows the corpus-size label and the terms region shell as real text', () => {
+  it('for TF-IDF/cosine, shows the corpus-size label and the terms region shell as real text, with a real-corpus-typical term row count', () => {
     render(<TraceBodySkeleton algorithmId="tfidf-cosine" />);
 
     expect(screen.getByText('Tamaño del corpus (N)')).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Pesos término a término' })).toBeInTheDocument();
     const region = screen.getByRole('region', { name: 'Pesos término a término' });
     expect(within(region).getByText('Término')).toBeInTheDocument();
+
+    // The terms table has no bounded viewport of its own (unlike the DP
+    // matrix/operations regions above): on the full-screen view every row
+    // it renders pushes the whole page taller, so this reserves the real
+    // corpus's own typical term count rather than a handful of rows.
+    expect(within(region).getAllByRole('row')).toHaveLength(182); // header + 181 terms
+  });
+
+  describe('the DP meta row (Familia, Camino óptimo)', () => {
+    it('reserves it by default, for the standalone full trace view', () => {
+      render(<TraceBodySkeleton algorithmId="levenshtein" />);
+
+      expect(screen.getByText('Familia')).toBeInTheDocument();
+      expect(screen.getByText('Camino óptimo')).toBeInTheDocument();
+    });
+
+    it('hides it when the caller (the docked trace panel) renders its own generic meta row instead', () => {
+      render(<TraceBodySkeleton algorithmId="levenshtein" hideDpMetaRow />);
+
+      expect(screen.queryByText('Familia')).not.toBeInTheDocument();
+      expect(screen.queryByText('Camino óptimo')).not.toBeInTheDocument();
+    });
+
+    it('is never rendered for a non-DP algorithm, hidden or not', () => {
+      render(<TraceBodySkeleton algorithmId="jaccard" />);
+
+      expect(screen.queryByText('Familia')).not.toBeInTheDocument();
+      expect(screen.queryByText('Camino óptimo')).not.toBeInTheDocument();
+    });
   });
 });

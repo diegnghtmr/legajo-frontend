@@ -10,9 +10,15 @@ export interface DpMatrixCell {
 }
 
 export interface DpMatrixProps {
-  /** One label per matrix row, same length as `matrix` (index 0 is the empty-prefix row). */
+  /** The compared strings' own tokens ONLY — one entry per real row token,
+   * never an entry for the empty-prefix border (the backend's own
+   * `DpMatrixTrace` contract): exactly one entry shorter than `matrix`
+   * itself. Matrix row 0 is always the empty prefix; row `i >= 1` is
+   * `rowLabels[i - 1]`. */
   rowLabels: readonly string[];
-  /** One label per matrix column, same length as each row of `matrix`. */
+  /** The same contract as `rowLabels`, for columns: one entry shorter than
+   * each row of `matrix`. Matrix column 0 is always the empty prefix;
+   * column `i >= 1` is `columnLabels[i - 1]`. */
   columnLabels: readonly string[];
   /** The complete DP matrix — never a windowed or truncated subset. */
   matrix: readonly (readonly number[])[];
@@ -29,12 +35,10 @@ export interface DpMatrixProps {
    * axis-accurate label (e.g. "Prefix") reads correctly regardless of which
    * two documents are being compared. */
   cornerLabel: string;
-  /** Template for the sr-only fallback given to any row/column header whose
-   * own label is the empty string — by construction that is row/column 0
-   * (the zero-length prefix every DP alignment starts from), but this is
-   * applied at any index that comes in empty, so a `<th>` never ends up
-   * with zero accessible text (`empty-table-header`) regardless of why its
-   * own label came in blank. Must contain the literal placeholder
+  /** Template for the sr-only fallback given to the empty-prefix header at
+   * row/column 0 — the zero-length prefix every DP alignment starts from,
+   * which otherwise renders with no accessible text at all
+   * (`empty-table-header`). Must contain the literal placeholder
    * `{{index}}`, e.g. "Prefix of length {{index}}". */
   emptyPrefixLabelTemplate: string;
   /** Renders this component's own "Download CSV" button. Defaults to `true`
@@ -81,6 +85,19 @@ function pathKey(row: number, col: number): string {
  * string is already resolved by the caller). */
 function formatEmptyPrefixLabel(template: string, index: number): string {
   return template.replace('{{index}}', String(index));
+}
+
+/**
+ * The real token at matrix row/column index `i`: `undefined` at index 0
+ * (the empty-prefix border, which every alignment starts from and which
+ * `labels` itself never carries an entry for), `labels[i - 1]` at every
+ * later index. Both `DpMatrix`'s own header rendering and its CSV export
+ * read `rowLabels`/`columnLabels` through this one function, so the two
+ * can never drift into disagreeing about which matrix index maps to which
+ * label.
+ */
+function tokenAt(labels: readonly string[], index: number): string | undefined {
+  return index === 0 ? undefined : labels[index - 1];
 }
 
 /**
@@ -177,10 +194,17 @@ export const DpMatrix = forwardRef<DpMatrixHandle, DpMatrixProps>(function DpMat
   }, [matrix, optimalPath]);
 
   function downloadCsv() {
-    const csv = toCsv(
-      ['', ...columnLabels],
-      rowLabels.map((label, row) => [label, ...matrix[row]]),
-    );
+    // One header cell per data column (the empty prefix at column 0, then
+    // `columnLabels`), never `columnLabels` alone: that left this CSV's own
+    // header row one column short of every data row's own `[label,
+    // ...matrix[row]]` — which itself always has `columnLabels.length + 1`
+    // values, matching the matrix's real width.
+    const columnHeaderRow = [
+      '',
+      ...matrix[0].map((_unused, col) => tokenAt(columnLabels, col) ?? ''),
+    ];
+    const dataRows = matrix.map((rowValues, row) => [tokenAt(rowLabels, row) ?? '', ...rowValues]);
+    const csv = toCsv(columnHeaderRow, dataRows);
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const anchor = document.createElement('a');
@@ -216,18 +240,18 @@ export const DpMatrix = forwardRef<DpMatrixHandle, DpMatrixProps>(function DpMat
               <th scope="col" className="sticky top-0 left-0 z-20 bg-paper-sunken p-1">
                 <span className="sr-only">{cornerLabel}</span>
               </th>
-              {columnLabels.map((label, col) => (
+              {matrix[0].map((_unused, col) => (
                 <th
                   key={col}
                   scope="col"
                   className="sticky top-0 z-10 min-w-8 bg-paper-sunken p-1 font-mono text-mono text-ink-secondary"
                 >
-                  {label === '' ? (
+                  {col === 0 ? (
                     <span className="sr-only">
                       {formatEmptyPrefixLabel(emptyPrefixLabelTemplate, col)}
                     </span>
                   ) : (
-                    label
+                    tokenAt(columnLabels, col)
                   )}
                 </th>
               ))}
@@ -240,12 +264,12 @@ export const DpMatrix = forwardRef<DpMatrixHandle, DpMatrixProps>(function DpMat
                   scope="row"
                   className="sticky left-0 z-10 min-w-8 bg-paper-sunken p-1 font-mono text-mono text-ink-secondary"
                 >
-                  {rowLabels[row] === '' ? (
+                  {row === 0 ? (
                     <span className="sr-only">
                       {formatEmptyPrefixLabel(emptyPrefixLabelTemplate, row)}
                     </span>
                   ) : (
-                    rowLabels[row]
+                    tokenAt(rowLabels, row)
                   )}
                 </th>
                 {rowValues.map((value, col) => {

@@ -129,8 +129,8 @@ const matrixCell = { row: 0, col: 0 };
 describe('DpMatrixTraceSchema (runtime)', () => {
   const dpPayload = {
     algorithmId: 'needleman-wunsch',
-    rowLabels: ['', 'A', 'B'],
-    columnLabels: ['', 'A', 'C'],
+    rowLabels: ['A', 'B'],
+    columnLabels: ['A', 'C'],
     matrix: [
       [0, -1, -2],
       [-1, 1, 0],

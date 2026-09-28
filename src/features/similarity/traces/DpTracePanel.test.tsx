@@ -8,8 +8,8 @@ import { DpTracePanel } from './DpTracePanel';
 
 const LEVENSHTEIN_TRACE: DpMatrixTrace = {
   algorithmId: 'levenshtein',
-  rowLabels: ['', 'k', 'i', 't'],
-  columnLabels: ['', 's', 'i', 't'],
+  rowLabels: ['k', 'i', 't'],
+  columnLabels: ['s', 'i', 't'],
   matrix: [
     [0, 1, 2, 3],
     [1, 1, 2, 3],

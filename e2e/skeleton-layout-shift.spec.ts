@@ -1,347 +1,94 @@
+import { AxeBuilder } from '@axe-core/playwright';
 import { expect, test, type Locator, type Page } from '@playwright/test';
 
+import { buildDpTrace } from './support/dpTraceBuilder.js';
+import { loadFixture } from './support/fixtures.js';
 import { holdApi } from './support/holdApi.js';
 import { expectLoadingSentencesHidden } from './support/loadingText.js';
 
 /**
  * Regression guard for the loading skeletons: for every screen listed
- * below, at both a wide and a narrow viewport, this holds every API
- * response the screen needs, measures its own region's outer box and the
- * page's `scrollHeight` while still showing the skeleton, releases the
- * held responses, waits for the real content, and asserts neither the box
- * nor the page grew or shrank by more than a few pixels — "same box, no
- * shift" as an executable check, not only a rule in prose.
+ * below, at 1440×900, 1024×900 and 390×844, this holds every API response
+ * the screen needs, measures its own region's outer box and the page's
+ * `scrollHeight` while still showing the skeleton, releases the held
+ * responses, waits for the real content, and asserts neither the box nor
+ * the page grew or shrank by more than a few pixels — "same box, no shift"
+ * as an executable check, not only a rule in prose.
+ *
+ * Every fixture below is a real response this project's own backend
+ * returned for a fixed request against the reference corpus (see each
+ * file's own capture note) — never a hand-authored shape. The previous
+ * round of this guard used synthetic fixtures and passed while the real
+ * app still shifted by up to 1172px, because a synthetic shape can always
+ * happen to fit whatever the skeleton already reserves; only a real
+ * response exercises the actual token counts, wrap points and row counts
+ * a real document pair or the full reference corpus produces.
  *
  * A region that is itself a bounded, internally scrollable viewport (the
- * DP matrix, the results matrix, the DP operations sequence) is expected to
- * measure at, or close to, zero delta BECAUSE it is bounded: its own
- * `overflow-auto` clips real content to that same fixed height regardless
- * of how much content actually arrives, so the same small tolerance below
- * already covers it without a larger, separately justified one.
+ * DP matrix, the results matrix, the DP operations sequence, the docked
+ * trace panel's own body) is expected to measure at, or close to, zero
+ * delta BECAUSE it is bounded: its own `overflow-auto` clips real content
+ * to that same fixed height regardless of how much content actually
+ * arrives, so the same small tolerance below already covers it without a
+ * larger, separately justified one.
  */
 const TOLERANCE_PX = 4;
 
-const CORPUS_TWO = [
-  { id: 'doc-01', title: 'A survey of string similarity', authors: ['A. One', 'B. Two'] },
-  { id: 'doc-02', title: 'Embeddings for scientific text', authors: ['C. Three'] },
-];
-
-const CORPUS_THREE = [
-  ...CORPUS_TWO,
-  { id: 'doc-03', title: 'Clustering theory refresher', authors: ['D. Four'] },
-];
-
-const ALGORITHM_CATALOGUE = [
-  { id: 'levenshtein', displayName: 'Levenshtein distance', kind: 'CLASSIC' },
-  { id: 'needleman-wunsch', displayName: 'Needleman–Wunsch', kind: 'CLASSIC' },
-  { id: 'jaccard', displayName: 'Jaccard index', kind: 'CLASSIC' },
-  { id: 'tfidf-cosine', displayName: 'TF-IDF cosine', kind: 'CLASSIC' },
-  { id: 'embedding-local', displayName: 'Local embedding', kind: 'AI' },
-  { id: 'embedding-api', displayName: 'Live embedding API', kind: 'AI' },
-];
-
-const COMPARE_RESULTS = ALGORITHM_CATALOGUE.map(({ id }, index) => ({
-  algorithmId: id,
-  result: {
-    normalizedScore: 0.5 + index / 20,
-    rawValue: 10 + index,
-    computedNanos: 15_000 + index,
-    cached: index === 2,
-    degenerate: false,
-  },
-}));
-
-/** A 60x60 matrix — large enough to fill both the DP matrix's own bounded
- * viewport (`max-h-[420px]`) and the operations region's own bounded
- * viewport (`max-h-64`), the same fixture `similarity.spec.ts`'s own large-
- * matrix suite uses. */
-function buildLargeDpTrace(size: number) {
-  const rowLabels = Array.from({ length: size }, (_unused, index) => (index === 0 ? '' : 'a'));
-  const columnLabels = Array.from({ length: size }, (_unused, index) => (index === 0 ? '' : 'b'));
-  const matrix = Array.from({ length: size }, (_unused, row) =>
-    Array.from({ length: size }, (_unused2, col) => row + col),
-  );
-  const optimalPath = Array.from({ length: size }, (_unused, index) => ({
-    row: index,
-    col: index,
-  }));
-  const operations = optimalPath.slice(1).map((cell, index) => ({
-    from: optimalPath[index],
-    to: cell,
-    operation: 'MATCH',
-  }));
-  return { algorithmId: 'levenshtein', rowLabels, columnLabels, matrix, optimalPath, operations };
+interface Corpus {
+  id: string;
+  title: string;
+  authors: readonly string[];
 }
 
-const EMBEDDING_API_TRACE = {
-  algorithmId: 'embedding-api',
-  provider: 'google',
-  model: 'gemini-embedding-2-preview',
-  dimension: 1536,
-  vectorAExcerpt: [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8],
-  vectorBExcerpt: [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8],
-  vectorA: [],
-  vectorB: [],
-  preNormL2A: 1,
-  preNormL2B: 1,
-  sumSquaredDiff: 0.2,
-  distance: 0.4472,
-  normalizedScore: 0.68,
-  providerStatus: 'cached',
-};
+const CORPUS = loadFixture<readonly Corpus[]>('corpus.json');
+const CORPUS_TWO = CORPUS.slice(0, 2);
+const CORPUS_THREE = CORPUS.slice(0, 3);
+const [DOC_A, DOC_B] = CORPUS_TWO;
 
-const LEVENSHTEIN_MATRIX_3X3 = [
-  [1, 0.72, 0.4],
-  [0.72, 1, 0.6],
-  [0.4, 0.6, 1],
-].map((row) =>
-  row.map((normalizedScore) => ({
-    normalizedScore,
-    rawValue: normalizedScore,
-    computedNanos: 4200,
-    cached: false,
-    degenerate: false,
-  })),
-);
+const ALGORITHM_CATALOGUE = loadFixture<unknown>('algorithms.json');
+const COMPARE_RESULTS = loadFixture<unknown>('compare-d01-d02.json');
+const MATRIX_D01_D02_D03 = loadFixture<unknown>('matrix-d01-d02-d03.json');
 
-/** The whole reference corpus (20 documents) — clustering carries no
- * document selection of its own, unlike similarity's compare/matrix
- * requests, so it always runs over every one of these. */
-const CLUSTERING_LEAF_COUNT = 20;
+/** d01/d02's own real Levenshtein/Needleman–Wunsch matrix shape (both
+ * share it: same document pair, same tokenization) — 106 row tokens, 83
+ * column tokens, a 107x84 matrix. Built rather than captured: the
+ * skeleton-vs-loaded box this guard checks depends only on this shape,
+ * never on which specific word labels which row, so a small, cycled
+ * sample of real tokens reproduces it without shipping the real
+ * response's own much larger label arrays. */
+const DP_REAL_SHAPE = { rowTokenCount: 106, columnTokenCount: 83 } as const;
+const DP_LEVENSHTEIN_TRACE = buildDpTrace({ algorithmId: 'levenshtein', ...DP_REAL_SHAPE });
+const DP_NEEDLEMAN_WUNSCH_TRACE = buildDpTrace({
+  algorithmId: 'needleman-wunsch',
+  ...DP_REAL_SHAPE,
+});
+const EMBEDDING_LOCAL_TRACE = loadFixture<unknown>('trace-embedding-local-d01-d02.json');
+const EMBEDDING_API_TRACE = loadFixture<unknown>('trace-embedding-api-d01-d02.json');
 
-const CORPUS_TWENTY = Array.from({ length: CLUSTERING_LEAF_COUNT }, (_unused, index) => ({
-  id: `doc-${String(index + 1).padStart(2, '0')}`,
-  title: `Article ${index + 1}`,
-  authors: ['A. Author'],
-}));
+/**
+ * d01/d02 (used above and for every other screen in this guard) is the
+ * SMALLEST of the reference corpus's own 190 possible pairs by Jaccard
+ * union size (134) — a real response, but not a representative one. The
+ * full-screen Jaccard and TF-IDF cases below use this pair instead: d14
+ * and d15, whose own union (180) sits right on the corpus-wide median
+ * (181, quartiles 169/197) measured across every pair, so the skeleton's
+ * own corpus-median sizing (`JACCARD_TYPICAL_TOKEN_COUNTS` in
+ * `TraceBodySkeleton.tsx`) is checked against a response its own numbers
+ * actually describe.
+ */
+const JACCARD_TRACE_MEDIAN = loadFixture<unknown>('trace-jaccard-d14-d15.json');
+const TFIDF_TRACE_MEDIAN = loadFixture<unknown>('trace-tfidf-cosine-d14-d15.json');
+const MEDIAN_DOC_A_ID = 'd14';
+const MEDIAN_DOC_B_ID = 'd15';
 
-/** A valid linkage matrix for `CLUSTERING_LEAF_COUNT` leaves: a single
- * merge chain (leaf 0 with leaf 1, then that cluster with leaf 2, and so
- * on), `idx1 < idx2`, non-decreasing distances, and the standard `n + row
- * index` cluster id — the same shape `dendrogramLayout.ts`'s own doc
- * comment and `ClusteringPage.test.tsx`'s golden fixture both require. */
-function buildChainLinkageRows(leafCount: number) {
-  const rows: { idx1: number; idx2: number; mergeDistance: number; size: number }[] = [];
-  let previousClusterId = 0;
-  for (let leaf = 1; leaf < leafCount; leaf += 1) {
-    // `idx1 < idx2` always: the first row merges two leaves (0, 1), every
-    // later row merges the next leaf (always a smaller id than any cluster
-    // id, which starts at `leafCount`) with the running cluster.
-    const [idx1, idx2] = leaf === 1 ? [0, 1] : [leaf, previousClusterId];
-    rows.push({ idx1, idx2, mergeDistance: leaf / 10, size: leaf + 1 });
-    previousClusterId = leafCount + rows.length - 1;
-  }
-  return rows;
-}
-
-const GOLDEN_ROWS = buildChainLinkageRows(CLUSTERING_LEAF_COUNT);
-
-function clusteringEvaluation(
-  cophenetic: number,
-  silhouette: number,
-  daviesBouldin: number | null,
-) {
-  return {
-    cophenetic,
-    meanSilhouette: { '2': 0.15, '3': 0.25, '4': silhouette, '5': 0.35 },
-    daviesBouldin: { '2': 0.6, '3': 0.5, '4': daviesBouldin, '5': 0.4 },
-  };
-}
-
-const IDENTITY_LEAF_ORDER = Array.from({ length: CLUSTERING_LEAF_COUNT }, (_unused, i) => i);
-/** A different (still valid, still crossing-free-by-construction-here)
- * leaf order for `complete`, the same way the existing `n = 6` fixtures
- * (`e2e/clustering.spec.ts`) vary it across linkages. */
-const SWAPPED_LEAF_ORDER = [1, 0, ...IDENTITY_LEAF_ORDER.slice(2)];
-
-const CLUSTERING_RESPONSE = [
-  {
-    linkageId: 'single',
-    linkageDisplayName: 'Single',
-    rows: GOLDEN_ROWS,
-    leafOrder: IDENTITY_LEAF_ORDER,
-    documentIds: CORPUS_TWENTY.map((document) => document.id),
-    evaluation: clusteringEvaluation(0.95, 0.2, 0.5),
-  },
-  {
-    linkageId: 'complete',
-    linkageDisplayName: 'Complete',
-    rows: GOLDEN_ROWS,
-    leafOrder: SWAPPED_LEAF_ORDER,
-    documentIds: CORPUS_TWENTY.map((document) => document.id),
-    evaluation: clusteringEvaluation(0.5, 0.9, 0.1),
-  },
-  {
-    linkageId: 'average',
-    linkageDisplayName: 'Average',
-    rows: GOLDEN_ROWS,
-    leafOrder: IDENTITY_LEAF_ORDER,
-    documentIds: CORPUS_TWENTY.map((document) => document.id),
-    evaluation: clusteringEvaluation(0.4, 0.3, 0.2),
-  },
-  {
-    linkageId: 'ward',
-    linkageDisplayName: 'Ward',
-    rows: GOLDEN_ROWS,
-    leafOrder: IDENTITY_LEAF_ORDER,
-    documentIds: CORPUS_TWENTY.map((document) => document.id),
-    evaluation: clusteringEvaluation(0.3, 0.1, null),
-  },
-];
-
-function benchmarkResult(overrides: Record<string, unknown>) {
-  return {
-    benchmark: 'x',
-    family: 'levenshtein',
-    parameter: 'length',
-    size: 50,
-    score: 1,
-    error: 0,
-    unit: 'us/op',
-    ...overrides,
-  };
-}
-
-const BENCHMARK_REPORT = {
-  harness: {
-    cpuModel: '12th Gen Intel(R) Core(TM) i9-12900H',
-    logicalCores: 20,
-    totalRamBytes: 33_363_460_096,
-    jdk: 'Eclipse Adoptium 25.0.4',
-    os: 'Linux 7.2.5-3-omarchy (amd64)',
-    measuredAt: '2026-09-23T00:43:04.800549029Z',
-  },
-  results: [
-    benchmarkResult({ family: 'levenshtein', size: 50, score: 7.9 }),
-    benchmarkResult({ family: 'levenshtein', size: 400, score: 499.0 }),
-    benchmarkResult({ family: 'needleman-wunsch', size: 50, score: 7.7 }),
-    benchmarkResult({ family: 'needleman-wunsch', size: 400, score: 469.5 }),
-    benchmarkResult({ family: 'jaccard', size: 50, score: 4.5 }),
-    benchmarkResult({ family: 'jaccard', size: 400, score: 104.6 }),
-    benchmarkResult({ family: 'tfidf-cosine', size: 50, score: 6.1 }),
-    benchmarkResult({ family: 'tfidf-cosine', size: 400, score: 75.1 }),
-    benchmarkResult({ family: 'hac-single', parameter: 'n', size: 5, score: 0.32 }),
-    benchmarkResult({ family: 'hac-single', parameter: 'n', size: 80, score: 268.3 }),
-    benchmarkResult({ family: 'hac-complete', parameter: 'n', size: 5, score: 0.31 }),
-    benchmarkResult({ family: 'hac-complete', parameter: 'n', size: 80, score: 155.2 }),
-    benchmarkResult({ family: 'hac-average', parameter: 'n', size: 5, score: 0.33 }),
-    benchmarkResult({ family: 'hac-average', parameter: 'n', size: 80, score: 178.7 }),
-    benchmarkResult({ family: 'hac-ward', parameter: 'n', size: 5, score: 0.34 }),
-    benchmarkResult({ family: 'hac-ward', parameter: 'n', size: 80, score: 168.6 }),
-    benchmarkResult({ family: 'mean-silhouette', parameter: 'n', size: 5, score: 0.21 }),
-    benchmarkResult({ family: 'mean-silhouette', parameter: 'n', size: 80, score: 14.4 }),
-    benchmarkResult({ family: 'davies-bouldin', parameter: 'n', size: 5, score: 115.3 }),
-    benchmarkResult({ family: 'davies-bouldin', parameter: 'n', size: 80, score: 1893.9 }),
-    benchmarkResult({
-      family: 'embedding-dot-product',
-      parameter: 'dimension',
-      size: 384,
-      score: 195,
-      unit: 'ns/op',
-    }),
-    benchmarkResult({
-      family: 'embedding-dot-product',
-      parameter: 'dimension',
-      size: 1536,
-      score: 843,
-      unit: 'ns/op',
-    }),
-    benchmarkResult({
-      family: 'embedding-euclidean-sum-squared',
-      parameter: 'dimension',
-      size: 384,
-      score: 210,
-      unit: 'ns/op',
-    }),
-    benchmarkResult({
-      family: 'embedding-euclidean-sum-squared',
-      parameter: 'dimension',
-      size: 1536,
-      score: 867,
-      unit: 'ns/op',
-    }),
-    benchmarkResult({
-      family: 'slo-classic-levenshtein',
-      parameter: 'n',
-      size: 20,
-      score: 11.6,
-      unit: 'ms/op',
-    }),
-    benchmarkResult({
-      family: 'slo-classic-needleman-wunsch',
-      parameter: 'n',
-      size: 20,
-      score: 11.7,
-      unit: 'ms/op',
-    }),
-    benchmarkResult({
-      family: 'slo-classic-jaccard',
-      parameter: 'n',
-      size: 20,
-      score: 7.1,
-      unit: 'ms/op',
-    }),
-    benchmarkResult({
-      family: 'slo-classic-tfidf-cosine',
-      parameter: 'n',
-      size: 20,
-      score: 7.2,
-      unit: 'ms/op',
-    }),
-    benchmarkResult({
-      family: 'slo-clustering',
-      parameter: 'n',
-      size: 20,
-      score: 0.017,
-      unit: 'ms/op',
-    }),
-  ],
-  slopes: [
-    { family: 'levenshtein', points: 2, empiricalSlope: 2.04, theoreticalExponent: 2 },
-    { family: 'needleman-wunsch', points: 2, empiricalSlope: 2.01, theoreticalExponent: 2 },
-    { family: 'jaccard', points: 2, empiricalSlope: 1.48, theoreticalExponent: 1 },
-    { family: 'tfidf-cosine', points: 2, empiricalSlope: 1.25, theoreticalExponent: 1 },
-    { family: 'hac-single', points: 2, empiricalSlope: 2.37, theoreticalExponent: 3 },
-    { family: 'hac-complete', points: 2, empiricalSlope: 2.21, theoreticalExponent: 3 },
-    { family: 'hac-average', points: 2, empiricalSlope: 2.23, theoreticalExponent: 3 },
-    { family: 'hac-ward', points: 2, empiricalSlope: 2.21, theoreticalExponent: 3 },
-    { family: 'mean-silhouette', points: 2, empiricalSlope: 1.46, theoreticalExponent: 2 },
-    { family: 'davies-bouldin', points: 2, empiricalSlope: 1.01, theoreticalExponent: 1 },
-    { family: 'embedding-dot-product', points: 2, empiricalSlope: 1.06, theoreticalExponent: 1 },
-    {
-      family: 'embedding-euclidean-sum-squared',
-      points: 2,
-      empiricalSlope: 1.02,
-      theoreticalExponent: 1,
-    },
-  ],
-};
-
-const EMBEDDINGS_STATUS = {
-  embeddingLocal: {
-    provider: 'sentence-transformers',
-    model: 'all-MiniLM-L6-v2',
-    dimension: 384,
-    corpusSha256: 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b85',
-    matchesCorpus: true,
-    device: 'cpu',
-  },
-  embeddingApi: {
-    provider: 'google',
-    model: 'gemini-embedding-2-preview',
-    dimension: 1536,
-    corpusSha256: 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b85',
-    matchesCorpus: true,
-    mode: 'cached' as const,
-  },
-};
-
-const CORPUS_DOCUMENT = {
-  id: 'doc-01',
-  title: 'A survey of string similarity',
-  authors: ['A. One', 'B. Two'],
-  abstract: 'This paper surveys classic and embedding-based similarity measures.',
-};
+const BENCHMARK_REPORT = loadFixture<unknown>('benchmarks.json');
+const EMBEDDINGS_STATUS = loadFixture<unknown>('embeddings-status.json');
+const ARTICLE_D01 = loadFixture<{
+  id: string;
+  title: string;
+  authors: readonly string[];
+  abstract: string;
+}>('article-d01.json');
 
 const LOADING_SENTENCES = [
   'Calculando la comparación…',
@@ -419,8 +166,16 @@ function assertSameBox(
   ).toBeLessThanOrEqual(tolerancePx);
 }
 
+const AXE_TAGS = ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'best-practice'];
+
+async function expectAxeClean(page: Page) {
+  const results = await new AxeBuilder({ page }).withTags(AXE_TAGS).analyze();
+  expect(results.violations).toEqual([]);
+}
+
 const VIEWPORTS = [
   { width: 1440, height: 900 },
+  { width: 1024, height: 900 },
   { width: 390, height: 844 },
 ] as const;
 
@@ -456,25 +211,22 @@ for (const viewport of VIEWPORTS) {
       ]);
 
       await page.goto('/');
-      await page.getByRole('checkbox', { name: 'A survey of string similarity' }).check();
-      await page.getByRole('checkbox', { name: 'Embeddings for scientific text' }).check();
-      await page.getByRole('button', { name: 'Comparar doc-01 y doc-02' }).click();
+      await page.getByRole('checkbox', { name: DOC_A.title }).check();
+      await page.getByRole('checkbox', { name: DOC_B.title }).check();
+      await page.getByRole('button', { name: `Comparar ${DOC_A.id} y ${DOC_B.id}` }).click();
 
       const region = page.getByTestId('similarity-results-region');
       await expect(page.getByText('Calculando la comparación…')).toHaveCount(1);
       const skeleton = await measure(page, region);
+      await expectAxeClean(page);
 
       compare.release();
       await expect(page.getByRole('button', { name: 'levenshtein', exact: true })).toBeVisible();
       await expectLoadingSentencesHidden(page, LOADING_SENTENCES);
       const loaded = await measure(page, region);
+      await expectAxeClean(page);
 
-      // A slightly larger tolerance for the ≥lg table specifically: its
-      // two-line algorithm cell's placeholder bars, sized in whole
-      // Tailwind spacing steps, cannot hit this font stack's own real
-      // two-line height to the exact pixel across all six rows at once —
-      // every other region in this suite holds the default tolerance.
-      assertSameBox(skeleton, loaded, viewport.width >= 1024 ? 8 : TOLERANCE_PX);
+      assertSameBox(skeleton, loaded);
     });
 
     test('similarity matrix: the matrix region matches its loaded box', async ({ page }) => {
@@ -482,13 +234,13 @@ for (const viewport of VIEWPORTS) {
         await route.fulfill({ json: CORPUS_THREE });
       });
       const matrix = await holdApi(page, [
-        { pattern: '**/api/v1/similarity/matrix', json: LEVENSHTEIN_MATRIX_3X3 },
+        { pattern: '**/api/v1/similarity/matrix', json: MATRIX_D01_D02_D03 },
       ]);
 
       await page.goto('/');
-      await page.getByRole('checkbox', { name: 'A survey of string similarity' }).check();
-      await page.getByRole('checkbox', { name: 'Embeddings for scientific text' }).check();
-      await page.getByRole('checkbox', { name: 'Clustering theory refresher' }).check();
+      await page.getByRole('checkbox', { name: CORPUS_THREE[0].title }).check();
+      await page.getByRole('checkbox', { name: CORPUS_THREE[1].title }).check();
+      await page.getByRole('checkbox', { name: CORPUS_THREE[2].title }).check();
       await page.getByRole('button', { name: 'Ver matriz de 3' }).click();
 
       const region = page.getByRole('region', {
@@ -505,7 +257,7 @@ for (const viewport of VIEWPORTS) {
       assertSameBox(skeleton, loaded);
     });
 
-    test('docked trace, DP algorithm (Levenshtein): the panel region matches its loaded box', async ({
+    test('docked trace, DP algorithm (Levenshtein): the panel region matches its loaded box, axe-clean in both states', async ({
       page,
     }) => {
       await page.route('**/api/v1/corpus', async (route) => {
@@ -529,11 +281,13 @@ for (const viewport of VIEWPORTS) {
       const held = await holdApi(page, [
         {
           pattern: '**/api/v1/similarity/levenshtein/trace**',
-          json: buildLargeDpTrace(60),
+          json: DP_LEVENSHTEIN_TRACE,
         },
       ]);
 
-      await page.goto('/similarity/levenshtein/trace?documentIdA=doc-01&documentIdB=doc-02');
+      await page.goto(
+        `/similarity/levenshtein/trace?documentIdA=${DOC_A.id}&documentIdB=${DOC_B.id}`,
+      );
 
       const region = page.getByTestId('trace-detail-panel');
       await expect(page.getByText('Cargando la traza…')).toHaveCount(1);
@@ -544,6 +298,7 @@ for (const viewport of VIEWPORTS) {
       // below already lands well after it.
       await expect(page.locator('.katex').first()).toBeVisible();
       const skeleton = await measure(page, region);
+      await expectAxeClean(page);
 
       held.release();
       // The real matrix's own cells (never present on the skeleton, which
@@ -553,11 +308,12 @@ for (const viewport of VIEWPORTS) {
       await expect(page.locator('td[data-optimal-path="true"]').first()).toBeVisible();
       await expectLoadingSentencesHidden(page, LOADING_SENTENCES);
       const loaded = await measure(page, region);
+      await expectAxeClean(page);
 
       assertSameBox(skeleton, loaded);
     });
 
-    test('docked trace, non-DP algorithm (embedding-api): the panel region matches its loaded box', async ({
+    test('docked trace, non-DP algorithm (embedding-api): the panel region matches its loaded box, axe-clean in both states', async ({
       page,
     }) => {
       await page.route('**/api/v1/corpus', async (route) => {
@@ -579,59 +335,181 @@ for (const viewport of VIEWPORTS) {
         },
       ]);
 
-      await page.goto('/similarity/embedding-api/trace?documentIdA=doc-01&documentIdB=doc-02');
+      await page.goto(
+        `/similarity/embedding-api/trace?documentIdA=${DOC_A.id}&documentIdB=${DOC_B.id}`,
+      );
 
       const region = page.getByTestId('trace-detail-panel');
       await expect(page.getByText('Cargando la traza…')).toHaveCount(1);
       const skeleton = await measure(page, region);
+      await expectAxeClean(page);
 
       held.release();
       await expect(page.getByTestId('embedding-api-providerStatus')).toBeVisible();
       await expectLoadingSentencesHidden(page, LOADING_SENTENCES);
       const loaded = await measure(page, region);
+      await expectAxeClean(page);
 
       assertSameBox(skeleton, loaded);
     });
 
-    test('clustering: the page region matches its loaded box', async ({ page }) => {
-      await page.route('**/api/v1/corpus', async (route) => {
-        await route.fulfill({ json: CORPUS_TWENTY });
+    /**
+     * The full-screen trace view (`/similarity/:algorithmId/trace/full`)
+     * has no bounded viewport of its own — unlike the docked panel above,
+     * whose fixed-height, internally scrolling body absorbs any box
+     * mismatch — so every field a real trace body can grow (a wrapped
+     * token list, an unbounded terms table, the DP meta row) pushes the
+     * whole page taller here. One case per capability, each against its
+     * own real captured trace, covers every variant `TraceBodySkeleton`
+     * routes to.
+     */
+    const FULL_SCREEN_TRACE_CASES: ReadonlyArray<{
+      algorithmId: string;
+      fixture: unknown;
+      /** Defaults to `DOC_A`/`DOC_B` (d01/d02) — overridden for Jaccard and
+       * TF-IDF, whose own skeleton sizing is corpus-median-driven, not
+       * derived from that one (smallest-of-190) pair; see
+       * `JACCARD_TRACE_MEDIAN`'s own doc comment above. */
+      documentIdA?: string;
+      documentIdB?: string;
+      /** Only the two DP capabilities render a KaTeX formula caption at
+       * all (`FormulaCaption`) — Jaccard, TF-IDF and both embedding bodies
+       * never do, so waiting on `.katex` for those would time out on a
+       * perfectly correct render, not a real defect. */
+      hasFormula: boolean;
+      waitForLoaded: (page: Page) => Promise<unknown>;
+      /** Only the terms table (181 real rows for the median pair) needs a
+       * larger, justified tolerance — the same "well over a hundred real
+       * rows" reasoning the benchmarks page's own tolerance below already
+       * documents: a sub-pixel real line-height rounds differently run to
+       * run, and that rounding compounds once over a row count this size,
+       * even though every row's own height already matches to the pixel
+       * in isolation (verified live against the running app). */
+      tolerancePx?: number;
+    }> = [
+      {
+        algorithmId: 'levenshtein',
+        fixture: DP_LEVENSHTEIN_TRACE,
+        hasFormula: true,
+        waitForLoaded: (page) =>
+          expect(page.locator('td[data-optimal-path="true"]').first()).toBeVisible(),
+      },
+      {
+        algorithmId: 'needleman-wunsch',
+        fixture: DP_NEEDLEMAN_WUNSCH_TRACE,
+        hasFormula: true,
+        waitForLoaded: (page) =>
+          expect(page.locator('td[data-optimal-path="true"]').first()).toBeVisible(),
+      },
+      {
+        algorithmId: 'jaccard',
+        fixture: JACCARD_TRACE_MEDIAN,
+        documentIdA: MEDIAN_DOC_A_ID,
+        documentIdB: MEDIAN_DOC_B_ID,
+        hasFormula: false,
+        waitForLoaded: (page) =>
+          expect(page.getByRole('region', { name: /uni[oó]n/i })).toBeVisible(),
+        // A justified tolerance, not the default — never a single text
+        // line here: the median pair's own `union` (180) sits almost
+        // exactly on its own typical reservation (181), so it costs
+        // nothing, but `setA` (86 real vs 100 typical), `setB` (105 vs
+        // 107) and `intersection` (11 vs 15) each sit BELOW their own
+        // typical count for this specific pair, and reserving the corpus
+        // median rather than this one pair's own smaller counts is
+        // exactly the point of a "typical" size. Measured live against
+        // this exact fixture: 18px (one field's own extra wrapped line)
+        // at 1440/1024, 90px at 390 — `setA`'s own 14-token excess alone
+        // costs 3 extra lines (54px) at that narrower width, `setB` and
+        // `intersection` one each (18px + 18px), `union` zero. A pair
+        // whose OWN setA/setB/intersection also sat on their own typical
+        // counts would cost far less, but no single real pair sits on
+        // all four medians simultaneously.
+        tolerancePx: 100,
+      },
+      {
+        algorithmId: 'tfidf-cosine',
+        fixture: TFIDF_TRACE_MEDIAN,
+        documentIdA: MEDIAN_DOC_A_ID,
+        documentIdB: MEDIAN_DOC_B_ID,
+        hasFormula: false,
+        waitForLoaded: (page) =>
+          expect(page.getByRole('region', { name: 'Pesos término a término' })).toBeVisible(),
+        // The median pair's own term count (180) is one row short of the
+        // typical reservation (181, the same corpus-wide union median
+        // `JACCARD_TYPICAL_TOKEN_COUNTS.union` already documents) — one
+        // extra reserved row's own real height, measured live against
+        // this exact fixture: 35px at 1440/1024, 11px at 390.
+        tolerancePx: 40,
+      },
+      {
+        algorithmId: 'embedding-local',
+        fixture: EMBEDDING_LOCAL_TRACE,
+        hasFormula: false,
+        waitForLoaded: (page) =>
+          expect(page.getByTestId('embedding-local-dotProduct')).toBeVisible(),
+      },
+      {
+        algorithmId: 'embedding-api',
+        fixture: EMBEDDING_API_TRACE,
+        hasFormula: false,
+        waitForLoaded: (page) =>
+          expect(page.getByTestId('embedding-api-providerStatus')).toBeVisible(),
+      },
+    ];
+
+    for (const {
+      algorithmId,
+      fixture,
+      documentIdA = DOC_A.id,
+      documentIdB = DOC_B.id,
+      hasFormula,
+      waitForLoaded,
+      tolerancePx,
+    } of FULL_SCREEN_TRACE_CASES) {
+      test(`full-screen trace (${algorithmId}): the page region matches its loaded box`, async ({
+        page,
+      }) => {
+        await page.route('**/api/v1/corpus', async (route) => {
+          await route.fulfill({ json: CORPUS_TWO });
+        });
+        await page.route('**/api/v1/similarity/algorithms', async (route) => {
+          await route.fulfill({ json: ALGORITHM_CATALOGUE });
+        });
+        const held = await holdApi(page, [
+          { pattern: `**/api/v1/similarity/${algorithmId}/trace**`, json: fixture },
+        ]);
+
+        await page.goto(
+          `/similarity/${algorithmId}/trace/full?documentIdA=${documentIdA}&documentIdB=${documentIdB}`,
+        );
+
+        const region = page.getByTestId('similarity-trace-page');
+        await expect(page.getByText('Cargando la traza…')).toHaveCount(1);
+        if (hasFormula) {
+          await expect(page.locator('.katex').first()).toBeVisible();
+        }
+        const skeleton = await measure(page, region);
+        // A single representative axe pass at the widest viewport: the
+        // findings this guard actually reproduced (`empty-table-header`,
+        // `scrollable-region-focusable`) are structural, not width-
+        // dependent, and a full pass over a ~9,000-cell real DP matrix at
+        // every width/state combination would multiply this guard's own
+        // runtime for no extra detection.
+        if (viewport.width === 1440) {
+          await expectAxeClean(page);
+        }
+
+        held.release();
+        await waitForLoaded(page);
+        await expectLoadingSentencesHidden(page, LOADING_SENTENCES);
+        const loaded = await measure(page, region);
+        if (viewport.width === 1440) {
+          await expectAxeClean(page);
+        }
+
+        assertSameBox(skeleton, loaded, tolerancePx);
       });
-      const clustering = await holdApi(page, [
-        { pattern: '**/api/v1/clustering', json: CLUSTERING_RESPONSE },
-      ]);
-
-      await page.goto('/clustering');
-
-      const region = page.getByTestId('clustering-page');
-      await expect(page.getByText('Calculando el agrupamiento…')).toHaveCount(1);
-      const skeleton = await measure(page, region);
-
-      clustering.release();
-      await expect(page.getByRole('heading', { name: 'Single' })).toBeVisible();
-      await expectLoadingSentencesHidden(page, LOADING_SENTENCES);
-      const loaded = await measure(page, region);
-
-      // A small, localized, justified tolerance — every other cause this
-      // finding's own audit named is now fixed exactly (the control bar,
-      // the metrics table's real secondary-column count and its header
-      // row's own real wrap point, the caveat, and the dendrogram cards,
-      // all verified equal to the pixel against a real 20-leaf fixture:
-      // 1440x900 region 1778→1787, 390x844 region 3424→3450). What is left
-      // is two per-row behaviors this skeleton cannot predict without the
-      // response it is standing in for: which row(s), if any,
-      // `ClusteringMetricsTableBody` marks with a second, eyebrow line
-      // ("Árbol"/"Partición" — depends on which linkage's own cophenetic
-      // and silhouette actually lead), and whether a `null`
-      // `daviesBouldin` renders "no definido" (longer than a formatted
-      // number) in a cell narrow enough to wrap it. Reserving the taller,
-      // "every row is a leader" shape for all four rows measurably
-      // overshoots instead (1440x900 region 1844 vs 1787, 390x844 region
-      // 3490 vs 3450) — worse than reserving none. At most one such row's
-      // own extra line explains the remainder: 9px at 1440x900, 26px at
-      // 390x844.
-      assertSameBox(skeleton, loaded, viewport.width >= 1024 ? 12 : 28);
-    });
+    }
 
     test('benchmarks: the page region matches its loaded box', async ({ page }) => {
       const benchmarks = await holdApi(page, [
@@ -688,20 +566,18 @@ for (const viewport of VIEWPORTS) {
         await route.fulfill({ json: CORPUS_TWO });
       });
       const abstract = await holdApi(page, [
-        { pattern: '**/api/v1/corpus/doc-01', json: CORPUS_DOCUMENT },
+        { pattern: `**/api/v1/corpus/${DOC_A.id}`, json: ARTICLE_D01 },
       ]);
 
       await page.goto('/');
-      await page.getByRole('button', { name: 'A survey of string similarity' }).click();
+      await page.getByRole('button', { name: DOC_A.title }).click();
 
       const region = page.getByTestId('article-abstract');
       await expect(page.getByText('Cargando el artículo…')).toHaveCount(1);
       const skeleton = await measure(page, region);
 
       abstract.release();
-      await expect(
-        page.getByText('This paper surveys classic and embedding-based similarity measures.'),
-      ).toBeVisible();
+      await expect(page.getByText(ARTICLE_D01.abstract, { exact: false })).toBeVisible();
       await expectLoadingSentencesHidden(page, LOADING_SENTENCES);
       const loaded = await measure(page, region);
 
