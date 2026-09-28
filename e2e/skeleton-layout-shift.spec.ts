@@ -638,26 +638,37 @@ for (const viewport of VIEWPORTS) {
       });
     }
 
-    test('clustering: the page region matches its loaded box', async ({ page }) => {
-      await page.route('**/api/v1/corpus', async (route) => {
-        await route.fulfill({ json: CORPUS_TWENTY });
-      });
-      const clustering = await holdApi(page, [
+    test('clustering: the page region and the metrics header row match their loaded boxes', async ({
+      page,
+    }) => {
+      // Opened cold, the corpus list and the clustering request are both in
+      // flight while the skeleton shows.
+      const pending = await holdApi(page, [
+        { pattern: '**/api/v1/corpus', json: CORPUS_TWENTY },
         { pattern: '**/api/v1/clustering', json: CLUSTERING_RESPONSE },
       ]);
 
       await page.goto('/clustering');
 
       const region = page.getByTestId('clustering-page');
+      const headerRow = page.locator('table thead tr').first();
       await expect(page.getByText('Calculando el agrupamiento…')).toHaveCount(1);
       const skeleton = await measure(page, region);
+      const skeletonHeader = await measure(page, headerRow);
 
-      clustering.release();
+      pending.release();
       await expect(page.getByRole('heading', { name: 'Single linkage' })).toBeVisible();
       await expectLoadingSentencesHidden(page, LOADING_SENTENCES);
       const loaded = await measure(page, region);
+      const loadedHeader = await measure(page, headerRow);
 
       assertSameBox(skeleton, loaded);
+      // The header labels are known before the response, so the row wraps
+      // (and so grows) exactly as the loaded one does.
+      expect(
+        Math.abs(loadedHeader.height - skeletonHeader.height),
+        `metrics header row: ${skeletonHeader.height} (skeleton) vs ${loadedHeader.height} (loaded)`,
+      ).toBeLessThanOrEqual(TOLERANCE_PX);
     });
 
     test('clustering: neither the skeleton nor the loaded page scrolls horizontally at any width', async ({
