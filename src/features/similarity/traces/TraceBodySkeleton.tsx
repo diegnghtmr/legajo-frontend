@@ -216,9 +216,9 @@ function EmbeddingTraceBodySkeleton({ algorithmId }: { algorithmId: EmbeddingAlg
 /**
  * How many tokens the real corpus's own document pairs typically produce
  * for each Jaccard field — the corpus-wide median over every one of the
- * reference corpus's 190 possible pairs for `union` (181, quartiles
- * 169/197), and a 25-pair sample's own median for the rest (`setA` 100,
- * range 64–142; `setB` 107, range 64–142; `intersection` 15, range 5–27).
+ * reference corpus's 190 possible pairs: `setA` 100
+ * (range 64–142), `setB` 105 (64–142), `intersection` 16 (5–31) and `union`
+ * 180 (118–248, quartiles 169/197; the median sits between 180 and 181).
  * Deliberately NOT measured from one single pair: d01/d02 (the guard's own
  * previous source for this constant) is the SMALLEST of all 190 pairs
  * (union 134), so sizing from it undershoots almost every real response.
@@ -231,9 +231,9 @@ function EmbeddingTraceBodySkeleton({ algorithmId }: { algorithmId: EmbeddingAlg
  */
 const JACCARD_TYPICAL_TOKEN_COUNTS = {
   setA: 100,
-  setB: 107,
-  intersection: 15,
-  union: 181,
+  setB: 105,
+  intersection: 16,
+  union: 180,
 } as const;
 
 /**
@@ -355,7 +355,7 @@ function JaccardTraceBodySkeleton() {
  * always the union of the two documents' own vocabularies (the same field
  * `JaccardTracePanel`'s own `unionSize` reports for the same pair), so
  * this reuses the identical corpus-wide median already measured for that
- * field (`JACCARD_TYPICAL_TOKEN_COUNTS.union`, 181) rather than a second,
+ * field (`JACCARD_TYPICAL_TOKEN_COUNTS.union`, 180) rather than a second,
  * separately-tuned constant for what is the same real-world quantity.
  */
 const TFIDF_TYPICAL_TERM_ROW_COUNT = JACCARD_TYPICAL_TOKEN_COUNTS.union;

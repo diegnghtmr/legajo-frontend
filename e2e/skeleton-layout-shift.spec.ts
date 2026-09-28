@@ -71,7 +71,7 @@ const EMBEDDING_API_TRACE = loadFixture<unknown>('trace-embedding-api-d01-d02.js
  * union size (134) — a real response, but not a representative one. The
  * full-screen Jaccard and TF-IDF cases below use this pair instead: d14
  * and d15, whose own union (180) sits right on the corpus-wide median
- * (181, quartiles 169/197) measured across every pair, so the skeleton's
+ * (180, quartiles 169/197) measured across every pair, so the skeleton's
  * own corpus-median sizing (`JACCARD_TYPICAL_TOKEN_COUNTS` in
  * `TraceBodySkeleton.tsx`) is checked against a response its own numbers
  * actually describe.
@@ -519,13 +519,9 @@ for (const viewport of VIEWPORTS) {
        * a perfectly correct render, not a real defect. */
       hasFormula: boolean;
       waitForLoaded: (page: Page) => Promise<unknown>;
-      /** Only the terms table (181 real rows for the median pair) needs a
-       * larger, justified tolerance — the same "well over a hundred real
-       * rows" reasoning the benchmarks page's own tolerance below already
-       * documents: a sub-pixel real line-height rounds differently run to
-       * run, and that rounding compounds once over a row count this size,
-       * even though every row's own height already matches to the pixel
-       * in isolation (verified live against the running app). */
+      /** Only the Jaccard median pair needs a larger, justified tolerance:
+       * its token lists each sit below the corpus median for that field
+       * (see its case). Every other case matches to the default. */
       tolerancePx?: number;
     }> = [
       {
@@ -550,22 +546,16 @@ for (const viewport of VIEWPORTS) {
         hasFormula: false,
         waitForLoaded: (page) =>
           expect(page.getByRole('region', { name: /uni[oó]n/i })).toBeVisible(),
-        // A justified tolerance, not the default — never a single text
-        // line here: the median pair's own `union` (180) sits almost
-        // exactly on its own typical reservation (181), so it costs
-        // nothing, but `setA` (86 real vs 100 typical), `setB` (105 vs
-        // 107) and `intersection` (11 vs 15) each sit BELOW their own
-        // typical count for this specific pair, and reserving the corpus
-        // median rather than this one pair's own smaller counts is
-        // exactly the point of a "typical" size. Measured live against
-        // this exact fixture: 18px (one field's own extra wrapped line)
-        // at 1440/1024, 90px at 390 — `setA`'s own 14-token excess alone
-        // costs 3 extra lines (54px) at that narrower width, `setB` and
-        // `intersection` one each (18px + 18px), `union` zero. A pair
-        // whose OWN setA/setB/intersection also sat on their own typical
-        // counts would cost far less, but no single real pair sits on
-        // all four medians simultaneously.
-        tolerancePx: 100,
+        // A justified tolerance, not the default: the skeleton reserves
+        // each field's corpus-wide median token count (setA 100, setB 105,
+        // intersection 16, union 180, over all 190 pairs), and this pair
+        // sits on the union (180) and setB (105) exactly but below the
+        // median on `setA` (86) and `intersection` (11). Measured live
+        // against this exact fixture: 18px (one field's extra wrapped
+        // line) at 1440/1024, 72px at 390, where `setA`'s 14-token excess
+        // alone costs 3 extra lines. No single real pair sits on all four
+        // medians at once.
+        tolerancePx: 80,
       },
       {
         algorithmId: 'tfidf-cosine',
@@ -575,12 +565,6 @@ for (const viewport of VIEWPORTS) {
         hasFormula: true,
         waitForLoaded: (page) =>
           expect(page.getByRole('region', { name: 'Pesos término a término' })).toBeVisible(),
-        // The median pair's own term count (180) is one row short of the
-        // typical reservation (181, the same corpus-wide union median
-        // `JACCARD_TYPICAL_TOKEN_COUNTS.union` already documents) — one
-        // extra reserved row's own real height, measured live against
-        // this exact fixture: 35px at 1440/1024, 11px at 390.
-        tolerancePx: 40,
       },
       {
         algorithmId: 'embedding-local',
@@ -653,6 +637,13 @@ for (const viewport of VIEWPORTS) {
           await expectAxeClean(page);
         }
 
+        console.log(
+          'DBG',
+          algorithmId,
+          viewport.width,
+          loaded.height - skeleton.height,
+          loaded.scrollHeight - skeleton.scrollHeight,
+        );
         assertSameBox(skeleton, loaded, tolerancePx);
       });
     }
