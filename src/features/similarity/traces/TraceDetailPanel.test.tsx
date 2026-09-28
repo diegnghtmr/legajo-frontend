@@ -228,6 +228,38 @@ describe('TraceDetailPanel', () => {
     expect(screen.queryByTestId('dp-trace-family')).not.toBeInTheDocument();
   });
 
+  describe('the scrollable body region', () => {
+    it('never makes the body itself a focusable region for a DP trace — its own matrix region already is', async () => {
+      vi.spyOn(similarityApi, 'fetchSimilarityTrace').mockResolvedValue(DP_TRACE);
+      vi.spyOn(similarityApi, 'compareSimilarity').mockResolvedValue(
+        singleCompareResultFor('levenshtein'),
+      );
+
+      renderPanel();
+
+      await screen.findAllByRole('cell');
+      // The DP matrix's own region already carries `tabIndex={0}` — the
+      // body wrapper around it must not add a second, redundant tab stop
+      // for the same scrollable content.
+      expect(
+        screen.getByTestId('trace-detail-panel').querySelector('.overflow-y-auto'),
+      ).not.toHaveAttribute('tabindex');
+    });
+
+    it('makes the body itself a focusable, labelled region for Jaccard — its own fields carry no control at all', async () => {
+      vi.spyOn(similarityApi, 'fetchSimilarityTrace').mockResolvedValue(JACCARD_TRACE);
+      vi.spyOn(similarityApi, 'compareSimilarity').mockResolvedValue(
+        singleCompareResultFor('jaccard'),
+      );
+
+      renderPanel({ algorithmId: 'jaccard' });
+
+      const body = await screen.findByRole('region', { name: /jaccard/i });
+      expect(body).toHaveAttribute('tabindex', '0');
+      expect(body.className).toContain('overflow-y-auto');
+    });
+  });
+
   it('renders a "full screen" link to the standalone trace view, keeping the same pair', async () => {
     vi.spyOn(similarityApi, 'fetchSimilarityTrace').mockResolvedValue(DP_TRACE);
     vi.spyOn(similarityApi, 'compareSimilarity').mockResolvedValue(
