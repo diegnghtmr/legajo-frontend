@@ -304,4 +304,43 @@ describe('ClusteringMetricsTableSkeleton', () => {
     // only: 4 columns, no secondary group.
     expect(screen.getAllByRole('columnheader')).toHaveLength(4);
   });
+
+  it('reserves an invisible eyebrow line on exactly two of the four rows — the typical well-formed count (a tree leader and a different partition leader)', () => {
+    render(
+      <ClusteringMetricsTableSkeleton
+        linkageIds={['single', 'complete', 'average', 'ward']}
+        representation="tfidf-cosine"
+        sampleSizeEstimate={20}
+      />,
+    );
+
+    const rows = screen.getAllByRole('row').slice(1); // drop the header row
+    expect(rows).toHaveLength(4);
+    const rowsWithEyebrow = rows.filter(
+      (row) => within(row).queryAllByText('Partición').length > 0,
+    );
+    expect(rowsWithEyebrow).toHaveLength(2);
+    for (const row of rowsWithEyebrow) {
+      expect(within(row).getByText('Partición')).toHaveClass('invisible');
+    }
+  });
+
+  it("reserves each row's own real display-name width, not the shorter mono id alone", () => {
+    render(
+      <ClusteringMetricsTableSkeleton
+        linkageIds={['single', 'complete']}
+        representation="tfidf-cosine"
+        sampleSizeEstimate={20}
+      />,
+    );
+
+    // The mono id is the real, visible text; a same-named invisible sizer
+    // beside it reserves the real `linkageDisplayName`'s own width
+    // ("Single linkage"/"Complete linkage"), which the id alone measures
+    // well short of at a narrow column width.
+    expect(screen.getByText('single')).toBeInTheDocument();
+    expect(screen.getByText('Single linkage')).toHaveClass('invisible');
+    expect(screen.getByText('complete')).toBeInTheDocument();
+    expect(screen.getByText('Complete linkage')).toHaveClass('invisible');
+  });
 });

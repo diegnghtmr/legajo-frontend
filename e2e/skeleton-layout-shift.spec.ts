@@ -81,6 +81,20 @@ const TFIDF_TRACE_MEDIAN = loadFixture<unknown>('trace-tfidf-cosine-d14-d15.json
 const MEDIAN_DOC_A_ID = 'd14';
 const MEDIAN_DOC_B_ID = 'd15';
 
+/** The whole reference corpus (20 documents) — clustering carries no
+ * document selection of its own, unlike similarity's compare/matrix
+ * requests, so it always runs over every one of these. */
+const CORPUS_TWENTY = CORPUS;
+
+/** The default representation/all-four-linkages response, captured
+ * straight from the reference corpus. Unlike the previous round's
+ * synthetic fixture (a single hand-built merge chain, contrived evaluation
+ * numbers), this is what real cophenetic/silhouette/Davies–Bouldin numbers
+ * over 20 real documents actually look like, including which linkage
+ * actually leads the tree and which leads the partition at k_ref — the
+ * exact thing the previous fixture could not exercise. */
+const CLUSTERING_RESPONSE = loadFixture<unknown>('clustering-default.json');
+
 const BENCHMARK_REPORT = loadFixture<unknown>('benchmarks.json');
 const EMBEDDINGS_STATUS = loadFixture<unknown>('embeddings-status.json');
 const ARTICLE_D01 = loadFixture<{
@@ -510,6 +524,67 @@ for (const viewport of VIEWPORTS) {
         assertSameBox(skeleton, loaded, tolerancePx);
       });
     }
+
+    test('clustering: the page region matches its loaded box', async ({ page }) => {
+      await page.route('**/api/v1/corpus', async (route) => {
+        await route.fulfill({ json: CORPUS_TWENTY });
+      });
+      const clustering = await holdApi(page, [
+        { pattern: '**/api/v1/clustering', json: CLUSTERING_RESPONSE },
+      ]);
+
+      await page.goto('/clustering');
+
+      const region = page.getByTestId('clustering-page');
+      await expect(page.getByText('Calculando el agrupamiento…')).toHaveCount(1);
+      const skeleton = await measure(page, region);
+
+      clustering.release();
+      await expect(page.getByRole('heading', { name: 'Single linkage' })).toBeVisible();
+      await expectLoadingSentencesHidden(page, LOADING_SENTENCES);
+      const loaded = await measure(page, region);
+
+      assertSameBox(skeleton, loaded);
+    });
+
+    test('clustering: neither the skeleton nor the loaded page scrolls horizontally at any width', async ({
+      page,
+    }) => {
+      await page.route('**/api/v1/corpus', async (route) => {
+        await route.fulfill({ json: CORPUS_TWENTY });
+      });
+      const clustering = await holdApi(page, [
+        { pattern: '**/api/v1/clustering', json: CLUSTERING_RESPONSE },
+      ]);
+
+      await page.goto('/clustering');
+      await expect(page.getByText('Calculando el agrupamiento…')).toHaveCount(1);
+
+      const skeletonScrollWidth = await page.evaluate(
+        () =>
+          (globalThis as unknown as { document: { documentElement: { scrollWidth: number } } })
+            .document.documentElement.scrollWidth,
+      );
+      const clientWidth = await page.evaluate(
+        () =>
+          (globalThis as unknown as { document: { documentElement: { clientWidth: number } } })
+            .document.documentElement.clientWidth,
+      );
+      expect(skeletonScrollWidth, 'skeleton page scrollWidth vs viewport clientWidth').toBe(
+        clientWidth,
+      );
+
+      clustering.release();
+      await expect(page.getByRole('heading', { name: 'Single linkage' })).toBeVisible();
+      const loadedScrollWidth = await page.evaluate(
+        () =>
+          (globalThis as unknown as { document: { documentElement: { scrollWidth: number } } })
+            .document.documentElement.scrollWidth,
+      );
+      expect(loadedScrollWidth, 'loaded page scrollWidth vs viewport clientWidth').toBe(
+        clientWidth,
+      );
+    });
 
     test('benchmarks: the page region matches its loaded box', async ({ page }) => {
       const benchmarks = await holdApi(page, [
