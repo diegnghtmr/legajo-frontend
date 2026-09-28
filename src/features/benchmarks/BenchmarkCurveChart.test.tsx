@@ -1,5 +1,7 @@
 import { act, render, screen, within } from '@testing-library/react';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+
+import { stubLaidOutWidth } from '../../test/layout';
 
 import {
   BenchmarkCurveChart,
@@ -35,6 +37,10 @@ class FakeResizeObserver implements ResizeObserver {
     );
   }
 }
+
+beforeEach(() => {
+  stubLaidOutWidth(640);
+});
 
 afterEach(() => {
   vi.unstubAllGlobals();
@@ -346,6 +352,24 @@ describe('BenchmarkCurveChart', () => {
     );
 
     expect(screen.queryByRole('list', { name: 'Leyenda de series' })).not.toBeInTheDocument();
+  });
+
+  it('draws nothing, in a box of its final height, while its width is still unknown', () => {
+    vi.restoreAllMocks();
+
+    const { container } = renderChart();
+
+    expect(container.querySelector('svg.recharts-surface')).toBeNull();
+    const group = screen.getByRole('group', { name: 'Algoritmos clásicos por pares' });
+    expect((group.firstElementChild as HTMLElement).style.height).toBe(`${CHART_HEIGHT}px`);
+  });
+
+  it('draws at the measured width on its very first render, with no observer callback', () => {
+    stubLaidOutWidth(900);
+
+    const { container } = renderChart();
+
+    expect(container.querySelector('svg.recharts-surface')?.getAttribute('width')).toBe('900');
   });
 
   it('fills its own measured container width instead of a fixed pixel width, once the container reports a wider measurement', () => {

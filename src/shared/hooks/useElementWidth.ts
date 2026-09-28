@@ -1,18 +1,38 @@
 import { useState } from 'react';
 
+/** Horizontal padding and border of `node`: `getBoundingClientRect` includes
+ * both, while a `ResizeObserver` content rect (and so a chart drawn inside
+ * the node) does not. */
+function horizontalInset(node: HTMLElement): number {
+  const style = getComputedStyle(node);
+  return [style.paddingLeft, style.paddingRight, style.borderLeftWidth, style.borderRightWidth]
+    .map((value) => Number.parseFloat(value) || 0)
+    .reduce((sum, value) => sum + value, 0);
+}
+
+/** The node's current content width, read from layout right now; `null`
+ * while it has none (not laid out, or `display: none`). */
+function measureContentWidth(node: HTMLElement): number | null {
+  const width = node.getBoundingClientRect().width - horizontalInset(node);
+  return width > 0 ? width : null;
+}
+
 /**
- * Tracks one element's own measured content width via `ResizeObserver`, for
- * a component that must fill a responsive container instead of rendering at
- * a fixed pixel width (the clustering dendrogram grid: each card's own
- * dendrogram fills that card's width, with no fixed pixel width).
+ * Tracks one element's own content width, for a component that must fill a
+ * responsive container instead of rendering at a fixed pixel width (the
+ * benchmark charts and the clustering dendrogram grid).
  *
- * Returns `initialWidth` until the observer's first callback ever fires.
- * jsdom has no real layout engine, so `src/test/setup.ts` installs a no-op
- * default `ResizeObserver` that never calls back — a component under test
- * with no fake of its own therefore keeps rendering at `initialWidth`,
- * matching every existing fixed-width rendering assumption. A test that
- * needs to observe a real resize installs its own controllable fake via
- * `vi.stubGlobal('ResizeObserver', ...)` instead (see this hook's own test).
+ * The width is `null` until it is really known, and a caller renders its
+ * box at the final height with nothing drawn in it until then. The width is
+ * read synchronously the moment the element attaches, which happens during
+ * the commit and before the browser paints, so React re-renders with the
+ * measured width before the first frame: a chart is never painted at a
+ * guessed width and then resized. A `ResizeObserver` then follows every
+ * later change. jsdom has no layout engine, so under test the width stays
+ * `null` until a test makes the element report one (spying on
+ * `getBoundingClientRect`) or installs a controllable observer fake via
+ * `vi.stubGlobal('ResizeObserver', ...)`; `src/test/setup.ts` documents the
+ * default no-op observer.
  *
  * Returns a **callback ref**, not a `RefObject`: an effect keyed on `[]`
  * only ever runs once, at the initial commit, so it can only ever observe
@@ -22,13 +42,14 @@ import { useState } from 'react';
  * that moves from one host node to another (a remount behind the same
  * `ref` prop) would leave the old node's observer dangling instead of
  * disconnecting it. A callback ref fires on every attach and detach, so it
- * disconnects the previous observer (if any) and observes whichever node is
- * now attached, every time.
+ * disconnects the previous observer (if any), measures, and observes
+ * whichever node is now attached, every time.
  */
-export function useElementWidth<T extends HTMLElement>(
-  initialWidth: number,
-): readonly [(node: T | null) => void, number] {
-  const [width, setWidth] = useState(initialWidth);
+export function useElementWidth<T extends HTMLElement>(): readonly [
+  (node: T | null) => void,
+  number | null,
+] {
+  const [width, setWidth] = useState<number | null>(null);
   // `useState`'s lazy initializer runs exactly once, on this hook's first
   // render, giving a callback ref with a stable identity for the
   // component's whole lifetime — without reading or writing a ref's
@@ -47,10 +68,12 @@ export function useElementWidth<T extends HTMLElement>(
         return;
       }
 
+      setWidth(measureContentWidth(node));
+
       const observer = new ResizeObserver((entries) => {
         const entry = entries[0];
         if (entry) {
-          setWidth(entry.contentRect.width);
+          setWidth(entry.contentRect.width > 0 ? entry.contentRect.width : null);
         }
       });
       observer.observe(node);

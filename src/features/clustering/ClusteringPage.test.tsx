@@ -8,6 +8,7 @@ import type {
   ClusteringCutResponse,
   ClusteringResponse,
 } from '../../infrastructure/api/clustering';
+import { stubLaidOutWidth } from '../../test/layout';
 import * as clusteringApi from '../../infrastructure/api/clustering';
 import * as corpusApi from '../../infrastructure/api/corpus';
 import type { ListCorpusResponse } from '../../infrastructure/api/corpus';
@@ -117,6 +118,7 @@ function renderPage() {
 beforeEach(() => {
   vi.restoreAllMocks();
   vi.clearAllMocks();
+  stubLaidOutWidth(640);
 });
 
 describe('ClusteringPage', () => {

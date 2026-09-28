@@ -1,7 +1,9 @@
 import { act, render, screen, within } from '@testing-library/react';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { stubLaidOutWidth } from '../../test/layout';
 import { DendrogramCard } from './DendrogramCard';
+import { dendrogramCardHeight } from './dendrogramGridSizing';
 
 class FakeResizeObserver implements ResizeObserver {
   static instances: FakeResizeObserver[] = [];
@@ -32,8 +34,13 @@ const GOLDEN_ROWS_N6 = [
   { idx1: 8, idx2: 9, mergeDistance: 0.5 },
 ];
 
+beforeEach(() => {
+  stubLaidOutWidth(640);
+});
+
 afterEach(() => {
   vi.unstubAllGlobals();
+  vi.restoreAllMocks();
   FakeResizeObserver.instances = [];
 });
 
@@ -68,6 +75,40 @@ describe('DendrogramCard', () => {
 
     const container = screen.getByTestId('linkage-dendrogram-complete');
     expect(within(container).getByTestId('dendrogram-cut-line')).toBeInTheDocument();
+  });
+
+  it('draws nothing, in a box of its final height, while its width is still unknown', () => {
+    vi.restoreAllMocks();
+
+    render(
+      <DendrogramCard
+        linkageId="single"
+        linkageDisplayName="Single"
+        rows={GOLDEN_ROWS_N6}
+        leafOrder={[0, 1, 2, 3, 4, 5]}
+      />,
+    );
+
+    const container = screen.getByTestId('linkage-dendrogram-single');
+    expect(within(container).queryByRole('img')).not.toBeInTheDocument();
+    const measured = container.querySelector<HTMLElement>('.mt-3');
+    expect(measured?.style.minHeight).toBe(`${dendrogramCardHeight(6)}px`);
+  });
+
+  it('draws at the measured width on its very first render, with no observer callback', () => {
+    stubLaidOutWidth(812);
+
+    render(
+      <DendrogramCard
+        linkageId="single"
+        linkageDisplayName="Single"
+        rows={GOLDEN_ROWS_N6}
+        leafOrder={[0, 1, 2, 3, 4, 5]}
+      />,
+    );
+
+    const svg = within(screen.getByTestId('linkage-dendrogram-single')).getByRole('img');
+    expect(svg.getAttribute('width')).toBe('812');
   });
 
   it('measures its own container width via ResizeObserver and re-renders the dendrogram at that width', () => {

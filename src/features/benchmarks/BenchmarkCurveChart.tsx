@@ -35,11 +35,6 @@ export interface BenchmarkCurveChartProps {
   slopeTableCaption: string;
 }
 
-/** Same shape as `DendrogramCard`'s own `INITIAL_WIDTH`: what a chart
- * renders at before its `ResizeObserver` ever reports a real measurement
- * (also jsdom's own permanent width in a test with no fake observer
- * installed — see `useElementWidth`'s own doc comment). */
-const INITIAL_WIDTH = 640;
 /** Exported so this chart's own loading skeleton reserves exactly this
  * height, causing no shift once the real chart replaces it. */
 export const CHART_HEIGHT = 280;
@@ -148,7 +143,7 @@ export function BenchmarkCurveChart({
   slopeTableCaption,
 }: BenchmarkCurveChartProps) {
   const { t } = useTranslation();
-  const [containerRef, width] = useElementWidth<HTMLDivElement>(INITIAL_WIDTH);
+  const [containerRef, width] = useElementWidth<HTMLDivElement>();
 
   if (series.length === 0) {
     return (
@@ -252,57 +247,64 @@ export function BenchmarkCurveChart({
           data-scale={axisScale}
           className="min-w-0 flex-1"
         >
-          <LineChart
-            width={width}
-            height={CHART_HEIGHT}
-            data={mergedData}
-            accessibilityLayer={false}
-            margin={{ top: 8, right: 16, bottom: 24, left: 8 }}
-          >
-            <CartesianGrid stroke="var(--color-hairline)" strokeDasharray="3 3" />
-            <XAxis
-              dataKey="size"
-              type="number"
-              scale={axisScale}
-              domain={['auto', 'auto']}
-              className="text-mono"
-            />
-            <YAxis
-              type="number"
-              scale={axisScale}
-              domain={yAxisDomain}
-              ticks={yAxisTicks.length > 0 ? yAxisTicks : undefined}
-              tickFormatter={(value: number) => formatDuration(value)}
-              className="text-mono"
-              width={72}
-            />
-            {series.map((entry, index) => (
-              <Line
-                key={entry.family}
-                dataKey={entry.family}
-                name={entry.family}
-                stroke="var(--color-ink)"
-                strokeWidth={1.5}
-                strokeDasharray={dashPatternForIndex(index) || undefined}
-                dot={seriesDot(markerShapeForIndex(index))}
-                isAnimationActive={false}
-                connectNulls
+          {width === null ? (
+            // The width is not measured yet: hold the chart's final height
+            // so nothing moves when the drawing arrives, and never draw
+            // at a guessed width.
+            <div style={{ height: CHART_HEIGHT }} />
+          ) : (
+            <LineChart
+              width={width}
+              height={CHART_HEIGHT}
+              data={mergedData}
+              accessibilityLayer={false}
+              margin={{ top: 8, right: 16, bottom: 24, left: 8 }}
+            >
+              <CartesianGrid stroke="var(--color-hairline)" strokeDasharray="3 3" />
+              <XAxis
+                dataKey="size"
+                type="number"
+                scale={axisScale}
+                domain={['auto', 'auto']}
+                className="text-mono"
               />
-            ))}
-            {familiesWithSlopes.map((entry) => (
-              <Line
-                key={theoreticalKey(entry.family)}
-                dataKey={theoreticalKey(entry.family)}
-                name={t('benchmarks.curves.legendTheoretical', { family: entry.family })}
-                stroke="var(--color-ink-muted)"
-                strokeWidth={1}
-                strokeDasharray="2 2"
-                dot={false}
-                isAnimationActive={false}
-                connectNulls
+              <YAxis
+                type="number"
+                scale={axisScale}
+                domain={yAxisDomain}
+                ticks={yAxisTicks.length > 0 ? yAxisTicks : undefined}
+                tickFormatter={(value: number) => formatDuration(value)}
+                className="text-mono"
+                width={72}
               />
-            ))}
-          </LineChart>
+              {series.map((entry, index) => (
+                <Line
+                  key={entry.family}
+                  dataKey={entry.family}
+                  name={entry.family}
+                  stroke="var(--color-ink)"
+                  strokeWidth={1.5}
+                  strokeDasharray={dashPatternForIndex(index) || undefined}
+                  dot={seriesDot(markerShapeForIndex(index))}
+                  isAnimationActive={false}
+                  connectNulls
+                />
+              ))}
+              {familiesWithSlopes.map((entry) => (
+                <Line
+                  key={theoreticalKey(entry.family)}
+                  dataKey={theoreticalKey(entry.family)}
+                  name={t('benchmarks.curves.legendTheoretical', { family: entry.family })}
+                  stroke="var(--color-ink-muted)"
+                  strokeWidth={1}
+                  strokeDasharray="2 2"
+                  dot={false}
+                  isAnimationActive={false}
+                  connectNulls
+                />
+              ))}
+            </LineChart>
+          )}
           <p className="mt-1 text-center text-mono text-ink-secondary">{xAxisLabel}</p>
         </div>
       </div>

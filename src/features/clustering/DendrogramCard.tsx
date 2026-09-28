@@ -21,10 +21,6 @@ export interface DendrogramCardProps {
   cut?: DendrogramCut;
 }
 
-/** Same as `Dendrogram`'s own `DEFAULT_WIDTH`: what a card renders at before
- * its `ResizeObserver` ever reports a real measurement. */
-const INITIAL_WIDTH = 640;
-
 /**
  * One dendrogram grid card: a `Panel` headed by the linkage's display name,
  * with the `Dendrogram` sized to fill the card's own measured width
@@ -89,23 +85,25 @@ export function DendrogramCard({
   cut,
 }: DendrogramCardProps) {
   const { t } = useTranslation();
-  const [containerRef, width] = useElementWidth<HTMLDivElement>(INITIAL_WIDTH);
+  const [containerRef, width] = useElementWidth<HTMLDivElement>();
   const height = dendrogramCardHeight(leafOrder.length);
 
   return (
     <div data-testid={`linkage-dendrogram-${linkageId}`}>
       <Panel>
         <PanelHeader title={linkageDisplayName} />
-        <div ref={containerRef} className="mt-3">
-          <Dendrogram
-            rows={rows}
-            leafOrder={leafOrder}
-            leafLabels={leafLabels}
-            cut={cut}
-            width={width}
-            height={height}
-            ariaLabel={t('clustering.dendrogram.ariaLabel', { linkage: linkageDisplayName })}
-          />
+        <div ref={containerRef} className="mt-3" style={{ minHeight: height }}>
+          {width !== null && (
+            <Dendrogram
+              rows={rows}
+              leafOrder={leafOrder}
+              leafLabels={leafLabels}
+              cut={cut}
+              width={width}
+              height={height}
+              ariaLabel={t('clustering.dendrogram.ariaLabel', { linkage: linkageDisplayName })}
+            />
+          )}
         </div>
       </Panel>
     </div>

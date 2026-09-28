@@ -1,6 +1,7 @@
 import { act, render } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
+import { stubLaidOutWidth } from '../../test/layout';
 import { useElementWidth } from './useElementWidth';
 
 /**
@@ -29,29 +30,36 @@ class FakeResizeObserver implements ResizeObserver {
   }
 }
 
-function Measured({ initial }: { initial: number }) {
-  const [ref, width] = useElementWidth<HTMLDivElement>(initial);
-  return <div ref={ref} data-testid="measured" data-width={width} />;
+function Measured({ padding }: { padding?: number }) {
+  const [ref, width] = useElementWidth<HTMLDivElement>();
+  return (
+    <div
+      ref={ref}
+      data-testid="measured"
+      data-width={width ?? 'unknown'}
+      style={padding === undefined ? undefined : { padding: `0 ${padding}px` }}
+    />
+  );
 }
 
 /** Renders its measured element only once `show` is true — the shape of a
  * conditional/loading render that mounts its measured node later than the
  * component's own first render. */
-function DelayedMeasured({ show, initial }: { show: boolean; initial: number }) {
-  const [ref, width] = useElementWidth<HTMLDivElement>(initial);
-  return show ? <div ref={ref} data-testid="measured" data-width={width} /> : null;
+function DelayedMeasured({ show }: { show: boolean }) {
+  const [ref, width] = useElementWidth<HTMLDivElement>();
+  return show ? <div ref={ref} data-testid="measured" data-width={width ?? 'unknown'} /> : null;
 }
 
 /** Moves the same hook's ref from one host node to a different one (forced
  * via `key`, so React actually unmounts the old node and mounts a new one
  * instead of reusing it) — the shape of a ref that gets handed to a
  * different underlying element across renders. */
-function SwitchableMeasured({ useSecond, initial }: { useSecond: boolean; initial: number }) {
-  const [ref, width] = useElementWidth<HTMLDivElement>(initial);
+function SwitchableMeasured({ useSecond }: { useSecond: boolean }) {
+  const [ref, width] = useElementWidth<HTMLDivElement>();
   return useSecond ? (
-    <div key="second" ref={ref} data-testid="second" data-width={width} />
+    <div key="second" ref={ref} data-testid="second" data-width={width ?? 'unknown'} />
   ) : (
-    <div key="first" ref={ref} data-testid="first" data-width={width} />
+    <div key="first" ref={ref} data-testid="first" data-width={width ?? 'unknown'} />
   );
 }
 
@@ -67,18 +75,37 @@ afterEach(() => {
 });
 
 describe('useElementWidth', () => {
-  it('starts at the given initial width before any observation ever fires', () => {
+  it('reports the laid-out width as soon as the element attaches, with no observer callback', () => {
     vi.stubGlobal('ResizeObserver', FakeResizeObserver);
+    stubLaidOutWidth(500);
 
-    const { getByTestId } = render(<Measured initial={640} />);
+    const { getByTestId } = render(<Measured />);
 
-    expect(getByTestId('measured').dataset.width).toBe('640');
+    expect(getByTestId('measured').dataset.width).toBe('500');
   });
 
-  it('updates to the observed content width once the observer reports one', () => {
+  it('reads the content width, without the element padding', () => {
+    vi.stubGlobal('ResizeObserver', FakeResizeObserver);
+    stubLaidOutWidth(500);
+
+    const { getByTestId } = render(<Measured padding={10} />);
+
+    expect(getByTestId('measured').dataset.width).toBe('480');
+  });
+
+  it('has no width while the element has no layout, instead of guessing one', () => {
     vi.stubGlobal('ResizeObserver', FakeResizeObserver);
 
-    const { getByTestId } = render(<Measured initial={640} />);
+    const { getByTestId } = render(<Measured />);
+
+    expect(getByTestId('measured').dataset.width).toBe('unknown');
+  });
+
+  it('follows the observed content width once the observer reports a change', () => {
+    vi.stubGlobal('ResizeObserver', FakeResizeObserver);
+    stubLaidOutWidth(500);
+
+    const { getByTestId } = render(<Measured />);
     act(() => {
       FakeResizeObserver.instances[0]?.trigger(912);
     });
@@ -86,31 +113,38 @@ describe('useElementWidth', () => {
     expect(getByTestId('measured').dataset.width).toBe('912');
   });
 
+  it('takes the first observed width when the element had no layout on attach', () => {
+    vi.stubGlobal('ResizeObserver', FakeResizeObserver);
+
+    const { getByTestId } = render(<Measured />);
+    act(() => {
+      FakeResizeObserver.instances[0]?.trigger(640);
+    });
+
+    expect(getByTestId('measured').dataset.width).toBe('640');
+  });
+
   it('disconnects its observer on unmount', () => {
     vi.stubGlobal('ResizeObserver', FakeResizeObserver);
     const disconnectSpy = vi.spyOn(FakeResizeObserver.prototype, 'disconnect');
 
-    const { unmount } = render(<Measured initial={640} />);
+    const { unmount } = render(<Measured />);
     unmount();
 
     expect(disconnectSpy).toHaveBeenCalledTimes(1);
   });
 
-  it('stays at the initial width under the default no-op ResizeObserver stub (no fake installed)', () => {
-    const { getByTestId } = render(<Measured initial={480} />);
-
-    expect(getByTestId('measured').dataset.width).toBe('480');
-  });
-
   it('observes an element that only attaches on a later render, not just whatever is mounted at the first render', () => {
     vi.stubGlobal('ResizeObserver', FakeResizeObserver);
+    stubLaidOutWidth(300);
 
-    const { rerender, queryByTestId } = render(<DelayedMeasured show={false} initial={500} />);
+    const { rerender, queryByTestId } = render(<DelayedMeasured show={false} />);
     expect(queryByTestId('measured')).not.toBeInTheDocument();
     expect(FakeResizeObserver.instances).toHaveLength(0);
 
-    rerender(<DelayedMeasured show={true} initial={500} />);
+    rerender(<DelayedMeasured show={true} />);
     expect(FakeResizeObserver.instances).toHaveLength(1);
+    expect(queryByTestId('measured')?.getAttribute('data-width')).toBe('300');
 
     act(() => {
       FakeResizeObserver.instances[0]?.trigger(777);
@@ -123,12 +157,10 @@ describe('useElementWidth', () => {
     vi.stubGlobal('ResizeObserver', FakeResizeObserver);
     const disconnectSpy = vi.spyOn(FakeResizeObserver.prototype, 'disconnect');
 
-    const { rerender, getByTestId } = render(
-      <SwitchableMeasured useSecond={false} initial={320} />,
-    );
+    const { rerender, getByTestId } = render(<SwitchableMeasured useSecond={false} />);
     expect(FakeResizeObserver.instances).toHaveLength(1);
 
-    rerender(<SwitchableMeasured useSecond={true} initial={320} />);
+    rerender(<SwitchableMeasured useSecond={true} />);
 
     expect(disconnectSpy).toHaveBeenCalledTimes(1);
     expect(FakeResizeObserver.instances).toHaveLength(2);
