@@ -5,6 +5,7 @@ import { buildDpTrace } from './support/dpTraceBuilder.js';
 import { loadFixture } from './support/fixtures.js';
 import { holdApi } from './support/holdApi.js';
 import { expectLoadingSentencesHidden } from './support/loadingText.js';
+import { expectSkeletonsHoldNoFocusable } from './support/skeletonFocus.js';
 
 /**
  * Regression guard for the loading skeletons: for every screen listed
@@ -266,6 +267,7 @@ for (const viewport of VIEWPORTS) {
           ).toBeVisible();
         }
         const skeleton = await measure(page, region);
+        await expectSkeletonsHoldNoFocusable(page);
         await expectAxeClean(page);
 
         pending.release();
@@ -298,11 +300,16 @@ for (const viewport of VIEWPORTS) {
       await page.getByRole('checkbox', { name: CORPUS_THREE[2].title }).check();
       await page.getByRole('button', { name: 'Ver matriz de 3' }).click();
 
-      const region = page.getByRole('region', {
-        name: 'Matriz de similitud por pares para el algoritmo elegido',
-      });
+      // The skeleton is a plain clipped box; the loaded table is the labelled
+      // scroll region. One locator follows the swap.
+      const region = page.getByTestId('matrix-skeleton').or(
+        page.getByRole('region', {
+          name: 'Matriz de similitud por pares para el algoritmo elegido',
+        }),
+      );
       await expect(page.getByText('Calculando la matriz…')).toHaveCount(1);
       const skeleton = await measure(page, region);
+      await expectSkeletonsHoldNoFocusable(page);
 
       matrix.release();
       await expect(region.getByText('1.000').first()).toBeVisible();
@@ -353,6 +360,7 @@ for (const viewport of VIEWPORTS) {
       // below already lands well after it.
       await expect(page.locator('.katex').first()).toBeVisible();
       const skeleton = await measure(page, region);
+      await expectSkeletonsHoldNoFocusable(page);
       await expectAxeClean(page);
 
       held.release();
@@ -397,6 +405,7 @@ for (const viewport of VIEWPORTS) {
       const region = page.getByTestId('trace-detail-panel');
       await expect(page.getByText('Cargando la traza…')).toHaveCount(1);
       const skeleton = await measure(page, region);
+      await expectSkeletonsHoldNoFocusable(page);
       await expectAxeClean(page);
 
       held.release();
@@ -431,6 +440,7 @@ for (const viewport of VIEWPORTS) {
       const region = page.getByTestId('trace-detail-panel');
       await expect(page.getByText('Cargando la traza…')).toHaveCount(1);
       const skeleton = await measure(page, region);
+      await expectSkeletonsHoldNoFocusable(page);
       // Unlike the DP and TF-IDF bodies above, Jaccard's own fields carry
       // no focusable control at all — the median pair's own token lists
       // (setA 86, setB 105, intersection 11, union 180) make this panel's
@@ -486,6 +496,7 @@ for (const viewport of VIEWPORTS) {
         await expect(page.getByText('Cargando la traza…')).toHaveCount(1);
         await expect(page.getByText('Calculando la comparación…')).toHaveCount(1);
         await measure(page, page.getByTestId('trace-detail-panel'));
+        await expectSkeletonsHoldNoFocusable(page);
         await expectAxeClean(page);
 
         held.release();
@@ -614,6 +625,7 @@ for (const viewport of VIEWPORTS) {
           await expect(page.locator('.katex').first()).toBeVisible();
         }
         const skeleton = await measure(page, region);
+        await expectSkeletonsHoldNoFocusable(page);
         await expectNoPageHorizontalScroll(page);
         // A single representative axe pass at the widest viewport: the
         // findings this guard actually reproduced (`empty-table-header`,
@@ -664,7 +676,9 @@ for (const viewport of VIEWPORTS) {
       const headerRow = page.locator('table thead tr').first();
       await expect(page.getByText('Calculando el agrupamiento…')).toHaveCount(1);
       const skeleton = await measure(page, region);
+      await expectSkeletonsHoldNoFocusable(page);
       const skeletonHeader = await measure(page, headerRow);
+      await expectAxeClean(page);
 
       pending.release();
       await expect(page.getByRole('heading', { name: 'Single linkage' })).toBeVisible();
@@ -730,6 +744,7 @@ for (const viewport of VIEWPORTS) {
       const region = page.getByTestId('benchmarks-page');
       await expect(page.getByText('Cargando las mediciones…')).toHaveCount(1);
       const skeleton = await measure(page, region);
+      await expectSkeletonsHoldNoFocusable(page);
 
       benchmarks.release();
       await expect(page.getByRole('radiogroup', { name: 'Escala' })).toBeVisible();
@@ -761,6 +776,7 @@ for (const viewport of VIEWPORTS) {
       const region = page.getByTestId('embeddings-status-panel');
       await expect(page.getByText('Cargando el estado de los embeddings…')).toHaveCount(1);
       const skeleton = await measure(page, region);
+      await expectSkeletonsHoldNoFocusable(page);
 
       status.release();
       await expect(page.getByTestId('embeddings-status-local-match')).toBeVisible();
@@ -784,6 +800,7 @@ for (const viewport of VIEWPORTS) {
       const region = page.getByTestId('article-abstract');
       await expect(page.getByText('Cargando el artículo…')).toHaveCount(1);
       const skeleton = await measure(page, region);
+      await expectSkeletonsHoldNoFocusable(page);
 
       abstract.release();
       await expect(page.getByText(ARTICLE_D01.abstract, { exact: false })).toBeVisible();

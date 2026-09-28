@@ -5,16 +5,14 @@ import { TraceBodySkeleton } from './TraceBodySkeleton';
 
 describe('TraceBodySkeleton', () => {
   it('for a DP algorithm, mirrors the matrix viewport, the legend, the operations region and the formula caption', async () => {
-    render(<TraceBodySkeleton algorithmId="levenshtein" />);
+    const { container } = render(<TraceBodySkeleton algorithmId="levenshtein" />);
 
-    // The matrix's own bounded scroll viewport (`DpMatrix`'s own
-    // `max-h-[420px]`, reused here) as a labelled, focusable region — the
-    // same landmark the real one carries, so the swap changes no box.
-    const matrixRegion = screen.getByRole('region', {
-      name: 'Matriz completa de levenshtein',
-    });
-    expect(matrixRegion).toHaveAttribute('tabIndex', '0');
-    expect(matrixRegion.className).toContain('max-h-[420px]');
+    // The matrix's own bounded box (`DpMatrix`'s own `max-h-[420px]`),
+    // clipped rather than scrolled: a skeleton is no landmark and no tab stop.
+    const matrixBox = container.querySelector('.max-h-\\[420px\\]');
+    expect(matrixBox).toHaveClass('overflow-hidden');
+    expect(matrixBox).not.toHaveAttribute('tabindex');
+    expect(screen.queryByRole('region', { name: 'Matriz completa de levenshtein' })).toBeNull();
 
     // The operation legend and vocabulary are already known from the
     // algorithm id alone — real text, never a placeholder.
@@ -24,12 +22,11 @@ describe('TraceBodySkeleton', () => {
     expect(screen.getByText('Inserción')).toBeInTheDocument();
     expect(screen.getByText('Eliminación')).toBeInTheDocument();
 
-    // The operations table's own bounded scroll viewport
-    // (`max-h-64`/256px), also reused verbatim.
-    const operationsRegion = screen.getByRole('region', {
-      name: 'Secuencia de operaciones de levenshtein',
-    });
-    expect(operationsRegion.className).toContain('max-h-64');
+    // The operations table's own bounded box (`max-h-64`/256px), also
+    // reused verbatim and clipped.
+    const operationsBox = container.querySelector('.max-h-64');
+    expect(operationsBox).toHaveClass('overflow-hidden');
+    expect(operationsBox).not.toHaveAttribute('tabindex');
 
     // The formula needs no fetched data at all — it renders for real
     // immediately, exactly as it will once the trace resolves.
@@ -116,11 +113,14 @@ describe('TraceBodySkeleton', () => {
   });
 
   it('for TF-IDF/cosine, shows the corpus-size label and the terms region shell as real text, with a real-corpus-typical term row count', () => {
-    render(<TraceBodySkeleton algorithmId="tfidf-cosine" />);
+    const { container } = render(<TraceBodySkeleton algorithmId="tfidf-cosine" />);
 
     expect(screen.getByText('Tamaño del corpus (N)')).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Pesos término a término' })).toBeInTheDocument();
-    const region = screen.getByRole('region', { name: 'Pesos término a término' });
+    const table = container.querySelector('table')!;
+    const region = table.parentElement!;
+    expect(region).toHaveClass('overflow-hidden');
+    expect(region).not.toHaveAttribute('tabindex');
     expect(within(region).getByText('Término')).toBeInTheDocument();
 
     // The terms table has no bounded viewport of its own (unlike the DP

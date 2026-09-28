@@ -225,15 +225,11 @@ export function CorpusListPanel({
       </div>
 
       <div
-        className="flex-1 overflow-y-auto"
-        // The skeleton rows below are `aria-hidden`, on purpose: this region
-        // briefly has no focusable descendant while loading, unlike once
-        // real, checkbox-bearing rows arrive. A region that scrolls needs
-        // keyboard access regardless of what is inside it, the same rule
-        // `ClusteringMetricsTable`'s own scroll viewport already follows.
-        role={isPending ? 'region' : undefined}
-        aria-label={isPending ? t('corpus.loading') : undefined}
-        tabIndex={isPending ? 0 : undefined}
+        // While loading the list holds only `aria-hidden` placeholder rows
+        // and no focusable descendant, so it is clipped rather than scrolled:
+        // a scroll box with nothing focusable in it would need a tab stop of
+        // its own, and a skeleton holds none.
+        className={cn('flex-1', isPending ? 'overflow-y-hidden' : 'overflow-y-auto')}
       >
         {isPending && (
           <>

@@ -19,6 +19,7 @@ import { algoFamilyFromKind } from '../algorithmFamily';
 import { formatRawValue, formatTraceNumber } from '../formatters';
 import { ALGORITHMS_QUERY_KEY } from '../SimilarityPage';
 import { TracePanel } from '../SimilarityTracePage';
+import { cn } from '../../../shared/lib/cn';
 import { TraceBodySkeleton } from './TraceBodySkeleton';
 import { TraceMetaFieldSkeleton } from './TraceMetaFieldSkeleton';
 
@@ -242,13 +243,19 @@ export function TraceDetailPanel({
           ))}
       </dl>
 
+      {/* While the trace is pending the body holds only the skeleton, which
+       * has no focusable element: it is clipped, never a scroll region. */}
       <div
-        className="flex-1 overflow-y-auto p-4 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus"
-        {...(!hasOwnFocusableRegion(algorithmId) && {
-          role: 'region',
-          'aria-label': `${t('similarity.trace.eyebrow')}: ${title}`,
-          tabIndex: 0,
-        })}
+        className={cn(
+          'flex-1 p-4 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus',
+          traceQuery.isPending ? 'overflow-y-hidden' : 'overflow-y-auto',
+        )}
+        {...(!traceQuery.isPending &&
+          !hasOwnFocusableRegion(algorithmId) && {
+            role: 'region',
+            'aria-label': `${t('similarity.trace.eyebrow')}: ${title}`,
+            tabIndex: 0,
+          })}
       >
         {traceQuery.isPending && (
           <TraceBodySkeleton algorithmId={algorithmId} hideDownloadButton hideDpMetaRow />

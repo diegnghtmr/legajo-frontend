@@ -7,6 +7,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import * as corpusApi from '../../infrastructure/api/corpus';
 import * as embeddingsApi from '../../infrastructure/api/embeddings';
 import es from '../../infrastructure/i18n/locales/es.json';
+import { focusableInSkeletons } from '../../test/skeletonFocus';
 import { useSelectionStore } from './selectionStore';
 import { CorpusListPanel, embeddingsSummaryState } from './CorpusListPanel';
 
@@ -182,15 +183,16 @@ describe('CorpusListPanel', () => {
       }
     });
 
-    it('makes its own scroll region keyboard-reachable while it holds no focusable row, unlike once real rows load', async () => {
+    it('holds no tab stop or region role while its rows are placeholders', async () => {
       vi.spyOn(corpusApi, 'fetchCorpus').mockReturnValue(new Promise(() => {}));
 
       renderPanel();
 
       const region = screen.getByTestId('corpus-list-skeleton').parentElement;
-      expect(region).toHaveAttribute('tabindex', '0');
-      expect(region).toHaveAttribute('role', 'region');
-      expect(region).toHaveAccessibleName('Cargando el corpus…');
+      expect(region).not.toHaveAttribute('tabindex');
+      expect(region).not.toHaveAttribute('role');
+      expect(region).toHaveClass('overflow-y-hidden');
+      expect(focusableInSkeletons(document.body)).toEqual([]);
     });
 
     it('drops the scroll region role once real, focusable rows load', async () => {

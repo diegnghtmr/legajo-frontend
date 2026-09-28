@@ -196,12 +196,7 @@ export function ClusteringMetricsTableSkeleton({
   return (
     <Panel>
       <div className="mb-3">
-        <div
-          role="region"
-          aria-label={t('clustering.metricsTable.regionLabel')}
-          tabIndex={0}
-          className="overflow-x-auto rounded-md focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus"
-        >
+        <div className="overflow-hidden rounded-md">
           <table className="w-full border-collapse text-left">
             <caption className="sr-only">{t('clustering.metricsTable.caption')}</caption>
             <thead>
