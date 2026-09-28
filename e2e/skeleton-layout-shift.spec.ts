@@ -367,6 +367,47 @@ for (const viewport of VIEWPORTS) {
       assertSameBox(skeleton, loaded);
     });
 
+    test('docked trace, Jaccard (a body with no focusable region of its own): the panel region matches its loaded box, axe-clean in both states', async ({
+      page,
+    }) => {
+      await page.route('**/api/v1/corpus', async (route) => {
+        await route.fulfill({ json: CORPUS_TWO });
+      });
+      await page.route('**/api/v1/similarity/algorithms', async (route) => {
+        await route.fulfill({ json: ALGORITHM_CATALOGUE });
+      });
+      await page.route('**/api/v1/similarity/compare', async (route) => {
+        await route.fulfill({ json: COMPARE_RESULTS });
+      });
+      const held = await holdApi(page, [
+        { pattern: '**/api/v1/similarity/jaccard/trace**', json: JACCARD_TRACE_MEDIAN },
+      ]);
+
+      await page.goto(
+        `/similarity/jaccard/trace?documentIdA=${MEDIAN_DOC_A_ID}&documentIdB=${MEDIAN_DOC_B_ID}`,
+      );
+
+      const region = page.getByTestId('trace-detail-panel');
+      await expect(page.getByText('Cargando la traza…')).toHaveCount(1);
+      const skeleton = await measure(page, region);
+      // Unlike the DP and TF-IDF bodies above, Jaccard's own fields carry
+      // no focusable control at all — the median pair's own token lists
+      // (setA 86, setB 105, intersection 11, union 180) make this panel's
+      // bounded body genuinely taller than its own fixed height and need
+      // to scroll, which is exactly the shape that reproduced the
+      // reported `scrollable-region-focusable` finding on this exact
+      // wrapper.
+      await expectAxeClean(page);
+
+      held.release();
+      await expect(page.getByRole('region', { name: /uni[oó]n/i })).toBeVisible();
+      await expectLoadingSentencesHidden(page, LOADING_SENTENCES);
+      const loaded = await measure(page, region);
+      await expectAxeClean(page);
+
+      assertSameBox(skeleton, loaded);
+    });
+
     /**
      * The full-screen trace view (`/similarity/:algorithmId/trace/full`)
      * has no bounded viewport of its own — unlike the docked panel above,

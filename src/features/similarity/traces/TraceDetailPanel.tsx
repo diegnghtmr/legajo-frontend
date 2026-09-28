@@ -37,6 +37,19 @@ function isDpAlgorithm(algorithmId: string): boolean {
   return algorithmId === 'levenshtein' || algorithmId === 'needleman-wunsch';
 }
 
+/** Whether this capability's own body already carries a focusable
+ * descendant of its own (the DP matrix/operations regions, the TF-IDF
+ * terms table region — each already its own labelled, `tabIndex={0}`
+ * scroll viewport). Jaccard and both embedding bodies have none: their own
+ * `dl`/`dt`/`dd` fields carry no control at all, so once this panel's own
+ * bounded, scrollable body actually needs to scroll for a real response
+ * (Jaccard's own token lists, well past this panel's fixed height), it
+ * becomes a scrollable region no keyboard user can reach
+ * (`scrollable-region-focusable`) unless it is made focusable itself. */
+function hasOwnFocusableRegion(algorithmId: string): boolean {
+  return isDpAlgorithm(algorithmId) || algorithmId === 'tfidf-cosine';
+}
+
 /**
  * The trace deep link's own detail panel content: header (eyebrow,
  * algorithm display name, mono pair subtitle, close button), a generic meta
@@ -229,7 +242,14 @@ export function TraceDetailPanel({
           ))}
       </dl>
 
-      <div className="flex-1 overflow-y-auto p-4">
+      <div
+        className="flex-1 overflow-y-auto p-4 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus"
+        {...(!hasOwnFocusableRegion(algorithmId) && {
+          role: 'region',
+          'aria-label': `${t('similarity.trace.eyebrow')}: ${title}`,
+          tabIndex: 0,
+        })}
+      >
         {traceQuery.isPending && (
           <TraceBodySkeleton algorithmId={algorithmId} hideDownloadButton hideDpMetaRow />
         )}
