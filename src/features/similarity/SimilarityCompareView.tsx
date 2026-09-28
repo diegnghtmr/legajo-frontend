@@ -6,11 +6,11 @@ import { useNavigate, useSearchParams } from 'react-router';
 import { DEFAULT_UNEXPECTED_I18N_KEY, type ApiError } from '../../infrastructure/apiError';
 import {
   compareSimilarity,
-  fetchSimilarityAlgorithms,
   type CompareRequestBody,
   type CompareResponse,
   type ListSimilarityAlgorithmsResponse,
 } from '../../infrastructure/api/similarity';
+import { algorithmsQueryOptions } from '../../infrastructure/api/similarityCatalogue';
 import { AlgorithmIdSchema, type AlgorithmId } from '../../infrastructure/schemas/similarity';
 import { PanelHeader } from '../../shared/components/Panel';
 import { AlgoTextList } from '../../shared/components/AlgoTextList';
@@ -24,9 +24,6 @@ import {
   CompareTableSkeleton,
 } from './CompareSkeleton';
 import { CompareTable } from './CompareTable';
-import { KNOWN_ALGORITHMS } from './knownAlgorithms';
-
-export const ALGORITHMS_QUERY_KEY = ['similarity', 'algorithms'] as const;
 
 /** The six fixed capability ids, independent of the catalogue fetch. */
 const DEFAULT_ALGORITHM_IDS = [...AlgorithmIdSchema.options];
@@ -128,10 +125,7 @@ export function SimilarityCompareView({ pair, openAlgorithmId }: SimilarityCompa
     [searchParams],
   );
 
-  const algorithmsQuery = useQuery<ListSimilarityAlgorithmsResponse, ApiError>({
-    queryKey: ALGORITHMS_QUERY_KEY,
-    queryFn: fetchSimilarityAlgorithms,
-  });
+  const algorithmsQuery = useQuery(algorithmsQueryOptions);
 
   const catalogueById = useMemo(() => {
     const map = new Map<string, ListSimilarityAlgorithmsResponse[number]>();
@@ -140,17 +134,6 @@ export function SimilarityCompareView({ pair, openAlgorithmId }: SimilarityCompa
     }
     return map;
   }, [algorithmsQuery.data]);
-
-  // What the skeletons read: the fetched catalogue once it lands, the fixed
-  // six until then, so a placeholder never guesses at a name or a family.
-  const skeletonCatalogueById = useMemo(
-    () => new Map((algorithmsQuery.data ?? KNOWN_ALGORITHMS).map((entry) => [entry.id, entry])),
-    [algorithmsQuery.data],
-  );
-
-  const skeletonAlgorithmIds = KNOWN_ALGORITHMS.filter(
-    (algorithm) => family === 'all' || algoFamilyFromKind(algorithm.kind) === family,
-  ).map((algorithm) => algorithm.id);
 
   const visibleAlgorithmOptions = useMemo(
     () =>
@@ -251,7 +234,7 @@ export function SimilarityCompareView({ pair, openAlgorithmId }: SimilarityCompa
           <p role="status" className="sr-only">
             {t('similarity.algorithmsLoading')}
           </p>
-          <AlgorithmListSkeleton algorithmIds={skeletonAlgorithmIds} />
+          <AlgorithmListSkeleton algorithmIds={DEFAULT_ALGORITHM_IDS} />
         </>
       )}
       {algorithmsQuery.isError && (
@@ -285,7 +268,7 @@ export function SimilarityCompareView({ pair, openAlgorithmId }: SimilarityCompa
           {isAtLeastLg ? (
             <CompareTableSkeleton
               algorithmIds={selectedAlgorithmIds}
-              catalogueById={skeletonCatalogueById}
+              catalogueById={catalogueById}
             />
           ) : (
             <CompareResultsListSkeleton algorithmIds={selectedAlgorithmIds} />

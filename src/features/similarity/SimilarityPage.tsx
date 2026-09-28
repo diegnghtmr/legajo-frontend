@@ -10,8 +10,6 @@ import { SimilarityCompareView } from './SimilarityCompareView';
 import { SimilarityMatrixView } from './SimilarityMatrixPage';
 import { clearTraceTrigger } from './traceFocusReturn';
 
-export { ALGORITHMS_QUERY_KEY } from './SimilarityCompareView';
-
 /**
  * Similarity compare screen. Reads the compared pair either from the trace
  * deep link's own `documentIdA`/`documentIdB` search params (when this route

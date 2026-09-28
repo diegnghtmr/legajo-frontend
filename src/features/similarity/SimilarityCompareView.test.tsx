@@ -4,6 +4,7 @@ import { MemoryRouter } from 'react-router';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import * as similarityApi from '../../infrastructure/api/similarity';
+import { algorithmsQueryOptions } from '../../infrastructure/api/similarityCatalogue';
 import { stubNarrowViewport } from '../../test/matchMedia';
 import { SimilarityCompareView } from './SimilarityCompareView';
 
@@ -91,7 +92,7 @@ describe('SimilarityCompareView loading skeletons', () => {
     }
   });
 
-  it('renders the known display name and family in the table skeleton while the algorithm catalogue itself is still pending', async () => {
+  it('keeps the id real and holds name and family as placeholders while the catalogue is still pending', async () => {
     vi.spyOn(similarityApi, 'fetchSimilarityAlgorithms').mockReturnValue(new Promise(() => {}));
     vi.spyOn(similarityApi, 'compareSimilarity').mockReturnValue(new Promise(() => {}));
 
@@ -100,15 +101,45 @@ describe('SimilarityCompareView loading skeletons', () => {
     renderView('/similarity?algorithms=levenshtein,embedding-local');
 
     const rows = await screen.findAllByTestId('compare-table-skeleton-row');
+    expect(rows).toHaveLength(2);
     const firstRowHeader = rows[0]!.querySelector('th')!;
     expect(firstRowHeader).toHaveTextContent('levenshtein');
-    expect(firstRowHeader).toHaveTextContent('Levenshtein');
-    expect(firstRowHeader.querySelectorAll('[data-slot="skeleton"]')).toHaveLength(0);
-    const secondRowHeader = rows[1]!.querySelector('th')!;
-    expect(secondRowHeader).toHaveTextContent('Embedding (MiniLM local)');
-    // The family is known from the id alone, so its cell is real text too.
+    expect(firstRowHeader.querySelectorAll('[data-slot="skeleton"]')).toHaveLength(1);
+    expect(rows[1]!.querySelector('th')).toHaveTextContent('embedding-local');
+    // Nothing about the name or family is guessed client-side.
+    expect(screen.queryByText('Embedding (MiniLM local)')).not.toBeInTheDocument();
+    expect(
+      rows[0]!.querySelectorAll('td')[0]!.querySelectorAll('[data-slot="skeleton"]'),
+    ).toHaveLength(1);
+  });
+
+  it('renders the real names and families from a prefetched catalogue without asking the API again', () => {
+    const fetchCatalogue = vi.spyOn(similarityApi, 'fetchSimilarityAlgorithms');
+    fetchCatalogue.mockClear();
+    vi.spyOn(similarityApi, 'compareSimilarity').mockReturnValue(new Promise(() => {}));
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false, staleTime: Infinity } },
+    });
+    queryClient.setQueryData(algorithmsQueryOptions.queryKey, [
+      { id: 'levenshtein', displayName: 'Levenshtein', kind: 'CLASSIC' },
+      { id: 'embedding-local', displayName: 'Embedding (MiniLM local)', kind: 'AI' },
+    ]);
+
+    render(
+      <QueryClientProvider client={queryClient}>
+        <MemoryRouter initialEntries={['/similarity?algorithms=levenshtein,embedding-local']}>
+          <SimilarityCompareView pair={['doc-01', 'doc-02']} openAlgorithmId={null} />
+        </MemoryRouter>
+      </QueryClientProvider>,
+    );
+
+    // Synchronously on the first render: no catalogue skeleton in between.
+    expect(screen.queryByTestId('algorithm-list-skeleton')).not.toBeInTheDocument();
+    const rows = screen.getAllByTestId('compare-table-skeleton-row');
+    expect(rows[1]!.querySelector('th')).toHaveTextContent('Embedding (MiniLM local)');
     expect(rows[0]!.querySelectorAll('td')[0]).toHaveTextContent('Clásico');
     expect(rows[1]!.querySelectorAll('td')[0]).toHaveTextContent('IA');
+    expect(fetchCatalogue).not.toHaveBeenCalled();
   });
 
   it('reserves the cached marker and the response-dependent values in the table skeleton', async () => {
