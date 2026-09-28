@@ -436,6 +436,51 @@ for (const viewport of VIEWPORTS) {
     });
 
     /**
+     * A docked trace deep link opened cold: the compare table behind the
+     * panel and the panel's own body are both still loading, so the page
+     * holds two skeletons at once. A skeleton has nothing focusable in it,
+     * so none of its boxes may be a scrolling region (axe flags a scrollable
+     * region a keyboard cannot reach), which the table skeleton beside a
+     * docked panel must satisfy at the width where that panel is docked.
+     */
+    const DOCKED_TRACES = [
+      { algorithmId: 'levenshtein', trace: DP_LEVENSHTEIN_TRACE },
+      { algorithmId: 'jaccard', trace: JACCARD_TRACE_MEDIAN },
+      { algorithmId: 'tfidf-cosine', trace: TFIDF_TRACE_MEDIAN },
+    ] as const;
+    for (const { algorithmId, trace } of DOCKED_TRACES) {
+      test(`docked trace with the compare table also loading (${algorithmId}): the skeletons hold no scrollable region`, async ({
+        page,
+      }) => {
+        test.skip(
+          viewport.width < 1024,
+          'below lg the trace opens as a sheet, not docked beside the table',
+        );
+        await page.route('**/api/v1/corpus', async (route) => {
+          await route.fulfill({ json: CORPUS });
+        });
+        const held = await holdApi(page, [
+          { pattern: '**/api/v1/similarity/algorithms', json: ALGORITHM_CATALOGUE },
+          { pattern: '**/api/v1/similarity/compare', json: COMPARE_RESULTS },
+          { pattern: `**/api/v1/similarity/${algorithmId}/trace**`, json: trace },
+        ]);
+
+        await page.goto(
+          `/similarity/${algorithmId}/trace?documentIdA=${MEDIAN_DOC_A_ID}&documentIdB=${MEDIAN_DOC_B_ID}`,
+        );
+
+        await expect(page.getByText('Cargando la traza…')).toHaveCount(1);
+        await expect(page.getByText('Calculando la comparación…')).toHaveCount(1);
+        await measure(page, page.getByTestId('trace-detail-panel'));
+        await expectAxeClean(page);
+
+        held.release();
+        await expect(page.getByText('Cargando la traza…')).toHaveCount(0);
+        await expectAxeClean(page);
+      });
+    }
+
+    /**
      * The full-screen trace view (`/similarity/:algorithmId/trace/full`)
      * has no bounded viewport of its own — unlike the docked panel above,
      * whose fixed-height, internally scrolling body absorbs any box
