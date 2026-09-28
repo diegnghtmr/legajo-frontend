@@ -233,13 +233,11 @@ describe('SimilarityMatrixPage — 3 or more selected', () => {
     expect(skeleton.querySelectorAll('th[scope="col"]')).toHaveLength(1 + 3);
     expect(skeleton.querySelectorAll('th[scope="row"]')).toHaveLength(3);
     expect(skeleton.querySelectorAll('td')).toHaveLength(9);
-    // The same scroll-region semantics the real table's own wrapper carries
-    // (`MatrixTable`), so the swap changes no box and no landmark.
-    expect(skeleton).toHaveAttribute('role', 'region');
-    expect(skeleton).toHaveAttribute('tabIndex', '0');
-    expect(skeleton).toHaveAccessibleName(
-      'Matriz de similitud por pares para el algoritmo elegido',
-    );
+    // The real table's own bounded box, clipped instead of scrolled: a
+    // skeleton is neither a landmark nor a tab stop.
+    expect(skeleton).not.toHaveAttribute('role');
+    expect(skeleton).not.toHaveAttribute('tabindex');
+    expect(skeleton).toHaveClass('max-h-[420px]', 'overflow-hidden');
     // Every column/row header still carries real accessible content (never
     // an empty `<th>`, axe's `empty-table-header`): the corner's own
     // sr-only label, and a sr-only fallback next to each decorative bar.

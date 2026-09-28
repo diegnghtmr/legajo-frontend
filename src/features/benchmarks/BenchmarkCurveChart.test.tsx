@@ -395,7 +395,9 @@ describe('BenchmarkCurveChartSkeleton', () => {
     // The slope table's own scroll region, one row per known family
     // (its own id as real text) — its real header labels are fixed
     // chrome too.
-    const slopeRegion = screen.getByRole('region', { name: /pares/ });
+    const slopeRegion = screen.getByRole('table', { name: /pares/ }).parentElement!;
+    expect(slopeRegion).toHaveClass('overflow-hidden');
+    expect(slopeRegion).not.toHaveAttribute('tabindex');
     expect(within(slopeRegion).getByText('Familia')).toBeInTheDocument();
     expect(within(slopeRegion).getByText('Pendiente empírica')).toBeInTheDocument();
     expect(within(slopeRegion).getByText('Exponente teórico')).toBeInTheDocument();

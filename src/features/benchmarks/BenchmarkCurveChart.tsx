@@ -514,12 +514,7 @@ export function BenchmarkCurveChartSkeleton({
         ))}
       </ul>
 
-      <div
-        role="region"
-        aria-label={slopeTableCaption}
-        tabIndex={0}
-        className="mt-3 overflow-x-auto rounded-md focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus"
-      >
+      <div className="mt-3 overflow-hidden rounded-md">
         <Table wrap={false}>
           <TableCaption className="sr-only">{slopeTableCaption}</TableCaption>
           <TableHeader>

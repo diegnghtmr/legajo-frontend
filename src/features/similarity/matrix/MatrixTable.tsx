@@ -78,10 +78,7 @@ export function MatrixTableSkeleton({ documentCount }: MatrixTableSkeletonProps)
   return (
     <div
       data-testid="matrix-skeleton"
-      role="region"
-      aria-label={t('similarity.matrix.table.caption')}
-      tabIndex={0}
-      className="relative max-h-[420px] max-w-full overflow-auto rounded-md border border-hairline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus"
+      className="relative max-h-[420px] max-w-full overflow-hidden rounded-md border border-hairline"
     >
       <Table wrap={false} className="text-center">
         <TableHeader>

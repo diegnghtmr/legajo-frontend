@@ -80,12 +80,7 @@ function DpTraceBodySkeleton({
       )}
 
       <div className="flex flex-col gap-2">
-        <div
-          role="region"
-          aria-label={t('similarity.trace.dp.matrixCaption', { id: algorithmId })}
-          tabIndex={0}
-          className="max-h-[420px] max-w-full overflow-auto rounded-md border border-hairline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus"
-        >
+        <div className="max-h-[420px] max-w-full overflow-hidden rounded-md border border-hairline">
           <Skeleton className="h-[420px] w-full rounded-none" />
         </div>
         {!hideDownloadButton && (
@@ -117,12 +112,7 @@ function DpTraceBodySkeleton({
         <h3 className="mb-1 text-eyebrow font-semibold uppercase tracking-wide text-ink-secondary">
           {t('similarity.trace.dp.operationsHeading')}
         </h3>
-        <div
-          role="region"
-          aria-label={t('similarity.trace.dp.operationsTableCaption', { id: algorithmId })}
-          tabIndex={0}
-          className="max-h-64 overflow-auto rounded-md border border-hairline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus"
-        >
+        <div className="max-h-64 overflow-hidden rounded-md border border-hairline">
           <Skeleton className="h-64 w-full rounded-none" />
         </div>
       </div>
@@ -385,12 +375,7 @@ function TfIdfTraceBodySkeleton() {
         >
           {t('similarity.trace.tfidf.termsHeading')}
         </h3>
-        <div
-          role="region"
-          aria-labelledby={termsHeadingId}
-          tabIndex={0}
-          className="max-w-full overflow-x-auto rounded-md border border-hairline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus"
-        >
+        <div className="max-w-full overflow-hidden rounded-md border border-hairline">
           <Table wrap={false}>
             <TableHeader>
               <TableRow>

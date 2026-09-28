@@ -246,6 +246,20 @@ describe('TraceDetailPanel', () => {
       ).not.toHaveAttribute('tabindex');
     });
 
+    it('clips the body instead of scrolling it, with no tab stop, while the skeleton shows', () => {
+      vi.spyOn(similarityApi, 'fetchSimilarityAlgorithms').mockReturnValue(new Promise(() => {}));
+      vi.spyOn(similarityApi, 'fetchSimilarityTrace').mockReturnValue(new Promise(() => {}));
+      vi.spyOn(similarityApi, 'compareSimilarity').mockReturnValue(new Promise(() => {}));
+
+      renderPanel({ algorithmId: 'jaccard' });
+
+      const body = screen.getByTestId('trace-body-skeleton').parentElement!;
+      expect(body).toHaveClass('overflow-y-hidden');
+      expect(body).not.toHaveClass('overflow-y-auto');
+      expect(body).not.toHaveAttribute('tabindex');
+      expect(body).not.toHaveAttribute('role');
+    });
+
     it('makes the body itself a focusable, labelled region for Jaccard — its own fields carry no control at all', async () => {
       vi.spyOn(similarityApi, 'fetchSimilarityTrace').mockResolvedValue(JACCARD_TRACE);
       vi.spyOn(similarityApi, 'compareSimilarity').mockResolvedValue(

@@ -129,12 +129,7 @@ function SloTableSkeleton({
   return (
     <Panel>
       <PanelHeader title={title} />
-      <div
-        role="region"
-        aria-label={title}
-        tabIndex={0}
-        className="overflow-x-auto rounded-md focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus"
-      >
+      <div className="overflow-hidden rounded-md">
         <Table wrap={false}>
           <TableCaption className="sr-only">{title}</TableCaption>
           <TableHeader>
