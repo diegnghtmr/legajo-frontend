@@ -25,7 +25,7 @@ beforeEach(() => {
 });
 
 describe('SimilarityCompareView loading skeletons', () => {
-  it('shows a hidden status and six mono placeholder bars before the algorithm catalogue resolves', () => {
+  it('shows a hidden status and the six known mono ids, inert, before the algorithm catalogue resolves', () => {
     vi.spyOn(similarityApi, 'fetchSimilarityAlgorithms').mockReturnValue(new Promise(() => {}));
 
     // An explicit, empty `algorithms` param — never the default (all six),
@@ -37,7 +37,13 @@ describe('SimilarityCompareView loading skeletons', () => {
     expect(status.className).toContain('sr-only');
 
     const skeleton = screen.getByTestId('algorithm-list-skeleton');
-    expect(skeleton.querySelectorAll('[data-slot="skeleton"]')).toHaveLength(6);
+    expect(skeleton).toHaveAttribute('aria-hidden', 'true');
+    expect(skeleton.querySelectorAll('button, a, [tabindex]')).toHaveLength(0);
+    // The ids are fixed capabilities, so the row renders them as real text
+    // in the same box the selectable list will take.
+    expect(skeleton).toHaveTextContent(
+      'levenshteinneedleman-wunschjaccardtfidf-cosineembedding-localembedding-api',
+    );
   });
 
   it('shows a table skeleton at lg+ with the real header row and one row per selected algorithm', async () => {
@@ -75,29 +81,51 @@ describe('SimilarityCompareView loading skeletons', () => {
     expect(secondRowHeader).toHaveTextContent('Jaccard index');
 
     for (const row of rows) {
-      // Every other (response-dependent) cell still holds a placeholder.
-      const dataCells = row.querySelectorAll('td');
-      expect(dataCells.length).toBeGreaterThan(0);
+      // Every response-dependent cell still holds a placeholder; the family
+      // cell (first) is real text, known from the id.
+      const [, ...dataCells] = row.querySelectorAll('td');
+      expect(dataCells).toHaveLength(4);
       for (const cell of dataCells) {
         expect(cell.querySelectorAll('[data-slot="skeleton"]').length).toBeGreaterThan(0);
       }
     }
   });
 
-  it('falls back to a placeholder display-name bar in the table skeleton while the algorithm catalogue itself is still pending', async () => {
+  it('renders the known display name and family in the table skeleton while the algorithm catalogue itself is still pending', async () => {
     vi.spyOn(similarityApi, 'fetchSimilarityAlgorithms').mockReturnValue(new Promise(() => {}));
     vi.spyOn(similarityApi, 'compareSimilarity').mockReturnValue(new Promise(() => {}));
 
     // An explicit selection (never the "no algorithms" case above) so the
-    // compare query is enabled while the catalogue is still pending — the
-    // one case where the real display name is not yet known.
-    renderView('/similarity?algorithms=levenshtein,jaccard');
+    // compare query is enabled while the catalogue is still pending.
+    renderView('/similarity?algorithms=levenshtein,embedding-local');
 
     const rows = await screen.findAllByTestId('compare-table-skeleton-row');
     const firstRowHeader = rows[0]!.querySelector('th')!;
-    // The mono id is still real text — it never depends on the catalogue.
     expect(firstRowHeader).toHaveTextContent('levenshtein');
-    expect(firstRowHeader.querySelectorAll('[data-slot="skeleton"]')).toHaveLength(1);
+    expect(firstRowHeader).toHaveTextContent('Levenshtein');
+    expect(firstRowHeader.querySelectorAll('[data-slot="skeleton"]')).toHaveLength(0);
+    const secondRowHeader = rows[1]!.querySelector('th')!;
+    expect(secondRowHeader).toHaveTextContent('Embedding (MiniLM local)');
+    // The family is known from the id alone, so its cell is real text too.
+    expect(rows[0]!.querySelectorAll('td')[0]).toHaveTextContent('Clásico');
+    expect(rows[1]!.querySelectorAll('td')[0]).toHaveTextContent('IA');
+  });
+
+  it('reserves the cached marker and the response-dependent values in the table skeleton', async () => {
+    vi.spyOn(similarityApi, 'fetchSimilarityAlgorithms').mockReturnValue(new Promise(() => {}));
+    vi.spyOn(similarityApi, 'compareSimilarity').mockReturnValue(new Promise(() => {}));
+
+    renderView('/similarity?algorithms=levenshtein');
+
+    const [row] = await screen.findAllByTestId('compare-table-skeleton-row');
+    const [, score, raw, time] = row!.querySelectorAll('td');
+    // Score, raw value and time keep their own cell, each holding only a
+    // placeholder; the time cell also holds the cached marker's box.
+    for (const cell of [score, raw, time]) {
+      expect(cell!.querySelectorAll('[data-slot="skeleton"]').length).toBeGreaterThan(0);
+    }
+    expect(time!.querySelectorAll('[data-slot="skeleton"]')).toHaveLength(2);
+    expect(row).not.toHaveTextContent(/caché|cache/i);
   });
 
   it('shows a card list skeleton below lg with one card per selected algorithm', async () => {
@@ -110,8 +138,7 @@ describe('SimilarityCompareView loading skeletons', () => {
 
     renderView('/similarity?algorithms=levenshtein,jaccard');
 
-    await screen.findByText('levenshtein');
-    const skeleton = screen.getByTestId('compare-list-skeleton');
+    const skeleton = await screen.findByTestId('compare-list-skeleton');
     const rows = skeleton.querySelectorAll('li');
     expect(rows).toHaveLength(2);
     // The mono id is already known (the URL's own selection), so it
