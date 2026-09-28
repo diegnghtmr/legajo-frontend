@@ -6,18 +6,16 @@ import { Link } from 'react-router';
 import { DEFAULT_UNEXPECTED_I18N_KEY, type ApiError } from '../../../infrastructure/apiError';
 import {
   compareSimilarity,
-  fetchSimilarityAlgorithms,
   fetchSimilarityTrace,
   type CompareResponse,
-  type ListSimilarityAlgorithmsResponse,
   type SimilarityTraceResponse,
 } from '../../../infrastructure/api/similarity';
+import { algorithmsQueryOptions } from '../../../infrastructure/api/similarityCatalogue';
 import type { AlgorithmId } from '../../../infrastructure/schemas/similarity';
 import type { DpMatrixHandle } from '../../../shared/components/DpMatrix';
 import { Button, buttonVariants } from '../../../shared/components/ui/button';
 import { algoFamilyFromKind } from '../algorithmFamily';
 import { formatRawValue, formatTraceNumber } from '../formatters';
-import { ALGORITHMS_QUERY_KEY } from '../SimilarityPage';
 import { TracePanel } from '../SimilarityTracePage';
 import { cn } from '../../../shared/lib/cn';
 import { TraceBodySkeleton } from './TraceBodySkeleton';
@@ -78,10 +76,7 @@ export function TraceDetailPanel({
   const matrixRef = useRef<DpMatrixHandle>(null);
   const isDp = isDpAlgorithm(algorithmId);
 
-  const algorithmsQuery = useQuery<ListSimilarityAlgorithmsResponse, ApiError>({
-    queryKey: ALGORITHMS_QUERY_KEY,
-    queryFn: fetchSimilarityAlgorithms,
-  });
+  const algorithmsQuery = useQuery(algorithmsQueryOptions);
   const summary = algorithmsQuery.data?.find((algorithm) => algorithm.id === algorithmId);
   const family = summary ? algoFamilyFromKind(summary.kind) : undefined;
   const familyLabel =

@@ -85,3 +85,21 @@ test.describe('app shell keyboard navigation across a resize', () => {
     expect(bodyFocused).toBe(false);
   });
 });
+
+test('the algorithm catalogue is requested once at startup, before any similarity screen opens', async ({
+  page,
+}) => {
+  let catalogueRequests = 0;
+  await page.route('**/api/v1/corpus', async (route) => {
+    await route.fulfill({ json: CORPUS_SUMMARIES });
+  });
+  await page.route('**/api/v1/similarity/algorithms', async (route) => {
+    catalogueRequests += 1;
+    await route.fulfill({
+      json: [{ id: 'levenshtein', displayName: 'Levenshtein', kind: 'CLASSIC' }],
+    });
+  });
+
+  await page.goto('/');
+  await expect.poll(() => catalogueRequests).toBe(1);
+});

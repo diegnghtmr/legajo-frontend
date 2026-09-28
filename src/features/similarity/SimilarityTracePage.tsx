@@ -6,11 +6,10 @@ import { Link, useNavigate, useParams, useSearchParams } from 'react-router';
 
 import { DEFAULT_UNEXPECTED_I18N_KEY, type ApiError } from '../../infrastructure/apiError';
 import {
-  fetchSimilarityAlgorithms,
   fetchSimilarityTrace,
-  type ListSimilarityAlgorithmsResponse,
   type SimilarityTraceResponse,
 } from '../../infrastructure/api/similarity';
+import { algorithmsQueryOptions } from '../../infrastructure/api/similarityCatalogue';
 import type { DpMatrixHandle } from '../../shared/components/DpMatrix';
 import type { AlgoFamily } from '../../shared/family';
 import { sortedPair, useSelectionStore } from '../corpus/selectionStore';
@@ -20,7 +19,6 @@ import { EmbeddingLocalTracePanel } from './traces/EmbeddingLocalTracePanel';
 import { JaccardTracePanel } from './traces/JaccardTracePanel';
 import { TfIdfTracePanel } from './traces/TfIdfTracePanel';
 import { algoFamilyFromKind } from './algorithmFamily';
-import { ALGORITHMS_QUERY_KEY } from './SimilarityPage';
 import { clearTraceTrigger } from './traceFocusReturn';
 import { PanelHeader } from '../../shared/components/Panel';
 import { Button } from '../../shared/components/ui/button';
@@ -162,16 +160,13 @@ export function SimilarityTracePage() {
     enabled: Boolean(algorithmId),
   });
 
-  // The same catalogue query `SimilarityPage` already runs (same key: a
-  // cache hit when this page is reached through its own trace link) — the
+  // The shared catalogue query, prefetched at startup (a cache hit in
+  // the normal case) — the
   // header needs the algorithm's own name and family, never a repeat of the
-  // eyebrow or a guess. A direct-navigated/bookmarked trace URL just pays
+  // eyebrow or a guess. Only if the prefetch failed does this page pay
   // for its own fetch; the title falls back to the plain id until it
   // resolves rather than blocking the whole header on it.
-  const algorithmsQuery = useQuery<ListSimilarityAlgorithmsResponse, ApiError>({
-    queryKey: ALGORITHMS_QUERY_KEY,
-    queryFn: fetchSimilarityAlgorithms,
-  });
+  const algorithmsQuery = useQuery(algorithmsQueryOptions);
   const algorithmSummary = algorithmsQuery.data?.find((algorithm) => algorithm.id === algorithmId);
   const title = algorithmSummary?.displayName ?? algorithmId ?? '';
   const family = algorithmSummary ? algoFamilyFromKind(algorithmSummary.kind) : undefined;

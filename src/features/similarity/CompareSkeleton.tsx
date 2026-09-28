@@ -55,23 +55,43 @@ const RAW_PLACEHOLDER = 'h-[1lh] w-[6ch] font-mono text-mono';
 const TIME_PLACEHOLDER = 'h-[1lh] w-[9ch] font-mono text-mono';
 const CACHED_MARKER_PLACEHOLDER = 'h-4 w-[60px]';
 
-function CompareTableSkeletonRow({ summary }: { summary: AlgorithmSummary }) {
+/** The row's algorithm and family cells. With the catalogue cached they are
+ * the real text; while it is still pending (a cold start whose prefetch has
+ * not landed) only the id is known, from the selection itself, so the name
+ * and the family hold placeholders of the same line height. */
+function CompareTableSkeletonRow({
+  algorithmId,
+  summary,
+}: {
+  algorithmId: string;
+  summary: AlgorithmSummary | undefined;
+}) {
   const { t } = useTranslation();
-  const family = algoFamilyFromKind(summary.kind);
+  const family = summary ? algoFamilyFromKind(summary.kind) : undefined;
   return (
     <TableRow data-testid="compare-table-skeleton-row">
       <TableHead
         scope="row"
         className="text-left text-body font-normal normal-case tracking-normal text-ink"
       >
-        <span className="font-mono text-mono text-ink">{summary.id}</span>
-        <p className="text-label text-ink-muted">{summary.displayName}</p>
+        <span className="font-mono text-mono text-ink">{algorithmId}</span>
+        {summary ? (
+          <p className="text-label text-ink-muted">{summary.displayName}</p>
+        ) : (
+          <Skeleton className="h-[1lh] w-full max-w-[14ch] text-label" />
+        )}
       </TableHead>
       <TableCell>
-        <FamilyStatus
-          family={family}
-          label={family === 'classic' ? t('similarity.family.classic') : t('similarity.family.ai')}
-        />
+        {family ? (
+          <FamilyStatus
+            family={family}
+            label={
+              family === 'classic' ? t('similarity.family.classic') : t('similarity.family.ai')
+            }
+          />
+        ) : (
+          <Skeleton className="h-[1lh] w-full max-w-[9ch] text-label" />
+        )}
       </TableCell>
       <TableCell>
         <div className="flex items-center gap-2">
@@ -106,10 +126,13 @@ export function CompareTableSkeleton({
         <CompareTableHeaderRow />
       </TableHeader>
       <TableBody>
-        {algorithmIds.map((algorithmId) => {
-          const summary = catalogueById.get(algorithmId);
-          return summary ? <CompareTableSkeletonRow key={algorithmId} summary={summary} /> : null;
-        })}
+        {algorithmIds.map((algorithmId) => (
+          <CompareTableSkeletonRow
+            key={algorithmId}
+            algorithmId={algorithmId}
+            summary={catalogueById.get(algorithmId)}
+          />
+        ))}
       </TableBody>
     </Table>
   );

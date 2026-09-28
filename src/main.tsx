@@ -4,6 +4,7 @@ import { createRoot } from 'react-dom/client';
 import { BrowserRouter } from 'react-router';
 
 import { App } from './App';
+import { prefetchAppData } from './infrastructure/prefetch';
 import { queryClient } from './infrastructure/queryClient';
 import './infrastructure/i18n';
 import './index.css';
@@ -12,6 +13,8 @@ const rootElement = document.getElementById('root');
 if (!rootElement) {
   throw new Error('Root element (#root) not found in index.html');
 }
+
+void prefetchAppData(queryClient);
 
 createRoot(rootElement).render(
   <StrictMode>
