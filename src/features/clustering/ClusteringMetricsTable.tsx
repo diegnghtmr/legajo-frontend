@@ -7,6 +7,11 @@ import { Panel } from '../../shared/components/Panel';
 import { Skeleton } from '../../shared/components/ui/skeleton';
 import { cn } from '../../shared/lib/cn';
 import { formatMetricValue } from './formatMetricValue';
+import {
+  METRICS_TABLE_CLASS_NAME,
+  MetricsTableColumns,
+  metricsTableMinWidth,
+} from './MetricsTableColumns';
 import { orderLinkagesForMetricsTable, secondaryFixedKColumns } from './metricsTable';
 import { kRefForSampleSize, type ClusteringRankingResult } from './ranking';
 
@@ -197,7 +202,11 @@ export function ClusteringMetricsTableSkeleton({
     <Panel>
       <div className="mb-3">
         <div className="overflow-hidden rounded-md">
-          <table className="w-full border-collapse text-left">
+          <table
+            className={METRICS_TABLE_CLASS_NAME}
+            style={{ minWidth: metricsTableMinWidth(secondaryKs.length) }}
+          >
+            <MetricsTableColumns secondaryPairCount={secondaryKs.length} />
             <caption className="sr-only">{t('clustering.metricsTable.caption')}</caption>
             <thead>
               <tr className="border-b border-hairline bg-paper-sunken">
@@ -392,7 +401,11 @@ function ClusteringMetricsTableBody({
         tabIndex={0}
         className="overflow-x-auto rounded-md focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus"
       >
-        <table className="w-full border-collapse text-left">
+        <table
+          className={METRICS_TABLE_CLASS_NAME}
+          style={{ minWidth: metricsTableMinWidth(secondaryKs.length) }}
+        >
+          <MetricsTableColumns secondaryPairCount={secondaryKs.length} />
           <caption className="sr-only">{t('clustering.metricsTable.caption')}</caption>
           <thead>
             <tr className="border-b border-hairline bg-paper-sunken">
