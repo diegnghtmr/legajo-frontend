@@ -211,37 +211,64 @@ for (const viewport of VIEWPORTS) {
       });
     });
 
-    test('similarity pair: the compare table (≥lg) or list (<lg) region matches its loaded box', async ({
-      page,
-    }) => {
-      await page.route('**/api/v1/corpus', async (route) => {
-        await route.fulfill({ json: CORPUS_TWO });
+    /**
+     * The real flow: two ticked rail checkboxes (plus the tray's own button
+     * below `lg`, where the corpus list stays the main content until the
+     * pair is confirmed) mount the compare view, which fires the algorithm
+     * catalogue and the compare request together. Either can land first, so
+     * the skeleton is measured in both states: catalogue already resolved
+     * and only the compare pending, and both still in flight.
+     */
+    for (const catalogueState of ['resolved', 'in flight'] as const) {
+      test(`similarity pair, catalogue ${catalogueState}: the compare table (≥lg) or list (<lg) region matches its loaded box`, async ({
+        page,
+      }) => {
+        await page.route('**/api/v1/corpus', async (route) => {
+          await route.fulfill({ json: CORPUS });
+        });
+        const held = [{ pattern: '**/api/v1/similarity/compare', json: COMPARE_RESULTS }];
+        if (catalogueState === 'in flight') {
+          held.push({ pattern: '**/api/v1/similarity/algorithms', json: ALGORITHM_CATALOGUE });
+        } else {
+          await page.route('**/api/v1/similarity/algorithms', async (route) => {
+            await route.fulfill({ json: ALGORITHM_CATALOGUE });
+          });
+        }
+        const pending = await holdApi(page, held);
+
+        await page.goto('/');
+        await page.getByRole('checkbox', { name: DOC_A.title }).check();
+        await page.getByRole('checkbox', { name: DOC_B.title }).check();
+        if (viewport.width < 1024) {
+          await page.getByRole('button', { name: `Comparar ${DOC_A.id} y ${DOC_B.id}` }).click();
+        }
+
+        const region = page.getByTestId('similarity-results-region');
+        await expect(page.getByText('Calculando la comparación…')).toHaveCount(1);
+        if (catalogueState === 'resolved') {
+          // The catalogue has landed: its selectable ids replace the placeholder row.
+          await expect(
+            page.getByRole('button', { name: 'levenshtein', pressed: true }),
+          ).toBeVisible();
+        }
+        const skeleton = await measure(page, region);
+        await expectAxeClean(page);
+
+        pending.release();
+        await expect(
+          page.getByRole('button', { name: 'levenshtein', exact: true }).first(),
+        ).toBeVisible();
+        await expect(
+          page.getByRole('button', { name: 'levenshtein', pressed: true }),
+        ).toBeVisible();
+        await expect(page.getByText('Calculando la comparación…')).toHaveCount(0);
+        await expectLoadingSentencesHidden(page, LOADING_SENTENCES);
+        const loaded = await measure(page, region);
+        await expectAxeClean(page);
+
+        assertSameBox(skeleton, loaded);
       });
-      await page.route('**/api/v1/similarity/algorithms', async (route) => {
-        await route.fulfill({ json: ALGORITHM_CATALOGUE });
-      });
-      const compare = await holdApi(page, [
-        { pattern: '**/api/v1/similarity/compare', json: COMPARE_RESULTS },
-      ]);
-
-      await page.goto('/');
-      await page.getByRole('checkbox', { name: DOC_A.title }).check();
-      await page.getByRole('checkbox', { name: DOC_B.title }).check();
-      await page.getByRole('button', { name: `Comparar ${DOC_A.id} y ${DOC_B.id}` }).click();
-
-      const region = page.getByTestId('similarity-results-region');
-      await expect(page.getByText('Calculando la comparación…')).toHaveCount(1);
-      const skeleton = await measure(page, region);
-      await expectAxeClean(page);
-
-      compare.release();
-      await expect(page.getByRole('button', { name: 'levenshtein', exact: true })).toBeVisible();
-      await expectLoadingSentencesHidden(page, LOADING_SENTENCES);
-      const loaded = await measure(page, region);
-      await expectAxeClean(page);
-
-      assertSameBox(skeleton, loaded);
-    });
+    }
 
     test('similarity matrix: the matrix region matches its loaded box', async ({ page }) => {
       await page.route('**/api/v1/corpus', async (route) => {
