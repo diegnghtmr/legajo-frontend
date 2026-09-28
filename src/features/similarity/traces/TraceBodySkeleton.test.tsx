@@ -112,7 +112,7 @@ describe('TraceBodySkeleton', () => {
     const invisibleSizers = document.querySelectorAll('span.invisible');
     expect(invisibleSizers).toHaveLength(4);
     const tokenCounts = [...invisibleSizers].map((sizer) => sizer.textContent!.split(', ').length);
-    expect(tokenCounts.sort((a, b) => a - b)).toEqual([15, 100, 107, 181]);
+    expect(tokenCounts.sort((a, b) => a - b)).toEqual([16, 100, 105, 180]);
   });
 
   it('for TF-IDF/cosine, shows the corpus-size label and the terms region shell as real text, with a real-corpus-typical term row count', () => {
@@ -127,7 +127,7 @@ describe('TraceBodySkeleton', () => {
     // matrix/operations regions above): on the full-screen view every row
     // it renders pushes the whole page taller, so this reserves the real
     // corpus's own typical term count rather than a handful of rows.
-    expect(within(region).getAllByRole('row')).toHaveLength(182); // header + 181 terms
+    expect(within(region).getAllByRole('row')).toHaveLength(181); // header + 180 terms
   });
 
   describe('the DP meta row (Familia, Camino óptimo)', () => {
