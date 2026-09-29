@@ -103,6 +103,9 @@
       "classic": "Classic",
       "ai": "AI"
     },
+    "scoreStrip": {
+      "eyebrow": "Normalized score"
+    },
     "algorithmsGroupLabel": "Algorithm selection",
     "algorithmsLoading": "Loading the algorithm catalogue…",
     "algorithmsErrorTitle": "Could not load the algorithm catalogue",

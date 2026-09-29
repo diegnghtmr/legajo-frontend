@@ -240,6 +240,58 @@ test.describe('similarity compare screen', () => {
     await expect(row).toHaveAttribute('aria-current', 'true');
   });
 
+  test('the score strip places every result on one axis and a dot opens that row trace', async ({
+    page,
+  }) => {
+    await page.goto('/');
+
+    await page.getByRole('checkbox', { name: 'A survey of string similarity' }).check();
+    await page.getByRole('checkbox', { name: 'Embeddings for scientific text' }).check();
+    await page.getByRole('button', { name: 'Comparar doc-01 y doc-02' }).click();
+    await expect(page.getByRole('row')).toHaveCount(7);
+
+    const strip = page.getByTestId('score-strip');
+    await expect(strip).toHaveAttribute('aria-hidden', 'true');
+    await expect(strip.locator('[title]')).toHaveCount(COMPARE_RESULTS.length);
+
+    const dot = strip.getByTitle('embedding-local: 0.830');
+    const box = await dot.boundingBox();
+    expect(box?.width).toBeGreaterThanOrEqual(24);
+    expect(box?.height).toBeGreaterThanOrEqual(24);
+    // Never a tab stop: the table rows are the keyboard path.
+    await expect(dot).toHaveAttribute('tabindex', '-1');
+
+    await dot.click();
+
+    await expect(page).toHaveURL(/\/similarity\/embedding-local\/trace/);
+    await expect(page.getByRole('row', { name: /^embedding-local/ })).toHaveAttribute(
+      'aria-current',
+      'true',
+    );
+    await expect(strip.getByTitle('embedding-local: 0.830').locator('[data-dot]')).toHaveAttribute(
+      'data-open',
+      'true',
+    );
+  });
+
+  test('at 390px the score strip is visual only and the page does not scroll sideways', async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto('/');
+    await page.getByRole('checkbox', { name: 'A survey of string similarity' }).check();
+    await page.getByRole('checkbox', { name: 'Embeddings for scientific text' }).check();
+    await page.getByRole('button', { name: 'Comparar doc-01 y doc-02' }).click();
+
+    const strip = page.getByTestId('score-strip');
+    await expect(strip).toBeVisible();
+    await expect(strip.locator('button')).toHaveCount(0);
+    const overflow = await page.evaluate<number>(
+      '(() => { const el = document.documentElement; return el.scrollWidth - el.clientWidth; })()',
+    );
+    expect(overflow).toBeLessThanOrEqual(0);
+  });
+
   test('has no automatically detectable WCAG 2.1 AA violations on the compare results', async ({
     page,
   }) => {

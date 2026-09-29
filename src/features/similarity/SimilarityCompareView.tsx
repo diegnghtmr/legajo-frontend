@@ -26,6 +26,7 @@ import {
   CompareTableSkeleton,
 } from './CompareSkeleton';
 import { CompareTable } from './CompareTable';
+import { ScoreStrip, ScoreStripSkeleton } from './ScoreStrip';
 
 /** The six fixed capability ids, independent of the catalogue fetch. */
 const DEFAULT_ALGORITHM_IDS = [...AlgorithmIdSchema.options];
@@ -262,6 +263,7 @@ export function SimilarityCompareView({ pair, openAlgorithmId }: SimilarityCompa
           <p role="status" className="sr-only">
             {t('similarity.compareLoading')}
           </p>
+          <ScoreStripSkeleton count={selectedAlgorithmIds.length} />
           {isAtLeastLg ? (
             <CompareTableSkeleton
               algorithmIds={selectedAlgorithmIds}
@@ -277,6 +279,15 @@ export function SimilarityCompareView({ pair, openAlgorithmId }: SimilarityCompa
           tone="danger"
           title={t('similarity.compareErrorTitle')}
           body={t(compareQuery.error.i18nKey ?? DEFAULT_UNEXPECTED_I18N_KEY)}
+        />
+      )}
+      {compareQuery.data && (
+        <ScoreStrip
+          rows={compareQuery.data}
+          catalogueById={catalogueById}
+          onOpenTrace={openTrace}
+          openAlgorithmId={openAlgorithmId}
+          interactive={isAtLeastLg}
         />
       )}
       {compareQuery.data &&
