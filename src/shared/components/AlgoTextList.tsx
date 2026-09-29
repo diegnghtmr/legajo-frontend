@@ -17,6 +17,8 @@ export interface AlgoTextListProps {
   selectedIds: readonly string[];
   onToggle: (id: string) => void;
   'aria-label'?: string;
+  /** Precede each id with a decorative tick box (multi-select reading). */
+  withTick?: boolean;
 }
 
 /** Horizontal wrap of `AlgoTextButton`s. */
@@ -25,6 +27,7 @@ export function AlgoTextList({
   selectedIds,
   onToggle,
   'aria-label': ariaLabel,
+  withTick = false,
 }: AlgoTextListProps) {
   return (
     <div
@@ -47,6 +50,7 @@ export function AlgoTextList({
           key={option.id}
           id={option.id}
           active={selectedIds.includes(option.id)}
+          tick={withTick}
           onToggle={() => onToggle(option.id)}
         />
       ))}

@@ -90,8 +90,9 @@ function shortLinkageName(displayName: string): string {
 /**
  * The clustering parameter panel: one card with three numbered columns
  * (representation, linkage selection, free cut) and a status footer with the
- * corpus facts and the applied cut. The columns take their intrinsic width,
- * sit together aligned to the top and wrap as the width shrinks.
+ * corpus facts and the applied cut. From 1100px the columns share a
+ * 1 : 1 : 1.35 grid split by hairline rules, aligned to the top; below that
+ * they stack. The footer sits on the sunken surface.
  */
 export function ClusteringParametersPanel({
   panelRef,
@@ -125,9 +126,9 @@ export function ClusteringParametersPanel({
 
   return (
     <div ref={panelRef} className="scroll-mt-[calc(var(--shell-header-h)+1rem)]">
-      <Panel>
+      <Panel className="overflow-hidden p-0">
         <section aria-label={t('clustering.params.label')}>
-          <div className="flex flex-wrap items-start gap-x-10 gap-y-6">
+          <div className="grid grid-cols-1 items-start min-[1100px]:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,1.35fr)]">
             <ParameterColumn
               step="01"
               title={t('clustering.params.representation.title')}
@@ -153,12 +154,13 @@ export function ClusteringParametersPanel({
               }
               hint={linkagesHint}
             >
-              <div className="flex min-h-9 flex-wrap items-center gap-x-4">
+              <div className="flex min-h-9 flex-wrap items-center gap-x-4 gap-y-4">
                 <AlgoTextList
                   options={LINKAGE_OPTIONS}
                   selectedIds={selectedLinkages}
                   onToggle={onToggleLinkage}
                   aria-label={t('clustering.linkageGroupLabel')}
+                  withTick
                 />
                 {selectedCount < LINKAGE_IDS.length && (
                   <Button variant="ghost" className="enter-fade" onClick={onSelectAllLinkages}>
@@ -361,7 +363,7 @@ function StatusFooter({
   return (
     <div
       data-testid="params-status-footer"
-      className="mt-4 flex min-h-9 flex-wrap items-center justify-between gap-x-4 gap-y-2 border-t border-hairline pt-3"
+      className="flex min-h-11 flex-wrap items-center justify-between gap-x-4 gap-y-2 border-t border-hairline bg-paper-sunken py-1.5 pr-3 pl-5"
     >
       <div className="flex items-center gap-4 font-mono text-mono text-ink-secondary">
         {cut.status === 'ready' && (
@@ -409,7 +411,7 @@ function StatusFooter({
           </Button>
         </div>
       ) : (
-        <span className="text-label text-ink-muted">{t('clustering.params.footer.noCut')}</span>
+        <span className="text-label text-ink-secondary">{t('clustering.params.footer.noCut')}</span>
       )}
     </div>
   );

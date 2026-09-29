@@ -14,8 +14,9 @@ export interface ParameterColumnProps {
 /**
  * One numbered column of the clustering parameter panel: a header (mono step
  * number, a title that labels the column's control, an optional aside), the
- * control, and an optional muted hint. The column takes the intrinsic width
- * of its control; the hint wraps to that width and never widens it.
+ * control, and an optional muted hint. The column fills its grid track; a
+ * hairline rule separates it from the previous column (on top when stacked,
+ * on the left in the row layout). The hint wraps to the track width.
  */
 export function ParameterColumn({
   step,
@@ -26,7 +27,7 @@ export function ParameterColumn({
   hint,
 }: ParameterColumnProps) {
   return (
-    <div className="flex min-w-0 flex-col gap-3">
+    <div className="flex min-w-0 flex-col gap-3 border-hairline px-5 pt-4 pb-[18px] not-first:border-t min-[1100px]:not-first:border-t-0 min-[1100px]:not-first:border-l">
       <div className="flex items-baseline justify-between gap-2">
         <div className="flex items-baseline gap-2">
           <span className="font-mono text-eyebrow text-ink-muted">{step}</span>

@@ -51,6 +51,47 @@ function renderPanel(overrides: Partial<ClusteringParametersPanelProps> = {}) {
 }
 
 describe('ClusteringParametersPanel', () => {
+  it('marks each linkage button with an aria-hidden tick box', () => {
+    renderPanel({ selectedLinkages: ['single', 'ward'] });
+
+    const group = screen.getByRole('group', { name: 'Selección de enlaces' });
+    const buttons = within(group).getAllByRole('button');
+    expect(buttons).toHaveLength(4);
+    for (const button of buttons) {
+      expect(button.querySelector('[data-tick]')).toHaveAttribute('aria-hidden', 'true');
+    }
+  });
+
+  it('lays the columns out on a 1 : 1 : 1.35 grid from 1100px with hairline rules between them', () => {
+    renderPanel();
+
+    const grid = screen.getByRole('heading', { name: 'Representación' }).closest('section > div');
+    expect(grid).toHaveClass(
+      'min-[1100px]:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,1.35fr)]',
+    );
+    const columns = ['Representación', 'Selección de enlaces', 'Corte libre'].map((name) =>
+      screen.getByRole('heading', { name }).closest('.min-w-0'),
+    );
+    for (const [index, column] of columns.entries()) {
+      expect(column).toHaveClass('min-w-0', 'px-5', 'pt-4', 'pb-[18px]', 'border-hairline');
+      if (index === 0) {
+        expect(column).not.toHaveClass('border-t');
+      } else {
+        expect(column).toHaveClass(
+          'not-first:border-t',
+          'min-[1100px]:not-first:border-t-0',
+          'min-[1100px]:not-first:border-l',
+        );
+      }
+    }
+  });
+
+  it('puts the status footer on a sunken surface at least 44px tall', () => {
+    renderPanel();
+
+    expect(screen.getByTestId('params-status-footer')).toHaveClass('bg-paper-sunken', 'min-h-11');
+  });
+
   it('is one card with three numbered columns, each titled after its control', () => {
     renderPanel();
 
