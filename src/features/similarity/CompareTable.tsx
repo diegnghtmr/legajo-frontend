@@ -154,15 +154,16 @@ function CompareTableRow({
       aria-current={isOpen ? 'true' : undefined}
       onClick={activateTrace}
       style={staggerStyle(index)}
-      className={cn(
-        'enter-rise relative cursor-pointer',
-        isOpen &&
-          "before:absolute before:inset-y-0 before:left-0 before:w-[2px] before:bg-ink before:content-['']",
-      )}
+      className="enter-rise relative cursor-pointer"
     >
       <TableHead
         scope="row"
-        className="relative text-left text-body font-normal normal-case tracking-normal text-ink"
+        className={cn(
+          'relative text-left text-body font-normal normal-case tracking-normal text-ink',
+          // The marker is painted by the first cell itself: a pseudo-element on
+          // the row would become an anonymous table cell and shift every cell.
+          isOpen && 'shadow-[inset_2px_0_0_0_var(--color-ink)]',
+        )}
       >
         {/* The row's single accessible trigger: keyboard and
          * assistive-technology users tab to and activate this button

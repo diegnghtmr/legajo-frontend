@@ -100,6 +100,25 @@ describe('CompareTable', () => {
     expect(otherRow).not.toHaveAttribute('aria-current');
   });
 
+  it('keeps the open row’s cells in the same number and order as a closed row', () => {
+    const { unmount } = renderTable({ openAlgorithmId: null });
+    const closedCells = screen
+      .getByRole('row', { name: /tfidf-cosine/i })
+      .querySelectorAll(':scope > *');
+    const closedTags = Array.from(closedCells).map((cell) => cell.tagName);
+    unmount();
+
+    renderTable({ openAlgorithmId: 'tfidf-cosine' });
+    const openRow = screen.getByRole('row', { name: /tfidf-cosine/i });
+    const openTags = Array.from(openRow.querySelectorAll(':scope > *')).map((cell) => cell.tagName);
+
+    expect(openTags).toEqual(closedTags);
+    expect(openTags).toHaveLength(6);
+    // The marker lives on the row-header cell, not on a pseudo-element of the row.
+    expect(openRow.className).not.toMatch(/before:/);
+    expect(within(openRow).getByRole('rowheader').className).toMatch(/shadow-\[inset/);
+  });
+
   it('marks no row as current when no trace is open', () => {
     renderTable({ openAlgorithmId: null });
 
@@ -221,8 +240,13 @@ describe('CompareTable', () => {
 
     const open = screen.getByRole('row', { name: /^tfidf-cosine/i });
     expect(open).toHaveAttribute('aria-current', 'true');
-    expect(open.className).toContain('before:w-[2px]');
-    expect(open.className).toContain('before:bg-ink');
+    expect(within(open).getByRole('rowheader').className).toContain(
+      'shadow-[inset_2px_0_0_0_var(--color-ink)]',
+    );
+    expect(screen.getByRole('row', { name: /^levenshtein/i })).toBeInTheDocument();
+    expect(
+      within(screen.getByRole('row', { name: /^levenshtein/i })).getByRole('rowheader').className,
+    ).not.toContain('shadow-[inset');
     expect(screen.getByRole('row', { name: /^levenshtein/i })).not.toHaveAttribute('aria-current');
   });
 
