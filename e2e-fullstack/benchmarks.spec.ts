@@ -62,7 +62,9 @@ test.describe('benchmarks (full stack)', () => {
 
     // Real harness fields, fetched straight from the same backend endpoint
     // the page itself calls — not a hardcoded machine description.
-    await expect(page.getByText(report.harness.cpuModel)).toBeVisible();
+    // The panel renders the CPU's (R)/(TM) marks as ® and ™.
+    const cpuModel = report.harness.cpuModel.replace(/\(R\)/gi, '®').replace(/\(TM\)/gi, '™');
+    await expect(page.getByText(cpuModel)).toBeVisible();
     await expect(page.getByText(report.harness.jdk)).toBeVisible();
 
     // Target the real chart group (BenchmarkCurveChart.tsx: `role="group"`
