@@ -54,4 +54,15 @@ describe('Badge', () => {
     expect(badge.className).not.toContain('bg-classic-soft');
     expect(badge.className).not.toContain('bg-ai-soft');
   });
+
+  it('renders the leader variant as a paper badge ringed in ink, with the label in ink semibold', () => {
+    render(<Badge variant="leader">Árbol</Badge>);
+
+    const badge = screen.getByText('Árbol');
+    expect(badge.className).toContain('bg-paper-raised');
+    expect(badge.className).toContain('text-ink');
+    expect(badge.className).toContain('font-semibold');
+    expect(badge.className).toContain('shadow-[inset_0_0_0_1px_var(--color-ink)]');
+    expect(badge.className).toContain('overflow-hidden');
+  });
 });

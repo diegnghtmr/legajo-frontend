@@ -29,28 +29,19 @@ export interface MetricsTableEvaluationSource {
 }
 
 /**
- * The metrics table's secondary column group: every fixed cut `k` the
- * response's own evaluation carries, other than `k_ref` — `k_ref` already
- * has its own lead column (Silhouette/Davies–Bouldin at `k_ref`), so
- * repeating it here would only show the same number a second time. Whether
- * a `k_ref` column should also reappear, highlighted, inside this secondary
- * group is left open by the interface's own rules; this module's own,
- * conservative choice is "no" — the lead column already is the highlight.
+ * The cuts the "view at k" selector offers: every fixed cut `k` the
+ * response's own evaluation carries (`k_ref` included), ascending.
  *
  * Keys are unioned across every linkage's own `meanSilhouette`, never read
  * from just the first one: one linkage silently missing a fixed cut must
- * never narrow the whole table's columns out from under the others.
+ * never narrow the whole selector out from under the others.
  */
-export function secondaryFixedKColumns(
-  results: readonly MetricsTableEvaluationSource[],
-  kRef: number,
-): number[] {
+export function fixedKOptions(results: readonly MetricsTableEvaluationSource[]): number[] {
   const keys = new Set<number>();
   for (const result of results) {
     for (const key of Object.keys(result.evaluation.meanSilhouette)) {
       keys.add(Number(key));
     }
   }
-  keys.delete(kRef);
   return [...keys].sort((a, b) => a - b);
 }

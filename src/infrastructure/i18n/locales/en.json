@@ -246,11 +246,16 @@
     "sampleSizeCaveat": "Representation: {{representation}}. D = 1 − cosine; Ward operates on 2·D. Sample size of the loaded corpus: n = {{count}}. Cophenetic correlation tends to favor average linkage; both leaders are shown when they differ for this reason.",
     "metrics": {
       "cophenetic": "Cophenetic",
-      "silhouetteAtK": "Mean silhouette (k={{k}})",
-      "daviesBouldinAtK": "Davies–Bouldin (k={{k}})",
-      "silhouetteAtKPending": "Mean silhouette (k pending)",
-      "daviesBouldinAtKPending": "Davies–Bouldin (k pending)",
-      "undefinedValue": "undefined"
+      "undefinedValue": "undefined",
+      "sparklineSummary": "Values by k: {{list}}.",
+      "copheneticHeader": "Cophenetic ↑",
+      "silhouetteHeader": "Mean silhouette (k = {{k}}) ↑",
+      "daviesBouldinHeader": "Davies–Bouldin (k = {{k}}) ↓",
+      "silhouetteHeaderPending": "Mean silhouette (k pending) ↑",
+      "daviesBouldinHeaderPending": "Davies–Bouldin (k pending) ↓",
+      "viewAtK": "View at k",
+      "refOption": "{{k}} (ref)",
+      "title": "Metrics comparison by linkage"
     },
     "metricsTable": {
       "linkageHeader": "Linkage",
@@ -317,7 +322,8 @@
         "cut": "cut {{linkage}} k = {{k}}",
         "edit": "Edit"
       }
-    }
+    },
+    "leaderLine": "<strong>Tree</strong>: best cophenetic ({{tree}}). <strong>Partition</strong>: best silhouette at k_ref = {{kRef}} ({{partition}})."
   },
   "benchmarks": {
     "eyebrow": "Benchmarks",
