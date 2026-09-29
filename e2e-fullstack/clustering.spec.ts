@@ -94,7 +94,7 @@ test.describe('clustering (full stack, Flow B)', () => {
     }
 
     async function applyCutAndReadPartition(k: number): Promise<number[]> {
-      await page.getByLabel(/Número de clústeres k/).fill(String(k));
+      await page.getByLabel(/^k: entre 2 y/).fill(String(k));
       await page.getByRole('button', { name: 'Aplicar corte' }).click();
       await expect(wardDendrogram.getByTestId('dendrogram-cut-line')).toBeAttached();
 
