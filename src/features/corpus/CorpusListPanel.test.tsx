@@ -255,7 +255,7 @@ describe('CorpusListPanel', () => {
       const user = userEvent.setup();
       const { onOpenEmbeddings } = renderPanel();
 
-      const row = await screen.findByRole('button', { name: /Ver el detalle$/ });
+      const row = await screen.findByRole('button', { name: /^Embeddings:/ });
       await expect.poll(() => row.textContent).toContain('Coincide con el corpus');
 
       await user.click(row);
@@ -271,7 +271,7 @@ describe('CorpusListPanel', () => {
 
       renderPanel();
 
-      const row = await screen.findByRole('button', { name: /Ver el detalle$/ });
+      const row = await screen.findByRole('button', { name: /^Embeddings:/ });
       await expect.poll(() => row.textContent).toContain('Revisar coincidencia');
     });
 
@@ -280,7 +280,7 @@ describe('CorpusListPanel', () => {
 
       renderPanel();
 
-      const row = screen.getByRole('button', { name: /Ver el detalle$/ });
+      const row = screen.getByRole('button', { name: /^Embeddings:/ });
       expect(row).not.toHaveTextContent('Coincide con el corpus');
       expect(row).not.toHaveTextContent('Cargando');
       expect(row.querySelector('[data-slot="skeleton"]')).not.toBeNull();
@@ -290,7 +290,7 @@ describe('CorpusListPanel', () => {
       it('ends with an aria-hidden chevron as the disclosure cue', async () => {
         renderPanel();
 
-        const row = await screen.findByRole('button', { name: /Ver el detalle$/ });
+        const row = await screen.findByRole('button', { name: /^Embeddings:/ });
         const chevron = row.querySelector('svg.lucide-chevron-right');
         expect(chevron).not.toBeNull();
         expect(chevron).toHaveAttribute('aria-hidden', 'true');
@@ -301,7 +301,7 @@ describe('CorpusListPanel', () => {
       it('fills with the sunken paper on hover, shows a pointer, and keeps the coarse-pointer minimum', async () => {
         renderPanel();
 
-        const row = await screen.findByRole('button', { name: /Ver el detalle$/ });
+        const row = await screen.findByRole('button', { name: /^Embeddings:/ });
         expect(row.className).toContain('hover:bg-paper-sunken');
         expect(row.className).toContain('cursor-pointer');
         expect(row.className).toContain('rounded-btn');
@@ -309,11 +309,11 @@ describe('CorpusListPanel', () => {
         expect(row.className).toContain('pointer-coarse:min-h-11');
       });
 
-      it('names the row with one sentence that starts with its visible text and ends with the action', async () => {
+      it('names the row with its visible key and value as one short sentence', async () => {
         renderPanel();
 
         const row = await screen.findByRole('button', {
-          name: 'Embeddings: Coincide con el corpus. Ver el detalle',
+          name: 'Embeddings: Coincide con el corpus',
         });
         expect(row).not.toHaveAttribute('aria-labelledby');
         expect(row.querySelector('.sr-only')).toBeNull();
@@ -324,7 +324,7 @@ describe('CorpusListPanel', () => {
 
         renderPanel();
 
-        screen.getByRole('button', { name: 'Embeddings: cargando. Ver el detalle' });
+        screen.getByRole('button', { name: 'Embeddings: cargando' });
       });
 
       it.each([
@@ -351,7 +351,7 @@ describe('CorpusListPanel', () => {
 
         renderPanel();
 
-        const row = await screen.findByRole('button', { name: /Ver el detalle$/ });
+        const row = await screen.findByRole('button', { name: /^Embeddings:/ });
         await expect
           .poll(() => row.querySelector('[class*="skeleton"], [data-slot="skeleton"]'))
           .toBeNull();
@@ -398,7 +398,7 @@ describe('CorpusListPanel', () => {
       // component renders through `t('corpus.rail.embeddings.errorValue')`
       // — not a hand-typed guess at the copy.
       await expect
-        .poll(() => screen.getByRole('button', { name: /Ver el detalle$/ }))
+        .poll(() => screen.getByRole('button', { name: /^Embeddings:/ }))
         .toHaveTextContent(es.corpus.rail.embeddings.errorValue);
 
       expect(
