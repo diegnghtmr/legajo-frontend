@@ -605,3 +605,55 @@ test.describe('the docked trace panel with a large DP matrix', () => {
     expect(scrolled).toEqual({ insideViewport: true, viewportScrolled: true, ancestorScroll: 0 });
   });
 });
+
+test.describe('the trace panel placement by width', () => {
+  test.beforeEach(async ({ page }) => {
+    await mockSimilarityApi(page);
+    await page.route('**/api/v1/similarity/levenshtein/trace**', async (route) => {
+      await route.fulfill({ json: DP_TRACE });
+    });
+  });
+
+  test('at 1024px the panel opens over the right edge of the center, which keeps its width and stays mounted', async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 1024, height: 900 });
+    await page.goto('/similarity/levenshtein/trace?documentIdA=doc-01&documentIdB=doc-02');
+
+    const panel = page.getByTestId('workbench-detail');
+    await expect(panel).toBeVisible();
+    const results = page.getByTestId('similarity-results-region');
+    await expect(results).toBeVisible();
+
+    const panelBox = await panel.boundingBox();
+    const resultsBox = await results.boundingBox();
+    expect(panelBox).not.toBeNull();
+    expect(resultsBox).not.toBeNull();
+    expect(panelBox!.width).toBeCloseTo(460, 0);
+    expect(panelBox!.x + panelBox!.width).toBeCloseTo(1024, 0);
+    await expect(panel).toHaveCSS('position', 'absolute');
+    await expect(panel).toHaveCSS('box-shadow', /16px/);
+    // The center keeps its floor and runs underneath the panel.
+    expect(resultsBox!.width).toBeGreaterThanOrEqual(480);
+    expect(resultsBox!.x + resultsBox!.width).toBeGreaterThan(panelBox!.x);
+    // Only the left of the results stays uncovered.
+    await expect(page.getByRole('heading', { name: 'doc-01 frente a doc-02' })).toBeVisible();
+  });
+
+  test('at 1440px the panel docks beside the center instead of covering it', async ({ page }) => {
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await page.goto('/similarity/levenshtein/trace?documentIdA=doc-01&documentIdB=doc-02');
+
+    const panel = page.getByTestId('workbench-detail');
+    await expect(panel).toBeVisible();
+    const results = page.getByTestId('similarity-results-region');
+    await expect(results).toBeVisible();
+
+    const panelBox = await panel.boundingBox();
+    const resultsBox = await results.boundingBox();
+    await expect(panel).toHaveCSS('position', 'static');
+    await expect(panel).not.toHaveCSS('box-shadow', /16px/);
+    expect(panelBox!.width).toBeCloseTo(460, 0);
+    expect(resultsBox!.x + resultsBox!.width).toBeLessThanOrEqual(panelBox!.x + 1);
+  });
+});

@@ -60,6 +60,9 @@ describe('WorkbenchLayout', () => {
     expect(detail.className).toContain('lg:block');
     expect(detail.className).toContain('lg:absolute');
     expect(detail.className).toContain('xl:static');
+    // Overlaid it floats on the quiet shadow; docked at xl it is flat.
+    expect(detail.className).toContain('lg:shadow-pop');
+    expect(detail.className).toContain('xl:shadow-none');
     expect(detail.className).toContain('xl:w-[460px]');
   });
 

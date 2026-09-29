@@ -101,7 +101,8 @@ export function WorkbenchLayout({ rail, detail, children }: WorkbenchLayoutProps
           className={cn(
             'hidden border-hairline bg-paper-raised',
             'lg:block lg:absolute lg:inset-y-0 lg:right-0 lg:h-full lg:w-[460px] lg:overflow-y-auto lg:border-l',
-            'xl:static xl:w-[460px] xl:shrink-0',
+            // Floating over the center it carries the quiet shadow; docked, it is flat.
+            'lg:shadow-pop xl:static xl:w-[460px] xl:shrink-0 xl:shadow-none',
           )}
         >
           {detail}
