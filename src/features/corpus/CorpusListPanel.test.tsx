@@ -255,7 +255,7 @@ describe('CorpusListPanel', () => {
       const user = userEvent.setup();
       const { onOpenEmbeddings } = renderPanel();
 
-      const row = await screen.findByRole('button', { name: 'Ver el estado de los embeddings' });
+      const row = await screen.findByRole('button', { name: /Ver el estado de los embeddings$/ });
       await expect.poll(() => row.textContent).toContain('Coincide con el corpus');
 
       await user.click(row);
@@ -271,7 +271,7 @@ describe('CorpusListPanel', () => {
 
       renderPanel();
 
-      const row = await screen.findByRole('button', { name: 'Ver el estado de los embeddings' });
+      const row = await screen.findByRole('button', { name: /Ver el estado de los embeddings$/ });
       await expect.poll(() => row.textContent).toContain('Revisar coincidencia');
     });
 
@@ -280,10 +280,94 @@ describe('CorpusListPanel', () => {
 
       renderPanel();
 
-      const row = screen.getByRole('button', { name: 'Ver el estado de los embeddings' });
+      const row = screen.getByRole('button', { name: /Ver el estado de los embeddings$/ });
       expect(row).not.toHaveTextContent('Coincide con el corpus');
       expect(row).not.toHaveTextContent('Cargando');
       expect(row.querySelector('[data-slot="skeleton"]')).not.toBeNull();
+    });
+
+    describe('the button affordance', () => {
+      it('ends with an aria-hidden chevron as the disclosure cue', async () => {
+        renderPanel();
+
+        const row = await screen.findByRole('button', { name: /Ver el estado de los embeddings$/ });
+        const chevron = row.querySelector('svg.lucide-chevron-right');
+        expect(chevron).not.toBeNull();
+        expect(chevron).toHaveAttribute('aria-hidden', 'true');
+        expect(chevron?.getAttribute('class')).toContain('text-ink-muted');
+        expect(chevron?.getAttribute('class')).toContain('size-4');
+      });
+
+      it('fills with the sunken paper on hover, shows a pointer, and keeps the coarse-pointer minimum', async () => {
+        renderPanel();
+
+        const row = await screen.findByRole('button', { name: /Ver el estado de los embeddings$/ });
+        expect(row.className).toContain('hover:bg-paper-sunken');
+        expect(row.className).toContain('cursor-pointer');
+        expect(row.className).toContain('rounded-btn');
+        expect(row.className).toContain('px-2');
+        expect(row.className).toContain('pointer-coarse:min-h-11');
+      });
+
+      it('names the row with its visible key and value plus the action, with no overriding label', async () => {
+        renderPanel();
+
+        const row = await screen.findByRole('button', {
+          name: 'Embeddings Coincide con el corpus Ver el estado de los embeddings',
+        });
+        expect(row).not.toHaveAttribute('aria-label');
+        expect(row).toHaveAttribute('aria-labelledby');
+      });
+
+      it('never claims a match in the name while the status is pending', () => {
+        vi.spyOn(embeddingsApi, 'fetchEmbeddingsStatus').mockReturnValue(new Promise(() => {}));
+
+        renderPanel();
+
+        const row = screen.getByRole('button', {
+          name: 'Embeddings Ver el estado de los embeddings',
+        });
+        expect(row.querySelector('[data-slot="status-dot"]')).toBeNull();
+      });
+
+      it('leads a matching value with a success dot', async () => {
+        renderPanel();
+
+        const row = await screen.findByRole('button', { name: /Ver el estado de los embeddings$/ });
+        await expect.poll(() => row.querySelector('[data-slot="status-dot"]')).not.toBeNull();
+        const dot = row.querySelector('[data-slot="status-dot"]');
+        expect(dot).toHaveAttribute('aria-hidden', 'true');
+        expect(dot?.getAttribute('class')).toContain('bg-success');
+      });
+
+      it('leads a mismatching value with a warning dot', async () => {
+        vi.spyOn(embeddingsApi, 'fetchEmbeddingsStatus').mockResolvedValue({
+          ...EMBEDDINGS_STATUS,
+          embeddingApi: { ...EMBEDDINGS_STATUS.embeddingApi, matchesCorpus: false },
+        });
+
+        renderPanel();
+
+        const row = await screen.findByRole('button', { name: /Ver el estado de los embeddings$/ });
+        await expect
+          .poll(() => row.querySelector('[data-slot="status-dot"]')?.getAttribute('class'))
+          .toContain('bg-warning');
+      });
+
+      it('leads an error value with a muted dot', async () => {
+        vi.spyOn(embeddingsApi, 'fetchEmbeddingsStatus').mockRejectedValue({
+          kind: 'network',
+          cause: 'timeout',
+          i18nKey: 'errors.network.coldStart',
+        });
+
+        renderPanel();
+
+        const row = await screen.findByRole('button', { name: /Ver el estado de los embeddings$/ });
+        await expect
+          .poll(() => row.querySelector('[data-slot="status-dot"]')?.getAttribute('class'))
+          .toContain('bg-ink-muted');
+      });
     });
 
     it('the pure state helper never claims a match for absent data — an honest "unknown", not the corpus-matches default', () => {
@@ -324,7 +408,7 @@ describe('CorpusListPanel', () => {
       // component renders through `t('corpus.rail.embeddings.errorValue')`
       // — not a hand-typed guess at the copy.
       await expect
-        .poll(() => screen.getByRole('button', { name: 'Ver el estado de los embeddings' }))
+        .poll(() => screen.getByRole('button', { name: /Ver el estado de los embeddings$/ }))
         .toHaveTextContent(es.corpus.rail.embeddings.errorValue);
 
       expect(
