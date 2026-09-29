@@ -29,6 +29,24 @@ describe('ParametersSummaryBar', () => {
     expect(bar).not.toHaveTextContent('·');
   });
 
+  it('keeps the bar on one line: it never wraps, and below sm the linkages collapse to the first plus a count', () => {
+    renderBar({ linkages: ['single', 'complete', 'ward'] });
+
+    const bar = screen.getByRole('region', { name: 'Resumen de parámetros' });
+    expect(bar.className).not.toContain('flex-wrap');
+    const compact = screen.getByText('single +2');
+    expect(compact).toHaveAttribute('aria-hidden', 'true');
+    expect(compact.className).toContain('sm:hidden');
+    // The full list stays available to assistive technology.
+    expect(screen.getByText('single, complete, ward').className).toContain('max-sm:sr-only');
+  });
+
+  it('shows a lone linkage without a count', () => {
+    renderBar({ linkages: ['ward'] });
+
+    expect(screen.getByText('ward', { selector: '[aria-hidden="true"]' })).toBeInTheDocument();
+  });
+
   it('names the applied cut when there is one, and omits it otherwise', () => {
     const { rerender } = renderBar();
     expect(screen.queryByText(/corte/)).not.toBeInTheDocument();

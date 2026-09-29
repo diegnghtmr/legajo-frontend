@@ -511,6 +511,40 @@ test.describe('clustering screen', () => {
     await expect(summary).toHaveCount(0);
   });
 
+  test('at 390px the summary bar stays on one line with a cut applied, collapsing the linkages to a count', async ({
+    page,
+  }) => {
+    await page.route('**/api/v1/clustering/cut', async (route) => {
+      await route.fulfill({
+        json: { labels: [0, 0, 1, 1, 2, 2], k: 3, documentIds: DOCUMENT_IDS },
+      });
+    });
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto('/clustering');
+    await expect(page.getByRole('heading', { name: 'Single' })).toBeVisible();
+    await page
+      .getByRole('radiogroup', { name: 'Enlace a cortar' })
+      .getByRole('radio', { name: 'Complete' })
+      .click();
+    await page.getByLabel('k: entre 2 y 5').fill('3');
+    await page.getByRole('button', { name: 'Aplicar corte' }).click();
+    await expect(
+      page.getByTestId('linkage-dendrogram-complete').getByTestId('dendrogram-cut-line'),
+    ).toBeAttached();
+
+    await page.evaluate('window.scrollTo(0, 1400)');
+    const summary = page.getByRole('region', { name: 'Resumen de parámetros' });
+    await expect(summary).toBeVisible();
+    await expect(summary).toContainText('+3');
+
+    const box = await summary.boundingBox();
+    expect(box).not.toBeNull();
+    // One line: the row's own padding plus the 28px button, never a second row.
+    expect(box!.height).toBeLessThan(52);
+    const scrollWidth = await page.evaluate<number>('document.documentElement.scrollWidth');
+    expect(scrollWidth).toBeLessThanOrEqual(390);
+  });
+
   test('deselecting every linkage shows the reason and no linkage panels', async ({ page }) => {
     await page.goto('/clustering');
     await expect(page.getByRole('heading', { name: 'Single' })).toBeVisible();
