@@ -101,7 +101,9 @@
       "groupLabel": "Algorithm family",
       "all": "All",
       "classic": "Classic",
-      "ai": "AI"
+      "ai": "AI",
+      "noneSelected": "No {{family}} algorithm selected",
+      "noneSelectedReason": "Pick one of its algorithm buttons or switch to All to see the rest."
     },
     "scoreStrip": {
       "eyebrow": "Normalized score"
