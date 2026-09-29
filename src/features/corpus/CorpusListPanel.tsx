@@ -1,6 +1,6 @@
 import { useId, useState, type CSSProperties } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { ChevronRight } from 'lucide-react';
+import { ChevronRight, Search } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 
 import { DEFAULT_UNEXPECTED_I18N_KEY, type ApiError } from '../../infrastructure/apiError';
@@ -61,6 +61,8 @@ interface ArticleRowProps {
   article: ArticleSummary;
   index: number;
   selected: boolean;
+  /** The row's 1-based position in the selection, when it is selected. */
+  selectionOrder?: number;
   onToggle: (id: string) => void;
   onOpenAbstract: (id: string) => void;
 }
@@ -92,7 +94,15 @@ function ArticleListSkeleton() {
   );
 }
 
-function ArticleRow({ article, index, selected, onToggle, onOpenAbstract }: ArticleRowProps) {
+function ArticleRow({
+  article,
+  index,
+  selected,
+  selectionOrder,
+  onToggle,
+  onOpenAbstract,
+}: ArticleRowProps) {
+  const { t } = useTranslation();
   const titleId = useId();
 
   return (
@@ -116,7 +126,15 @@ function ArticleRow({ article, index, selected, onToggle, onOpenAbstract }: Arti
           >
             {article.title}
           </button>
-          <p className="font-mono text-mono text-ink-muted">{article.id}</p>
+          <p className="flex items-baseline gap-2 font-mono text-mono text-ink-muted">
+            <span>{article.id}</span>
+            {selectionOrder !== undefined && (
+              <span className="enter-fade text-ink">
+                <span className="sr-only">{t('corpus.rail.selectionOrderPrefix')} </span>#
+                {selectionOrder}
+              </span>
+            )}
+          </p>
         </div>
       </div>
     </li>
@@ -201,13 +219,19 @@ export function CorpusListPanel({
         </div>
         <label className="flex flex-col gap-1">
           <span className="sr-only">{t('corpus.rail.searchLabel')}</span>
-          <input
-            type="search"
-            value={query}
-            onChange={(event) => setQuery(event.target.value)}
-            placeholder={t('corpus.rail.searchPlaceholder')}
-            className="h-9 rounded-btn border border-hairline-strong bg-paper-raised px-3 text-body text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus"
-          />
+          <span className="relative block">
+            <Search
+              aria-hidden="true"
+              className="pointer-events-none absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-ink-muted"
+            />
+            <input
+              type="search"
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+              placeholder={t('corpus.rail.searchPlaceholder')}
+              className="h-9 w-full rounded-btn border border-hairline-strong bg-paper-raised pl-[34px] pr-3 text-body text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus"
+            />
+          </span>
         </label>
       </div>
 
@@ -283,6 +307,9 @@ export function CorpusListPanel({
                 article={article}
                 index={index}
                 selected={selectedIds.includes(article.id)}
+                selectionOrder={
+                  selectedIds.includes(article.id) ? selectedIds.indexOf(article.id) + 1 : undefined
+                }
                 onToggle={toggle}
                 onOpenAbstract={onOpenAbstract}
               />

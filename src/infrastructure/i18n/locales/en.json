@@ -40,6 +40,7 @@
       "searchLabel": "Search the corpus",
       "searchPlaceholder": "title, author or id",
       "searchNoMatches": "No matches",
+      "selectionOrderPrefix": "selection",
       "selectedCount": "{{count}} selected",
       "mode": {
         "reason": "Select at least 2 to compare.",

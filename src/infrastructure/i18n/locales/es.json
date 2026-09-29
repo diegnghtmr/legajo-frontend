@@ -40,6 +40,7 @@
       "searchLabel": "Buscar en el corpus",
       "searchPlaceholder": "título, autor o id",
       "searchNoMatches": "Sin coincidencias",
+      "selectionOrderPrefix": "selección",
       "selectedCount": "{{count}} seleccionados",
       "mode": {
         "reason": "Selecciona al menos 2 para comparar.",
