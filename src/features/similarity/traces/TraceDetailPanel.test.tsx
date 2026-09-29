@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -9,6 +9,7 @@ import type {
   CompareResponse,
   ListSimilarityAlgorithmsResponse,
 } from '../../../infrastructure/api/similarity';
+import es from '../../../infrastructure/i18n/locales/es.json';
 import type { DpMatrixTrace, JaccardTrace } from '../../../infrastructure/schemas/similarity';
 import { TraceDetailPanel } from './TraceDetailPanel';
 
@@ -155,7 +156,8 @@ describe('TraceDetailPanel', () => {
     // DP-only optimal path, since `levenshtein` (the default algorithmId)
     // is already known to be a DP capability before the trace arrives.
     expect(screen.getByText('Familia')).toBeInTheDocument();
-    expect(screen.getByText('Valor crudo')).toBeInTheDocument();
+    // Once in the meta row and once as the result block's own tile label.
+    expect(screen.getAllByText('Valor crudo')).toHaveLength(2);
     expect(screen.getByText('Puntaje')).toBeInTheDocument();
     expect(screen.getByText('Camino óptimo')).toBeInTheDocument();
 
@@ -184,7 +186,10 @@ describe('TraceDetailPanel', () => {
     renderPanel({ algorithmId: 'jaccard' });
 
     expect(await screen.findByText('Clásico')).toBeInTheDocument();
-    expect(screen.getByText('12')).toBeInTheDocument();
+    // The meta row's raw value, apart from the result block's large tile.
+    expect(
+      await screen.findByText('12', { selector: 'dd.font-mono.text-mono' }),
+    ).toBeInTheDocument();
   });
 
   it("adds the DP-only optimal-path meta value for a DP trace, from the trace's own matrix, never recomputed", async () => {
@@ -253,7 +258,7 @@ describe('TraceDetailPanel', () => {
 
       renderPanel({ algorithmId: 'jaccard' });
 
-      const body = screen.getByTestId('trace-body-skeleton').parentElement!;
+      const body = screen.getByTestId('trace-body-skeleton').parentElement!.parentElement!;
       expect(body).toHaveClass('overflow-y-hidden');
       expect(body).not.toHaveClass('overflow-y-auto');
       expect(body).not.toHaveAttribute('tabindex');
@@ -272,6 +277,38 @@ describe('TraceDetailPanel', () => {
       expect(body).toHaveAttribute('tabindex', '0');
       expect(body.className).toContain('overflow-y-auto');
     });
+  });
+
+  it('shows the result block above the trace, never in place of it', async () => {
+    vi.spyOn(similarityApi, 'fetchSimilarityTrace').mockResolvedValue(JACCARD_TRACE);
+    vi.spyOn(similarityApi, 'compareSimilarity').mockResolvedValue(
+      singleCompareResultFor('jaccard'),
+    );
+
+    renderPanel({ algorithmId: 'jaccard' });
+
+    const block = await screen.findByRole('region', { name: 'Resultado' });
+    const traceHeading = await screen.findByRole('heading', {
+      name: es.similarity.trace.jaccard.intersectionLabel,
+    });
+    expect(block.compareDocumentPosition(traceHeading) & Node.DOCUMENT_POSITION_FOLLOWING).toBe(
+      Node.DOCUMENT_POSITION_FOLLOWING,
+    );
+    expect(within(block).getByText('0.750')).toBeInTheDocument();
+  });
+
+  it('shows the result block skeleton, hidden from assistive technology, while the results are pending', () => {
+    vi.spyOn(similarityApi, 'fetchSimilarityAlgorithms').mockReturnValue(new Promise(() => {}));
+    vi.spyOn(similarityApi, 'fetchSimilarityTrace').mockReturnValue(new Promise(() => {}));
+    vi.spyOn(similarityApi, 'compareSimilarity').mockReturnValue(new Promise(() => {}));
+
+    renderPanel({ algorithmId: 'jaccard' });
+
+    expect(screen.getByTestId('trace-result-block-skeleton')).toHaveAttribute(
+      'aria-hidden',
+      'true',
+    );
+    expect(screen.getAllByRole('status')).toHaveLength(1);
   });
 
   it('renders a "full screen" link to the standalone trace view, keeping the same pair', async () => {
