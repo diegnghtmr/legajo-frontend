@@ -118,7 +118,7 @@ export function mergeSeriesIntoRows(
 
 export interface EmbeddingDimensionTile {
   dimension: number;
-  entries: Array<{ family: string; valueNs: number }>;
+  entries: Array<{ family: string; valueNs: number; errorNs: number }>;
 }
 
 /**
@@ -140,7 +140,7 @@ export function embeddingResultsByDimension(
         continue;
       }
       const tile = byDimension.get(result.size) ?? { dimension: result.size, entries: [] };
-      tile.entries.push({ family, valueNs });
+      tile.entries.push({ family, valueNs, errorNs: toNanoseconds(result.error, result.unit) });
       byDimension.set(result.size, tile);
     }
   }

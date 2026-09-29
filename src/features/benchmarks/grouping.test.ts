@@ -137,6 +137,7 @@ describe('embeddingResultsByDimension', () => {
       parameter: 'dimension',
       size: 384,
       score: 195,
+      error: 10,
       unit: 'ns/op',
     }),
     result({
@@ -144,6 +145,7 @@ describe('embeddingResultsByDimension', () => {
       parameter: 'dimension',
       size: 384,
       score: 210,
+      error: 10,
       unit: 'ns/op',
     }),
     result({
@@ -151,6 +153,7 @@ describe('embeddingResultsByDimension', () => {
       parameter: 'dimension',
       size: 1536,
       score: 842,
+      error: 10,
       unit: 'ns/op',
     }),
   ];
@@ -160,11 +163,14 @@ describe('embeddingResultsByDimension', () => {
       {
         dimension: 384,
         entries: [
-          { family: 'embedding-dot-product', valueNs: 195 },
-          { family: 'embedding-euclidean-sum-squared', valueNs: 210 },
+          { family: 'embedding-dot-product', valueNs: 195, errorNs: 10 },
+          { family: 'embedding-euclidean-sum-squared', valueNs: 210, errorNs: 10 },
         ],
       },
-      { dimension: 1536, entries: [{ family: 'embedding-dot-product', valueNs: 842 }] },
+      {
+        dimension: 1536,
+        entries: [{ family: 'embedding-dot-product', valueNs: 842, errorNs: 10 }],
+      },
     ]);
   });
 
