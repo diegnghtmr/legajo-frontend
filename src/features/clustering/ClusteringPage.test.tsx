@@ -1,8 +1,8 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { render, screen, waitFor, within } from '@testing-library/react';
+import { act, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import type { ReactNode } from 'react';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import type {
   ClusteringCutResponse,
@@ -127,7 +127,7 @@ describe('ClusteringPage', () => {
   // before it; disclosed here rather than claiming an observed RED that
   // never happened, the same disclosure this file's own history already
   // uses for its URL-state assertions.
-  it('keeps the representation, linkage selection and free cut together in one control bar card', async () => {
+  it('keeps the representation, linkage selection and free cut together in one parameter panel card', async () => {
     vi.spyOn(corpusApi, 'fetchCorpus').mockResolvedValue(CORPUS);
     vi.spyOn(clusteringApi, 'runClustering').mockResolvedValue(DEFAULT_RESPONSE);
 
@@ -325,7 +325,7 @@ describe('ClusteringPage', () => {
     const completeRow = screen.getByTestId('metrics-row-complete');
     expect(within(completeRow).getByText('Partición')).toBeInTheDocument();
 
-    expect(screen.getByText(/n = 6/)).toBeInTheDocument();
+    expect(screen.getByText(/Tamaño muestral del corpus cargado: n = 6/)).toBeInTheDocument();
   });
 
   it('shows "no definido" for a null Davies-Bouldin value', async () => {
@@ -485,7 +485,7 @@ describe('ClusteringPage', () => {
     const singleRow = screen.getByTestId('metrics-row-single');
     expect(within(singleRow).getByText('Partición')).toBeInTheDocument();
 
-    expect(screen.getByText(/n = 4/)).toBeInTheDocument();
+    expect(screen.getByText(/Tamaño muestral del corpus cargado: n = 4/)).toBeInTheDocument();
   });
 
   it('shows no leader marks and the "requires all four" explanation when linkages disagree on n', async () => {
@@ -548,9 +548,10 @@ describe('ClusteringPage', () => {
       }),
     );
 
+    // Said twice: as the linkage-selection hint and under the metrics table.
     expect(
-      await screen.findByText('Los líderes se muestran cuando se comparan los cuatro enlaces.'),
-    ).toBeInTheDocument();
+      await screen.findAllByText('Los líderes se muestran cuando se comparan los cuatro enlaces.'),
+    ).toHaveLength(2);
     expect(screen.queryByText('Árbol')).not.toBeInTheDocument();
     expect(screen.queryByText('Partición')).not.toBeInTheDocument();
     expect(screen.queryByText('Líder')).not.toBeInTheDocument();
@@ -566,7 +567,7 @@ describe('ClusteringPage', () => {
       expect(
         await screen.findByRole('radiogroup', { name: 'Enlace a cortar' }),
       ).toBeInTheDocument();
-      expect(screen.getByLabelText('Número de clústeres k (entre 2 y 5)')).toBeInTheDocument();
+      expect(screen.getByLabelText('k: entre 2 y 5')).toBeInTheDocument();
     });
 
     it('submits {representation, linkage, k} and shows the cluster labels and cut line only on that linkage after success', async () => {
@@ -585,7 +586,7 @@ describe('ClusteringPage', () => {
       const cutGroup = await screen.findByRole('radiogroup', { name: 'Enlace a cortar' });
       await user.click(within(cutGroup).getByRole('radio', { name: 'Complete' }));
 
-      const kInput = screen.getByLabelText('Número de clústeres k (entre 2 y 5)');
+      const kInput = screen.getByLabelText('k: entre 2 y 5');
       await user.clear(kInput);
       await user.type(kInput, '3');
       await user.click(screen.getByRole('button', { name: 'Aplicar corte' }));
@@ -838,6 +839,194 @@ describe('ClusteringPage', () => {
       expect(
         within(singleDendrogram).queryByText('0', { selector: '[data-testid="cluster-marker"]' }),
       ).not.toBeInTheDocument();
+    });
+
+    it('sends the k edited with the stepper buttons', async () => {
+      vi.spyOn(corpusApi, 'fetchCorpus').mockResolvedValue(CORPUS);
+      vi.spyOn(clusteringApi, 'runClustering').mockResolvedValue(DEFAULT_RESPONSE);
+      vi.spyOn(clusteringApi, 'cutClustering').mockResolvedValue({
+        labels: [0, 0, 1, 1, 2, 2],
+        k: 4,
+        documentIds: DOCUMENT_IDS_N6,
+      });
+      const user = userEvent.setup();
+
+      renderPage();
+      await screen.findByLabelText('k: entre 2 y 5');
+      await user.click(screen.getByRole('button', { name: 'Aumentar k' }));
+      await user.click(screen.getByRole('button', { name: 'Aumentar k' }));
+      await user.click(screen.getByRole('button', { name: 'Aplicar corte' }));
+
+      await waitFor(() =>
+        expect(clusteringApi.cutClustering).toHaveBeenCalledWith({
+          representation: 'tfidf-cosine',
+          linkage: 'single',
+          k: 4,
+        }),
+      );
+    });
+
+    it('names the applied cut in the status footer, marks the controls applied and disables the button until they change', async () => {
+      vi.spyOn(corpusApi, 'fetchCorpus').mockResolvedValue(CORPUS);
+      vi.spyOn(clusteringApi, 'runClustering').mockResolvedValue(DEFAULT_RESPONSE);
+      vi.spyOn(clusteringApi, 'cutClustering').mockResolvedValue({
+        labels: [0, 0, 1, 1, 2, 2],
+        k: 3,
+        documentIds: DOCUMENT_IDS_N6,
+      });
+      const user = userEvent.setup();
+
+      renderPage();
+      await screen.findByLabelText('k: entre 2 y 5');
+      const footer = screen.getByTestId('params-status-footer');
+      expect(footer).toHaveTextContent('Sin corte aplicado');
+
+      await user.click(screen.getByRole('button', { name: 'Aumentar k' }));
+      await user.click(screen.getByRole('button', { name: 'Aplicar corte' }));
+
+      await waitFor(() => expect(footer).toHaveTextContent('Corte en single, k = 3'));
+      expect(screen.getByText('aplicado')).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Aplicar corte' })).toBeDisabled();
+
+      await user.click(screen.getByRole('button', { name: 'Aumentar k' }));
+      expect(screen.queryByText('aplicado')).not.toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Aplicar corte' })).toBeEnabled();
+    });
+
+    it('removes the cut with "Quitar corte": the cut line and the cluster numbers go, the controls stay', async () => {
+      vi.spyOn(corpusApi, 'fetchCorpus').mockResolvedValue(CORPUS);
+      vi.spyOn(clusteringApi, 'runClustering').mockResolvedValue(DEFAULT_RESPONSE);
+      vi.spyOn(clusteringApi, 'cutClustering').mockResolvedValue({
+        labels: [0, 0, 1, 1, 2, 2],
+        k: 3,
+        documentIds: DOCUMENT_IDS_N6,
+      });
+      const user = userEvent.setup();
+
+      renderPage();
+      await user.click(await screen.findByRole('button', { name: 'Aplicar corte' }));
+      const singleDendrogram = await screen.findByTestId('linkage-dendrogram-single');
+      await waitFor(() =>
+        expect(within(singleDendrogram).getByTestId('dendrogram-cut-line')).toBeInTheDocument(),
+      );
+
+      await user.click(screen.getByRole('button', { name: 'Quitar corte' }));
+
+      expect(
+        within(screen.getByTestId('linkage-dendrogram-single')).queryByTestId(
+          'dendrogram-cut-line',
+        ),
+      ).not.toBeInTheDocument();
+      expect(screen.getByTestId('params-status-footer')).toHaveTextContent('Sin corte aplicado');
+      expect(screen.getByRole('button', { name: 'Aplicar corte' })).toBeEnabled();
+    });
+  });
+
+  it('lists n and k_ref in the status footer once the response has loaded', async () => {
+    vi.spyOn(corpusApi, 'fetchCorpus').mockResolvedValue(CORPUS);
+    vi.spyOn(clusteringApi, 'runClustering').mockResolvedValue(DEFAULT_RESPONSE);
+
+    renderPage();
+
+    const footer = await screen.findByTestId('params-status-footer');
+    await waitFor(() => expect(footer).toHaveTextContent('n = 6'));
+    expect(footer).toHaveTextContent('k_ref = 4');
+  });
+
+  it('selects all four linkages again with "Todos"', async () => {
+    vi.spyOn(corpusApi, 'fetchCorpus').mockResolvedValue(CORPUS);
+    vi.spyOn(clusteringApi, 'runClustering').mockResolvedValue(DEFAULT_RESPONSE);
+    const user = userEvent.setup();
+
+    renderPage();
+    await waitFor(() => expect(clusteringApi.runClustering).toHaveBeenCalled());
+    await user.click(screen.getByRole('button', { name: 'ward' }));
+    await user.click(screen.getByRole('button', { name: 'complete' }));
+
+    await user.click(screen.getByRole('button', { name: 'Todos' }));
+
+    await waitFor(() =>
+      expect(clusteringApi.runClustering).toHaveBeenLastCalledWith({
+        representation: 'tfidf-cosine',
+        linkages: ['single', 'complete', 'average', 'ward'],
+      }),
+    );
+    expect(screen.queryByRole('button', { name: 'Todos' })).not.toBeInTheDocument();
+  });
+
+  describe('the sticky summary bar', () => {
+    let reportIntersection: (entry: {
+      isIntersecting: boolean;
+      boundingClientRect: { top: number };
+    }) => void;
+
+    beforeEach(() => {
+      vi.stubGlobal(
+        'IntersectionObserver',
+        class {
+          constructor(callback: (entries: unknown[]) => void) {
+            reportIntersection = (entry) => callback([entry]);
+          }
+          observe() {}
+          unobserve() {}
+          disconnect() {}
+        },
+      );
+      Element.prototype.scrollIntoView = vi.fn();
+    });
+
+    afterEach(() => {
+      vi.unstubAllGlobals();
+      Reflect.deleteProperty(Element.prototype, 'scrollIntoView');
+    });
+
+    it('stays hidden while the parameter panel is in view', async () => {
+      vi.spyOn(corpusApi, 'fetchCorpus').mockResolvedValue(CORPUS);
+      vi.spyOn(clusteringApi, 'runClustering').mockResolvedValue(DEFAULT_RESPONSE);
+
+      renderPage();
+      await screen.findByTestId('params-status-footer');
+
+      expect(
+        screen.queryByRole('region', { name: 'Resumen de parámetros' }),
+      ).not.toBeInTheDocument();
+    });
+
+    it('appears once the panel scrolls out of view and summarises the parameters and the applied cut', async () => {
+      vi.spyOn(corpusApi, 'fetchCorpus').mockResolvedValue(CORPUS);
+      vi.spyOn(clusteringApi, 'runClustering').mockResolvedValue(DEFAULT_RESPONSE);
+      vi.spyOn(clusteringApi, 'cutClustering').mockResolvedValue({
+        labels: [0, 0, 1, 1, 2, 2],
+        k: 3,
+        documentIds: DOCUMENT_IDS_N6,
+      });
+      const user = userEvent.setup();
+
+      renderPage();
+      await user.click(await screen.findByRole('button', { name: 'Aplicar corte' }));
+      await screen.findByText('Corte en', { exact: false });
+
+      act(() => reportIntersection({ isIntersecting: false, boundingClientRect: { top: -120 } }));
+
+      const bar = await screen.findByRole('region', { name: 'Resumen de parámetros' });
+      expect(bar).toHaveTextContent('tfidf-cosine');
+      expect(bar).toHaveTextContent('single, complete, average, ward');
+      expect(bar).toHaveTextContent('corte single k = 3');
+    });
+
+    it('"Editar" scrolls back to the panel and focuses its first control', async () => {
+      vi.spyOn(corpusApi, 'fetchCorpus').mockResolvedValue(CORPUS);
+      vi.spyOn(clusteringApi, 'runClustering').mockResolvedValue(DEFAULT_RESPONSE);
+      const user = userEvent.setup();
+
+      renderPage();
+      await screen.findByTestId('params-status-footer');
+      act(() => reportIntersection({ isIntersecting: false, boundingClientRect: { top: -120 } }));
+
+      await user.click(await screen.findByRole('button', { name: 'Editar' }));
+
+      expect(Element.prototype.scrollIntoView).toHaveBeenCalled();
+      expect(screen.getByRole('radio', { name: 'tfidf-cosine' })).toHaveFocus();
     });
   });
 });

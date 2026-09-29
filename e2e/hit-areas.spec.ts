@@ -373,6 +373,9 @@ test.describe('44x44 touch targets at 390px', () => {
     await page.route('**/api/v1/clustering', async (route) => {
       await route.fulfill({ json: clusteringResponse });
     });
+    await page.route('**/api/v1/clustering/cut', async (route) => {
+      await route.fulfill({ json: { labels: [0, 0, 1, 1, 2, 2], k: 3, documentIds } });
+    });
 
     await page.goto('/clustering');
     await expect(page.getByRole('heading', { name: 'Single' })).toBeVisible();
@@ -394,6 +397,27 @@ test.describe('44x44 touch targets at 390px', () => {
     await expectEachAtLeast44(
       page.getByRole('button', { name: 'Aplicar corte' }),
       'clustering apply-cut button',
+    );
+    await expectEachAtLeast44(
+      page.getByRole('button', { name: /^(Disminuir|Aumentar) k$/ }),
+      'clustering k stepper button',
+    );
+    await expectEachAtLeast44(page.getByRole('spinbutton'), 'clustering k field');
+
+    // The quiet actions that appear only in a state: `Todos` once a linkage
+    // is deselected, `Quitar corte` once a cut is applied.
+    await page.getByRole('button', { name: 'ward', exact: true }).click();
+    await expectEachAtLeast44(page.getByRole('button', { name: 'Todos' }), 'clustering select-all');
+    await page.getByRole('button', { name: 'Todos' }).click();
+    await page.getByRole('button', { name: 'Aplicar corte' }).click();
+    // The status footer sits below the fold of the stacked panel at 390px;
+    // centre it so neither the top bar nor the summary bar covers it.
+    await page.getByRole('button', { name: 'Quitar corte' }).evaluate((el) => {
+      el.scrollIntoView({ block: 'center' });
+    });
+    await expectEachAtLeast44(
+      page.getByRole('button', { name: 'Quitar corte' }),
+      'clustering clear-cut button',
     );
   });
 

@@ -22,8 +22,7 @@ import { kRefForSampleSize, type ClusteringRankingResult } from './ranking';
 const FIXED_CUTS = [2, 3, 4, 5];
 
 /** The real per-linkage display names, captured against the reference
- * corpus (the same mapping `CutFormSkeleton` reserves its own segmented
- * control width from) — used only to size this column's own invisible
+ * corpus (the same shape the parameter panel's own skeleton mirrors) — used only to size this column's own invisible
  * sizer below. The bare mono id is markedly shorter ("complete" vs
  * "Complete linkage"), and at some viewport widths the real, longer name
  * wraps onto a second line inside this column while the id alone never

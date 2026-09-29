@@ -216,3 +216,51 @@
     font-family: var(--font-sans);
   }
 }
+
+/*
+ * The cut-k stepper's decorative range slider: a 4px track filled with ink up
+ * to the value (`--fill`) over hairline, and a 14px paper thumb with a 1.5px
+ * ink ring.
+ */
+@utility stepper-range {
+  appearance: none;
+  height: 20px;
+  background: transparent;
+  cursor: pointer;
+  &::-webkit-slider-runnable-track {
+    height: 4px;
+    border-radius: 2px;
+    background: linear-gradient(
+      90deg,
+      var(--color-ink) var(--fill, 0%),
+      var(--color-hairline) var(--fill, 0%)
+    );
+  }
+  &::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 14px;
+    height: 14px;
+    margin-top: -5px;
+    border-radius: 50%;
+    background: var(--color-paper-raised);
+    border: 1.5px solid var(--color-ink);
+    box-shadow: var(--shadow-card);
+  }
+  &::-moz-range-track {
+    height: 4px;
+    border-radius: 2px;
+    background: linear-gradient(
+      90deg,
+      var(--color-ink) var(--fill, 0%),
+      var(--color-hairline) var(--fill, 0%)
+    );
+  }
+  &::-moz-range-thumb {
+    width: 11px;
+    height: 11px;
+    border-radius: 50%;
+    background: var(--color-paper-raised);
+    border: 1.5px solid var(--color-ink);
+    box-shadow: var(--shadow-card);
+  }
+}

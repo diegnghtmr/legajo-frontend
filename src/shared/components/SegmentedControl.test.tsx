@@ -215,4 +215,24 @@ describe('SegmentedControl', () => {
     expect(onChange).toHaveBeenLastCalledWith('all');
     expect(screen.getByRole('radio', { name: 'All' })).toHaveFocus();
   });
+
+  it('renders the small size with tighter option padding, and the default size otherwise', () => {
+    const { rerender } = render(
+      <SegmentedControl options={OPTIONS} value="all" onChange={() => {}} aria-label="f" />,
+    );
+    expect(screen.getByRole('radio', { name: 'All' }).className).toContain('px-3');
+
+    rerender(
+      <SegmentedControl
+        options={OPTIONS}
+        value="all"
+        onChange={() => {}}
+        aria-label="f"
+        size="sm"
+      />,
+    );
+    const item = screen.getByRole('radio', { name: 'All' });
+    expect(item.className).toContain('px-2.5');
+    expect(item.className).not.toContain('px-3');
+  });
 });

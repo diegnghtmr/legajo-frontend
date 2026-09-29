@@ -39,6 +39,25 @@ describe('Button', () => {
     expect(button.className).toContain('border');
   });
 
+  it('applies the quiet ghost variant: no fill at rest, paper-sunken and ink on hover', () => {
+    render(<Button variant="ghost">Todos</Button>);
+
+    const button = screen.getByRole('button', { name: 'Todos' });
+    expect(button.className).toContain('text-ink-secondary');
+    expect(button.className).toContain('hover:bg-paper-sunken');
+    expect(button.className).toContain('hover:text-ink');
+    expect(button.className).not.toContain('bg-primary');
+    expect(button.className).not.toContain('border-hairline-strong');
+  });
+
+  it('keeps a 44px touch target on the ghost variant', () => {
+    render(<Button variant="ghost">Todos</Button>);
+
+    const button = screen.getByRole('button', { name: 'Todos' });
+    expect(button.className).toContain('pointer-coarse:min-h-11');
+    expect(button.className).toContain('pointer-coarse:min-w-11');
+  });
+
   it('calls onClick when clicked', async () => {
     const user = userEvent.setup();
     const onClick = vi.fn();

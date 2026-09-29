@@ -18,6 +18,10 @@ const badgeVariants = cva(
         default: 'border border-hairline-strong bg-paper-raised text-ink-secondary',
         classic: 'bg-classic-soft text-classic-foreground',
         ai: 'bg-ai-soft text-ai-foreground',
+        // Read-only hatched tag (`aplicado`, `k = 3`): mono text on a
+        // paper-sunken hatch with a hairline-strong ring, no family color.
+        marker:
+          'h-5 rounded-sm py-0 pr-[7px] pl-[5px] font-mono text-[10.5px] font-normal text-ink-secondary bg-[repeating-linear-gradient(135deg,var(--color-paper-sunken)_0_3px,var(--color-paper-raised)_3px_6px)] shadow-[inset_0_0_0_1px_var(--color-hairline-strong)]',
       },
     },
     defaultVariants: {

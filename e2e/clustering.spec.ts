@@ -137,14 +137,14 @@ test.describe('clustering screen', () => {
 
     // The cophenetic leader (single) is marked "Árbol"; the differing
     // silhouette-at-k_ref leader (complete) is marked "Partición".
-    await expect(page.getByText('Árbol')).toBeVisible();
-    await expect(page.getByText('Partición')).toBeVisible();
+    await expect(page.getByText('Árbol', { exact: true })).toBeVisible();
+    await expect(page.getByText('Partición', { exact: true })).toBeVisible();
 
     // Ward's k_ref Davies-Bouldin is null.
     await expect(page.getByText('no definido').first()).toBeVisible();
 
     // Sample-size caveat states n = |corpus| (6 documents mocked above).
-    await expect(page.getByText(/n = 6/)).toBeVisible();
+    await expect(page.getByText(/Tamaño muestral del corpus cargado: n = 6/)).toBeVisible();
 
     expect(requestBodies).toEqual([
       { representation: 'tfidf-cosine', linkages: ['single', 'complete', 'average', 'ward'] },
@@ -196,7 +196,7 @@ test.describe('clustering screen', () => {
 
     const cutGroup = page.getByRole('radiogroup', { name: 'Enlace a cortar' });
     await cutGroup.getByRole('radio', { name: 'Complete' }).click();
-    await page.getByLabel('Número de clústeres k (entre 2 y 5)').fill('3');
+    await page.getByLabel('k: entre 2 y 5').fill('3');
     await page.getByRole('button', { name: 'Aplicar corte' }).click();
 
     const completeDendrogram = page.getByTestId('linkage-dendrogram-complete');
@@ -330,51 +330,43 @@ test.describe('clustering screen', () => {
   });
 
   for (const width of [1440, 1280, 1024, 768, 390]) {
-    test(`at ${width}px, the control bar's three groups never stretch and leave no dead block`, async ({
+    test(`at ${width}px, the parameter panel's three columns take their intrinsic width, never stretch and never scroll the page`, async ({
       page,
     }) => {
       await page.setViewportSize({ width, height: 900 });
       await page.goto('/clustering');
       await expect(page.getByRole('heading', { name: 'Single' })).toBeVisible();
 
-      const representationGroup = page.getByRole('radiogroup', { name: 'Representación' });
-      const linkageGroup = page.getByRole('group', { name: 'Selección de enlaces' });
-      // The cut group's own outer box (the linkage radiogroup it applies
-      // to, the k field, and the submit button, whichever wrap the same
-      // row) — located by its own submit button's `<form>` ancestor, since
-      // the group itself has no single accessible role of its own.
-      const cutForm = page.locator('form', {
-        has: page.getByRole('button', { name: 'Aplicar corte' }),
-      });
+      // A column is the header row's grandparent: heading, its baseline
+      // row, the header row, the column itself.
+      const column = (title: string) =>
+        page.getByRole('heading', { name: title, level: 3 }).locator('xpath=../../..');
+      const columns = [
+        column('Representación'),
+        column('Selección de enlaces'),
+        column('Corte libre'),
+      ];
 
-      // Never stretched to fill the remaining row width: each group's own
-      // computed `flex-grow` stays 0 — the exact CSS property the old
-      // `min-w-[260px] flex-1` regression set to 1 on the cut group's own
-      // wrapper. Read via a plain string body: this project's own `e2e/**`
-      // tsconfig is Node-typed, with no DOM lib for a typed callback.
-      for (const group of [representationGroup, linkageGroup, cutForm]) {
-        expect(await computedFlexGrow(group)).toBe('0');
+      // Never stretched to fill the remaining row width or the row height:
+      // each column's own computed `flex-grow` stays 0.
+      for (const item of columns) {
+        expect(await computedFlexGrow(item)).toBe('0');
       }
 
-      const representationBox = await representationGroup.boundingBox();
-      const linkageBox = await linkageGroup.boundingBox();
-      const cutBox = await cutForm.boundingBox();
-      expect(representationBox).not.toBeNull();
-      expect(linkageBox).not.toBeNull();
-      expect(cutBox).not.toBeNull();
+      const boxes = await Promise.all(columns.map((item) => item.boundingBox()));
+      expect(boxes.every((box) => box !== null)).toBe(true);
+      const [representationBox, linkageBox, cutBox] = boxes as NonNullable<
+        (typeof boxes)[number]
+      >[];
 
-      // While the three groups still share one row (their own top edges
-      // agree, `items-start`), no group towers over the shortest one: the
-      // old stacked cut group measured ~177px against the other two
-      // groups' ~36px. Once the row has actually wrapped (a shorter width),
-      // the groups' own top edges necessarily differ — that is the
-      // "wraps cleanly" behavior itself, not a dead block, so this height
-      // comparison only applies to the shared-row case.
+      // While the columns share one row they are top-aligned, and the free
+      // cut column keeps its own (taller) height: none is stretched to
+      // another's, and none reserves a dead block for it.
       const sameRow =
         Math.abs(representationBox!.y - cutBox!.y) < 5 && Math.abs(linkageBox!.y - cutBox!.y) < 5;
       if (sameRow) {
-        const heights = [representationBox!.height, linkageBox!.height, cutBox!.height];
-        expect(Math.max(...heights) - Math.min(...heights)).toBeLessThan(50);
+        expect(representationBox!.height).toBeLessThan(cutBox!.height);
+        expect(linkageBox!.height).toBeLessThan(cutBox!.height);
       }
 
       // Never a horizontal scroll, wrapped or not.
@@ -383,48 +375,84 @@ test.describe('clustering screen', () => {
     });
   }
 
-  test('a long k-range error wraps inside the field column instead of pushing Aplicar corte onto its own row', async ({
+  test('an invalid k shows its range error under the field, wrapped inside the column, with Aplicar corte disabled and still on the field row', async ({
     page,
   }) => {
     await page.goto('/clustering');
     await expect(page.getByRole('heading', { name: 'Single' })).toBeVisible();
 
-    await page.getByLabel('Número de clústeres k (entre 2 y 5)').fill('1');
+    const field = page.getByLabel('k: entre 2 y 5');
     const submitButton = page.getByRole('button', { name: 'Aplicar corte' });
-    await submitButton.click();
+    const cutColumn = page
+      .getByRole('heading', { name: 'Corte libre', level: 3 })
+      .locator('xpath=../../..');
+    await expect(page.getByRole('alert')).toHaveCount(0);
+    await expect(submitButton).toBeEnabled();
 
-    // A locator filtered by today's exact text would stop matching once the
-    // fault injection below rewrites that text — `getByRole('alert')` alone
-    // still resolves to the same live element, since it is the only alert
-    // present at this point.
+    await field.fill('1');
+
+    // The only alert present: the k error, as text under the field.
     const error = page.getByRole('alert');
     await expect(error).toHaveText(/k debe ser un entero/);
-    const buttonBoxBefore = await submitButton.boundingBox();
-    expect(buttonBoxBefore).not.toBeNull();
+    await expect(field).toHaveAttribute('aria-invalid', 'true');
+    await expect(submitButton).toBeDisabled();
 
-    // Fault injection: no real translation is this long today, but a
-    // future or English string could be. Replacing the error's own text
-    // with a much longer one, in place, proves the width constraint is
-    // load-bearing — not just coincidentally wide enough for today's exact
-    // Spanish sentence.
+    const fieldBox = await field.boundingBox();
+    const errorBox = await error.boundingBox();
+    const buttonBox = await submitButton.boundingBox();
+    const columnBoxBefore = await cutColumn.boundingBox();
+    expect(fieldBox).not.toBeNull();
+    expect(errorBox).not.toBeNull();
+    expect(buttonBox).not.toBeNull();
+    expect(columnBoxBefore).not.toBeNull();
+    expect(errorBox!.y).toBeGreaterThanOrEqual(fieldBox!.y + fieldBox!.height - 1);
+    // The button stays on the stepper's own row, not pushed below the error.
+    expect(buttonBox!.y).toBeLessThan(errorBox!.y);
+
+    // Fault injection: no real translation is this long today, but a future
+    // or English string could be. A much longer message wraps onto more
+    // lines inside the column instead of widening it.
     await error.evaluate((el) => {
       el.textContent =
         'k debe ser un número entero comprendido estrictamente entre 2 y 5, ambos inclusive, para que el corte sea válido en este corpus cargado actualmente.';
     });
+    const columnBoxAfter = await cutColumn.boundingBox();
+    expect(columnBoxAfter).not.toBeNull();
+    expect(columnBoxAfter!.width).toBeCloseTo(columnBoxBefore!.width, 0);
+    expect((await submitButton.boundingBox())!.x).toBeCloseTo(buttonBox!.x, 0);
+  });
 
-    const errorBoxAfter = await error.boundingBox();
-    const buttonBoxAfter = await submitButton.boundingBox();
-    expect(errorBoxAfter).not.toBeNull();
-    expect(buttonBoxAfter).not.toBeNull();
-    // The error wrapped onto more lines (taller), but its own column never
-    // widened — a fixed max-width, not a shrink-to-fit one.
-    expect(errorBoxAfter!.width).toBeLessThanOrEqual(buttonBoxBefore!.x - errorBoxAfter!.x + 40);
-    // "Aplicar corte" stays in the same column, to the right of the k
-    // field — never wrapped down onto its own row (which would reset its
-    // x close to the group's own left edge). The row growing a little
-    // taller (bottom-aligned items following a taller neighbour) is
-    // expected and is not what this guards against.
-    expect(buttonBoxAfter!.x).toBeCloseTo(buttonBoxBefore!.x, 0);
+  test('the summary bar pins under the top bar once the parameter panel scrolls away, and "Editar" returns to the panel', async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 1280, height: 700 });
+    await page.goto('/clustering');
+    await expect(page.getByRole('heading', { name: 'Single' })).toBeVisible();
+
+    const summary = page.getByRole('region', { name: 'Resumen de parámetros' });
+    // In view, the bar is aria-hidden: not a region at all.
+    await expect(summary).toHaveCount(0);
+
+    await page.evaluate('window.scrollTo(0, 900)');
+    await expect(summary).toBeVisible();
+    await expect(summary).toContainText('tfidf-cosine');
+    const summaryBox = await summary.boundingBox();
+    expect(summaryBox).not.toBeNull();
+    expect(Math.abs(summaryBox!.y - 56)).toBeLessThan(2);
+    // It overlays the content: it reserves no space in the page flow.
+    expect(await page.evaluate<number>('document.documentElement.scrollHeight')).toBeGreaterThan(
+      900,
+    );
+
+    await summary.getByRole('button', { name: 'Editar' }).click();
+    const firstControl = page
+      .getByRole('radiogroup', { name: 'Representación' })
+      .getByRole('radio', {
+        name: 'tfidf-cosine',
+      });
+    await expect(firstControl).toBeFocused();
+    await expect(firstControl).toBeInViewport();
+    await expect(summary).toHaveCount(0);
   });
 
   test('deselecting every linkage shows the reason and no linkage panels', async ({ page }) => {

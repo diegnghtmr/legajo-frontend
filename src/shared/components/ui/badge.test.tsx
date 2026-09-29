@@ -43,4 +43,15 @@ describe('Badge', () => {
     expect(aiClassName).not.toBe(classicClassName);
     expect(aiClassName).not.toBe(defaultClassName);
   });
+
+  it('renders the hatched marker variant as read-only mono text, never a family color', () => {
+    render(<Badge variant="marker">aplicado</Badge>);
+
+    const badge = screen.getByText('aplicado');
+    expect(badge.className).toContain('font-mono');
+    expect(badge.className).toContain('text-ink-secondary');
+    expect(badge.className).toContain('repeating-linear-gradient');
+    expect(badge.className).not.toContain('bg-classic-soft');
+    expect(badge.className).not.toContain('bg-ai-soft');
+  });
 });

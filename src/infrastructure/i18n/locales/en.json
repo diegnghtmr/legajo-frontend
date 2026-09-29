@@ -269,18 +269,53 @@
       "mergeTableDistance": "Distance"
     },
     "cutForm": {
-      "title": "Free cut",
       "linkageGroupLabel": "Linkage to cut",
-      "kLabel": "Number of clusters k (between {{min}} and {{max}})",
       "submit": "Apply cut",
       "pending": "Applying the cut…",
       "errorTitle": "Could not apply the cut",
       "noValidRange": "There is no valid number of clusters to cut this corpus.",
-      "unavailable": "The cut will be available once the clustering finishes loading.",
       "unavailableError": "The cut is unavailable because the clustering failed.",
       "unavailableNoLinkage": "The cut is unavailable because no linkage is selected.",
       "errors": {
         "kRange": "k must be an integer between {{min}} and {{max}}."
+      }
+    },
+    "params": {
+      "label": "Clustering parameters",
+      "representation": {
+        "title": "Representation",
+        "hint": "D = 1 − cosine; Ward operates on 2·D."
+      },
+      "linkages": {
+        "title": "Linkage selection",
+        "count": "{{count}} / 4",
+        "selectAll": "All",
+        "hintAll": "All four linkages are compared: the tree and partition leaders are marked."
+      },
+      "cut": {
+        "title": "Free cut",
+        "kLabel": "k: between 2 and {{max}}",
+        "kDecrease": "Decrease k",
+        "kIncrease": "Increase k",
+        "hint": "The dotted line on the dendrogram shows where the cut will fall before you apply it.",
+        "applied": "applied",
+        "noLinkageTitle": "No linkage to cut",
+        "noLinkageGlyph": "0 / 4",
+        "errorTitle": "Cut unavailable",
+        "errorGlyph": "—"
+      },
+      "footer": {
+        "n": "n = {{n}}",
+        "kRef": "k_ref = {{kRef}}",
+        "appliedCut": "Cut on <mono>{{linkage}}</mono>, <mono>k = {{k}}</mono>",
+        "noCut": "No cut applied",
+        "clearCut": "Clear cut"
+      },
+      "summary": {
+        "label": "Parameter summary",
+        "eyebrow": "Parameters",
+        "cut": "cut {{linkage}} k = {{k}}",
+        "edit": "Edit"
       }
     }
   },
