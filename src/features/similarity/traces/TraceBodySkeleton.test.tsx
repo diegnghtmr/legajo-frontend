@@ -93,23 +93,23 @@ describe('TraceBodySkeleton', () => {
     expect(screen.queryByText('Estado del proveedor')).not.toBeInTheDocument();
   });
 
-  it("for Jaccard, shows the fixed set/coefficient labels as real text, each token list sized to this corpus's own typical token count", () => {
+  it("for Jaccard, shows the fixed group and set-size labels as real text, each group sized to this corpus's own typical token count", () => {
     render(<TraceBodySkeleton algorithmId="jaccard" />);
 
-    expect(screen.getByText('Conjunto A')).toBeInTheDocument();
-    expect(screen.getByText('Conjunto B')).toBeInTheDocument();
-    expect(screen.getByText('Intersección')).toBeInTheDocument();
-    expect(screen.getByText('Unión')).toBeInTheDocument();
-    expect(screen.getByText('Coeficiente de Jaccard')).toBeInTheDocument();
+    expect(screen.getByText('Solo en A')).toBeInTheDocument();
+    expect(screen.getByText('En ambos')).toBeInTheDocument();
+    expect(screen.getByText('Solo en B')).toBeInTheDocument();
+    expect(screen.getByText('|S_A|')).toBeInTheDocument();
+    expect(screen.getByText('|S_B|')).toBeInTheDocument();
 
-    // Every token-list placeholder is an invisible sizer (the real corpus's
-    // own typical token count) under a `Skeleton` overlay — never a single
-    // fixed-width bar, which a long real token list would overflow well
-    // past on a full-screen page with no bounded viewport of its own.
-    const invisibleSizers = document.querySelectorAll('span.invisible');
-    expect(invisibleSizers).toHaveLength(4);
-    const tokenCounts = [...invisibleSizers].map((sizer) => sizer.textContent!.split(', ').length);
-    expect(tokenCounts.sort((a, b) => a - b)).toEqual([16, 100, 105, 180]);
+    // Every token-group placeholder is an invisible sizer of token-shaped
+    // chips (the real corpus's own typical count) under a `Skeleton`
+    // overlay — never a single fixed-width bar, which a long real token
+    // list would overflow well past.
+    const sizers = document.querySelectorAll('[data-token-sizer]');
+    expect(sizers).toHaveLength(3);
+    const tokenCounts = [...sizers].map((sizer) => sizer.children.length);
+    expect(tokenCounts.sort((a, b) => a - b)).toEqual([16, 80, 84]);
   });
 
   it('for TF-IDF/cosine, shows the corpus-size label and the terms region shell as real text, with a real-corpus-typical term row count', () => {

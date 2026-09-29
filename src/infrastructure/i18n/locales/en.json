@@ -173,13 +173,12 @@
         }
       },
       "jaccard": {
-        "setALabel": "Set A",
-        "setBLabel": "Set B",
-        "intersectionLabel": "Intersection",
-        "unionLabel": "Union",
-        "intersectionSizeLabel": "|A ∩ B|",
-        "unionSizeLabel": "|A ∪ B|",
-        "coefficientLabel": "Jaccard coefficient"
+        "onlyALabel": "Only in A",
+        "bothLabel": "In both",
+        "onlyBLabel": "Only in B",
+        "sizeALabel": "|S_A|",
+        "sizeBLabel": "|S_B|",
+        "degenerateReason": "Both sets are empty, so there is nothing to divide: the coefficient is defined as 1.0."
       },
       "tfidf": {
         "corpusSizeLabel": "Corpus size (N)",
