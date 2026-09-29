@@ -102,6 +102,18 @@ describe('CompareResultsList', () => {
     expect(within(row).getByText('1.234.567')).toBeInTheDocument();
   });
 
+  it('sets the raw value and the time apart, the time carrying its unit', () => {
+    renderList();
+
+    const row = screen.getByRole('button', { name: 'levenshtein' });
+    const raw = within(row).getByText('12');
+    const time = within(row).getByText('1.234.567');
+    expect(raw.parentElement).toBe(time.parentElement);
+    expect(raw.parentElement!.className).toContain('gap-4');
+    expect(time).toHaveTextContent('1.234.567ns');
+    expect(raw.className).toContain('text-ink-secondary');
+  });
+
   it('shows the cached marker only for a cached row', () => {
     renderList();
 
