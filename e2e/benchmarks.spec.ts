@@ -205,7 +205,7 @@ test.describe('benchmarks screen', () => {
     }
   });
 
-  test('at 1440px each chart fills its own card width instead of a fixed ~650px, and at 390px the page never scrolls horizontally', async ({
+  test('each chart fills its own card width, follows a narrower viewport, and at 390px the page never scrolls horizontally', async ({
     page,
   }) => {
     await page.setViewportSize({ width: 1440, height: 900 });
@@ -215,25 +215,34 @@ test.describe('benchmarks screen', () => {
     await expect(group).toBeVisible();
 
     // ResizeObserver settles asynchronously, so poll until the chart's own
-    // SVG has actually grown to fill its card's measured width -- well past
-    // the old fixed ~650px, and close to the card's own content width, not
-    // a coincidental match -- rather than asserting once right after the
-    // page loads.
+    // SVG has grown to its card's measured width rather than asserting once
+    // right after the page loads.
+    const svgWidthMatchesCard = async () => {
+      const groupBox = await group.boundingBox();
+      const svgWidthAttr = await group
+        .locator('svg.recharts-surface')
+        .first()
+        .getAttribute('width');
+      if (!groupBox || !svgWidthAttr) {
+        return 0;
+      }
+      const svgWidth = Number(svgWidthAttr);
+      return Math.abs(svgWidth - groupBox.width) < 20 ? svgWidth : 0;
+    };
+
+    await expect
+      .poll(svgWidthMatchesCard, { message: 'the chart SVG should fill its own card at 1440px' })
+      .toBeGreaterThan(400);
+    const wide = await svgWidthMatchesCard();
+
+    await page.setViewportSize({ width: 1100, height: 900 });
     await expect
       .poll(
         async () => {
-          const groupBox = await group.boundingBox();
-          const svgWidthAttr = await group
-            .locator('svg.recharts-surface')
-            .first()
-            .getAttribute('width');
-          if (!groupBox || !svgWidthAttr) {
-            return false;
-          }
-          const svgWidth = Number(svgWidthAttr);
-          return svgWidth > 900 && Math.abs(svgWidth - groupBox.width) < 20;
+          const width = await svgWidthMatchesCard();
+          return width > 0 && width < wide - 100;
         },
-        { message: 'the chart SVG should fill its own card width, not a fixed ~650px' },
+        { message: 'the chart should shrink with its card at 1100px' },
       )
       .toBe(true);
 
@@ -243,6 +252,78 @@ test.describe('benchmarks screen', () => {
         message: 'the page should never scroll horizontally at 390px',
       })
       .toBeLessThanOrEqual(390);
+  });
+
+  test('lays the cards out in three rows on a wide screen and stacks them in one column on a narrow one', async ({
+    page,
+  }) => {
+    const cardsOf = async (row: string) => {
+      const boxes = await page
+        .getByTestId(row)
+        .locator('> section')
+        .evaluateAll((sections) =>
+          sections.map((section) => {
+            const { x, y, width } = section.getBoundingClientRect();
+            return { x, y, width };
+          }),
+        );
+      return boxes;
+    };
+
+    for (const viewport of [
+      { width: 1440, height: 900 },
+      { width: 1024, height: 900 },
+    ]) {
+      await page.setViewportSize(viewport);
+      await page.goto('/benchmarks');
+      await expect(page.getByTestId('embedding-tile-1536')).toBeVisible();
+
+      const [machine, tiles] = await cardsOf('benchmarks-row-machine');
+      expect(
+        Math.abs(machine!.y - tiles!.y),
+        `${viewport.width}: machine and tiles share a row`,
+      ).toBeLessThan(2);
+      expect(machine!.width / tiles!.width, `${viewport.width}: 1.5fr / 1fr`).toBeGreaterThan(1.35);
+      expect(machine!.width / tiles!.width).toBeLessThan(1.65);
+
+      for (const row of ['benchmarks-row-curves', 'benchmarks-row-metrics']) {
+        const [left, right] = await cardsOf(row);
+        expect(Math.abs(left!.y - right!.y), `${viewport.width}: ${row} shares a row`).toBeLessThan(
+          2,
+        );
+        expect(Math.abs(left!.width - right!.width)).toBeLessThan(2);
+      }
+    }
+
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto('/benchmarks');
+    await expect(page.getByTestId('embedding-tile-1536')).toBeVisible();
+    for (const row of [
+      'benchmarks-row-machine',
+      'benchmarks-row-curves',
+      'benchmarks-row-metrics',
+    ]) {
+      const [first, second] = await cardsOf(row);
+      expect(second!.y, `390: ${row} stacks`).toBeGreaterThan(first!.y + 50);
+      expect(Math.abs(first!.width - second!.width)).toBeLessThan(2);
+    }
+  });
+
+  test('keeps the Escala control on the right of the page title on a wide screen', async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await page.goto('/benchmarks');
+
+    const title = page.getByRole('heading', { name: 'Benchmarks de rendimiento (JMH)' });
+    const scale = page.getByRole('radiogroup', { name: 'Escala' });
+    await expect(scale).toBeVisible();
+    const titleBox = (await title.boundingBox())!;
+    const scaleBox = (await scale.boundingBox())!;
+    expect(scaleBox.x).toBeGreaterThan(titleBox.x + titleBox.width);
+    expect(
+      Math.abs(scaleBox.y + scaleBox.height / 2 - (titleBox.y + titleBox.height / 2)),
+    ).toBeLessThan(40);
   });
 
   for (const width of [1440, 390]) {

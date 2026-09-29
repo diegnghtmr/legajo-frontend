@@ -107,6 +107,38 @@ describe('BenchmarksPage', () => {
     expect(container.querySelectorAll('[data-slot="skeleton"]').length).toBeGreaterThan(0);
   });
 
+  it('lays the skeleton out in the same three rows as the loaded page', () => {
+    vi.spyOn(benchmarksApi, 'fetchBenchmarks').mockReturnValue(new Promise(() => {}));
+
+    renderWithProviders(<BenchmarksPage />);
+
+    const machine = screen.getByTestId('benchmarks-row-machine');
+    expect(within(machine).getByText('Máquina de referencia')).toBeInTheDocument();
+    expect(
+      within(machine).getByRole('heading', { name: 'Primitivas de embeddings (O(d))' }),
+    ).toBeInTheDocument();
+
+    const curves = screen.getByTestId('benchmarks-row-curves');
+    expect(within(curves).getAllByTestId('benchmark-chart-skeleton')).toHaveLength(2);
+
+    const metrics = screen.getByTestId('benchmarks-row-metrics');
+    expect(within(metrics).getAllByTestId('benchmark-chart-skeleton')).toHaveLength(1);
+    expect(
+      within(metrics).getByRole('heading', { name: 'Objetivos de rendimiento (SLO)' }),
+    ).toBeInTheDocument();
+  });
+
+  it('keeps the scale control’s place in the header while loading, as a placeholder', () => {
+    vi.spyOn(benchmarksApi, 'fetchBenchmarks').mockReturnValue(new Promise(() => {}));
+
+    renderWithProviders(<BenchmarksPage />);
+
+    const header = screen.getByTestId('benchmarks-header');
+    expect(within(header).getByText('Escala')).toBeInTheDocument();
+    expect(header.querySelectorAll('[data-slot="skeleton"]')).toHaveLength(2);
+    expect(within(header).queryByRole('radiogroup')).not.toBeInTheDocument();
+  });
+
   it('shows the mapped error message when the query rejects', async () => {
     vi.spyOn(benchmarksApi, 'fetchBenchmarks').mockRejectedValue({
       kind: 'network',
@@ -189,5 +221,53 @@ describe('BenchmarksPage', () => {
     for (const group of chartGroups()) {
       expect(group).toHaveAttribute('data-scale', 'log');
     }
+  });
+
+  it('puts the scale control on the right of the page header, labelled Escala', async () => {
+    vi.spyOn(benchmarksApi, 'fetchBenchmarks').mockResolvedValue(REPORT);
+
+    renderWithProviders(<BenchmarksPage />);
+
+    const scale = await screen.findByRole('radiogroup', { name: 'Escala' });
+    const header = screen.getByTestId('benchmarks-header');
+    expect(
+      within(header).getByRole('heading', { name: 'Benchmarks de rendimiento (JMH)' }),
+    ).toBeInTheDocument();
+    expect(scale).toBeInTheDocument();
+    expect(header.className).toContain('sm:justify-between');
+    // The control is the header's last child, so it ends up on the right.
+    expect(header.lastElementChild).toContainElement(scale);
+  });
+
+  it('arranges the loaded page in three rows: machine and tiles, the two curve cards, the metrics curve and the SLO card', async () => {
+    vi.spyOn(benchmarksApi, 'fetchBenchmarks').mockResolvedValue(REPORT);
+
+    renderWithProviders(<BenchmarksPage />);
+    await screen.findByRole('radiogroup', { name: 'Escala' });
+
+    const machine = screen.getByTestId('benchmarks-row-machine');
+    expect(
+      within(machine).getByRole('heading', { name: 'Máquina de referencia' }),
+    ).toBeInTheDocument();
+    expect(within(machine).getByTestId('embedding-tile-384')).toBeInTheDocument();
+    // 1.5fr / 1fr from the desktop breakpoint, one column below it.
+    expect(machine.className).toContain('grid-cols-1');
+    expect(machine.className).toContain('lg:grid-cols-[1.5fr_1fr]');
+
+    const curves = screen.getByTestId('benchmarks-row-curves');
+    expect(
+      within(curves).getByRole('group', { name: 'Algoritmos clásicos por pares' }),
+    ).toBeInTheDocument();
+    expect(
+      within(curves).getByRole('group', { name: 'Enlaces jerárquicos (HAC)' }),
+    ).toBeInTheDocument();
+    expect(curves.className).toContain('lg:grid-cols-2');
+
+    const metrics = screen.getByTestId('benchmarks-row-metrics');
+    expect(
+      within(metrics).getByRole('group', { name: 'Métricas internas de agrupamiento' }),
+    ).toBeInTheDocument();
+    expect(within(metrics).getByRole('table', { name: /clásicas por pares/ })).toBeInTheDocument();
+    expect(metrics.className).toContain('lg:grid-cols-2');
   });
 });

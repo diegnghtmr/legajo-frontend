@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useState, type ReactNode } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 
@@ -8,6 +8,7 @@ import { Alert } from '../../shared/components/Alert';
 import { PanelHeader } from '../../shared/components/Panel';
 import { SegmentedControl, type SegmentedOption } from '../../shared/components/SegmentedControl';
 import { Skeleton } from '../../shared/components/ui/skeleton';
+import { cn } from '../../shared/lib/cn';
 import {
   BenchmarkCurveChart,
   BenchmarkCurveChartSkeleton,
@@ -32,12 +33,59 @@ type Scale = 'linear' | 'log-log';
  * control with nothing to control. */
 const SCALE_OPTION_SKELETON_COUNT = 2;
 
+/** One column, then the given columns from the desktop breakpoint. */
+const ROW_CLASS = 'grid grid-cols-1 gap-6';
+const SCALE_LABEL_ID = 'benchmarks-scale-label';
+
+/** The three curve groups: their card title, x-axis title and fixed families
+ * (known before the request resolves, so the skeleton mirrors them exactly). */
+const CURVE_GROUPS = {
+  pairwise: {
+    titleKey: 'benchmarks.curves.pairwiseTitle',
+    xAxisKey: 'benchmarks.curves.xAxisLength',
+    families: PAIRWISE_CLASSIC_FAMILIES,
+  },
+  hac: {
+    titleKey: 'benchmarks.curves.hacTitle',
+    xAxisKey: 'benchmarks.curves.xAxisN',
+    families: HAC_LINKAGE_FAMILIES,
+  },
+  metrics: {
+    titleKey: 'benchmarks.curves.internalMetricsTitle',
+    xAxisKey: 'benchmarks.curves.xAxisN',
+    families: INTERNAL_METRIC_FAMILIES,
+  },
+} as const;
+
+type CurveGroupId = keyof typeof CURVE_GROUPS;
+
 function ScaleSegmentedSkeleton() {
   return (
     <div className="inline-flex items-center gap-0.5 rounded-md border border-hairline bg-paper-sunken p-[3px]">
       {Array.from({ length: SCALE_OPTION_SKELETON_COUNT }, (_unused, index) => (
         <Skeleton key={index} className="h-8 w-16 rounded-btn" />
       ))}
+    </div>
+  );
+}
+
+/** The page title on the left and the `Escala` control on the right (below it
+ * on a narrow screen), so one control drives every curve card. */
+function PageHeader({ control }: { control: ReactNode }) {
+  const { t } = useTranslation();
+
+  return (
+    <div
+      data-testid="benchmarks-header"
+      className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between"
+    >
+      <PanelHeader eyebrow={t('benchmarks.eyebrow')} title={t('benchmarks.title')} />
+      <div className="mb-3 flex items-center gap-3">
+        <span id={SCALE_LABEL_ID} className="text-label text-ink-secondary">
+          {t('benchmarks.scaleGroupLabel')}
+        </span>
+        {control}
+      </div>
     </div>
   );
 }
@@ -57,11 +105,55 @@ function slopesByFamily(
   );
 }
 
+function CurveSkeleton({ id }: { id: CurveGroupId }) {
+  const { t } = useTranslation();
+  const group = CURVE_GROUPS[id];
+  const title = t(group.titleKey);
+
+  return (
+    <BenchmarkCurveChartSkeleton
+      title={title}
+      xAxisLabel={t(group.xAxisKey)}
+      yAxisLabel={t('benchmarks.curves.yAxisLabel')}
+      slopeTableCaption={t('benchmarks.curves.slopeTableCaption', { group: title })}
+      families={group.families}
+    />
+  );
+}
+
+function CurveCard({
+  id,
+  report,
+  scale,
+}: {
+  id: CurveGroupId;
+  report: BenchmarkReportResponse;
+  scale: Scale;
+}) {
+  const { t } = useTranslation();
+  const group = CURVE_GROUPS[id];
+  const title = t(group.titleKey);
+
+  return (
+    <BenchmarkCurveChart
+      title={title}
+      xAxisLabel={t(group.xAxisKey)}
+      yAxisLabel={t('benchmarks.curves.yAxisLabel')}
+      series={seriesForFamilies(report.results, group.families)}
+      slopes={slopesByFamily(report.slopes, group.families)}
+      scale={scale}
+      dataTableCaption={t('benchmarks.curves.dataTableCaption', { group: title })}
+      slopeTableCaption={t('benchmarks.curves.slopeTableCaption', { group: title })}
+    />
+  );
+}
+
 /**
- * Benchmarks screen (`GET /benchmarks`): the reference harness, one curve
- * chart per group (pairwise classic, HAC linkages, internal metrics), one
- * tile per embedding dimension, and SLO evidence. Reads the versioned JMH
- * numbers as-is — this screen never runs a benchmark or recomputes a slope.
+ * Benchmarks screen (`GET /benchmarks`), in three rows from the desktop
+ * breakpoint and one column below it: the reference machine beside the
+ * embedding tiles (1.5fr / 1fr); the pairwise and HAC curve cards; the metrics
+ * curve card beside the SLO evidence. Reads the versioned JMH numbers as-is —
+ * this screen never runs a benchmark or recomputes a slope.
  */
 export function BenchmarksPage() {
   const { t } = useTranslation();
@@ -82,44 +174,41 @@ export function BenchmarksPage() {
 
   return (
     <div data-testid="benchmarks-page" className="flex flex-col gap-6">
-      <PanelHeader eyebrow={t('benchmarks.eyebrow')} title={t('benchmarks.title')} />
+      <PageHeader
+        control={
+          query.data ? (
+            <SegmentedControl
+              options={scaleOptions}
+              value={scale}
+              onChange={setScale}
+              aria-labelledby={SCALE_LABEL_ID}
+            />
+          ) : (
+            <ScaleSegmentedSkeleton />
+          )
+        }
+      />
 
       {query.isPending && (
         <>
           <p role="status" className="sr-only">
             {t('benchmarks.loading')}
           </p>
-          <HarnessPanelSkeleton />
-          <ScaleSegmentedSkeleton />
-          <BenchmarkCurveChartSkeleton
-            title={t('benchmarks.curves.pairwiseTitle')}
-            xAxisLabel={t('benchmarks.curves.xAxisLength')}
-            yAxisLabel={t('benchmarks.curves.yAxisLabel')}
-            slopeTableCaption={t('benchmarks.curves.slopeTableCaption', {
-              group: t('benchmarks.curves.pairwiseTitle'),
-            })}
-            families={PAIRWISE_CLASSIC_FAMILIES}
-          />
-          <BenchmarkCurveChartSkeleton
-            title={t('benchmarks.curves.hacTitle')}
-            xAxisLabel={t('benchmarks.curves.xAxisN')}
-            yAxisLabel={t('benchmarks.curves.yAxisLabel')}
-            slopeTableCaption={t('benchmarks.curves.slopeTableCaption', {
-              group: t('benchmarks.curves.hacTitle'),
-            })}
-            families={HAC_LINKAGE_FAMILIES}
-          />
-          <BenchmarkCurveChartSkeleton
-            title={t('benchmarks.curves.internalMetricsTitle')}
-            xAxisLabel={t('benchmarks.curves.xAxisN')}
-            yAxisLabel={t('benchmarks.curves.yAxisLabel')}
-            slopeTableCaption={t('benchmarks.curves.slopeTableCaption', {
-              group: t('benchmarks.curves.internalMetricsTitle'),
-            })}
-            families={INTERNAL_METRIC_FAMILIES}
-          />
-          <EmbeddingTilesSkeleton />
-          <SloSectionSkeleton />
+          <div
+            data-testid="benchmarks-row-machine"
+            className={cn(ROW_CLASS, 'lg:grid-cols-[1.5fr_1fr]')}
+          >
+            <HarnessPanelSkeleton />
+            <EmbeddingTilesSkeleton />
+          </div>
+          <div data-testid="benchmarks-row-curves" className={cn(ROW_CLASS, 'lg:grid-cols-2')}>
+            <CurveSkeleton id="pairwise" />
+            <CurveSkeleton id="hac" />
+          </div>
+          <div data-testid="benchmarks-row-metrics" className={cn(ROW_CLASS, 'lg:grid-cols-2')}>
+            <CurveSkeleton id="metrics" />
+            <SloSectionSkeleton />
+          </div>
         </>
       )}
       {query.isError && (
@@ -132,63 +221,21 @@ export function BenchmarksPage() {
 
       {query.data && (
         <>
-          <HarnessPanel harness={query.data.harness} />
-
-          <SegmentedControl
-            options={scaleOptions}
-            value={scale}
-            onChange={setScale}
-            aria-label={t('benchmarks.scaleGroupLabel')}
-          />
-
-          <BenchmarkCurveChart
-            title={t('benchmarks.curves.pairwiseTitle')}
-            xAxisLabel={t('benchmarks.curves.xAxisLength')}
-            yAxisLabel={t('benchmarks.curves.yAxisLabel')}
-            series={seriesForFamilies(query.data.results, PAIRWISE_CLASSIC_FAMILIES)}
-            slopes={slopesByFamily(query.data.slopes, PAIRWISE_CLASSIC_FAMILIES)}
-            scale={scale}
-            dataTableCaption={t('benchmarks.curves.dataTableCaption', {
-              group: t('benchmarks.curves.pairwiseTitle'),
-            })}
-            slopeTableCaption={t('benchmarks.curves.slopeTableCaption', {
-              group: t('benchmarks.curves.pairwiseTitle'),
-            })}
-          />
-
-          <BenchmarkCurveChart
-            title={t('benchmarks.curves.hacTitle')}
-            xAxisLabel={t('benchmarks.curves.xAxisN')}
-            yAxisLabel={t('benchmarks.curves.yAxisLabel')}
-            series={seriesForFamilies(query.data.results, HAC_LINKAGE_FAMILIES)}
-            slopes={slopesByFamily(query.data.slopes, HAC_LINKAGE_FAMILIES)}
-            scale={scale}
-            dataTableCaption={t('benchmarks.curves.dataTableCaption', {
-              group: t('benchmarks.curves.hacTitle'),
-            })}
-            slopeTableCaption={t('benchmarks.curves.slopeTableCaption', {
-              group: t('benchmarks.curves.hacTitle'),
-            })}
-          />
-
-          <BenchmarkCurveChart
-            title={t('benchmarks.curves.internalMetricsTitle')}
-            xAxisLabel={t('benchmarks.curves.xAxisN')}
-            yAxisLabel={t('benchmarks.curves.yAxisLabel')}
-            series={seriesForFamilies(query.data.results, INTERNAL_METRIC_FAMILIES)}
-            slopes={slopesByFamily(query.data.slopes, INTERNAL_METRIC_FAMILIES)}
-            scale={scale}
-            dataTableCaption={t('benchmarks.curves.dataTableCaption', {
-              group: t('benchmarks.curves.internalMetricsTitle'),
-            })}
-            slopeTableCaption={t('benchmarks.curves.slopeTableCaption', {
-              group: t('benchmarks.curves.internalMetricsTitle'),
-            })}
-          />
-
-          <EmbeddingTiles results={query.data.results} />
-
-          <SloSection results={query.data.results} />
+          <div
+            data-testid="benchmarks-row-machine"
+            className={cn(ROW_CLASS, 'lg:grid-cols-[1.5fr_1fr]')}
+          >
+            <HarnessPanel harness={query.data.harness} />
+            <EmbeddingTiles results={query.data.results} />
+          </div>
+          <div data-testid="benchmarks-row-curves" className={cn(ROW_CLASS, 'lg:grid-cols-2')}>
+            <CurveCard id="pairwise" report={query.data} scale={scale} />
+            <CurveCard id="hac" report={query.data} scale={scale} />
+          </div>
+          <div data-testid="benchmarks-row-metrics" className={cn(ROW_CLASS, 'lg:grid-cols-2')}>
+            <CurveCard id="metrics" report={query.data} scale={scale} />
+            <SloSection results={query.data.results} />
+          </div>
         </>
       )}
     </div>
