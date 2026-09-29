@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import type { LinkageId } from '../../infrastructure/schemas/clustering';
-import { orderLinkagesForMetricsTable, secondaryFixedKColumns } from './metricsTable';
+import { fixedKOptions, orderLinkagesForMetricsTable } from './metricsTable';
 
 function evaluationWithKeys(meanSilhouetteKeys: readonly string[]): {
   cophenetic: number;
@@ -51,31 +51,29 @@ describe('orderLinkagesForMetricsTable', () => {
   });
 });
 
-describe('secondaryFixedKColumns', () => {
-  it('returns every fixed k other than k_ref, ascending', () => {
+describe('fixedKOptions', () => {
+  it('returns every fixed k the response carries, ascending, k_ref included', () => {
     const results = [{ evaluation: evaluationWithKeys(['2', '3', '4', '5']) }];
 
-    expect(secondaryFixedKColumns(results, 4)).toEqual([2, 3, 5]);
+    expect(fixedKOptions(results)).toEqual([2, 3, 4, 5]);
   });
 
-  it('unions keys across every linkage, so one linkage missing a key never narrows the columns', () => {
+  it('unions keys across every linkage, so one linkage missing a key never narrows the selector', () => {
     const results = [
       { evaluation: evaluationWithKeys(['2', '3', '4']) },
       { evaluation: evaluationWithKeys(['2', '3', '4', '5']) },
     ];
 
-    expect(secondaryFixedKColumns(results, 4)).toEqual([2, 3, 5]);
+    expect(fixedKOptions(results)).toEqual([2, 3, 4, 5]);
   });
 
   it('sorts numerically, not lexicographically (2 before 10)', () => {
-    const results = [{ evaluation: evaluationWithKeys(['2', '4', '10']) }];
+    const results = [{ evaluation: evaluationWithKeys(['10', '2', '4']) }];
 
-    expect(secondaryFixedKColumns(results, 4)).toEqual([2, 10]);
+    expect(fixedKOptions(results)).toEqual([2, 4, 10]);
   });
 
-  it('returns an empty array when the only fixed k is k_ref itself', () => {
-    const results = [{ evaluation: evaluationWithKeys(['2']) }];
-
-    expect(secondaryFixedKColumns(results, 2)).toEqual([]);
+  it('is empty for a response with no evaluated cut', () => {
+    expect(fixedKOptions([{ evaluation: evaluationWithKeys([]) }])).toEqual([]);
   });
 });

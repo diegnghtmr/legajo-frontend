@@ -15,14 +15,13 @@ import { EmptyState } from '../../shared/components/EmptyState';
 import { NumberStepper } from '../../shared/components/NumberStepper';
 import { Panel } from '../../shared/components/Panel';
 import {
-  SEGMENTED_ITEM_SIZE_CLASS_NAMES,
   SegmentedControl,
+  SegmentedControlSkeleton,
   type SegmentedOption,
 } from '../../shared/components/SegmentedControl';
 import { Badge } from '../../shared/components/ui/badge';
 import { Button } from '../../shared/components/ui/button';
 import { Skeleton } from '../../shared/components/ui/skeleton';
-import { cn } from '../../shared/lib/cn';
 import { cutKRange, isValidCutK } from './cutSchema';
 import { ParameterColumn } from './ParameterColumn';
 
@@ -317,19 +316,14 @@ function CutColumnSkeleton({ sampleSizeEstimate }: { sampleSizeEstimate: number 
         <span className="text-label text-ink-secondary">
           {t('clustering.cutForm.linkageGroupLabel')}
         </span>
-        <div className="inline-flex items-center gap-0.5 self-start rounded-md border border-hairline bg-paper-sunken p-[3px]">
-          {LINKAGE_IDS.map((linkageId) => (
-            <span
-              key={linkageId}
-              className={cn(
-                'rounded-btn px-3 py-1.5 font-mono text-label font-medium text-ink-secondary pointer-coarse:flex pointer-coarse:min-h-11 pointer-coarse:min-w-11 pointer-coarse:items-center pointer-coarse:justify-center',
-                SEGMENTED_ITEM_SIZE_CLASS_NAMES.sm,
-              )}
-            >
+        <SegmentedControlSkeleton
+          size="sm"
+          labels={LINKAGE_IDS.map((linkageId) => (
+            <span key={linkageId} className="font-mono">
               {linkageId}
             </span>
           ))}
-        </div>
+        />
       </div>
 
       {hasRange ? (

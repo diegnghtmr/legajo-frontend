@@ -1,4 +1,5 @@
 import { render, screen, within } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { describe, expect, it } from 'vitest';
 
 import type { ClusteringResponse } from '../../infrastructure/api/clustering';
@@ -57,22 +58,39 @@ const DIFFERING_RANKING: ClusteringRankingResult = {
 };
 
 describe('ClusteringMetricsTable', () => {
-  it('renders one row per linkage, in the fixed declaration order regardless of input order', () => {
-    const reversed = [...results()].reverse();
-
+  const renderTable = (props: Partial<React.ComponentProps<typeof ClusteringMetricsTable>> = {}) =>
     render(
       <ClusteringMetricsTable
-        results={reversed}
+        results={results()}
         kRef={4}
         ranking={DIFFERING_RANKING}
         representation="tfidf-cosine"
         sampleSize={6}
+        {...props}
       />,
     );
 
-    const rows = screen.getAllByRole('row').slice(1); // drop the header row
-    const order = rows.map((row) => row.getAttribute('data-testid'));
-    expect(order).toEqual([
+  it('titles the card and reads the better direction in each metric header', () => {
+    renderTable();
+
+    expect(
+      screen.getByRole('heading', { name: 'Comparación de métricas por enlace' }),
+    ).toBeInTheDocument();
+    expect(screen.getAllByRole('columnheader').map((header) => header.textContent)).toEqual([
+      'Enlace',
+      'Cofenética ↑',
+      'Silueta media (k = 4) ↑',
+      'Davies–Bouldin (k = 4) ↓',
+      'Líder',
+    ]);
+  });
+
+  it('renders one row per linkage, in the fixed declaration order regardless of input order', () => {
+    const [single, complete, average, ward] = results();
+    renderTable({ results: [ward!, average!, complete!, single!] });
+
+    const rows = screen.getAllByRole('row').slice(1);
+    expect(rows.map((row) => row.getAttribute('data-testid'))).toEqual([
       'metrics-row-single',
       'metrics-row-complete',
       'metrics-row-average',
@@ -80,265 +98,342 @@ describe('ClusteringMetricsTable', () => {
     ]);
   });
 
-  it('shows the cophenetic, silhouette at k_ref and Davies-Bouldin at k_ref values for each row', () => {
-    render(
-      <ClusteringMetricsTable
-        results={results()}
-        kRef={4}
-        ranking={DIFFERING_RANKING}
-        representation="tfidf-cosine"
-        sampleSize={6}
-      />,
-    );
+  it('stacks the display name over the mono id', () => {
+    renderTable();
 
-    // formatMetricValue's own 4-decimal convention (formatMetricValue.ts).
+    const row = screen.getByTestId('metrics-row-complete');
+    const name = within(row).getByText('Complete');
+    const id = within(row).getByText('complete');
+    expect(id).toHaveClass('font-mono');
+    expect(name.parentElement).toBe(id.parentElement);
+  });
+
+  it('shows the cophenetic value and the silhouette and Davies-Bouldin values at k_ref, three decimals', () => {
+    renderTable();
+
     const singleRow = screen.getByTestId('metrics-row-single');
-    expect(within(singleRow).getByText('0.9500')).toBeInTheDocument();
-    expect(within(singleRow).getByText('0.2000')).toBeInTheDocument();
-    expect(within(singleRow).getByText('0.5000')).toBeInTheDocument();
+    expect(within(singleRow).getByText('0.950')).toBeInTheDocument();
+    expect(within(singleRow).getByText('0.200')).toBeInTheDocument();
+    expect(within(singleRow).getByText('0.500')).toBeInTheDocument();
   });
 
-  it('marks the tree fidelity and partition leaders with their own eyebrows when they differ', () => {
-    render(
-      <ClusteringMetricsTable
-        results={results()}
-        kRef={4}
-        ranking={DIFFERING_RANKING}
-        representation="tfidf-cosine"
-        sampleSize={6}
-      />,
-    );
-
-    expect(within(screen.getByTestId('metrics-row-single')).getByText('Árbol')).toBeInTheDocument();
-    expect(
-      within(screen.getByTestId('metrics-row-complete')).getByText('Partición'),
-    ).toBeInTheDocument();
-    expect(screen.queryByText('Líder')).not.toBeInTheDocument();
-  });
-
-  it('marks the single generic leader when the tree and partition leaders coincide', () => {
-    const sameLeaderRanking: ClusteringRankingResult = {
-      copheneticTieSet: ['single'],
-      bestTreeFidelity: 'single',
-      bestPartitionAtKRef: 'single',
-      leadersDiffer: false,
-    };
-
-    render(
-      <ClusteringMetricsTable
-        results={results()}
-        kRef={4}
-        ranking={sameLeaderRanking}
-        representation="tfidf-cosine"
-        sampleSize={6}
-      />,
-    );
-
-    expect(within(screen.getByTestId('metrics-row-single')).getByText('Líder')).toBeInTheDocument();
-    expect(screen.queryByText('Árbol')).not.toBeInTheDocument();
-    expect(screen.queryByText('Partición')).not.toBeInTheDocument();
-  });
-
-  it('shows "no definido" for a null Davies-Bouldin value at k_ref', () => {
-    render(
-      <ClusteringMetricsTable
-        results={results()}
-        kRef={4}
-        ranking={DIFFERING_RANKING}
-        representation="tfidf-cosine"
-        sampleSize={6}
-      />,
-    );
+  it('shows "no definido" for a null Davies-Bouldin value at the viewed k', () => {
+    renderTable();
 
     expect(
       within(screen.getByTestId('metrics-row-ward')).getByText('no definido'),
     ).toBeInTheDocument();
   });
 
-  it('renders the secondary columns for every fixed k other than k_ref, with their values', () => {
-    render(
-      <ClusteringMetricsTable
-        results={results()}
-        kRef={4}
-        ranking={DIFFERING_RANKING}
-        representation="tfidf-cosine"
-        sampleSize={6}
-      />,
-    );
+  it('draws each bar relative to the column best: value / max for the higher-is-better columns', () => {
+    renderTable();
 
-    expect(screen.getByText('Silueta media (k=2)')).toBeInTheDocument();
-    expect(screen.getByText('Silueta media (k=3)')).toBeInTheDocument();
-    expect(screen.getByText('Silueta media (k=5)')).toBeInTheDocument();
-    // k_ref (4) has its own lead column only, not a second, duplicate
-    // secondary column repeating the exact same header text.
-    expect(screen.getAllByText('Silueta media (k=4)')).toHaveLength(1);
-
-    // 0.15 appears twice on this row (silhouette and Davies-Bouldin at
-    // k=2 share the same fixture value) -- both cells render it.
-    const singleRow = screen.getByTestId('metrics-row-single');
-    expect(within(singleRow).getAllByText('0.1500')).toHaveLength(2);
-  });
-
-  it('shows the cophenetic tie set sentence when it has more than one member', () => {
-    const tieRanking: ClusteringRankingResult = {
-      copheneticTieSet: ['single', 'complete', 'ward'],
-      bestTreeFidelity: 'single',
-      bestPartitionAtKRef: 'complete',
-      leadersDiffer: true,
+    const fill = (linkage: string, column: number) => {
+      const cell = within(screen.getByTestId(`metrics-row-${linkage}`)).getAllByRole('cell')[
+        column
+      ]!;
+      return (cell.querySelector('[data-slot="metric-bar"]')!.firstElementChild as HTMLElement)
+        .style.width;
     };
-
-    render(
-      <ClusteringMetricsTable
-        results={results()}
-        kRef={4}
-        ranking={tieRanking}
-        representation="tfidf-cosine"
-        sampleSize={6}
-      />,
-    );
-
-    expect(screen.getByText(/single, complete, ward/)).toBeInTheDocument();
+    // Cophenetic (column 1): single 0.95 is the best.
+    expect(fill('single', 1)).toBe('100%');
+    expect(parseFloat(fill('complete', 1))).toBeCloseTo((0.5 / 0.95) * 100, 5);
+    // Silhouette at k = 4 (column 2): complete 0.9 is the best.
+    expect(fill('complete', 2)).toBe('100%');
+    expect(parseFloat(fill('single', 2))).toBeCloseTo((0.2 / 0.9) * 100, 5);
   });
 
-  it('shows the "requires all four" explanation and no eyebrows when ranking is undefined', () => {
-    render(
-      <ClusteringMetricsTable
-        results={results()}
-        kRef={4}
-        ranking={undefined}
-        representation="tfidf-cosine"
-        sampleSize={6}
-      />,
-    );
+  it('draws the lower-is-better Davies-Bouldin bar as min / value, with a 4% stub for an undefined value', () => {
+    renderTable();
 
-    expect(
-      screen.getByText('Los líderes se muestran cuando se comparan los cuatro enlaces.'),
-    ).toBeInTheDocument();
-    expect(screen.queryByText('Árbol')).not.toBeInTheDocument();
-    expect(screen.queryByText('Partición')).not.toBeInTheDocument();
-    expect(screen.queryByText('Líder')).not.toBeInTheDocument();
+    const fill = (linkage: string) => {
+      const cell = within(screen.getByTestId(`metrics-row-${linkage}`)).getAllByRole('cell')[3]!;
+      return (cell.querySelector('[data-slot="metric-bar"]')!.firstElementChild as HTMLElement)
+        .style.width;
+    };
+    // Best (smallest) is complete's 0.1.
+    expect(fill('complete')).toBe('100%');
+    expect(parseFloat(fill('single'))).toBeCloseTo((0.1 / 0.5) * 100, 5);
+    expect(fill('ward')).toBe('4%');
   });
 
-  it('renders no table, but still shows the requires-all-four explanation, when k_ref cannot be resolved (linkages disagree on n)', () => {
-    render(
-      <ClusteringMetricsTable
-        results={results()}
-        kRef={undefined}
-        ranking={undefined}
-        representation="tfidf-cosine"
-        sampleSize={undefined}
-      />,
-    );
+  it('adds a sparkline to the silhouette and Davies-Bouldin cells only, one point per k the response carries', () => {
+    renderTable();
+
+    const cells = within(screen.getByTestId('metrics-row-single')).getAllByRole('cell');
+    expect(cells[1]!.querySelector('svg')).toBeNull();
+    expect(cells[2]!.querySelectorAll('svg circle')).toHaveLength(4);
+    expect(cells[3]!.querySelectorAll('svg circle')).toHaveLength(4);
+    expect(cells[2]).toHaveTextContent(/Valores por k: k = 2: 0\.150, k = 3: 0\.250/);
+  });
+
+  describe('"Ver en k" selector', () => {
+    it('offers every k the response carries, marks k_ref as "(ref)" and starts on it', () => {
+      renderTable();
+
+      const group = screen.getByRole('radiogroup', { name: 'Ver en k' });
+      const radios = within(group).getAllByRole('radio');
+      expect(radios.map((radio) => radio.textContent)).toEqual(['2', '3', '4 (ref)', '5']);
+      expect(within(group).getByRole('radio', { name: '4 (ref)' })).toHaveAttribute(
+        'aria-checked',
+        'true',
+      );
+    });
+
+    it('re-reads the silhouette and Davies-Bouldin columns at the chosen k', async () => {
+      const user = userEvent.setup();
+      renderTable();
+
+      await user.click(screen.getByRole('radio', { name: '3' }));
+
+      expect(screen.getByRole('columnheader', { name: 'Silueta media (k = 3) ↑' })).toBeVisible();
+      expect(screen.getByRole('columnheader', { name: 'Davies–Bouldin (k = 3) ↓' })).toBeVisible();
+      const singleRow = screen.getByTestId('metrics-row-single');
+      // k = 3 fixture values are 0.25 for both metrics.
+      expect(within(singleRow).getAllByText('0.250').length).toBeGreaterThanOrEqual(2);
+      expect(within(singleRow).queryByText('0.950')).toBeInTheDocument();
+    });
+
+    it('moves the larger sparkline point to the chosen k', async () => {
+      const user = userEvent.setup();
+      renderTable();
+      const cell = () => within(screen.getByTestId('metrics-row-single')).getAllByRole('cell')[2]!;
+      const activeIndex = () =>
+        Array.from(cell().querySelectorAll('circle')).findIndex(
+          (circle) => circle.getAttribute('r') === '2.5',
+        );
+      expect(activeIndex()).toBe(2);
+
+      await user.click(screen.getByRole('radio', { name: '5' }));
+
+      expect(activeIndex()).toBe(3);
+    });
+
+    it('never moves the leaders: they are always computed at k_ref', async () => {
+      const user = userEvent.setup();
+      renderTable();
+
+      await user.click(screen.getByRole('radio', { name: '2' }));
+
+      expect(within(screen.getByTestId('metrics-row-single')).getByText('Árbol')).toBeVisible();
+      expect(
+        within(screen.getByTestId('metrics-row-complete')).getByText('Partición'),
+      ).toBeVisible();
+    });
+
+    it('is left out when the response carries no evaluated cut', () => {
+      renderTable({
+        results: results().map((result) => ({
+          ...result,
+          evaluation: { ...result.evaluation, meanSilhouette: {}, daviesBouldin: {} },
+        })),
+      });
+
+      expect(screen.queryByRole('radiogroup', { name: 'Ver en k' })).not.toBeInTheDocument();
+    });
+  });
+
+  describe('leaders', () => {
+    it('marks the tree leader "Árbol" and, when it differs, the partition leader "Partición"', () => {
+      renderTable();
+
+      expect(within(screen.getByTestId('metrics-row-single')).getByText('Árbol')).toBeVisible();
+      expect(
+        within(screen.getByTestId('metrics-row-complete')).getByText('Partición'),
+      ).toBeVisible();
+    });
+
+    it('marks a leader with the ink glyph badge and its icon', () => {
+      renderTable();
+
+      const badge = within(screen.getByTestId('metrics-row-single'))
+        .getByText('Árbol')
+        .closest('[data-slot="leader-badge"]');
+      expect(badge).not.toBeNull();
+      expect(badge!.querySelector('svg.lucide-network')).not.toBeNull();
+    });
+
+    it('marks only "Árbol" when the tree and partition leaders are the same linkage', () => {
+      renderTable({
+        ranking: {
+          copheneticTieSet: ['single'],
+          bestTreeFidelity: 'single',
+          bestPartitionAtKRef: 'single',
+          leadersDiffer: false,
+        },
+      });
+
+      expect(within(screen.getByTestId('metrics-row-single')).getByText('Árbol')).toBeVisible();
+      expect(screen.queryByText('Partición', { selector: 'span' })).not.toBeInTheDocument();
+    });
+
+    it('shows a dash in the rows that lead nothing', () => {
+      renderTable();
+
+      const cells = within(screen.getByTestId('metrics-row-average')).getAllByRole('cell');
+      expect(cells[4]).toHaveTextContent('—');
+    });
+
+    it('marks no leader and asks for all four linkages when the ranking is undefined', () => {
+      renderTable({ ranking: undefined });
+
+      expect(screen.queryByText('Árbol')).not.toBeInTheDocument();
+      expect(screen.queryByText('Partición', { selector: 'span' })).not.toBeInTheDocument();
+      expect(
+        screen.getByText('Los líderes se muestran cuando se comparan los cuatro enlaces.'),
+      ).toBeInTheDocument();
+      expect(
+        within(screen.getByTestId('metrics-row-single')).getAllByRole('cell')[4],
+      ).toHaveTextContent('—');
+    });
+  });
+
+  describe('footer', () => {
+    it('states the leaders in plain language, computed at k_ref', () => {
+      renderTable();
+
+      expect(screen.getByTestId('metrics-leader-line')).toHaveTextContent(
+        'Árbol: mejor cofenética (single). Partición: mejor silueta en k_ref = 4 (complete).',
+      );
+    });
+
+    it('adds the cophenetic tie set when it has more than one member', () => {
+      renderTable({
+        ranking: {
+          copheneticTieSet: ['single', 'complete', 'ward'],
+          bestTreeFidelity: 'single',
+          bestPartitionAtKRef: 'complete',
+          leadersDiffer: true,
+        },
+      });
+
+      expect(screen.getByTestId('metrics-leader-line')).toHaveTextContent(
+        /Empate en cofenética \(dentro de 1e-3\): single, complete, ward\./,
+      );
+    });
+
+    it('shows the representation, distance-basis and sample-size caveat as a quiet line', () => {
+      renderTable();
+
+      const caveat = screen.getByText(/Tamaño muestral del corpus cargado: n = 6/);
+      expect(caveat).toHaveClass('text-ink-muted');
+      expect(caveat).toHaveTextContent('tfidf-cosine');
+      expect(caveat).toHaveTextContent('D = 1 − coseno; Ward opera sobre 2·D.');
+    });
+
+    it('omits the caveat when the sample size is undefined', () => {
+      renderTable({ kRef: undefined, ranking: undefined, sampleSize: undefined });
+
+      expect(screen.queryByText(/n = /)).not.toBeInTheDocument();
+    });
+  });
+
+  it('renders no table, but still explains that leaders need all four linkages, when k_ref cannot be resolved', () => {
+    renderTable({ kRef: undefined, ranking: undefined, sampleSize: undefined });
 
     expect(screen.queryByRole('table')).not.toBeInTheDocument();
+    expect(screen.queryByRole('radiogroup', { name: 'Ver en k' })).not.toBeInTheDocument();
     expect(
       screen.getByText('Los líderes se muestran cuando se comparan los cuatro enlaces.'),
     ).toBeInTheDocument();
   });
 
-  it('omits the sample-size caveat line when the sample size is undefined', () => {
-    render(
-      <ClusteringMetricsTable
-        results={results()}
-        kRef={undefined}
-        ranking={undefined}
-        representation="tfidf-cosine"
-        sampleSize={undefined}
-      />,
-    );
+  it('scrolls inside its card when it does not fit, in a labelled focusable region', () => {
+    renderTable();
 
-    expect(screen.queryByText(/n = /)).not.toBeInTheDocument();
+    const region = screen.getByRole('region', { name: 'Comparación de métricas por enlace' });
+    expect(region).toHaveAttribute('tabindex', '0');
+    expect(region.className).toContain('overflow-x-auto');
+    // Positioned, so the hidden sparkline sentences are clipped with it.
+    expect(region.className).toContain('relative');
   });
 
-  it('shows the representation, distance-basis and sample-size caveat line', () => {
-    render(
-      <ClusteringMetricsTable
-        results={results()}
-        kRef={4}
-        ranking={DIFFERING_RANKING}
-        representation="tfidf-cosine"
-        sampleSize={6}
-      />,
-    );
+  it('staggers the rows in, by row index', () => {
+    renderTable();
 
-    expect(screen.getByText(/n = 6/)).toBeInTheDocument();
+    const rows = screen.getAllByRole('row').slice(1);
+    expect(rows.map((row) => row.style.getPropertyValue('--i'))).toEqual(['0', '1', '2', '3']);
+    for (const row of rows) {
+      expect(row.className).toContain('enter-rise');
+    }
   });
 });
 
 describe('ClusteringMetricsTableSkeleton', () => {
-  it('renders the real column headers, k included, from the sample-size estimate', () => {
-    render(
-      <ClusteringMetricsTableSkeleton
-        linkageIds={['single', 'complete']}
-        representation="tfidf-cosine"
-        sampleSizeEstimate={20}
-      />,
-    );
-
-    // n = 20 → k_ref = 4, so the three other fixed cuts {2, 3, 5} get a
-    // secondary column pair each, beside one lead pair and the linkage and
-    // cophenetic columns: 4 + 3*2 = 10. Every header is the same plain text
-    // the loaded table shows, so it wraps at the same point.
-    expect(screen.getAllByRole('columnheader')).toHaveLength(10);
-    for (const k of [4, 2, 3, 5]) {
-      expect(screen.getByRole('columnheader', { name: `Silueta media (k=${k})` })).toBeVisible();
-      expect(screen.getByRole('columnheader', { name: `Davies–Bouldin (k=${k})` })).toBeVisible();
-    }
-    expect(screen.queryByText(/k pendiente/)).not.toBeInTheDocument();
-  });
-
-  it('reserves no secondary column pair for a sample size too small for any fixed cut but k_ref', () => {
-    render(
-      <ClusteringMetricsTableSkeleton
-        linkageIds={['single', 'complete']}
-        representation="tfidf-cosine"
-        sampleSizeEstimate={3}
-      />,
-    );
-
-    // n = 3 → k_ref = min(4, 2) = 2, and no other fixed cut in {2,3,4,5}
-    // fits `k <= n - 1 = 2` — the linkage, cophenetic and one lead pair
-    // only: 4 columns, no secondary group.
-    expect(screen.getAllByRole('columnheader')).toHaveLength(4);
-  });
-
-  it('reserves an invisible eyebrow line on exactly two of the four rows — the typical well-formed count (a tree leader and a different partition leader)', () => {
+  const renderSkeleton = (
+    props: Partial<React.ComponentProps<typeof ClusteringMetricsTableSkeleton>> = {},
+  ) =>
     render(
       <ClusteringMetricsTableSkeleton
         linkageIds={['single', 'complete', 'average', 'ward']}
         representation="tfidf-cosine"
         sampleSizeEstimate={20}
+        {...props}
       />,
     );
 
-    const rows = screen.getAllByRole('row').slice(1); // drop the header row
-    expect(rows).toHaveLength(4);
-    const rowsWithEyebrow = rows.filter(
-      (row) => within(row).queryAllByText('Partición').length > 0,
-    );
-    expect(rowsWithEyebrow).toHaveLength(2);
-    for (const row of rowsWithEyebrow) {
-      expect(within(row).getByText('Partición')).toHaveClass('invisible');
-    }
+  it('renders the real column headers, k included, from the sample-size estimate', () => {
+    renderSkeleton();
+
+    expect(screen.getAllByRole('columnheader').map((header) => header.textContent)).toEqual([
+      'Enlace',
+      'Cofenética ↑',
+      'Silueta media (k = 4) ↑',
+      'Davies–Bouldin (k = 4) ↓',
+      'Líder',
+    ]);
+    expect(screen.queryByText(/k pendiente/)).not.toBeInTheDocument();
   });
 
-  it("reserves each row's own real display-name width, not the shorter mono id alone", () => {
-    render(
-      <ClusteringMetricsTableSkeleton
-        linkageIds={['single', 'complete']}
-        representation="tfidf-cosine"
-        sampleSizeEstimate={20}
-      />,
-    );
+  it('falls back to the "k pending" wording when no k_ref can be estimated', () => {
+    renderSkeleton({ sampleSizeEstimate: 2 });
 
-    // The mono id is the real, visible text; a same-named invisible sizer
-    // beside it reserves the real `linkageDisplayName`'s own width
-    // ("Single linkage"/"Complete linkage"), which the id alone measures
-    // well short of at a narrow column width.
-    expect(screen.getByText('single')).toBeInTheDocument();
+    expect(
+      screen.getByRole('columnheader', { name: 'Silueta media (k pendiente) ↑' }),
+    ).toBeVisible();
+    expect(
+      screen.getByRole('columnheader', { name: 'Davies–Bouldin (k pendiente) ↓' }),
+    ).toBeVisible();
+  });
+
+  it('shows the real title and a "Ver en k" placeholder over the estimated cuts, k_ref marked "(ref)", holding no radio', () => {
+    renderSkeleton();
+
+    expect(
+      screen.getByRole('heading', { name: 'Comparación de métricas por enlace' }),
+    ).toBeInTheDocument();
+    expect(screen.getByText('Ver en k')).toBeInTheDocument();
+    for (const label of ['2', '3', '4 (ref)', '5']) {
+      expect(screen.getByText(label)).toBeInTheDocument();
+    }
+    expect(screen.queryByRole('radio')).not.toBeInTheDocument();
+  });
+
+  it('offers only the cuts that fit a small corpus', () => {
+    renderSkeleton({ sampleSizeEstimate: 4 });
+
+    expect(screen.getByText('3 (ref)')).toBeInTheDocument();
+    expect(screen.queryByText('4 (ref)')).not.toBeInTheDocument();
+    expect(screen.queryByText('5')).not.toBeInTheDocument();
+  });
+
+  it('renders one row per selected linkage with its real mono id, the name line reserved', () => {
+    renderSkeleton({ linkageIds: ['single', 'ward'] });
+
+    const rows = screen.getAllByRole('row').slice(1);
+    expect(rows).toHaveLength(2);
+    expect(screen.getByTestId('metrics-row-skeleton-single')).toHaveTextContent('single');
     expect(screen.getByText('Single linkage')).toHaveClass('invisible');
-    expect(screen.getByText('complete')).toBeInTheDocument();
-    expect(screen.getByText('Complete linkage')).toHaveClass('invisible');
+    expect(screen.getByTestId('metrics-row-skeleton-ward')).toHaveTextContent('ward');
+  });
+
+  it('reserves the footer lines with sizers built from typical sentences', () => {
+    renderSkeleton();
+
+    const sizers = document.querySelectorAll('p.invisible');
+    expect(sizers).toHaveLength(2);
+    expect(sizers[0]).toHaveTextContent(/mejor cofenética/);
+    expect(sizers[1]).toHaveTextContent(/Tamaño muestral del corpus cargado: n = 20/);
   });
 });
 
@@ -374,7 +469,7 @@ describe('metrics table column layout', () => {
     );
     const skeletonLayout = layoutOf(skeleton.container);
 
-    expect(loadedLayout.cols).toHaveLength(10);
+    expect(loadedLayout.cols).toHaveLength(5);
     expect(loadedLayout.tableClassName).toContain('table-fixed');
     expect(loadedLayout.minWidth).not.toBe('');
     expect(skeletonLayout).toEqual(loadedLayout);

@@ -137,8 +137,12 @@ test.describe('clustering screen', () => {
 
     // The cophenetic leader (single) is marked "Árbol"; the differing
     // silhouette-at-k_ref leader (complete) is marked "Partición".
-    await expect(page.getByText('Árbol', { exact: true })).toBeVisible();
-    await expect(page.getByText('Partición', { exact: true })).toBeVisible();
+    await expect(
+      page.getByTestId('metrics-row-single').getByText('Árbol', { exact: true }),
+    ).toBeVisible();
+    await expect(
+      page.getByTestId('metrics-row-complete').getByText('Partición', { exact: true }),
+    ).toBeVisible();
 
     // Ward's k_ref Davies-Bouldin is null.
     await expect(page.getByText('no definido').first()).toBeVisible();
@@ -420,6 +424,32 @@ test.describe('clustering screen', () => {
     expect(columnBoxAfter).not.toBeNull();
     expect(columnBoxAfter!.width).toBeCloseTo(columnBoxBefore!.width, 0);
     expect((await submitButton.boundingBox())!.x).toBeCloseTo(buttonBox!.x, 0);
+  });
+
+  test('"Ver en k" re-reads the silhouette and Davies–Bouldin columns while the leaders stay at k_ref', async ({
+    page,
+  }) => {
+    await page.goto('/clustering');
+    await expect(page.getByRole('heading', { name: 'Single' })).toBeVisible();
+
+    const selector = page.getByRole('radiogroup', { name: 'Ver en k' });
+    await expect(selector.getByRole('radio', { name: '4 (ref)' })).toHaveAttribute(
+      'aria-checked',
+      'true',
+    );
+    await expect(page.getByRole('columnheader', { name: 'Silueta media (k = 4) ↑' })).toBeVisible();
+
+    await selector.getByRole('radio', { name: '2' }).click();
+
+    await expect(page.getByRole('columnheader', { name: 'Silueta media (k = 2) ↑' })).toBeVisible();
+    await expect(
+      page.getByRole('columnheader', { name: 'Davies–Bouldin (k = 2) ↓' }),
+    ).toBeVisible();
+    await expect(
+      page.getByTestId('metrics-row-single').getByText('Árbol', { exact: true }),
+    ).toBeVisible();
+    // Every k's value stays available as text, whatever k is viewed.
+    await expect(page.getByTestId('metrics-row-single')).toContainText('Valores por k: k = 2:');
   });
 
   test('the summary bar pins under the top bar once the parameter panel scrolls away, and "Editar" returns to the panel', async ({

@@ -1,6 +1,12 @@
 import type { KeyboardEvent, ReactNode } from 'react';
 
-import { ToggleGroup, ToggleGroupItem } from './ui/toggle-group';
+import { cn } from '../lib/cn';
+import {
+  TOGGLE_GROUP_CLASS_NAME,
+  TOGGLE_GROUP_ITEM_CLASS_NAME,
+  ToggleGroup,
+  ToggleGroupItem,
+} from './ui/toggle-group';
 
 export interface SegmentedOption<TValue extends string> {
   value: TValue;
@@ -124,5 +130,38 @@ export function SegmentedControl<TValue extends string>({
         </ToggleGroupItem>
       ))}
     </ToggleGroup>
+  );
+}
+
+export interface SegmentedControlSkeletonProps {
+  /** One label per option, in order (the option that will be checked included). */
+  labels: readonly ReactNode[];
+  size?: SegmentedSize;
+}
+
+/**
+ * The box of a `SegmentedControl` before its options are known: the same
+ * track and option classes, with plain non-interactive labels, so swapping it
+ * for the real control causes no layout shift. Holds nothing focusable.
+ */
+export function SegmentedControlSkeleton({
+  labels,
+  size = 'default',
+}: SegmentedControlSkeletonProps) {
+  return (
+    <div className={cn(TOGGLE_GROUP_CLASS_NAME, 'self-start')}>
+      {labels.map((label, index) => (
+        <span
+          key={index}
+          className={cn(
+            TOGGLE_GROUP_ITEM_CLASS_NAME,
+            'pointer-coarse:flex pointer-coarse:items-center pointer-coarse:justify-center',
+            SEGMENTED_ITEM_SIZE_CLASS_NAMES[size],
+          )}
+        >
+          {label}
+        </span>
+      ))}
+    </div>
   );
 }

@@ -3,7 +3,7 @@ import userEvent from '@testing-library/user-event';
 import { useState } from 'react';
 import { describe, expect, it, vi } from 'vitest';
 
-import { SegmentedControl } from './SegmentedControl';
+import { SegmentedControl, SegmentedControlSkeleton } from './SegmentedControl';
 
 type Family = 'all' | 'classic' | 'ai';
 
@@ -234,5 +234,21 @@ describe('SegmentedControl', () => {
     const item = screen.getByRole('radio', { name: 'All' });
     expect(item.className).toContain('px-2.5');
     expect(item.className).not.toContain('px-3');
+  });
+});
+
+describe('SegmentedControlSkeleton', () => {
+  it('shows every label on the real track, holding no radio and nothing focusable', () => {
+    const { container } = render(
+      <SegmentedControlSkeleton labels={['2', '3', '4 (ref)']} size="sm" />,
+    );
+
+    for (const label of ['2', '3', '4 (ref)']) {
+      expect(screen.getByText(label)).toBeInTheDocument();
+    }
+    expect(screen.queryByRole('radio')).not.toBeInTheDocument();
+    expect(container.querySelector('button, [tabindex]')).toBeNull();
+    expect(container.firstElementChild!.className).toContain('bg-paper-sunken');
+    expect(screen.getByText('2').className).toContain('px-2.5');
   });
 });

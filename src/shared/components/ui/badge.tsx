@@ -20,6 +20,10 @@ const badgeVariants = cva(
         ai: 'bg-ai-soft text-ai-foreground',
         // Read-only hatched tag (`aplicado`, `k = 3`): mono text on a
         // paper-sunken hatch with a hairline-strong ring, no family color.
+        // Leader tag: an ink glyph block (the caller's first child) then the
+        // label, on paper ringed in ink. The label is ink semibold.
+        leader:
+          'h-6 gap-[7px] overflow-hidden rounded-btn py-0 pr-2 pl-0 font-semibold text-ink bg-paper-raised shadow-[inset_0_0_0_1px_var(--color-ink)]',
         marker:
           'h-5 rounded-sm py-0 pr-[7px] pl-[5px] font-mono text-[10.5px] font-normal text-ink-secondary bg-[repeating-linear-gradient(135deg,var(--color-paper-sunken)_0_3px,var(--color-paper-raised)_3px_6px)] shadow-[inset_0_0_0_1px_var(--color-hairline-strong)]',
       },

@@ -246,11 +246,16 @@
     "sampleSizeCaveat": "Representación: {{representation}}. D = 1 − coseno; Ward opera sobre 2·D. Tamaño muestral del corpus cargado: n = {{count}}. La correlación cofenética tiende a favorecer al enlace promedio; por eso se muestran ambos líderes cuando difieren.",
     "metrics": {
       "cophenetic": "Cofenética",
-      "silhouetteAtK": "Silueta media (k={{k}})",
-      "daviesBouldinAtK": "Davies–Bouldin (k={{k}})",
-      "silhouetteAtKPending": "Silueta media (k pendiente)",
-      "daviesBouldinAtKPending": "Davies–Bouldin (k pendiente)",
-      "undefinedValue": "no definido"
+      "undefinedValue": "no definido",
+      "sparklineSummary": "Valores por k: {{list}}.",
+      "copheneticHeader": "Cofenética ↑",
+      "silhouetteHeader": "Silueta media (k = {{k}}) ↑",
+      "daviesBouldinHeader": "Davies–Bouldin (k = {{k}}) ↓",
+      "silhouetteHeaderPending": "Silueta media (k pendiente) ↑",
+      "daviesBouldinHeaderPending": "Davies–Bouldin (k pendiente) ↓",
+      "viewAtK": "Ver en k",
+      "refOption": "{{k}} (ref)",
+      "title": "Comparación de métricas por enlace"
     },
     "metricsTable": {
       "linkageHeader": "Enlace",
@@ -317,7 +322,8 @@
         "cut": "corte {{linkage}} k = {{k}}",
         "edit": "Editar"
       }
-    }
+    },
+    "leaderLine": "<strong>Árbol</strong>: mejor cofenética ({{tree}}). <strong>Partición</strong>: mejor silueta en k_ref = {{kRef}} ({{partition}})."
   },
   "benchmarks": {
     "eyebrow": "Benchmarks",

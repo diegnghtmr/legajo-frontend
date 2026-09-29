@@ -1,33 +1,39 @@
-import { Fragment } from 'react';
-import { useTranslation } from 'react-i18next';
+import { useId, useState, type CSSProperties } from 'react';
+import { Trans, useTranslation } from 'react-i18next';
 
 import type { ClusteringResponse } from '../../infrastructure/api/clustering';
 import type { LinkageId, RepresentationId } from '../../infrastructure/schemas/clustering';
 import { Panel } from '../../shared/components/Panel';
+import {
+  SegmentedControl,
+  SegmentedControlSkeleton,
+  type SegmentedOption,
+} from '../../shared/components/SegmentedControl';
 import { Skeleton } from '../../shared/components/ui/skeleton';
-import { cn } from '../../shared/lib/cn';
-import { formatMetricValue } from './formatMetricValue';
+import { LeaderBadge } from './LeaderBadge';
+import { barFraction, columnBest, metricSeries } from './metricBars';
+import { MetricCell } from './MetricCell';
 import {
   METRICS_TABLE_CLASS_NAME,
+  METRICS_TABLE_MIN_WIDTH,
   MetricsTableColumns,
-  metricsTableMinWidth,
 } from './MetricsTableColumns';
-import { orderLinkagesForMetricsTable, secondaryFixedKColumns } from './metricsTable';
+import { fixedKOptions, orderLinkagesForMetricsTable } from './metricsTable';
 import { kRefForSampleSize, type ClusteringRankingResult } from './ranking';
 
 /** `kRefForSampleSize`'s own fixed-cut set (`{2,3,4,5} ∩ [2, n-1]`) —
- * mirrored here only to lay out the skeleton's own secondary column group
- * (see `estimatedSecondaryColumnKs` below), never to compute a real
- * value. */
+ * mirrored here only to lay out the skeleton's own "view at k" selector,
+ * never to compute a real value. */
 const FIXED_CUTS = [2, 3, 4, 5];
 
+/** The stagger index stops growing here: later rows share the last delay. */
+const MAX_STAGGER_INDEX = 11;
+
+const HEADER_CELL_CLASS_NAME = 'p-2 text-eyebrow uppercase tracking-wide text-ink-secondary';
+
 /** The real per-linkage display names, captured against the reference
- * corpus (the same shape the parameter panel's own skeleton mirrors) — used only to size this column's own invisible
- * sizer below. The bare mono id is markedly shorter ("complete" vs
- * "Complete linkage"), and at some viewport widths the real, longer name
- * wraps onto a second line inside this column while the id alone never
- * would — under-reserving this row's own real height exactly where a
- * leader's own eyebrow line does not already cover the difference. */
+ * corpus: a fixed "<Name> linkage" shape for each canonical id. Used only to
+ * size the skeleton's invisible name line to the real one. */
 const TYPICAL_LINKAGE_DISPLAY_NAME: Record<string, string> = {
   single: 'Single linkage',
   complete: 'Complete linkage',
@@ -35,55 +41,25 @@ const TYPICAL_LINKAGE_DISPLAY_NAME: Record<string, string> = {
   ward: 'Ward linkage',
 };
 
-/**
- * The secondary (non-`k_ref`) fixed cuts the metrics table is likely to
- * show, from a sample-size estimate alone: every fixed cut in
- * `kRefForSampleSize`'s own set that both fits the estimated sample size
- * and is not `k_ref` itself. The real set instead comes from whichever
- * fixed cuts the response's own linkages actually carry
- * (`secondaryFixedKColumns`) — an already-malformed or degenerate response
- * can legitimately carry fewer, so this is a sizing aid for the common,
- * well-formed case, never a substitute for that real set. Used to count the
- * secondary column pairs and to label each of their headers.
- */
-function estimatedSecondaryColumnKs(sampleSizeEstimate: number): number[] {
+/** Two linkage ids of typical length for the skeleton's leader-line sizer. */
+const TYPICAL_TREE_LEADER = 'average';
+const TYPICAL_PARTITION_LEADER = 'complete';
+
+/** The fixed cuts a corpus of `sampleSizeEstimate` documents is likely to
+ * carry: the sizing aid behind the skeleton's selector, never a real value. */
+function estimatedFixedKs(sampleSizeEstimate: number): number[] {
   if (!Number.isInteger(sampleSizeEstimate) || sampleSizeEstimate < 3) {
     return [];
   }
-  const kRef = kRefForSampleSize(sampleSizeEstimate);
-  return FIXED_CUTS.filter((k) => k <= sampleSizeEstimate - 1 && k !== kRef);
+  return FIXED_CUTS.filter((k) => k <= sampleSizeEstimate - 1);
 }
 
 /** `kRefForSampleSize`'s own estimated value, or `undefined` below its own
- * valid domain — used to label the lead column pair. */
+ * valid domain — used to label the columns before the response is known. */
 function estimatedKRef(sampleSizeEstimate: number): number | undefined {
   return Number.isInteger(sampleSizeEstimate) && sampleSizeEstimate >= 3
     ? kRefForSampleSize(sampleSizeEstimate)
     : undefined;
-}
-
-/** One metrics-table header cell of the skeleton: the real header text, k
- * included, from the sample-size estimate. The labels are known before the
- * response, and a plain text node directly in the `<th>` wraps exactly like
- * the loaded header does. Only when no `k_ref` can be estimated does it fall
- * back to the "k pending" wording. */
-function MetricHeaderCell({
-  pendingLabel,
-  realLabelKey,
-  k,
-  className,
-}: {
-  pendingLabel: string;
-  realLabelKey: 'clustering.metrics.silhouetteAtK' | 'clustering.metrics.daviesBouldinAtK';
-  k: number | undefined;
-  className?: string;
-}) {
-  const { t } = useTranslation();
-  return (
-    <th scope="col" className={className}>
-      {k === undefined ? pendingLabel : t(realLabelKey, { k })}
-    </th>
-  );
 }
 
 export interface ClusteringMetricsTableProps {
@@ -99,24 +75,15 @@ export interface ClusteringMetricsTableProps {
   sampleSize: number | undefined;
 }
 
-const HIGHLIGHT_CLASS_NAME = 'bg-paper-sunken';
-
-function daviesBouldinCellText(value: number | null | undefined, undefinedLabel: string): string {
-  return value === null || value === undefined ? undefinedLabel : formatMetricValue(value);
-}
-
-function silhouetteCellText(value: number | undefined, undefinedLabel: string): string {
-  return value === undefined ? undefinedLabel : formatMetricValue(value);
-}
-
 /**
- * The clustering metrics comparison table: one row per linkage in the fixed
- * declaration order, lead columns for Cophenetic and for
- * Silhouette/Davies–Bouldin at `k_ref` (highlighted), and a secondary column
- * group for every other fixed cut the response carries (`metricsTable.ts`).
- * This only renders the backend's own already-computed numbers
- * (`ranking.ts`'s leader rule, `formatMetricValue`'s own formatting) — it
- * never recomputes a metric itself.
+ * The metrics comparison card: a "view at k" selector over the cuts the
+ * response carries, one row per linkage in the fixed declaration order
+ * (cophenetic, then silhouette and Davies–Bouldin at the viewed k, each with
+ * an inline bar; the last two with a sparkline across k), the leader badges,
+ * and a footer with the plain-language leader line and the caveat. Leaders
+ * are always computed at `k_ref`, whatever k is viewed. This only renders the
+ * backend's own already-computed numbers (`ranking.ts`'s leader rule,
+ * `formatMetricValue`'s own formatting) — it never recomputes a metric.
  */
 export function ClusteringMetricsTable({
   results,
@@ -126,47 +93,210 @@ export function ClusteringMetricsTable({
   sampleSize,
 }: ClusteringMetricsTableProps) {
   const { t } = useTranslation();
+  const titleId = useId();
+  const viewLabelId = useId();
+  const [viewKChoice, setViewKChoice] = useState<number | undefined>(undefined);
   const orderedResults = orderLinkagesForMetricsTable(results);
-  const undefinedLabel = t('clustering.metrics.undefinedValue');
+  const kOptions = fixedKOptions(results);
+  const viewK = viewKChoice !== undefined && kOptions.includes(viewKChoice) ? viewKChoice : kRef;
+
+  const kSelectorOptions: readonly SegmentedOption<string>[] = kOptions.map((k) => ({
+    value: String(k),
+    label: (
+      <span className="font-mono">{k === kRef ? t('clustering.metrics.refOption', { k }) : k}</span>
+    ),
+  }));
 
   return (
     <Panel>
-      {kRef !== undefined && (
+      <div className="mb-3 flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
+        <h2 id={titleId} className="text-title font-semibold text-ink">
+          {t('clustering.metrics.title')}
+        </h2>
+        {kRef !== undefined && kOptions.length > 0 && viewK !== undefined && (
+          <div className="flex items-center gap-2">
+            <span id={viewLabelId} className="text-label text-ink-secondary">
+              {t('clustering.metrics.viewAtK')}
+            </span>
+            <SegmentedControl
+              size="sm"
+              options={kSelectorOptions}
+              value={String(viewK)}
+              onChange={(value) => setViewKChoice(Number(value))}
+              aria-labelledby={viewLabelId}
+            />
+          </div>
+        )}
+      </div>
+
+      {kRef !== undefined && viewK !== undefined && (
         <ClusteringMetricsTableBody
           orderedResults={orderedResults}
-          results={results}
-          kRef={kRef}
           ranking={ranking}
-          undefinedLabel={undefinedLabel}
+          viewK={viewK}
         />
       )}
 
-      {ranking ? (
-        ranking.copheneticTieSet.length > 1 && (
-          <p className="mt-3 text-body text-ink-secondary">
-            {t('clustering.tieSet', { linkages: ranking.copheneticTieSet.join(', ') })}
-          </p>
-        )
-      ) : (
-        <p className="mt-3 text-body text-ink-secondary">
-          {t('clustering.leadersRequireAllLinkages')}
+      <div className="mt-3 flex flex-col gap-1.5 border-t border-hairline pt-3">
+        <p data-testid="metrics-leader-line" className="text-label text-ink-secondary">
+          {ranking && kRef !== undefined ? (
+            <>
+              <Trans
+                i18nKey="clustering.leaderLine"
+                values={{
+                  tree: ranking.bestTreeFidelity,
+                  kRef,
+                  partition: ranking.bestPartitionAtKRef,
+                }}
+                components={{ strong: <strong className="font-semibold text-ink" /> }}
+              />
+              {ranking.copheneticTieSet.length > 1 && (
+                <> {t('clustering.tieSet', { linkages: ranking.copheneticTieSet.join(', ') })}</>
+              )}
+            </>
+          ) : (
+            t('clustering.leadersRequireAllLinkages')
+          )}
         </p>
-      )}
 
-      {sampleSize !== undefined && (
-        <p className="mt-3 text-body text-ink-muted">
-          {t('clustering.sampleSizeCaveat', { representation, count: sampleSize })}
-        </p>
-      )}
+        {sampleSize !== undefined && (
+          <p className="text-label text-ink-muted">
+            {t('clustering.sampleSizeCaveat', { representation, count: sampleSize })}
+          </p>
+        )}
+      </div>
     </Panel>
   );
 }
 
+interface ClusteringMetricsTableBodyProps {
+  orderedResults: ClusteringResponse;
+  ranking: ClusteringRankingResult | undefined;
+  viewK: number;
+}
+
+/** The table itself, split out so the parent only needs a resolved `kRef`
+ * to render it — the explanatory text below stays independent of whether a
+ * `kRef` could be resolved at all. */
+function ClusteringMetricsTableBody({
+  orderedResults,
+  ranking,
+  viewK,
+}: ClusteringMetricsTableBodyProps) {
+  const { t } = useTranslation();
+  const viewKey = String(viewK);
+  const silhouettes = orderedResults.map((result) => result.evaluation.meanSilhouette[viewKey]);
+  const daviesBouldins = orderedResults.map((result) => result.evaluation.daviesBouldin[viewKey]);
+  const bestCophenetic = columnBest(
+    orderedResults.map((result) => result.evaluation.cophenetic),
+    'higher',
+  );
+  const bestSilhouette = columnBest(silhouettes, 'higher');
+  const bestDaviesBouldin = columnBest(daviesBouldins, 'lower');
+
+  return (
+    <div className="mb-3">
+      {/* `relative`: the visually hidden sparkline sentences are absolutely
+          positioned, and only a positioned scroll container clips them —
+          otherwise a sentence in a scrolled-away column widens the page. */}
+      <div
+        role="region"
+        aria-label={t('clustering.metricsTable.regionLabel')}
+        tabIndex={0}
+        className="relative overflow-x-auto rounded-md focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus"
+      >
+        <table className={METRICS_TABLE_CLASS_NAME} style={{ minWidth: METRICS_TABLE_MIN_WIDTH }}>
+          <MetricsTableColumns />
+          <caption className="sr-only">{t('clustering.metricsTable.caption')}</caption>
+          <thead>
+            <tr className="border-b border-hairline bg-paper-sunken">
+              <th scope="col" className={HEADER_CELL_CLASS_NAME}>
+                {t('clustering.metricsTable.linkageHeader')}
+              </th>
+              <th scope="col" className={HEADER_CELL_CLASS_NAME}>
+                {t('clustering.metrics.copheneticHeader')}
+              </th>
+              <th scope="col" className={HEADER_CELL_CLASS_NAME}>
+                {t('clustering.metrics.silhouetteHeader', { k: viewK })}
+              </th>
+              <th scope="col" className={HEADER_CELL_CLASS_NAME}>
+                {t('clustering.metrics.daviesBouldinHeader', { k: viewK })}
+              </th>
+              <th scope="col" className={HEADER_CELL_CLASS_NAME}>
+                {t('clustering.leader')}
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            {orderedResults.map((result, index) => {
+              const silhouette = silhouettes[index];
+              const daviesBouldin = daviesBouldins[index];
+              const isTreeLeader = ranking?.bestTreeFidelity === result.linkageId;
+              const isPartitionLeader =
+                ranking?.leadersDiffer === true && ranking.bestPartitionAtKRef === result.linkageId;
+
+              return (
+                <tr
+                  key={result.linkageId}
+                  data-testid={`metrics-row-${result.linkageId}`}
+                  className="enter-rise border-b border-hairline"
+                  style={{ '--i': Math.min(index, MAX_STAGGER_INDEX) } as CSSProperties}
+                >
+                  <td className="p-2">
+                    <div className="flex flex-col">
+                      <span className="text-body font-medium text-ink">
+                        {result.linkageDisplayName}
+                      </span>
+                      <span className="font-mono text-mono text-ink-muted">{result.linkageId}</span>
+                    </div>
+                  </td>
+                  <td className="p-2">
+                    <MetricCell
+                      value={result.evaluation.cophenetic}
+                      fraction={barFraction(result.evaluation.cophenetic, bestCophenetic, 'higher')}
+                      index={index}
+                    />
+                  </td>
+                  <td className="p-2">
+                    <MetricCell
+                      value={silhouette ?? null}
+                      fraction={barFraction(silhouette, bestSilhouette, 'higher')}
+                      index={index}
+                      series={metricSeries(result.evaluation.meanSilhouette)}
+                      activeK={viewK}
+                    />
+                  </td>
+                  <td className="p-2">
+                    <MetricCell
+                      value={daviesBouldin ?? null}
+                      fraction={barFraction(daviesBouldin, bestDaviesBouldin, 'lower')}
+                      index={index}
+                      series={metricSeries(result.evaluation.daviesBouldin)}
+                      activeK={viewK}
+                    />
+                  </td>
+                  <td className="p-2">
+                    {isTreeLeader || isPartitionLeader ? (
+                      <div className="flex flex-wrap gap-1.5">
+                        {isTreeLeader && <LeaderBadge kind="tree" />}
+                        {isPartitionLeader && <LeaderBadge kind="partition" />}
+                      </div>
+                    ) : (
+                      <span className="text-ink-muted">—</span>
+                    )}
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
 export interface ClusteringMetricsTableSkeletonProps {
-  /** One row per selected linkage — the secondary per-k column group
-   * depends on the backend's own response and stays out of this skeleton,
-   * unlike the four lead columns this page already knows before the
-   * request resolves. */
+  /** One row per selected linkage. */
   linkageIds: readonly LinkageId[];
   /** Already known before the request resolves (the page's own current
    * selection) — used only to size the invisible sizer below, never shown. */
@@ -183,95 +313,88 @@ export interface ClusteringMetricsTableSkeletonProps {
   sampleSizeEstimate: number;
 }
 
-/** Mirrors `ClusteringMetricsTableBody`'s own region, table shell and lead
- * columns (Enlace, Cofenética, Silueta, Davies–Bouldin), one skeleton row
- * per selected linkage. */
+/** A skeleton block laid over an invisible sizer, so the line keeps the
+ * height (and wrap) of the real text it stands in for. */
+function SizedSkeletonLine({ sizer }: { sizer: string }) {
+  return (
+    <div className="relative">
+      <p aria-hidden="true" className="invisible text-label">
+        {sizer}
+      </p>
+      <Skeleton className="absolute inset-x-0 top-0 h-[17px]" />
+    </div>
+  );
+}
+
+/** Mirrors `ClusteringMetricsTable`'s own card: the real title and "view at
+ * k" label, the table shell and real headers, one skeleton row per selected
+ * linkage, and the footer's two lines. */
 export function ClusteringMetricsTableSkeleton({
   linkageIds,
   representation,
   sampleSizeEstimate,
 }: ClusteringMetricsTableSkeletonProps) {
   const { t } = useTranslation();
-  const secondaryKs = estimatedSecondaryColumnKs(sampleSizeEstimate);
   const kRefEstimate = estimatedKRef(sampleSizeEstimate);
-  const silhouettePendingLabel = t('clustering.metrics.silhouetteAtKPending');
-  const daviesBouldinPendingLabel = t('clustering.metrics.daviesBouldinAtKPending');
+  const ks = estimatedFixedKs(sampleSizeEstimate);
+  const leaderSizer = t('clustering.leaderLine', {
+    tree: TYPICAL_TREE_LEADER,
+    kRef: kRefEstimate ?? '',
+    partition: TYPICAL_PARTITION_LEADER,
+  }).replace(/<\/?strong>/g, '');
 
   return (
     <Panel>
+      <div className="mb-3 flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
+        <h2 className="text-title font-semibold text-ink">{t('clustering.metrics.title')}</h2>
+        {ks.length > 0 && (
+          <div className="flex items-center gap-2">
+            <span className="text-label text-ink-secondary">{t('clustering.metrics.viewAtK')}</span>
+            <SegmentedControlSkeleton
+              size="sm"
+              labels={ks.map((k) => (
+                <span key={k} className="font-mono">
+                  {k === kRefEstimate ? t('clustering.metrics.refOption', { k }) : k}
+                </span>
+              ))}
+            />
+          </div>
+        )}
+      </div>
+
       <div className="mb-3">
         <div className="overflow-hidden rounded-md">
-          <table
-            className={METRICS_TABLE_CLASS_NAME}
-            style={{ minWidth: metricsTableMinWidth(secondaryKs.length) }}
-          >
-            <MetricsTableColumns secondaryPairCount={secondaryKs.length} />
+          <table className={METRICS_TABLE_CLASS_NAME} style={{ minWidth: METRICS_TABLE_MIN_WIDTH }}>
+            <MetricsTableColumns />
             <caption className="sr-only">{t('clustering.metricsTable.caption')}</caption>
             <thead>
               <tr className="border-b border-hairline bg-paper-sunken">
-                <th
-                  scope="col"
-                  className="p-2 text-eyebrow uppercase tracking-wide text-ink-secondary"
-                >
+                <th scope="col" className={HEADER_CELL_CLASS_NAME}>
                   {t('clustering.metricsTable.linkageHeader')}
                 </th>
-                <th
-                  scope="col"
-                  className="p-2 text-eyebrow uppercase tracking-wide text-ink-secondary"
-                >
-                  {t('clustering.metrics.cophenetic')}
+                <th scope="col" className={HEADER_CELL_CLASS_NAME}>
+                  {t('clustering.metrics.copheneticHeader')}
                 </th>
                 {/* `k_ref` comes from the sample-size estimate (the corpus
                  * size, which is what the response will report), so the
                  * header reads exactly as the loaded one does. */}
-                <MetricHeaderCell
-                  pendingLabel={silhouettePendingLabel}
-                  realLabelKey="clustering.metrics.silhouetteAtK"
-                  k={kRefEstimate}
-                  className={cn(
-                    'p-2 text-eyebrow uppercase tracking-wide text-ink-secondary',
-                    HIGHLIGHT_CLASS_NAME,
-                  )}
-                />
-                <MetricHeaderCell
-                  pendingLabel={daviesBouldinPendingLabel}
-                  realLabelKey="clustering.metrics.daviesBouldinAtK"
-                  k={kRefEstimate}
-                  className={cn(
-                    'p-2 text-eyebrow uppercase tracking-wide text-ink-secondary',
-                    HIGHLIGHT_CLASS_NAME,
-                  )}
-                />
-                {/* The secondary (non-`k_ref`) column group: its own real
-                 * count depends on the response, but a sample-size
-                 * estimate already fixes it for the common case (see
-                 * `estimatedSecondaryColumnKs`) — reserving that many pairs
-                 * now, rather than none, is what keeps this header row
-                 * from wrapping any further than the real one (mostly)
-                 * does. */}
-                {secondaryKs.map((k, index) => (
-                  <Fragment key={k}>
-                    <MetricHeaderCell
-                      pendingLabel={silhouettePendingLabel}
-                      realLabelKey="clustering.metrics.silhouetteAtK"
-                      k={k}
-                      className={cn(
-                        'p-2 text-eyebrow uppercase tracking-wide text-ink-secondary',
-                        index === 0 && 'border-l border-hairline',
-                      )}
-                    />
-                    <MetricHeaderCell
-                      pendingLabel={daviesBouldinPendingLabel}
-                      realLabelKey="clustering.metrics.daviesBouldinAtK"
-                      k={k}
-                      className="p-2 text-eyebrow uppercase tracking-wide text-ink-secondary"
-                    />
-                  </Fragment>
-                ))}
+                <th scope="col" className={HEADER_CELL_CLASS_NAME}>
+                  {kRefEstimate === undefined
+                    ? t('clustering.metrics.silhouetteHeaderPending')
+                    : t('clustering.metrics.silhouetteHeader', { k: kRefEstimate })}
+                </th>
+                <th scope="col" className={HEADER_CELL_CLASS_NAME}>
+                  {kRefEstimate === undefined
+                    ? t('clustering.metrics.daviesBouldinHeaderPending')
+                    : t('clustering.metrics.daviesBouldinHeader', { k: kRefEstimate })}
+                </th>
+                <th scope="col" className={HEADER_CELL_CLASS_NAME}>
+                  {t('clustering.leader')}
+                </th>
               </tr>
             </thead>
             <tbody>
-              {linkageIds.map((linkageId, rowIndex) => (
+              {linkageIds.map((linkageId) => (
                 <tr
                   key={linkageId}
                   data-testid={`metrics-row-skeleton-${linkageId}`}
@@ -279,252 +402,57 @@ export function ClusteringMetricsTableSkeleton({
                 >
                   <td className="p-2">
                     <div className="flex flex-col">
-                      {/* Exactly which linkage(s) the response actually
-                       * marks a leader is response-dependent (the
-                       * cophenetic/silhouette winners), but a well-formed
-                       * response almost always marks either one (a tied
-                       * cophenetic and silhouette leader) or two (a tree
-                       * leader and a different partition leader) of these
-                       * four rows — never zero, never more than two.
-                       * Reserving this eyebrow line on exactly two of the
-                       * four rows (position never matters: the table's
-                       * own total height is this column's per-row heights
-                       * summed, so which two carries no effect on it)
-                       * reproduces that typical total exactly; the only
-                       * residual left is the less common one-leader case
-                       * (a single extra eyebrow line's own height). */}
-                      {rowIndex < 2 && (
-                        <span
-                          aria-hidden="true"
-                          className="invisible text-eyebrow font-semibold uppercase tracking-wide"
-                        >
-                          {t('clustering.leaderPartition')}
-                        </span>
-                      )}
-                      {/* `relative`/invisible-sizer, not the bare id alone:
-                       * the real cell's own name line shows the response's
-                       * `linkageDisplayName` ("Complete linkage"), not the
-                       * shorter mono id, and at some widths the real name
-                       * wraps onto a second line inside this column while
-                       * the id alone never would. The id itself stays the
-                       * visible text — it is still the one thing already
-                       * known here — this only reserves the real name's
-                       * own typical wrapped height underneath it. */}
-                      <span className="relative block font-mono text-mono text-ink-secondary">
+                      {/* The real name line ("Complete linkage") is text at
+                       * the body role; an invisible sizer of the same text
+                       * reserves its height and wrap, and a block stands in
+                       * for it. The mono id below it is already known. */}
+                      <span className="relative block text-body font-medium">
                         <span aria-hidden="true" className="invisible">
                           {TYPICAL_LINKAGE_DISPLAY_NAME[linkageId] ?? linkageId}
                         </span>
-                        <span className="absolute inset-0">{linkageId}</span>
+                        <Skeleton className="absolute inset-y-0.5 left-0 w-28" />
                       </span>
+                      <span className="font-mono text-mono text-ink-muted">{linkageId}</span>
                     </div>
                   </td>
                   <td className="p-2">
-                    <Skeleton className="h-[18px] w-12" />
+                    <SkeletonMetricCell />
                   </td>
-                  <td className={cn('p-2', HIGHLIGHT_CLASS_NAME)}>
-                    <Skeleton className="h-[18px] w-12" />
+                  <td className="p-2">
+                    <SkeletonMetricCell withSparkline />
                   </td>
-                  <td className={cn('p-2', HIGHLIGHT_CLASS_NAME)}>
-                    <Skeleton className="h-[18px] w-12" />
+                  <td className="p-2">
+                    <SkeletonMetricCell withSparkline />
                   </td>
-                  {secondaryKs.map((k, index) => (
-                    <Fragment key={k}>
-                      <td className={cn('p-2', index === 0 && 'border-l border-hairline')}>
-                        <Skeleton className="h-[18px] w-12" />
-                      </td>
-                      <td className="p-2">
-                        <Skeleton className="h-[18px] w-12" />
-                      </td>
-                    </Fragment>
-                  ))}
+                  <td className="p-2">
+                    <Skeleton className="h-6 w-20 rounded-btn" />
+                  </td>
                 </tr>
               ))}
             </tbody>
           </table>
         </div>
       </div>
-      {/* The real table's own default explanatory line (`ranking`, like
-       * `kRef`, is only known once the response resolves) — static text,
-       * never response data, so it renders for real immediately instead of
-       * being left out of the skeleton entirely.
-       *
-       * Once the response actually resolves without a cophenetic tie, this
-       * exact line disappears and the sample-size caveat below it (never
-       * both at once — `ClusteringMetricsTable`'s own rule) is what stays:
-       * a longer sentence built from the response's own sample size, whose
-       * wrapped height this static fallback alone would then fall short
-       * of. An invisible sizer built from that same sentence — this page's
-       * own already-selected representation, plus `sampleSizeEstimate`
-       * (the caller's own already-known corpus size; see this prop's own
-       * doc comment) — reserves that real wrap point exactly whenever that
-       * estimate is the real count, which it always is once the corpus
-       * list has resolved. */}
-      <div className="relative mt-3">
-        <p aria-hidden="true" className="invisible text-body">
-          {t('clustering.sampleSizeCaveat', { representation, count: sampleSizeEstimate })}
-        </p>
-        <p className="absolute inset-0 text-body text-ink-secondary">
-          {t('clustering.leadersRequireAllLinkages')}
-        </p>
+
+      {/* The real footer's two lines: the leader sentence (a typical one) and
+       * the caveat, each behind an invisible sizer built from its real text,
+       * so the wrap point is the one the loaded footer reaches. */}
+      <div className="mt-3 flex flex-col gap-1.5 border-t border-hairline pt-3">
+        <SizedSkeletonLine sizer={leaderSizer} />
+        <SizedSkeletonLine
+          sizer={t('clustering.sampleSizeCaveat', { representation, count: sampleSizeEstimate })}
+        />
       </div>
     </Panel>
   );
 }
 
-interface ClusteringMetricsTableBodyProps {
-  orderedResults: ClusteringResponse;
-  results: ClusteringResponse;
-  kRef: number;
-  ranking: ClusteringRankingResult | undefined;
-  undefinedLabel: string;
-}
-
-/** The table itself, split out so the parent only needs a resolved `kRef`
- * to render it — the explanatory text and caveat above stay independent of
- * whether a `kRef` could be resolved at all. */
-function ClusteringMetricsTableBody({
-  orderedResults,
-  results,
-  kRef,
-  ranking,
-  undefinedLabel,
-}: ClusteringMetricsTableBodyProps) {
-  const { t } = useTranslation();
-  const secondaryKs = secondaryFixedKColumns(results, kRef);
-
+function SkeletonMetricCell({ withSparkline = false }: { withSparkline?: boolean }) {
   return (
-    <div className="mb-3">
-      <div
-        role="region"
-        aria-label={t('clustering.metricsTable.regionLabel')}
-        tabIndex={0}
-        className="overflow-x-auto rounded-md focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus"
-      >
-        <table
-          className={METRICS_TABLE_CLASS_NAME}
-          style={{ minWidth: metricsTableMinWidth(secondaryKs.length) }}
-        >
-          <MetricsTableColumns secondaryPairCount={secondaryKs.length} />
-          <caption className="sr-only">{t('clustering.metricsTable.caption')}</caption>
-          <thead>
-            <tr className="border-b border-hairline bg-paper-sunken">
-              <th
-                scope="col"
-                className="p-2 text-eyebrow uppercase tracking-wide text-ink-secondary"
-              >
-                {t('clustering.metricsTable.linkageHeader')}
-              </th>
-              <th
-                scope="col"
-                className="p-2 text-eyebrow uppercase tracking-wide text-ink-secondary"
-              >
-                {t('clustering.metrics.cophenetic')}
-              </th>
-              <th
-                scope="col"
-                className={cn(
-                  'p-2 text-eyebrow uppercase tracking-wide text-ink-secondary',
-                  HIGHLIGHT_CLASS_NAME,
-                )}
-              >
-                {t('clustering.metrics.silhouetteAtK', { k: kRef })}
-              </th>
-              <th
-                scope="col"
-                className={cn(
-                  'p-2 text-eyebrow uppercase tracking-wide text-ink-secondary',
-                  HIGHLIGHT_CLASS_NAME,
-                )}
-              >
-                {t('clustering.metrics.daviesBouldinAtK', { k: kRef })}
-              </th>
-              {secondaryKs.map((k) => (
-                <Fragment key={`k-header-${k}`}>
-                  <th
-                    scope="col"
-                    className="border-l border-hairline p-2 text-eyebrow uppercase tracking-wide text-ink-secondary"
-                  >
-                    {t('clustering.metrics.silhouetteAtK', { k })}
-                  </th>
-                  <th
-                    scope="col"
-                    className="p-2 text-eyebrow uppercase tracking-wide text-ink-secondary"
-                  >
-                    {t('clustering.metrics.daviesBouldinAtK', { k })}
-                  </th>
-                </Fragment>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {orderedResults.map((result) => {
-              const isTreeLeader = ranking?.bestTreeFidelity === result.linkageId;
-              const isPartitionLeader =
-                ranking?.leadersDiffer && ranking.bestPartitionAtKRef === result.linkageId;
-              const eyebrow = isTreeLeader
-                ? ranking?.leadersDiffer
-                  ? t('clustering.leaderTree')
-                  : t('clustering.leader')
-                : isPartitionLeader
-                  ? t('clustering.leaderPartition')
-                  : undefined;
-              const kRefKey = String(kRef);
-
-              return (
-                <tr
-                  key={result.linkageId}
-                  data-testid={`metrics-row-${result.linkageId}`}
-                  className="border-b border-hairline"
-                >
-                  <td className="p-2">
-                    <div className="flex flex-col">
-                      {eyebrow && (
-                        <span className="text-eyebrow font-semibold uppercase tracking-wide text-ink-secondary">
-                          {eyebrow}
-                        </span>
-                      )}
-                      <span className="font-mono text-mono text-ink">
-                        {result.linkageDisplayName}
-                      </span>
-                    </div>
-                  </td>
-                  <td className="p-2 font-mono text-mono text-ink">
-                    {formatMetricValue(result.evaluation.cophenetic)}
-                  </td>
-                  <td className={cn('p-2 font-mono text-mono text-ink', HIGHLIGHT_CLASS_NAME)}>
-                    {silhouetteCellText(result.evaluation.meanSilhouette[kRefKey], undefinedLabel)}
-                  </td>
-                  <td className={cn('p-2 font-mono text-mono text-ink', HIGHLIGHT_CLASS_NAME)}>
-                    {daviesBouldinCellText(
-                      result.evaluation.daviesBouldin[kRefKey],
-                      undefinedLabel,
-                    )}
-                  </td>
-                  {secondaryKs.map((k) => {
-                    const key = String(k);
-                    return (
-                      <Fragment key={`k-${result.linkageId}-${k}`}>
-                        <td className="border-l border-hairline p-2 font-mono text-mono text-ink">
-                          {silhouetteCellText(
-                            result.evaluation.meanSilhouette[key],
-                            undefinedLabel,
-                          )}
-                        </td>
-                        <td className="p-2 font-mono text-mono text-ink">
-                          {daviesBouldinCellText(
-                            result.evaluation.daviesBouldin[key],
-                            undefinedLabel,
-                          )}
-                        </td>
-                      </Fragment>
-                    );
-                  })}
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-      </div>
+    <div className="flex items-center gap-2.5">
+      <Skeleton className="h-[17px] w-14" />
+      <Skeleton className="h-1.5 w-[72px] shrink-0 rounded-full" />
+      {withSparkline && <Skeleton className="h-[18px] w-[60px] shrink-0" />}
     </div>
   );
 }

@@ -505,7 +505,6 @@ describe('ClusteringPage', () => {
     ).toBeInTheDocument();
     expect(screen.queryByText('Árbol')).not.toBeInTheDocument();
     expect(screen.queryByText('Partición')).not.toBeInTheDocument();
-    expect(screen.queryByText('Líder')).not.toBeInTheDocument();
   });
 
   it('shows no leader marks and the "requires all four" explanation for a duplicate/non-canonical linkage id', async () => {
@@ -525,7 +524,6 @@ describe('ClusteringPage', () => {
     ).toBeInTheDocument();
     expect(screen.queryByText('Árbol')).not.toBeInTheDocument();
     expect(screen.queryByText('Partición')).not.toBeInTheDocument();
-    expect(screen.queryByText('Líder')).not.toBeInTheDocument();
   });
 
   it('shows no leader marks and the "requires all four" explanation when the user deselected a linkage', async () => {
@@ -554,7 +552,6 @@ describe('ClusteringPage', () => {
     ).toHaveLength(2);
     expect(screen.queryByText('Árbol')).not.toBeInTheDocument();
     expect(screen.queryByText('Partición')).not.toBeInTheDocument();
-    expect(screen.queryByText('Líder')).not.toBeInTheDocument();
   });
 
   describe('the free cut', () => {
