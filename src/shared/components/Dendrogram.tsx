@@ -102,6 +102,11 @@ const CHIP_FILL = [
   'fill-cluster-8',
 ] as const;
 
+/** The cluster number people read: the backend numbers clusters from 0. */
+function clusterNumberOf(label: number): number {
+  return label + 1;
+}
+
 /** `cluster-{(label mod 8) + 1}`, as a zero-based index. */
 function hueIndex(label: number): number {
   return ((label % CLUSTER_HUES) + CLUSTER_HUES) % CLUSTER_HUES;
@@ -339,7 +344,7 @@ export function Dendrogram({
                   <title>
                     {clusterNumber === undefined
                       ? leafTitle
-                      : `${leafTitle} — ${t('clustering.dendrogram.clusterLabel', { id: clusterNumber })}`}
+                      : `${leafTitle} — ${t('clustering.dendrogram.clusterLabel', { id: clusterNumberOf(clusterNumber) })}`}
                   </title>
                   <rect
                     x={chartWidth}
@@ -391,7 +396,7 @@ export function Dendrogram({
                         dominantBaseline="middle"
                         className="fill-paper-raised text-[10px] font-medium"
                       >
-                        {clusterNumber}
+                        {clusterNumberOf(clusterNumber)}
                       </text>
                     </g>
                   )}
@@ -473,7 +478,9 @@ export function Dendrogram({
                   <span className="font-mono">{leafLabelFor(leafLabels, hover.id)}</span>
                   {cutLabels?.[hover.id] !== undefined && (
                     <span>
-                      {t('clustering.dendrogram.clusterLabel', { id: cutLabels[hover.id] })}
+                      {t('clustering.dendrogram.clusterLabel', {
+                        id: clusterNumberOf(cutLabels[hover.id]!),
+                      })}
                     </span>
                   )}
                 </div>
@@ -512,7 +519,7 @@ export function Dendrogram({
        */}
       <div className="sr-only">
         <table>
-          <caption>{t('clustering.dendrogram.mergeTableCaption', { linkage: ariaLabel })}</caption>
+          <caption>{t('clustering.dendrogram.mergeTableCaption', { label: ariaLabel })}</caption>
           <thead>
             <tr>
               <th scope="col">{t('clustering.dendrogram.mergeTableStep')}</th>

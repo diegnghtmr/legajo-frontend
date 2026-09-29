@@ -626,7 +626,7 @@ describe('ClusteringPage', () => {
       const completeDendrogram = await screen.findByTestId('linkage-dendrogram-complete');
       expect(within(completeDendrogram).getByTestId('dendrogram-cut-line')).toBeInTheDocument();
       expect(
-        within(completeDendrogram).getAllByText('0', {
+        within(completeDendrogram).getAllByText('1', {
           selector: '[data-testid="cluster-marker"]',
         }),
       ).toHaveLength(2);
@@ -663,10 +663,10 @@ describe('ClusteringPage', () => {
       const leafZero = singleDendrogram.querySelector('[data-leaf-id="0"]') as HTMLElement;
       expect(leafZero).not.toBeNull();
       expect(
-        within(leafZero).getByText('2', { selector: '[data-testid="cluster-marker"]' }),
+        within(leafZero).getByText('3', { selector: '[data-testid="cluster-marker"]' }),
       ).toBeInTheDocument();
       expect(
-        within(leafZero).queryByText('0', { selector: '[data-testid="cluster-marker"]' }),
+        within(leafZero).queryByText('1', { selector: '[data-testid="cluster-marker"]' }),
       ).not.toBeInTheDocument();
     });
 
@@ -720,7 +720,7 @@ describe('ClusteringPage', () => {
       const completeDendrogram = await screen.findByTestId('linkage-dendrogram-complete');
       await waitFor(() =>
         expect(
-          within(completeDendrogram).getAllByText('0', {
+          within(completeDendrogram).getAllByText('1', {
             selector: '[data-testid="cluster-marker"]',
           }),
         ).toHaveLength(2),
@@ -861,7 +861,7 @@ describe('ClusteringPage', () => {
         ).not.toBeInTheDocument(),
       );
       expect(
-        within(singleDendrogram).queryByText('0', { selector: '[data-testid="cluster-marker"]' }),
+        within(singleDendrogram).queryByText('1', { selector: '[data-testid="cluster-marker"]' }),
       ).not.toBeInTheDocument();
     });
 

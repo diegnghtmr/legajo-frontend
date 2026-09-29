@@ -280,7 +280,7 @@
       "malformed": "This linkage's dendrogram could not be drawn.",
       "clusterLabel": "Cluster {{id}}",
       "clusterLegend": "The numbers are the clusters for k = {{k}}. Hover a leaf to see its title.",
-      "mergeTableCaption": "Merge order for the {{linkage}} dendrogram",
+      "mergeTableCaption": "Merge order: {{label}}",
       "mergeTableStep": "Step",
       "mergeTableLeft": "Member A",
       "mergeTableRight": "Member B",

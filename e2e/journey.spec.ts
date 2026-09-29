@@ -306,7 +306,7 @@ test.describe('end-to-end journey', () => {
     // A bare, compact number, not the full "Clúster N" word (see
     // `Dendrogram.tsx`'s own overlap-avoidance comment).
     await expect(
-      wardDendrogram.getByTestId('cluster-marker').filter({ hasText: /^0$/ }),
+      wardDendrogram.getByTestId('cluster-marker').filter({ hasText: /^1$/ }),
     ).toHaveCount(2);
 
     // No cut line leaks onto a linkage that was not cut.

@@ -280,7 +280,7 @@
       "malformed": "No se pudo dibujar el dendrograma de este enlace.",
       "clusterLabel": "Clúster {{id}}",
       "clusterLegend": "Los números son los clústeres para k = {{k}}. Pasa el cursor por una hoja para ver su título.",
-      "mergeTableCaption": "Orden de fusión del dendrograma de {{linkage}}",
+      "mergeTableCaption": "Orden de fusión: {{label}}",
       "mergeTableStep": "Paso",
       "mergeTableLeft": "Miembro A",
       "mergeTableRight": "Miembro B",

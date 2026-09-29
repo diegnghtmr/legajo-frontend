@@ -254,6 +254,15 @@ describe('BenchmarkCurveChart', () => {
     expect(within(legend).queryByRole('button', { name: 'teórico' })).not.toBeInTheDocument();
   });
 
+  it('keeps the theoretical legend entry on one line', () => {
+    renderChart();
+
+    const entry = within(screen.getByRole('list', { name: 'Leyenda de series' })).getByText(
+      'teórico',
+    );
+    expect(entry.className).toContain('whitespace-nowrap');
+  });
+
   it('shows a visible slope table with each family’s empirical slope vs theoretical exponent', () => {
     renderChart();
 

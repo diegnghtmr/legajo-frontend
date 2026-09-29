@@ -39,7 +39,7 @@ export function CurveLegend({ series, showTheoretical, onIsolate }: CurveLegendP
               onFocus={() => onIsolate(entry.family)}
               onBlur={() => onIsolate(null)}
               className={cn(
-                'flex items-center gap-2 rounded-btn px-2 py-1 font-mono text-mono text-ink',
+                'flex items-center gap-2 whitespace-nowrap rounded-btn px-2 py-1 font-mono text-mono text-ink',
                 'hover:bg-paper-sunken focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus',
                 'pointer-coarse:min-h-11',
               )}
@@ -76,7 +76,7 @@ export function CurveLegend({ series, showTheoretical, onIsolate }: CurveLegendP
         );
       })}
       {showTheoretical && (
-        <li className="flex items-center gap-2 px-2 py-1 font-mono text-mono text-ink-secondary">
+        <li className="flex items-center gap-2 whitespace-nowrap px-2 py-1 font-mono text-mono text-ink-secondary">
           <svg aria-hidden="true" width={SWATCH_WIDTH} height={SWATCH_HEIGHT} className="shrink-0">
             <line
               x1="0"
