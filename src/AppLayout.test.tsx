@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen } from '@testing-library/react';
+import { act, fireEvent, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Route, Routes } from 'react-router';
 import { afterEach, describe, expect, it, vi } from 'vitest';
@@ -43,7 +43,7 @@ describe('AppLayout', () => {
   it('renders the Legajo wordmark and exactly the three workbench sections', () => {
     renderLayout();
 
-    expect(screen.getByRole('heading', { level: 1, name: 'Legajo' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { level: 1, name: 'legajo' })).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Similitud' })).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Agrupamiento' })).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Benchmarks' })).toBeInTheDocument();
@@ -56,14 +56,17 @@ describe('AppLayout', () => {
 
     const activeLink = screen.getByRole('link', { name: 'Similitud' });
     expect(activeLink).toHaveAttribute('aria-current', 'page');
-    expect(activeLink.className).toContain('bg-paper-sunken');
+    // Below lg the list marks the current item with the fill directly; from lg
+    // the sliding pill carries it instead.
+    expect(activeLink.className).toContain('max-lg:bg-paper-sunken');
+    expect(activeLink.className).not.toMatch(/(?<!max-lg:)\bbg-paper-sunken\b/);
     expect(screen.getByRole('link', { name: 'Agrupamiento' })).not.toHaveAttribute('aria-current');
   });
 
   it("sets the shared header-height and main-padding custom properties on the shell's own root, the same tokens WorkbenchLayout reads back", () => {
     renderLayout();
 
-    const root = screen.getByRole('heading', { level: 1, name: 'Legajo' }).closest('div');
+    const root = screen.getByRole('heading', { level: 1, name: 'legajo' }).closest('div');
     expect(root).not.toBeNull();
     expect(root?.style.getPropertyValue(SHELL_HEADER_HEIGHT_VAR)).toBe(SHELL_HEADER_HEIGHT);
     expect(root?.style.getPropertyValue(SHELL_MAIN_PADDING_VAR)).toBe(SHELL_MAIN_PADDING);
@@ -127,6 +130,115 @@ describe('AppLayout', () => {
     await user.keyboard('{Enter}');
 
     expect(screen.getByRole('main')).toHaveFocus();
+  });
+
+  describe('the brand', () => {
+    it('is one home link in the top bar, headed by the mark and the lowercase wordmark', () => {
+      renderLayout();
+
+      const heading = screen.getByRole('heading', { level: 1, name: 'legajo' });
+      const home = within(heading).getByRole('link', { name: 'legajo' });
+      expect(home).toHaveAttribute('href', '/');
+      expect(heading.querySelector('img')).toHaveAttribute('alt', '');
+    });
+  });
+
+  describe('the sliding nav pill', () => {
+    /** jsdom does no layout, so every nav link gets a fake box: 100px per
+     * slot, and a width that follows its text (so a language change moves it). */
+    function stubLinkGeometry() {
+      const slot = (link: HTMLElement) =>
+        Array.from(link.parentElement?.querySelectorAll('a') ?? []).indexOf(
+          link as HTMLAnchorElement,
+        );
+      vi.spyOn(HTMLElement.prototype, 'offsetLeft', 'get').mockImplementation(function (
+        this: HTMLElement,
+      ) {
+        return this.tagName === 'A' ? slot(this) * 100 : 0;
+      });
+      vi.spyOn(HTMLElement.prototype, 'offsetWidth', 'get').mockImplementation(function (
+        this: HTMLElement,
+      ) {
+        return this.tagName === 'A' ? 60 + (this.textContent?.length ?? 0) : 0;
+      });
+    }
+
+    function getPill(container: HTMLElement) {
+      return container.querySelector<HTMLElement>('[data-slot="nav-pill"]');
+    }
+
+    afterEach(() => {
+      vi.restoreAllMocks();
+    });
+
+    it('sits behind the current link as a decorative paper-sunken rounded span', () => {
+      stubLinkGeometry();
+      const { container } = renderLayout('/similarity');
+
+      const pill = getPill(container);
+      expect(pill).not.toBeNull();
+      expect(pill).toHaveAttribute('aria-hidden', 'true');
+      expect(pill?.className).toContain('bg-paper-sunken');
+      expect(pill?.className).toContain('rounded-btn');
+      // The pill is a lg+ device: the collapsed menu marks the current item directly.
+      expect(pill?.className).toContain('hidden');
+      expect(pill?.className).toContain('lg:block');
+      expect(pill?.closest('nav')).toBe(screen.getByRole('navigation'));
+    });
+
+    it('is measured from the aria-current link: translateX to its left edge, its own width', () => {
+      stubLinkGeometry();
+      const { container } = renderLayout('/similarity');
+
+      const pill = getPill(container);
+      expect(pill?.style.transform).toBe('translateX(0px)');
+      expect(pill?.style.width).toBe('69px');
+    });
+
+    it('slides to the newly current link, animating transform and width only', async () => {
+      stubLinkGeometry();
+      const user = userEvent.setup();
+      const { container } = renderLayout('/similarity');
+
+      await user.click(screen.getByRole('link', { name: 'Agrupamiento' }));
+
+      const pill = getPill(container);
+      expect(pill?.style.transform).toBe('translateX(100px)');
+      expect(pill?.style.width).toBe('72px');
+      expect(pill?.className).toContain('transition-[transform,width]');
+      expect(pill?.className).toContain('duration-(--dur-base)');
+      expect(pill?.className).toContain('ease-out');
+      // Under reduced motion the duration token is 0ms; nothing else animates.
+      expect(pill?.className).not.toMatch(/transition-(all|\[left)/);
+    });
+
+    it('is measured again when the language changes the links widths', async () => {
+      stubLinkGeometry();
+      const user = userEvent.setup();
+      const { container } = renderLayout('/similarity');
+      expect(getPill(container)?.style.width).toBe('69px');
+
+      await user.click(screen.getByRole('button', { name: 'English' }));
+      await screen.findByRole('link', { name: 'Similarity' });
+
+      expect(getPill(container)?.style.width).toBe('70px');
+    });
+
+    it('is absent on a route with no current link, so nothing implies a section', () => {
+      stubLinkGeometry();
+      const { container } = renderLayout('/nowhere');
+
+      expect(getPill(container)).toBeNull();
+    });
+
+    it('lifts the links above the pill and never moves the links themselves', () => {
+      stubLinkGeometry();
+      renderLayout('/similarity');
+
+      const link = screen.getByRole('link', { name: 'Similitud' });
+      expect(link.className).toContain('relative');
+      expect(link.className).not.toMatch(/transition/);
+    });
   });
 
   describe('the below-1024px menu button', () => {
@@ -251,7 +363,7 @@ describe('AppLayout', () => {
       expect(screen.getByRole('link', { name: 'Similitud' })).toHaveFocus();
 
       // Outside both the panel and the toggle button.
-      await user.click(screen.getByRole('heading', { level: 1, name: 'Legajo' }));
+      await user.click(screen.getByRole('heading', { level: 1, name: 'legajo' }));
 
       expect(screen.getByRole('button', { name: 'Abrir navegación' })).toHaveAttribute(
         'aria-expanded',
@@ -433,7 +545,7 @@ describe('AppLayout', () => {
       // is open; once it resets, a mousedown on non-focusable content is no
       // longer intercepted (`preventDefault` never gets called).
       const outsideEvent = new MouseEvent('mousedown', { bubbles: true, cancelable: true });
-      screen.getByRole('heading', { level: 1, name: 'Legajo' }).dispatchEvent(outsideEvent);
+      screen.getByRole('heading', { level: 1, name: 'legajo' }).dispatchEvent(outsideEvent);
 
       expect(outsideEvent.defaultPrevented).toBe(false);
     });

@@ -5,8 +5,10 @@ import { useTranslation } from 'react-i18next';
 import { NavLink, Outlet, useLocation } from 'react-router';
 
 import { setLanguage, SUPPORTED_LANGUAGES, type SupportedLanguage } from './infrastructure/i18n';
+import { Logo } from './shared/components/Logo';
 import { cn } from './shared/lib/cn';
 import { MAIN_CONTENT_ID, shellMetricsStyle } from './shared/lib/shellMetrics';
+import { useActiveLinkBox } from './shared/lib/useActiveLinkBox';
 import { useIsAtLeastLg } from './shared/lib/useIsAtLeastLg';
 
 /** Each language's own name (autonym), so it reads the same in every locale. */
@@ -93,7 +95,7 @@ function isFocusableElement(node: Node): boolean {
  * two duplicated link lists competing for the same accessible name.
  */
 export function AppLayout() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const mainRef = useRef<HTMLElement>(null);
   const location = useLocation();
   const [navOpen, setNavOpen] = useState(false);
@@ -161,6 +163,11 @@ export function AppLayout() {
   // steal focus onto the active nav link or `<main>` for no reason at all.
   // `useLayoutEffect`, not `useEffect`, so the rescue applies before the
   // browser paints the transition.
+  const activeLinkBox = useActiveLinkBox(
+    navRef,
+    `${location.pathname}|${i18n.resolvedLanguage}|${isAtLeastLg}`,
+  );
+
   const previousIsAtLeastLgRef = useRef(isAtLeastLg);
   useLayoutEffect(() => {
     const wasAtLeastLgBefore = previousIsAtLeastLgRef.current;
@@ -279,18 +286,31 @@ export function AppLayout() {
         {t('app.skipToContent')}
       </a>
       <header className="sticky top-0 z-30 flex h-(--shell-header-h) shrink-0 items-center gap-3 border-b border-hairline bg-paper-raised px-4 sm:px-6">
-        <h1 className="text-title font-semibold text-ink">{t('app.title')}</h1>
+        <h1>
+          <Logo />
+        </h1>
 
         <nav
           ref={navRef}
           id={PRIMARY_NAV_ID}
           aria-label={t('app.eyebrow')}
           className={cn(
-            'absolute inset-x-0 top-full flex-col gap-1 border-b border-hairline bg-paper-raised p-2 shadow-[0_1px_2px_rgb(0_0_0_/_0.04)]',
-            'lg:static lg:flex lg:flex-row lg:items-center lg:gap-1 lg:border-none lg:bg-transparent lg:p-0 lg:shadow-none',
+            'absolute inset-x-0 top-full flex-col gap-1 border-b border-hairline bg-paper-raised p-2 shadow-card',
+            'lg:relative lg:inset-auto lg:flex lg:flex-row lg:items-center lg:gap-1 lg:border-none lg:bg-transparent lg:p-0 lg:shadow-none',
             navOpen ? 'flex' : 'hidden',
           )}
         >
+          {activeLinkBox && (
+            <span
+              data-slot="nav-pill"
+              aria-hidden="true"
+              style={{
+                transform: `translateX(${activeLinkBox.x}px)`,
+                width: activeLinkBox.width,
+              }}
+              className="pointer-events-none absolute inset-y-0 left-0 hidden rounded-btn bg-paper-sunken transition-[transform,width] duration-(--dur-base) ease-out lg:block"
+            />
+          )}
           {SECTIONS.map((section) => (
             <NavLink
               key={section.to}
@@ -313,8 +333,10 @@ export function AppLayout() {
               }}
               className={({ isActive }) =>
                 cn(
-                  'flex min-h-11 items-center rounded-btn px-3 text-label font-semibold lg:min-h-0 lg:px-3 lg:py-1.5',
-                  isActive ? 'bg-paper-sunken text-ink' : 'text-ink-secondary hover:text-ink',
+                  'relative flex min-h-11 items-center rounded-btn px-3 text-label font-semibold lg:min-h-0 lg:px-3 lg:py-1.5',
+                  isActive
+                    ? 'text-ink max-lg:bg-paper-sunken'
+                    : 'text-ink-secondary hover:text-ink',
                   'focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus',
                   'pointer-coarse:min-w-11',
                 )

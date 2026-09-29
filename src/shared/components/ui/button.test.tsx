@@ -99,12 +99,12 @@ describe('Button', () => {
     expect(button.className).toContain('disabled:opacity-45');
   });
 
-  it('only transitions colors when the user has not requested reduced motion', () => {
+  it('only transitions colors and the press when the user has not requested reduced motion', () => {
     render(<Button>Comparar</Button>);
 
     const button = screen.getByRole('button', { name: 'Comparar' });
-    expect(button.className).toContain('motion-safe:transition-colors');
-    expect(button.className).not.toMatch(/(?<!motion-safe:)\btransition-colors\b/);
+    expect(button.className).toContain('motion-safe:transition-[color,background-color');
+    expect(button.className).not.toMatch(/(?<!motion-safe:)\btransition(-colors|-\[)/);
   });
 
   it('renders the mono algorithm-pick variant with no button chrome, unlike primary/secondary', () => {
@@ -138,5 +138,27 @@ describe('Button', () => {
     expect(button.className).toContain('text-ink');
     expect(button.className).not.toContain('border-transparent');
     expect(button.className).not.toContain('text-ink-secondary');
+  });
+
+  it.each(['primary', 'secondary', 'mono'] as const)(
+    'scales the %s variant to the press token while pressed, only when motion is allowed',
+    (variant) => {
+      render(<Button variant={variant}>press</Button>);
+
+      const button = screen.getByRole('button', { name: 'press' });
+      expect(button.className).toContain('motion-safe:active:scale-(--press-scale)');
+      // The scale is a transform: the button's layout box never changes.
+      expect(button.className).toContain('motion-safe:transition-[');
+      expect(button.className).toContain('transform');
+      expect(button.className).toContain('active:duration-(--dur-instant)');
+    },
+  );
+
+  it('never presses while disabled, since a disabled button takes no pointer events', () => {
+    render(<Button disabled>press</Button>);
+
+    expect(screen.getByRole('button', { name: 'press' }).className).toContain(
+      'disabled:pointer-events-none',
+    );
   });
 });

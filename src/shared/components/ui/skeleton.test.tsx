@@ -20,12 +20,13 @@ describe('Skeleton', () => {
     expect(block?.className).toContain('rounded-sm');
   });
 
-  it('only pulses when the viewer has not requested reduced motion, never a bare animate-pulse', () => {
+  it('shimmers through the gated sheen utility, never a bare or pulsing animation', () => {
     const { container } = render(<Skeleton />);
 
     const block = container.querySelector('[data-slot="skeleton"]');
-    expect(block?.className).toContain('motion-safe:animate-pulse');
-    expect(block?.className).not.toMatch(/(?<!motion-safe:)\banimate-pulse\b/);
+    expect(block?.className).toContain('skeleton-sheen');
+    expect(block?.className).not.toContain('animate-pulse');
+    expect(block?.className).not.toMatch(/(?<!skeleton-)\bsheen\b|\banimate-/);
   });
 
   it('merges a caller className with its own, letting the caller override sizing', () => {

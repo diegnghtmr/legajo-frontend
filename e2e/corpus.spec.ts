@@ -59,7 +59,7 @@ test.describe('corpus selection rail', () => {
   }) => {
     await page.goto('/');
 
-    await expect(page.getByRole('heading', { level: 1, name: 'Legajo' })).toBeVisible();
+    await expect(page.getByRole('heading', { level: 1, name: 'legajo' })).toBeVisible();
 
     const firstTitle = page.getByRole('button', { name: 'A survey of string similarity' });
     await expect(firstTitle).toBeVisible();

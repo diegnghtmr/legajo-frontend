@@ -13,6 +13,10 @@ export default defineConfig({
   use: {
     baseURL: BASE_URL,
     trace: 'on-first-retry',
+    // Entry animations fade content in, and axe would measure contrast on a
+    // half-transparent frame. The suite runs with reduced motion so every
+    // check sees the final state; `motion.spec.ts` opts back in to test motion.
+    reducedMotion: 'reduce',
   },
   webServer: {
     command: `vite preview --port ${PORT} --strictPort`,
