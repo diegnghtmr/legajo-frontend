@@ -1,4 +1,4 @@
-import { useId, useState } from 'react';
+import { useId, useState, type CSSProperties } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { ChevronRight } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
@@ -17,6 +17,9 @@ import { useSelectionStore } from './selectionStore';
 /** Fills the rail's scroll region with a plausible page of rows, since the
  * real row count is unknown before the corpus resolves. */
 const ARTICLE_LIST_SKELETON_ROW_COUNT = 8;
+
+/** Rows past this index enter together, so a long list never waits on its tail. */
+const MAX_STAGGER_INDEX = 12;
 
 export const CORPUS_LIST_QUERY_KEY = ['corpus', 'list'] as const;
 export const EMBEDDINGS_STATUS_QUERY_KEY = ['embeddings', 'status'] as const;
@@ -54,6 +57,7 @@ export function embeddingsSummaryState(
 
 interface ArticleRowProps {
   article: ArticleSummary;
+  index: number;
   selected: boolean;
   onToggle: (id: string) => void;
   onOpenAbstract: (id: string) => void;
@@ -86,11 +90,14 @@ function ArticleListSkeleton() {
   );
 }
 
-function ArticleRow({ article, selected, onToggle, onOpenAbstract }: ArticleRowProps) {
+function ArticleRow({ article, index, selected, onToggle, onOpenAbstract }: ArticleRowProps) {
   const titleId = useId();
 
   return (
-    <li className={cn('rounded-md p-3', selected && 'ring-[1.5px] ring-inset ring-ink')}>
+    <li
+      style={{ '--i': Math.min(index, MAX_STAGGER_INDEX) } as CSSProperties}
+      className={cn('enter-rise rounded-md p-3', selected && 'ring-[1.5px] ring-inset ring-ink')}
+    >
       <div className="flex items-start gap-3">
         <Checkbox
           checked={selected}
@@ -267,11 +274,14 @@ export function CorpusListPanel({
           <p className="p-4 text-body text-ink-muted">{t('corpus.rail.searchNoMatches')}</p>
         )}
         {filtered.length > 0 && (
-          <ul className="flex flex-col gap-1 p-2">
-            {filtered.map((article) => (
+          // Keyed by the query so a new filter result plays its entry again;
+          // toggling a selection re-renders the same rows and never does.
+          <ul key={query.trim().toLowerCase()} className="flex flex-col gap-1 p-2">
+            {filtered.map((article, index) => (
               <ArticleRow
                 key={article.id}
                 article={article}
+                index={index}
                 selected={selectedIds.includes(article.id)}
                 onToggle={toggle}
                 onOpenAbstract={onOpenAbstract}

@@ -108,6 +108,48 @@ describe('CorpusListPanel', () => {
     expect(checkbox.closest('li')?.className).toContain('ring-[1.5px]');
   });
 
+  describe('row entry', () => {
+    const MANY = Array.from({ length: 15 }, (_, index) => ({
+      id: `doc-${String(index + 1).padStart(2, '0')}`,
+      title: `Article number ${index + 1}`,
+      authors: ['A. One'],
+    }));
+
+    it('staggers rows in by their index, capped at 12 steps', async () => {
+      vi.spyOn(corpusApi, 'fetchCorpus').mockResolvedValue(MANY);
+      renderPanel();
+
+      const rows = (await screen.findAllByRole('checkbox')).map((box) => box.closest('li'));
+      expect(rows[0]).toHaveClass('enter-rise');
+      expect(rows[0]?.style.getPropertyValue('--i')).toBe('0');
+      expect(rows[5]?.style.getPropertyValue('--i')).toBe('5');
+      expect(rows[12]?.style.getPropertyValue('--i')).toBe('12');
+      expect(rows[14]?.style.getPropertyValue('--i')).toBe('12');
+    });
+
+    it('never replays the entry when a selection is toggled', async () => {
+      const user = userEvent.setup();
+      renderPanel();
+
+      const row = (await screen.findByRole('checkbox', { name: ARTICLES[0]!.title })).closest('li');
+      await user.click(screen.getByRole('checkbox', { name: ARTICLES[0]!.title }));
+
+      expect(screen.getByRole('checkbox', { name: ARTICLES[0]!.title }).closest('li')).toBe(row);
+    });
+
+    it('replays it for a new filter result', async () => {
+      const user = userEvent.setup();
+      renderPanel();
+
+      const row = (await screen.findByRole('checkbox', { name: ARTICLES[0]!.title })).closest('li');
+      await user.type(screen.getByRole('searchbox'), 'survey');
+
+      const filtered = screen.getByRole('checkbox', { name: ARTICLES[0]!.title }).closest('li');
+      expect(filtered).not.toBe(row);
+      expect(filtered?.style.getPropertyValue('--i')).toBe('0');
+    });
+  });
+
   it('filters rows by title, id or author, but never deselects a row hidden by the filter', async () => {
     const user = userEvent.setup();
     renderPanel();

@@ -16,7 +16,7 @@ import { cn } from '@/shared/lib/cn';
  * technique `Checkbox` already uses.
  */
 export const buttonVariants = cva(
-  'inline-flex items-center justify-center gap-2 motion-safe:transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring disabled:pointer-events-none disabled:opacity-45',
+  'inline-flex items-center justify-center gap-2 motion-safe:transition-[color,background-color,border-color,opacity,transform] motion-safe:duration-(--dur-fast) motion-safe:ease-standard motion-safe:active:scale-(--press-scale) motion-safe:active:duration-(--dur-instant) focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring disabled:pointer-events-none disabled:opacity-45',
   {
     variants: {
       variant: {
