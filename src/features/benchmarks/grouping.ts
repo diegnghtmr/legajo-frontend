@@ -41,7 +41,7 @@ export const SLO_CLUSTERING_FAMILY = 'slo-clustering';
 
 export interface FamilySeries {
   family: string;
-  points: Array<{ size: number; valueNs: number }>;
+  points: Array<{ size: number; valueNs: number; errorNs: number }>;
 }
 
 /**
@@ -79,7 +79,9 @@ export function seriesForFamilies(
       .filter((result) => result.family === family)
       .flatMap((result) => {
         const valueNs = toNanosecondsOrSkip(result);
-        return valueNs === undefined ? [] : [{ size: result.size, valueNs }];
+        return valueNs === undefined
+          ? []
+          : [{ size: result.size, valueNs, errorNs: toNanoseconds(result.error, result.unit) }];
       })
       .sort((a, b) => a.size - b.size);
 

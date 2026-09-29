@@ -1,4 +1,4 @@
-import { act, render, screen, within } from '@testing-library/react';
+import { act, fireEvent, render, screen, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { stubLaidOutWidth } from '../../test/layout';
@@ -9,7 +9,7 @@ import {
   CHART_HEIGHT,
 } from './BenchmarkCurveChart';
 import type { FamilySeries } from './grouping';
-import { dashPatternForIndex } from './seriesStyle';
+import { dashPatternForIndex, hueForIndex } from './seriesStyle';
 
 /**
  * A controllable fake, installed per test via `vi.stubGlobal` — the same
@@ -52,15 +52,15 @@ const SERIES: FamilySeries[] = [
   {
     family: 'levenshtein',
     points: [
-      { size: 50, valueNs: 7_900 },
-      { size: 100, valueNs: 29_600 },
+      { size: 50, valueNs: 7_900, errorNs: 400 },
+      { size: 100, valueNs: 29_600, errorNs: 1_200 },
     ],
   },
   {
     family: 'jaccard',
     points: [
-      { size: 50, valueNs: 4_500 },
-      { size: 100, valueNs: 20_300 },
+      { size: 50, valueNs: 4_500, errorNs: 0 },
+      { size: 100, valueNs: 20_300, errorNs: 500 },
     ],
   },
 ];
@@ -97,11 +97,83 @@ describe('BenchmarkCurveChart', () => {
     ).toBeInTheDocument();
   });
 
-  it('draws each series with a distinct marker shape (grayscale, not color-only)', () => {
+  it('draws each series with a distinct marker shape (never colour alone)', () => {
     const { container } = renderChart();
 
     expect(container.querySelectorAll('[data-shape="circle"]').length).toBeGreaterThan(0);
     expect(container.querySelectorAll('[data-shape="square"]').length).toBeGreaterThan(0);
+  });
+
+  it('colours each series with its own cluster hue, in order, as a third channel', () => {
+    const { container } = renderChart();
+
+    const strokes = [...container.querySelectorAll('.benchmark-series .recharts-line-curve')].map(
+      (curve) => curve.getAttribute('stroke'),
+    );
+    expect(strokes).toEqual(['var(--color-cluster-1)', 'var(--color-cluster-2)']);
+    expect(container.querySelector('[data-shape="circle"]')?.getAttribute('fill')).toBe(
+      'var(--color-cluster-1)',
+    );
+  });
+
+  it('draws a ± error whisker on every point that reports a non-zero error, in the series hue', () => {
+    const { container } = renderChart();
+
+    // levenshtein: 2 points with error; jaccard: 1 (its size-50 error is zero).
+    const whiskers = container.querySelectorAll('.recharts-errorBar');
+    expect(whiskers).toHaveLength(3);
+    expect(whiskers[0]).toHaveAttribute('stroke', 'var(--color-cluster-1)');
+    expect(whiskers[0]).toHaveAttribute('stroke-opacity', '0.6');
+    // The caps are 6px wide in total: the bar extends 3px to each side.
+    const cap = whiskers[0]?.querySelector('line');
+    expect(Number(cap?.getAttribute('x2')) - Number(cap?.getAttribute('x1'))).toBeCloseTo(6);
+  });
+
+  it('keeps the whiskers on the log-log scale', () => {
+    const { container } = renderChart('log-log');
+
+    expect(container.querySelectorAll('.recharts-errorBar')).toHaveLength(3);
+  });
+
+  it('isolates a series while its legend button is hovered or focused, then restores them all', () => {
+    const { container } = renderChart();
+    const curves = () =>
+      [...container.querySelectorAll('.benchmark-series .recharts-line-curve')] as SVGElement[];
+
+    const legend = screen.getByRole('list', { name: 'Leyenda de series' });
+    const jaccardButton = within(legend).getByRole('button', { name: 'jaccard' });
+
+    fireEvent.focus(jaccardButton);
+    expect(curves().map((curve) => curve.getAttribute('stroke-opacity'))).toEqual(['0.12', '1']);
+    expect(curves().map((curve) => curve.getAttribute('stroke-width'))).toEqual(['1.5', '2.25']);
+
+    fireEvent.blur(jaccardButton);
+    expect(curves().map((curve) => curve.getAttribute('stroke-opacity'))).toEqual(['1', '1']);
+
+    fireEvent.mouseEnter(jaccardButton);
+    expect(curves()[1]).toHaveAttribute('stroke-width', '2.25');
+    fireEvent.mouseLeave(jaccardButton);
+    expect(curves()[1]).toHaveAttribute('stroke-width', '1.5');
+  });
+
+  it('makes the legend items plain focusable buttons with no pressed state, since isolation is transient', () => {
+    renderChart();
+
+    const legend = screen.getByRole('list', { name: 'Leyenda de series' });
+    const buttons = within(legend).getAllByRole('button');
+    expect(buttons).toHaveLength(SERIES.length);
+    for (const button of buttons) {
+      expect(button).not.toHaveAttribute('aria-pressed');
+      expect(button).toHaveAttribute('type', 'button');
+    }
+  });
+
+  it('names the shared theoretical entry once in the legend, as text rather than a button', () => {
+    renderChart();
+
+    const legend = screen.getByRole('list', { name: 'Leyenda de series' });
+    expect(within(legend).getByText('teórico')).toBeInTheDocument();
+    expect(within(legend).queryByRole('button', { name: 'teórico' })).not.toBeInTheDocument();
   });
 
   it('shows a visible slope table with each family’s empirical slope vs theoretical exponent', () => {
@@ -171,9 +243,9 @@ describe('BenchmarkCurveChart', () => {
       {
         family: 'levenshtein',
         points: [
-          { size: 0, valueNs: 100 },
-          { size: 50, valueNs: 7_900 },
-          { size: 100, valueNs: 29_600 },
+          { size: 0, valueNs: 100, errorNs: 0 },
+          { size: 50, valueNs: 7_900, errorNs: 0 },
+          { size: 100, valueNs: 29_600, errorNs: 0 },
         ],
       },
     ];
@@ -231,8 +303,12 @@ describe('BenchmarkCurveChart', () => {
       />,
     );
 
-    const theoreticalPaths = document.querySelectorAll('path[stroke="var(--color-ink-muted)"]');
+    const theoreticalPaths = document.querySelectorAll(
+      '.benchmark-theoretical .recharts-line-curve',
+    );
     expect(theoreticalPaths).toHaveLength(1);
+    expect(theoreticalPaths[0]).toHaveAttribute('stroke', 'var(--color-cluster-1)');
+    expect(theoreticalPaths[0]).toHaveAttribute('stroke-opacity', '0.45');
 
     const slopeTable = screen.getByRole('table', { name: 'mixed-slope' });
     expect(within(slopeTable).getAllByRole('row')).toHaveLength(2); // header + levenshtein only
@@ -266,13 +342,13 @@ describe('BenchmarkCurveChart', () => {
     const seriesWithGap: FamilySeries[] = [
       {
         family: 'levenshtein',
-        points: [{ size: 50, valueNs: 7_900 }],
+        points: [{ size: 50, valueNs: 7_900, errorNs: 0 }],
       },
       {
         family: 'jaccard',
         points: [
-          { size: 50, valueNs: 4_500 },
-          { size: 100, valueNs: 20_300 },
+          { size: 50, valueNs: 4_500, errorNs: 0 },
+          { size: 100, valueNs: 20_300, errorNs: 0 },
         ],
       },
     ];
@@ -306,20 +382,21 @@ describe('BenchmarkCurveChart', () => {
 
     const legend = screen.getByRole('list', { name: 'Leyenda de series' });
     const items = within(legend).getAllByRole('listitem');
-    expect(items).toHaveLength(SERIES.length);
+    // One entry per series plus the single shared "theoretical" entry.
+    expect(items).toHaveLength(SERIES.length + 1);
     for (const series of SERIES) {
       const label = within(legend).getByText(series.family);
       expect(label.className).toContain('font-mono');
     }
   });
 
-  it("matches each legend swatch's dash pattern to its series' own line style, in grayscale ink", () => {
+  it("matches each legend swatch's dash pattern and hue to its series' own line style", () => {
     const { container } = renderChart();
 
     SERIES.forEach((series, index) => {
       const swatch = container.querySelector(`[data-testid="legend-dash-${series.family}"]`);
       expect(swatch).not.toBeNull();
-      expect(swatch).toHaveAttribute('stroke', 'var(--color-ink)');
+      expect(swatch).toHaveAttribute('stroke', hueForIndex(index));
       const expectedDash = dashPatternForIndex(index);
       if (expectedDash) {
         expect(swatch).toHaveAttribute('stroke-dasharray', expectedDash);

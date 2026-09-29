@@ -27,3 +27,14 @@ export function dashPatternForIndex(index: number): string {
 export function markerShapeForIndex(index: number): MarkerShape {
   return MARKER_SHAPES[wrapIndex(index, MARKER_SHAPES.length)]!;
 }
+
+const HUE_COUNT = 8;
+
+/**
+ * The cluster hue (a CSS colour token) of the series at this index: the
+ * third, redundant channel next to the dash pattern and the marker shape.
+ * A hue identifies a series named in the legend, never a family.
+ */
+export function hueForIndex(index: number): string {
+  return `var(--color-cluster-${wrapIndex(index, HUE_COUNT) + 1})`;
+}

@@ -196,6 +196,20 @@
   }
 }
 
+/*
+ * A chart whose scale just changed: the gridlines and ticks (which Recharts
+ * remounts, keyed by scale) fade in over the chart duration while the lines
+ * and markers glide to their new positions.
+ */
+@utility chart-scale-morph {
+  @media (prefers-reduced-motion: no-preference) {
+    & .recharts-cartesian-grid,
+    & .recharts-cartesian-axis-ticks {
+      animation: fade var(--dur-chart) var(--ease-in-out) both;
+    }
+  }
+}
+
 @layer base {
   body {
     @apply bg-paper text-ink;
