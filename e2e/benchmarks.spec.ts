@@ -165,8 +165,8 @@ test.describe('benchmarks screen', () => {
     // SLO evidence, text label not color alone.
     await expect(page.getByRole('table', { name: /clásicas por pares/ })).toBeVisible();
     await expect(page.getByRole('table', { name: /cuatro enlaces/ })).toBeVisible();
-    expect(await page.getByText('Dentro del umbral').count()).toBeGreaterThan(0);
-    await expect(page.getByText('Excede el umbral')).toHaveCount(0);
+    expect(await page.getByText(/^dentro \(\d/).count()).toBeGreaterThan(0);
+    await expect(page.getByText('excede', { exact: true })).toHaveCount(0);
   });
 
   test('the linear/log–log Segmented toggle switches every curve chart’s scale', async ({

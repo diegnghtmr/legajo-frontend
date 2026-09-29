@@ -337,8 +337,10 @@
       "valueLabel": "Medido",
       "thresholdLabel": "Umbral",
       "statusLabel": "Estado",
-      "statusWithin": "Dentro del umbral",
-      "statusExceeds": "Excede el umbral"
+      "statusWithin": "dentro ({{factor}}×)",
+      "statusExceeds": "excede",
+      "barLabel": "Medido frente al umbral (log)",
+      "subtitle": "Medido frente al umbral en escala log; el factor indica cuántas veces cabe la medición bajo el umbral."
     }
   },
   "notFound": {

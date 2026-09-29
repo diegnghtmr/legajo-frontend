@@ -42,3 +42,35 @@ const SLO_CLASSIC_PREFIX = 'slo-classic-';
 export function algorithmIdFromSloFamily(family: string): string {
   return family.startsWith(SLO_CLASSIC_PREFIX) ? family.slice(SLO_CLASSIC_PREFIX.length) : family;
 }
+
+/** The left end of every SLO bar: 1 µs, in milliseconds. */
+const BAR_FLOOR_MS = 0.001;
+
+/**
+ * How far along its bar a measurement sits, as a fraction: a log scale from
+ * 1 µs (left) to the threshold (right end). A measurement past the threshold
+ * pins to the end, and one at or under 1 µs to the start.
+ */
+export function sloBarFraction(valueMs: number, thresholdMs: number): number {
+  if (valueMs <= BAR_FLOOR_MS) {
+    return 0;
+  }
+  const fraction =
+    (Math.log10(valueMs) - Math.log10(BAR_FLOOR_MS)) /
+    (Math.log10(thresholdMs) - Math.log10(BAR_FLOOR_MS));
+  return Math.min(fraction, 1);
+}
+
+/** How many times the measurement fits under the threshold. */
+export function headroomFactor(valueMs: number, thresholdMs: number): number {
+  return thresholdMs / valueMs;
+}
+
+/** One decimal below 10, a whole number from 10 (a factor that rounds up to 10 is shown as 10). */
+export function formatHeadroomFactor(factor: number): string {
+  if (!Number.isFinite(factor)) {
+    return '∞';
+  }
+  const oneDecimal = Math.round(factor * 10) / 10;
+  return oneDecimal >= 10 ? String(Math.round(factor)) : oneDecimal.toFixed(1);
+}

@@ -337,8 +337,10 @@
       "valueLabel": "Measured",
       "thresholdLabel": "Threshold",
       "statusLabel": "Status",
-      "statusWithin": "Within threshold",
-      "statusExceeds": "Exceeds threshold"
+      "statusWithin": "within ({{factor}}×)",
+      "statusExceeds": "exceeds",
+      "barLabel": "Measured vs threshold (log)",
+      "subtitle": "Measurement against the threshold on a log scale; the factor is how many times the measurement fits under the threshold."
     }
   },
   "notFound": {
