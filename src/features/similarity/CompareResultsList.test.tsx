@@ -112,6 +112,18 @@ describe('CompareResultsList', () => {
     expect(within(nonCachedRow).queryByText('en caché')).not.toBeInTheDocument();
   });
 
+  it('draws the cached marker as the hatched marker badge and enters rows staggered', () => {
+    renderList();
+
+    const cachedRow = screen.getByRole('button', { name: /embedding-api/i }).closest('li')!;
+    const marker = within(cachedRow).getByText('en caché');
+    expect(marker.className).toContain('repeating-linear-gradient(135deg');
+    screen.getAllByRole('listitem').forEach((item, index) => {
+      expect(item).toHaveClass('enter-rise');
+      expect(item.style.getPropertyValue('--i')).toBe(String(index));
+    });
+  });
+
   it('never wraps the cached marker onto a second line', () => {
     renderList();
 

@@ -193,6 +193,39 @@ describe('CompareTable', () => {
     expect(within(nonCachedRow).queryByText('en caché')).not.toBeInTheDocument();
   });
 
+  it('draws the cached marker as the hatched marker badge', () => {
+    renderTable();
+
+    const marker = within(screen.getByRole('row', { name: /embedding-api/i })).getByText(
+      'en caché',
+    );
+    expect(marker.className).toContain('repeating-linear-gradient(135deg');
+    expect(marker.className).toContain('font-mono');
+  });
+
+  it('enters each row staggered by its index and grows each score bar with the same index', () => {
+    renderTable();
+
+    const bodyRows = screen.getAllByRole('row').slice(1);
+    bodyRows.forEach((row, index) => {
+      expect(row).toHaveClass('enter-rise');
+      expect(row.style.getPropertyValue('--i')).toBe(String(index));
+      const fill = within(row).getByRole('meter').firstElementChild as HTMLElement;
+      expect(fill).toHaveClass('enter-grow');
+      expect(fill.style.getPropertyValue('--i')).toBe(String(index));
+    });
+  });
+
+  it('keeps the open row marked with aria-current and the 2px ink bar on its left edge', () => {
+    renderTable({ openAlgorithmId: 'tfidf-cosine' });
+
+    const open = screen.getByRole('row', { name: /^tfidf-cosine/i });
+    expect(open).toHaveAttribute('aria-current', 'true');
+    expect(open.className).toContain('before:w-[2px]');
+    expect(open.className).toContain('before:bg-ink');
+    expect(screen.getByRole('row', { name: /^levenshtein/i })).not.toHaveAttribute('aria-current');
+  });
+
   it('never wraps the cached marker onto a second line in the time column', () => {
     renderTable();
 

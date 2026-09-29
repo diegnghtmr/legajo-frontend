@@ -6,6 +6,9 @@ export interface ScoreBarProps {
   value: number;
   family: AlgoFamily;
   label: string;
+  /** The row's place in a staggered entry. When set, the fill grows from the
+   * left, delayed by 40ms per row; when absent the bar is simply drawn. */
+  growIndex?: number;
 }
 
 /**
@@ -14,7 +17,7 @@ export interface ScoreBarProps {
  * never clamps, and throws on a value outside that range. `role="meter"` fits a scalar measurement within a known
  * range better than `progressbar` (which implies task completion).
  */
-export function ScoreBar({ value, family, label }: ScoreBarProps) {
+export function ScoreBar({ value, family, label, growIndex }: ScoreBarProps) {
   // A value outside the contract is a bug upstream; drawing it would show a misleading bar
   // (a negative width is dropped by the browser and renders full), so fail loudly instead.
   if (!Number.isFinite(value) || value < 0 || value > 1) {
@@ -36,8 +39,18 @@ export function ScoreBar({ value, family, label }: ScoreBarProps) {
         className="h-[6px] w-24 overflow-hidden rounded-full bg-paper-sunken"
       >
         <div
-          className={cn('h-full rounded-full', family === 'classic' ? 'bg-classic' : 'bg-ai')}
-          style={{ width: `${percentage}%` }}
+          className={cn(
+            'h-full rounded-full',
+            family === 'classic' ? 'bg-classic' : 'bg-ai',
+            growIndex !== undefined && 'enter-grow',
+          )}
+          style={{
+            width: `${percentage}%`,
+            ...(growIndex !== undefined && {
+              '--i': growIndex,
+              animationDelay: 'calc(var(--i) * 40ms)',
+            }),
+          }}
         />
       </div>
     </div>

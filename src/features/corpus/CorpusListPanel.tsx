@@ -1,4 +1,4 @@
-import { useId, useState, type CSSProperties } from 'react';
+import { useId, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { ChevronRight, Search } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
@@ -14,14 +14,12 @@ import { EmptyState } from '../../shared/components/EmptyState';
 import { Checkbox } from '../../shared/components/ui/checkbox';
 import { Skeleton } from '../../shared/components/ui/skeleton';
 import { cn } from '../../shared/lib/cn';
+import { staggerStyle } from '../../shared/lib/stagger';
 import { useSelectionStore } from './selectionStore';
 
 /** Fills the rail's scroll region with a plausible page of rows, since the
  * real row count is unknown before the corpus resolves. */
 const ARTICLE_LIST_SKELETON_ROW_COUNT = 8;
-
-/** Rows past this index enter together, so a long list never waits on its tail. */
-const MAX_STAGGER_INDEX = 12;
 
 export const CORPUS_LIST_QUERY_KEY = ['corpus', 'list'] as const;
 export const EMBEDDINGS_STATUS_QUERY_KEY = ['embeddings', 'status'] as const;
@@ -107,7 +105,7 @@ function ArticleRow({
 
   return (
     <li
-      style={{ '--i': Math.min(index, MAX_STAGGER_INDEX) } as CSSProperties}
+      style={staggerStyle(index)}
       className={cn('enter-rise rounded-md p-3', selected && 'ring-[1.5px] ring-inset ring-ink')}
     >
       <div className="flex items-start gap-3">

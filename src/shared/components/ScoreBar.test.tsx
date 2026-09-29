@@ -41,4 +41,19 @@ describe('ScoreBar', () => {
       );
     },
   );
+
+  it('grows the fill from the left, staggered by its row index, only when asked to', () => {
+    const { rerender } = render(
+      <ScoreBar value={0.5} family="ai" label="Cosine score" growIndex={3} />,
+    );
+    const fill = screen.getByRole('meter').firstElementChild as HTMLElement;
+    expect(fill).toHaveClass('enter-grow');
+    expect(fill.style.getPropertyValue('--i')).toBe('3');
+    expect(fill.style.animationDelay).toBe('calc(var(--i) * 40ms)');
+    // The width already holds the final size; only a scale animates.
+    expect(fill.style.width).toBe('50%');
+
+    rerender(<ScoreBar value={0.5} family="ai" label="Cosine score" />);
+    expect(screen.getByRole('meter').firstElementChild).not.toHaveClass('enter-grow');
+  });
 });
