@@ -65,4 +65,14 @@ describe('Badge', () => {
     expect(badge.className).toContain('shadow-[inset_0_0_0_1px_var(--color-ink)]');
     expect(badge.className).toContain('overflow-hidden');
   });
+
+  it('draws the marker variant as a hatched mono badge with a hairline ring', () => {
+    render(<Badge variant="marker">cached</Badge>);
+
+    const badge = screen.getByText('cached');
+    expect(badge.className).toContain('repeating-linear-gradient(135deg');
+    expect(badge.className).toContain('inset_0_0_0_1px_var(--color-hairline-strong)');
+    expect(badge.className).toContain('font-mono');
+    expect(badge.className).not.toContain('rounded-full');
+  });
 });

@@ -20,6 +20,7 @@ import { FamilyStatus } from '../../shared/components/FamilyStatus';
 import { ScoreBar } from '../../shared/components/ScoreBar';
 import { algoFamilyFromKind } from './algorithmFamily';
 import { formatComputedNanos, formatRawValue } from './formatters';
+import { staggerStyle } from '../../shared/lib/stagger';
 import { rememberTraceTrigger } from './traceFocusReturn';
 
 type AlgorithmSummary = ListSimilarityAlgorithmsResponse[number];
@@ -95,9 +96,10 @@ export function CompareTable({
         <CompareTableHeaderRow />
       </TableHeader>
       <TableBody>
-        {rows.map(({ algorithmId, result }) => (
+        {rows.map(({ algorithmId, result }, index) => (
           <CompareTableRow
             key={algorithmId}
+            index={index}
             algorithmId={algorithmId}
             result={result}
             summary={catalogueById.get(algorithmId)}
@@ -111,6 +113,8 @@ export function CompareTable({
 }
 
 interface CompareTableRowProps {
+  /** The row's place in the staggered entry (rows and score bars). */
+  index: number;
   algorithmId: string;
   result: CompareResponse[number]['result'];
   summary: AlgorithmSummary | undefined;
@@ -126,6 +130,7 @@ interface CompareTableRowProps {
  * trigger the moment a row ever grew a second button ahead of this one.
  */
 function CompareTableRow({
+  index,
   algorithmId,
   result,
   summary,
@@ -148,8 +153,9 @@ function CompareTableRow({
     <TableRow
       aria-current={isOpen ? 'true' : undefined}
       onClick={activateTrace}
+      style={staggerStyle(index)}
       className={cn(
-        'relative cursor-pointer',
+        'enter-rise relative cursor-pointer',
         isOpen &&
           "before:absolute before:inset-y-0 before:left-0 before:w-[2px] before:bg-ink before:content-['']",
       )}
@@ -200,6 +206,7 @@ function CompareTableRow({
           value={result.normalizedScore}
           family={family}
           label={t('similarity.table.scoreLabel', { id: algorithmId })}
+          growIndex={index}
         />
       </TableCell>
       <TableCell className="font-mono text-mono text-ink-muted">
@@ -215,7 +222,7 @@ function CompareTableRow({
       <TableCell className="font-mono text-mono text-ink">
         {formatComputedNanos(result.computedNanos, i18n.language)}
         {result.cached && (
-          <Badge className="ml-2 whitespace-nowrap rounded-sm border-ink px-1 py-0 text-[10px] font-semibold uppercase tracking-wide text-ink">
+          <Badge variant="marker" className="-my-0.5 ml-2 whitespace-nowrap align-middle">
             {t('similarity.table.cachedMarker')}
           </Badge>
         )}

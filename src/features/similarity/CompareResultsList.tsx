@@ -10,6 +10,7 @@ import { Badge } from '../../shared/components/ui/badge';
 import { FamilyStatus } from '../../shared/components/FamilyStatus';
 import { algoFamilyFromKind } from './algorithmFamily';
 import { formatComputedNanos, formatRawValue } from './formatters';
+import { staggerStyle } from '../../shared/lib/stagger';
 import { rememberTraceTrigger } from './traceFocusReturn';
 
 type AlgorithmSummary = ListSimilarityAlgorithmsResponse[number];
@@ -45,9 +46,10 @@ export function CompareResultsList({
       aria-label={t('similarity.table.caption')}
       className="flex flex-col divide-y divide-hairline"
     >
-      {rows.map(({ algorithmId, result }) => (
+      {rows.map(({ algorithmId, result }, index) => (
         <CompareResultsListRow
           key={algorithmId}
+          index={index}
           algorithmId={algorithmId}
           result={result}
           summary={catalogueById.get(algorithmId)}
@@ -60,6 +62,7 @@ export function CompareResultsList({
 }
 
 interface CompareResultsListRowProps {
+  index: number;
   algorithmId: string;
   result: CompareResponse[number]['result'];
   summary: AlgorithmSummary | undefined;
@@ -68,6 +71,7 @@ interface CompareResultsListRowProps {
 }
 
 function CompareResultsListRow({
+  index,
   algorithmId,
   result,
   summary,
@@ -87,7 +91,7 @@ function CompareResultsListRow({
   }
 
   return (
-    <li>
+    <li style={staggerStyle(index)} className="enter-rise">
       <button
         ref={triggerRef}
         type="button"
@@ -122,7 +126,7 @@ function CompareResultsListRow({
               {formatComputedNanos(result.computedNanos, i18n.language)}
             </span>
             {result.cached && (
-              <Badge className="whitespace-nowrap rounded-sm border-ink px-1 py-0 text-[10px] font-semibold uppercase tracking-wide text-ink">
+              <Badge variant="marker" className="-my-0.5 whitespace-nowrap">
                 {t('similarity.table.cachedMarker')}
               </Badge>
             )}
