@@ -289,7 +289,7 @@ describe('TraceDetailPanel', () => {
 
     const block = await screen.findByRole('region', { name: 'Resultado' });
     const traceHeading = await screen.findByRole('heading', {
-      name: es.similarity.trace.jaccard.intersectionLabel,
+      name: new RegExp(`^${es.similarity.trace.jaccard.onlyALabel}`),
     });
     expect(block.compareDocumentPosition(traceHeading) & Node.DOCUMENT_POSITION_FOLLOWING).toBe(
       Node.DOCUMENT_POSITION_FOLLOWING,

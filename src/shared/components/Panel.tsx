@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react';
+import type { ReactNode, Ref } from 'react';
 
 import { cn } from '../lib/cn';
 import { cardSurfaceClassName } from './ui/card';
@@ -35,10 +35,21 @@ export interface PanelHeaderProps {
    * the same way `SegmentedOption.label` already does. */
   title: ReactNode;
   subtitle?: string;
+  /** With `titleFocusable`, the title is a programmatic focus target
+   * (`tabIndex={-1}`, not a tab stop), for a caller that moves focus onto it
+   * after closing something. */
+  titleRef?: Ref<HTMLHeadingElement>;
+  titleFocusable?: boolean;
 }
 
 /** Eyebrow + title + subtitle stack, e.g. `Traza` / DP algorithm name / subtitle. */
-export function PanelHeader({ eyebrow, title, subtitle }: PanelHeaderProps) {
+export function PanelHeader({
+  eyebrow,
+  title,
+  subtitle,
+  titleRef,
+  titleFocusable = false,
+}: PanelHeaderProps) {
   return (
     <header className="mb-3 flex flex-col gap-1">
       {eyebrow && (
@@ -46,7 +57,17 @@ export function PanelHeader({ eyebrow, title, subtitle }: PanelHeaderProps) {
           {eyebrow}
         </p>
       )}
-      <h2 className="text-title font-semibold text-ink">{title}</h2>
+      <h2
+        ref={titleRef}
+        tabIndex={titleFocusable ? -1 : undefined}
+        className={cn(
+          'text-title font-semibold text-ink',
+          titleFocusable &&
+            'focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus',
+        )}
+      >
+        {title}
+      </h2>
       {subtitle && <p className="text-body text-ink-muted">{subtitle}</p>}
     </header>
   );

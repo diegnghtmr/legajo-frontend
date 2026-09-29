@@ -101,7 +101,9 @@
       "groupLabel": "Familia de algoritmo",
       "all": "Todos",
       "classic": "Clásico",
-      "ai": "IA"
+      "ai": "IA",
+      "noneSelected": "Ningún algoritmo {{family}} seleccionado",
+      "noneSelectedReason": "Elige uno de sus botones de algoritmo o cambia a Todos para ver el resto."
     },
     "scoreStrip": {
       "eyebrow": "Puntaje normalizado"
@@ -171,13 +173,12 @@
         }
       },
       "jaccard": {
-        "setALabel": "Conjunto A",
-        "setBLabel": "Conjunto B",
-        "intersectionLabel": "Intersección",
-        "unionLabel": "Unión",
-        "intersectionSizeLabel": "|A ∩ B|",
-        "unionSizeLabel": "|A ∪ B|",
-        "coefficientLabel": "Coeficiente de Jaccard"
+        "onlyALabel": "Solo en A",
+        "bothLabel": "En ambos",
+        "onlyBLabel": "Solo en B",
+        "sizeALabel": "|S_A|",
+        "sizeBLabel": "|S_B|",
+        "degenerateReason": "Ambos conjuntos están vacíos, así que no hay nada que dividir: el coeficiente se define como 1.0."
       },
       "tfidf": {
         "corpusSizeLabel": "Tamaño del corpus (N)",

@@ -172,7 +172,7 @@ describe('SimilarityTracePage', () => {
 
     const block = await screen.findByRole('region', { name: 'Resultado' });
     expect(within(block).getByText('0.750')).toBeInTheDocument();
-    const trace = await screen.findByText('0.333300');
+    const trace = await screen.findByText('|S_A ∩ S_B| / |S_A ∪ S_B| = 1 / 3 = 0.333300');
     expect(block.compareDocumentPosition(trace) & Node.DOCUMENT_POSITION_FOLLOWING).toBe(
       Node.DOCUMENT_POSITION_FOLLOWING,
     );
@@ -197,7 +197,9 @@ describe('SimilarityTracePage', () => {
 
     renderAtRoute('/similarity/jaccard/trace?documentIdA=doc-01&documentIdB=doc-02');
 
-    expect(await screen.findByText('0.333300')).toBeInTheDocument();
+    expect(
+      await screen.findByText('|S_A ∩ S_B| / |S_A ∪ S_B| = 1 / 3 = 0.333300'),
+    ).toBeInTheDocument();
   });
 
   it('renders the TF-IDF panel for a TF-IDF trace', async () => {
@@ -263,7 +265,7 @@ describe('SimilarityTracePage', () => {
 
     renderAtRoute('/similarity/jaccard/trace?documentIdA=doc-01&documentIdB=doc-02');
 
-    await screen.findByText('0.333300');
+    await screen.findByText('|S_A ∩ S_B| / |S_A ∪ S_B| = 1 / 3 = 0.333300');
     // Never a bare `/similarity`: that would land on an unselected rail
     // and lose the pair this same view is already showing.
     expect(screen.getByRole('link', { name: 'Volver a la comparación' })).toHaveAttribute(
@@ -367,7 +369,7 @@ describe('SimilarityTracePage', () => {
 
     renderAtRoute('/similarity/jaccard/trace?documentIdA=doc-01');
 
-    await screen.findByText('0.333300');
+    await screen.findByText('|S_A ∩ S_B| / |S_A ∪ S_B| = 1 / 3 = 0.333300');
     expect(screen.queryByText(/frente a/)).not.toBeInTheDocument();
     expect(screen.queryByText('null')).not.toBeInTheDocument();
   });

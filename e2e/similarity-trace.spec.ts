@@ -170,7 +170,7 @@ test.describe('standalone full-screen trace view', () => {
     await expectNoTextOverlap(page.locator('table').first());
   });
 
-  test('non-DP trace (Jaccard): renders the token sets, sizes, and coefficient', async ({
+  test('non-DP trace (Jaccard): renders the formula and the three token groups', async ({
     page,
   }) => {
     await mockTrace(page, 'jaccard', JACCARD_TRACE);
@@ -179,8 +179,13 @@ test.describe('standalone full-screen trace view', () => {
 
     await expect(page.getByRole('heading', { name: 'Jaccard index' })).toBeVisible();
     await expect(page.getByText('0.500000')).toBeVisible();
-    await expect(page.getByRole('region', { name: /intersecci/i })).toContainText('similarity');
-    await expect(page.getByRole('region', { name: /uni[oó]n/i })).toContainText('corpus');
+    await expect(
+      page.getByText('|S_A ∩ S_B| / |S_A ∪ S_B| = 2 / 4 = 0.500000', { exact: true }),
+    ).toBeVisible();
+    await expect(page.getByRole('list', { name: /^solo en a/i })).toContainText('algorithm');
+    await expect(page.getByRole('list', { name: /^en ambos/i })).toContainText('similarity');
+    await expect(page.getByRole('list', { name: /^en ambos/i })).toContainText('token');
+    await expect(page.getByRole('list', { name: /^solo en b/i })).toContainText('corpus');
   });
 
   test('has no automatically detectable WCAG 2.1 AA violations on the trace view', async ({

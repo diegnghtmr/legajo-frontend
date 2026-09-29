@@ -17,6 +17,8 @@ import { useIsAtLeastLg } from '../../shared/lib/useIsAtLeastLg';
 import { algoFamilyFromKind } from './algorithmFamily';
 import { DEFAULT_ALGORITHM_IDS, parseAlgorithmIds } from './algorithmSelection';
 import { compareQueryOptions } from './compareQueryOptions';
+import { filterRowsByFamily, parseFamilyFilter, type FamilyFilter } from './familyFilter';
+import { clearTraceTrigger } from './traceFocusReturn';
 import { CompareResultsList } from './CompareResultsList';
 import {
   AlgorithmListSkeleton,
@@ -25,12 +27,6 @@ import {
 } from './CompareSkeleton';
 import { CompareTable } from './CompareTable';
 import { ScoreStrip, ScoreStripSkeleton } from './ScoreStrip';
-
-type FamilyFilter = 'all' | 'classic' | 'ai';
-
-function isFamilyFilter(value: string | null): value is FamilyFilter {
-  return value === 'all' || value === 'classic' || value === 'ai';
-}
 
 export interface SimilarityCompareViewProps {
   /** Always a real, non-blank pair — never mounted with a placeholder pair. */
@@ -49,14 +45,19 @@ export interface SimilarityCompareViewProps {
  * end" fallback, `SimilarityMatrixPage` once the selection drops below
  * three while still on `/similarity/matrix`.
  *
- * The family Segmented is a **view-only filter**: it narrows which algo
- * buttons are visible, but never removes an id from the actual selection —
- * an already-selected algorithm sent to the backend stays selected even
- * while its button is hidden under a different family filter. Only toggling
- * a button (visible or not) changes what gets compared. The compare query is
- * keyed by `(documentIdA, documentIdB, selectedAlgorithmIds)`, so every
- * change to the selection issues a fresh request instead of reusing a stale
- * result.
+ * The family Segmented is a **view-only filter**: it narrows the algo
+ * buttons, the score strip, the results table (the list below `lg`) and the
+ * open trace's ranking to the selected algorithms of that family, but never
+ * removes an id from the actual selection — an already-selected algorithm
+ * stays selected and is still compared while it is hidden, and reappears with
+ * its result under `all` or its own family. Switching the filter therefore
+ * issues no request. When no selected algorithm belongs to the chosen family
+ * the results region shows an empty state saying so. If the open trace's
+ * algorithm is hidden by a filter change, the trace closes and focus moves to
+ * the results heading. Only toggling a button (visible or not) changes what
+ * gets compared. The compare query is keyed by `(documentIdA, documentIdB,
+ * selectedAlgorithmIds)`, so every change to the selection issues a fresh
+ * request instead of reusing a stale result.
  *
  * `family` and `selectedAlgorithmIds` live in the URL's own search params
  * (`family`, `algorithms`), not local `useState`: this component unmounts and
@@ -95,8 +96,7 @@ export function SimilarityCompareView({ pair, openAlgorithmId }: SimilarityCompa
     setSearchParams(nextParams, { replace: true });
   }
 
-  const rawFamily = searchParams.get('family');
-  const family: FamilyFilter = isFamilyFilter(rawFamily) ? rawFamily : 'all';
+  const family = parseFamilyFilter(searchParams.get('family'));
   const selectedAlgorithmIds = useMemo(
     () => parseAlgorithmIds(searchParams.get('algorithms')),
     [searchParams],
@@ -120,16 +120,6 @@ export function SimilarityCompareView({ pair, openAlgorithmId }: SimilarityCompa
     [algorithmsQuery.data, family],
   );
 
-  function setFamily(next: FamilyFilter) {
-    commitSearchParams((nextParams) => {
-      if (next === 'all') {
-        nextParams.delete('family');
-      } else {
-        nextParams.set('family', next);
-      }
-    });
-  }
-
   function toggleAlgorithm(id: string) {
     const algorithmId = id as AlgorithmId;
     commitSearchParams((nextParams) => {
@@ -152,6 +142,11 @@ export function SimilarityCompareView({ pair, openAlgorithmId }: SimilarityCompa
     ...compareQueryOptions(documentIdA, documentIdB, selectedAlgorithmIds),
     enabled: hasAlgorithmsSelected,
   });
+
+  const visibleRows = useMemo(
+    () => (compareQuery.data ? filterRowsByFamily(compareQuery.data, family, catalogueById) : []),
+    [compareQuery.data, family, catalogueById],
+  );
 
   const familyOptions: readonly SegmentedOption<FamilyFilter>[] = [
     { value: 'all', label: t('similarity.family.all') },
@@ -179,9 +174,52 @@ export function SimilarityCompareView({ pair, openAlgorithmId }: SimilarityCompa
     });
   }
 
+  const headingRef = useRef<HTMLHeadingElement>(null);
+  const focusHeadingOnTraceClose = useRef(false);
+  useEffect(() => {
+    if (openAlgorithmId === null && focusHeadingOnTraceClose.current) {
+      focusHeadingOnTraceClose.current = false;
+      headingRef.current?.focus();
+    }
+  }, [openAlgorithmId]);
+
+  function setFamily(next: FamilyFilter) {
+    const openIsHidden =
+      openAlgorithmId !== null &&
+      next !== 'all' &&
+      algoFamilyFromKind(catalogueById.get(openAlgorithmId)?.kind ?? 'CLASSIC') !== next;
+    if (!openIsHidden) {
+      commitSearchParams((nextParams) => {
+        if (next === 'all') {
+          nextParams.delete('family');
+        } else {
+          nextParams.set('family', next);
+        }
+      });
+      return;
+    }
+    // The open trace belongs to a row the new filter hides: close it the way
+    // its own close button does (back to the plain compare URL, without the
+    // pair), and land focus on the results heading rather than a vanished row.
+    const nextParams = new URLSearchParams(searchParamsRef.current);
+    nextParams.set('family', next);
+    nextParams.delete('documentIdA');
+    nextParams.delete('documentIdB');
+    searchParamsRef.current = nextParams;
+    clearTraceTrigger();
+    focusHeadingOnTraceClose.current = true;
+    navigate({ pathname: '/similarity', search: `?${nextParams.toString()}` }, { replace: true });
+  }
+
+  const familyLabel = family === 'ai' ? t('similarity.family.ai') : t('similarity.family.classic');
+  const familyHidesEverything =
+    family !== 'all' && compareQuery.data !== undefined && visibleRows.length === 0;
+
   return (
     <div className="flex flex-col gap-6">
       <PanelHeader
+        titleRef={headingRef}
+        titleFocusable
         eyebrow={t('similarity.title')}
         title={
           <>
@@ -224,22 +262,23 @@ export function SimilarityCompareView({ pair, openAlgorithmId }: SimilarityCompa
 
       {!hasAlgorithmsSelected && <EmptyState title={t('similarity.selection.noAlgorithms')} />}
 
-      {compareQuery.isPending && hasAlgorithmsSelected && (
-        <>
-          <p role="status" className="sr-only">
-            {t('similarity.compareLoading')}
-          </p>
-          <ScoreStripSkeleton count={selectedAlgorithmIds.length} />
-          {isAtLeastLg ? (
-            <CompareTableSkeleton
-              algorithmIds={selectedAlgorithmIds}
-              catalogueById={catalogueById}
-            />
-          ) : (
-            <CompareResultsListSkeleton algorithmIds={selectedAlgorithmIds} />
-          )}
-        </>
-      )}
+      {(compareQuery.isPending || (family !== 'all' && algorithmsQuery.isPending)) &&
+        hasAlgorithmsSelected && (
+          <>
+            <p role="status" className="sr-only">
+              {t('similarity.compareLoading')}
+            </p>
+            <ScoreStripSkeleton count={selectedAlgorithmIds.length} />
+            {isAtLeastLg ? (
+              <CompareTableSkeleton
+                algorithmIds={selectedAlgorithmIds}
+                catalogueById={catalogueById}
+              />
+            ) : (
+              <CompareResultsListSkeleton algorithmIds={selectedAlgorithmIds} />
+            )}
+          </>
+        )}
       {compareQuery.isError && (
         <QueryErrorAlert
           title={t('similarity.compareErrorTitle')}
@@ -248,9 +287,16 @@ export function SimilarityCompareView({ pair, openAlgorithmId }: SimilarityCompa
           onRetry={() => void compareQuery.refetch()}
         />
       )}
-      {compareQuery.data && (
+      {familyHidesEverything && (
+        <EmptyState
+          role="status"
+          title={t('similarity.family.noneSelected', { family: familyLabel })}
+          reason={t('similarity.family.noneSelectedReason')}
+        />
+      )}
+      {compareQuery.data && !familyHidesEverything && (
         <ScoreStrip
-          rows={compareQuery.data}
+          rows={visibleRows}
           catalogueById={catalogueById}
           onOpenTrace={openTrace}
           openAlgorithmId={openAlgorithmId}
@@ -258,16 +304,17 @@ export function SimilarityCompareView({ pair, openAlgorithmId }: SimilarityCompa
         />
       )}
       {compareQuery.data &&
+        !familyHidesEverything &&
         (isAtLeastLg ? (
           <CompareTable
-            rows={compareQuery.data}
+            rows={visibleRows}
             catalogueById={catalogueById}
             onOpenTrace={openTrace}
             openAlgorithmId={openAlgorithmId}
           />
         ) : (
           <CompareResultsList
-            rows={compareQuery.data}
+            rows={visibleRows}
             catalogueById={catalogueById}
             onOpenTrace={openTrace}
             openAlgorithmId={openAlgorithmId}

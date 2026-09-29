@@ -139,6 +139,37 @@ test.describe('similarity compare screen', () => {
     await expect(nonCachedRow.getByText('en caché')).toHaveCount(0);
   });
 
+  test('the family filter shows only that family in the table and comes back with every row under Todos', async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await page.goto('/');
+
+    await page.getByRole('checkbox', { name: 'A survey of string similarity' }).check();
+    await page.getByRole('checkbox', { name: 'Embeddings for scientific text' }).check();
+    await expect(page.getByRole('row')).toHaveCount(7);
+
+    const compareRequests: string[] = [];
+    page.on('request', (request) => {
+      if (request.url().includes('/api/v1/similarity/compare')) {
+        compareRequests.push(request.url());
+      }
+    });
+
+    await page.getByRole('radio', { name: 'IA' }).click();
+
+    // Header row + the two AI results; the classic algorithms stay selected.
+    await expect(page.getByRole('row')).toHaveCount(3);
+    await expect(page.getByRole('row', { name: /embedding-local/ })).toBeVisible();
+    await expect(page.getByRole('row', { name: /embedding-api/ })).toBeVisible();
+    await expect(page.getByRole('row', { name: /^levenshtein/ })).toHaveCount(0);
+    await expect(page.getByRole('row', { name: /jaccard/ })).toHaveCount(0);
+
+    await page.getByRole('radio', { name: 'Todos' }).click();
+    await expect(page.getByRole('row')).toHaveCount(7);
+    expect(compareRequests).toHaveLength(0);
+  });
+
   test('at lg and above, activating the CTA once the pair is already shown moves focus onto the results instead of navigating anywhere', async ({
     page,
   }) => {
