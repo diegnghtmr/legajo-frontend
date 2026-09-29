@@ -269,18 +269,53 @@
       "mergeTableDistance": "Distancia"
     },
     "cutForm": {
-      "title": "Corte libre",
       "linkageGroupLabel": "Enlace a cortar",
-      "kLabel": "Número de clústeres k (entre {{min}} y {{max}})",
       "submit": "Aplicar corte",
       "pending": "Aplicando el corte…",
       "errorTitle": "No se pudo aplicar el corte",
       "noValidRange": "No hay una cantidad de clústeres válida para cortar este corpus.",
-      "unavailable": "El corte estará disponible cuando termine de cargar el agrupamiento.",
       "unavailableError": "El corte no está disponible porque el agrupamiento falló.",
       "unavailableNoLinkage": "El corte no está disponible porque no hay ningún enlace seleccionado.",
       "errors": {
         "kRange": "k debe ser un entero entre {{min}} y {{max}}."
+      }
+    },
+    "params": {
+      "label": "Parámetros del agrupamiento",
+      "representation": {
+        "title": "Representación",
+        "hint": "D = 1 − coseno; Ward opera sobre 2·D."
+      },
+      "linkages": {
+        "title": "Selección de enlaces",
+        "count": "{{count}} / 4",
+        "selectAll": "Todos",
+        "hintAll": "Se comparan los cuatro enlaces: se marcan los líderes de árbol y de partición."
+      },
+      "cut": {
+        "title": "Corte libre",
+        "kLabel": "k: entre 2 y {{max}}",
+        "kDecrease": "Disminuir k",
+        "kIncrease": "Aumentar k",
+        "hint": "La línea punteada del dendrograma muestra dónde caerá el corte antes de aplicarlo.",
+        "applied": "aplicado",
+        "noLinkageTitle": "Sin enlaces para cortar",
+        "noLinkageGlyph": "0 / 4",
+        "errorTitle": "Corte no disponible",
+        "errorGlyph": "—"
+      },
+      "footer": {
+        "n": "n = {{n}}",
+        "kRef": "k_ref = {{kRef}}",
+        "appliedCut": "Corte en <mono>{{linkage}}</mono>, <mono>k = {{k}}</mono>",
+        "noCut": "Sin corte aplicado",
+        "clearCut": "Quitar corte"
+      },
+      "summary": {
+        "label": "Resumen de parámetros",
+        "eyebrow": "Parámetros",
+        "cut": "corte {{linkage}} k = {{k}}",
+        "edit": "Editar"
       }
     }
   },

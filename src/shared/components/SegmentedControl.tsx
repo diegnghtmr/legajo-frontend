@@ -19,7 +19,18 @@ export interface SegmentedControlProps<TValue extends string> {
   onChange: (value: TValue) => void;
   'aria-label'?: string;
   'aria-labelledby'?: string;
+  /** `sm` tightens the option padding for a control that sits inside a
+   * compact column or a card header; the track and semantics are the same. */
+  size?: SegmentedSize;
 }
+
+export type SegmentedSize = 'default' | 'sm';
+
+/** The option padding of each size, exported so a skeleton can mirror it. */
+export const SEGMENTED_ITEM_SIZE_CLASS_NAMES: Record<SegmentedSize, string> = {
+  default: '',
+  sm: 'px-2.5 py-1',
+};
 
 /**
  * Pattern B family/representation switch, the shadcn/Radix `ToggleGroup`
@@ -49,6 +60,7 @@ export function SegmentedControl<TValue extends string>({
   onChange,
   'aria-label': ariaLabel,
   'aria-labelledby': ariaLabelledBy,
+  size = 'default',
 }: SegmentedControlProps<TValue>) {
   const matchedIndex = options.findIndex((option) => option.value === value);
   const currentIndex = matchedIndex === -1 ? 0 : matchedIndex;
@@ -103,7 +115,11 @@ export function SegmentedControl<TValue extends string>({
       aria-labelledby={ariaLabelledBy}
     >
       {options.map((option) => (
-        <ToggleGroupItem key={option.value} value={option.value}>
+        <ToggleGroupItem
+          key={option.value}
+          value={option.value}
+          className={SEGMENTED_ITEM_SIZE_CLASS_NAMES[size]}
+        >
           {option.label}
         </ToggleGroupItem>
       ))}
