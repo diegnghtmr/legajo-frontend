@@ -107,10 +107,11 @@ describe('SimilarityPage — wrong selection count (0 or 1, no matrix eligibilit
         'Selecciona 2 artículos en el panel para comparar, o 3 o más para ver la matriz.',
       );
       expect(status).toBeInTheDocument();
-      // A designed empty state: the message lives inside the Panel card
-      // (a `<section>`), never a bare "go to the corpus" dead end — the
-      // persistent rail already lets the user change the selection.
-      expect(status.closest('section')).not.toBeNull();
+      // A designed empty state with its mono glyph, never a bare "go to the
+      // corpus" dead end — the persistent rail already lets the user change
+      // the selection.
+      expect(status.closest('[data-slot="empty-state"]')).not.toBeNull();
+      expect(screen.getByText('2 → pares / 3+ → matriz')).toHaveAttribute('aria-hidden', 'true');
       expect(screen.queryByRole('link', { name: /corpus/i })).not.toBeInTheDocument();
       expect(similarityApi.compareSimilarity).not.toHaveBeenCalled();
     },
@@ -369,8 +370,10 @@ describe('SimilarityPage — exactly two selected', () => {
     const callsWithNoSelection = vi.mocked(similarityApi.compareSimilarity).mock.calls.length;
 
     expect(
-      await screen.findByText('Selecciona al menos un algoritmo para comparar.'),
-    ).toBeInTheDocument();
+      (await screen.findByText('Selecciona al menos un algoritmo para comparar.')).closest(
+        '[data-slot="empty-state"]',
+      ),
+    ).not.toBeNull();
     expect(screen.queryByRole('table')).not.toBeInTheDocument();
     expect(vi.mocked(similarityApi.compareSimilarity).mock.calls.length).toBe(callsWithNoSelection);
     expect(

@@ -9,6 +9,8 @@ import {
   fetchEmbeddingsStatus,
   type EmbeddingsStatusResponse,
 } from '../../infrastructure/api/embeddings';
+import { Alert } from '../../shared/components/Alert';
+import { EmptyState } from '../../shared/components/EmptyState';
 import { Checkbox } from '../../shared/components/ui/checkbox';
 import { Skeleton } from '../../shared/components/ui/skeleton';
 import { cn } from '../../shared/lib/cn';
@@ -260,16 +262,14 @@ export function CorpusListPanel({
           </>
         )}
         {isError && (
-          <div role="alert" className="flex flex-col gap-1 p-4">
-            <p className="text-body font-semibold text-danger">{t('corpus.errorTitle')}</p>
-            <p className="text-body text-ink-secondary">
-              {t(error.i18nKey ?? DEFAULT_UNEXPECTED_I18N_KEY)}
-            </p>
-          </div>
+          <Alert
+            tone="danger"
+            title={t('corpus.errorTitle')}
+            body={t(error.i18nKey ?? DEFAULT_UNEXPECTED_I18N_KEY)}
+            className="m-4"
+          />
         )}
-        {data && data.length === 0 && (
-          <p className="p-4 text-body text-ink-secondary">{t('corpus.empty')}</p>
-        )}
+        {data && data.length === 0 && <EmptyState title={t('corpus.empty')} className="m-4" />}
         {data && data.length > 0 && filtered.length === 0 && (
           <p className="p-4 text-body text-ink-muted">{t('corpus.rail.searchNoMatches')}</p>
         )}

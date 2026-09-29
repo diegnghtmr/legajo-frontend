@@ -18,6 +18,7 @@ import {
   type LinkageId,
   type RepresentationId,
 } from '../../infrastructure/schemas/clustering';
+import { Alert } from '../../shared/components/Alert';
 import { AlgoTextList, type AlgoOption } from '../../shared/components/AlgoTextList';
 import { Panel, PanelHeader } from '../../shared/components/Panel';
 import { SegmentedControl, type SegmentedOption } from '../../shared/components/SegmentedControl';
@@ -356,12 +357,11 @@ export function ClusteringPage() {
         </>
       )}
       {clusteringQuery.isError && (
-        <div role="alert" className="flex flex-col gap-1">
-          <p className="text-body font-semibold text-danger">{t('clustering.errorTitle')}</p>
-          <p className="text-body text-ink-secondary">
-            {t(clusteringQuery.error.i18nKey ?? DEFAULT_UNEXPECTED_I18N_KEY)}
-          </p>
-        </div>
+        <Alert
+          tone="danger"
+          title={t('clustering.errorTitle')}
+          body={t(clusteringQuery.error.i18nKey ?? DEFAULT_UNEXPECTED_I18N_KEY)}
+        />
       )}
 
       {clusteringQuery.data && (

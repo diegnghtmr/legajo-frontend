@@ -96,10 +96,9 @@ describe('SimilarityMatrixPage — fewer than 2 selected', () => {
         'Selecciona 2 artículos en el panel para comparar, o 3 o más para ver la matriz.',
       );
       expect(status).toBeInTheDocument();
-      // A designed state: the message lives inside the Panel card (a
-      // `<section>`), never a bare "go to the corpus" dead end — the
-      // persistent rail already lets the user change the selection.
-      expect(status.closest('section')).not.toBeNull();
+      // A designed empty state, never a bare "go to the corpus" dead end —
+      // the persistent rail already lets the user change the selection.
+      expect(status.closest('[data-slot="empty-state"]')).not.toBeNull();
       expect(screen.queryByRole('link', { name: /corpus/i })).not.toBeInTheDocument();
       expect(similarityApi.fetchSimilarityMatrix).not.toHaveBeenCalled();
     },

@@ -41,6 +41,9 @@ export default defineConfig({
   use: {
     baseURL: BASE_URL,
     trace: 'on-first-retry',
+    // Same reason as the mocked suite: entry animations fade content in, and
+    // axe would measure contrast on a half-transparent frame.
+    reducedMotion: 'reduce',
   },
   projects: [{ name: 'chromium', use: { ...devices['Desktop Chrome'] } }],
 });

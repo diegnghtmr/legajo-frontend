@@ -6,6 +6,7 @@ import {
   fetchCorpusDocument,
   type GetCorpusDocumentResponse,
 } from '../../infrastructure/api/corpus';
+import { Alert } from '../../shared/components/Alert';
 import { Button } from '../../shared/components/ui/button';
 import { Skeleton } from '../../shared/components/ui/skeleton';
 
@@ -86,12 +87,11 @@ export function ArticleAbstract({ id, onClose }: ArticleAbstractProps) {
 
       {isPending && <ArticleAbstractBodySkeleton />}
       {isError && (
-        <div role="alert" className="flex flex-col gap-1">
-          <p className="text-body font-semibold text-danger">{t('corpus.detail.errorTitle')}</p>
-          <p className="text-body text-ink-secondary">
-            {t(error.i18nKey ?? DEFAULT_UNEXPECTED_I18N_KEY)}
-          </p>
-        </div>
+        <Alert
+          tone="danger"
+          title={t('corpus.detail.errorTitle')}
+          body={t(error.i18nKey ?? DEFAULT_UNEXPECTED_I18N_KEY)}
+        />
       )}
       {data && <p className="text-body text-ink">{data.abstract}</p>}
     </div>

@@ -258,6 +258,7 @@ describe('BenchmarkCurveChart', () => {
     expect(screen.getByRole('status')).toHaveTextContent(
       'No hay mediciones disponibles para este grupo.',
     );
+    expect(screen.getByRole('status')).toHaveAttribute('data-slot', 'empty-state');
     expect(screen.queryByRole('group', { name: 'Empty group' })).not.toBeInTheDocument();
   });
 

@@ -1,6 +1,7 @@
 import { CartesianGrid, Line, LineChart, XAxis, YAxis, type DotItemDotProps } from 'recharts';
 import { useTranslation } from 'react-i18next';
 
+import { EmptyState } from '../../shared/components/EmptyState';
 import { Panel, PanelHeader } from '../../shared/components/Panel';
 import { Skeleton } from '../../shared/components/ui/skeleton';
 import { useElementWidth } from '../../shared/hooks/useElementWidth';
@@ -149,9 +150,7 @@ export function BenchmarkCurveChart({
     return (
       <Panel>
         <PanelHeader title={title} />
-        <p role="status" className="text-body text-ink-secondary">
-          {t('benchmarks.curves.noData')}
-        </p>
+        <EmptyState role="status" title={t('benchmarks.curves.noData')} />
       </Panel>
     );
   }

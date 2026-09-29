@@ -10,6 +10,7 @@ import {
   type SimilarityTraceResponse,
 } from '../../infrastructure/api/similarity';
 import { algorithmsQueryOptions } from '../../infrastructure/api/similarityCatalogue';
+import { Alert } from '../../shared/components/Alert';
 import type { DpMatrixHandle } from '../../shared/components/DpMatrix';
 import type { AlgoFamily } from '../../shared/family';
 import { sortedPair, useSelectionStore } from '../corpus/selectionStore';
@@ -188,21 +189,20 @@ export function SimilarityTracePage() {
       />
 
       {algorithmsQuery.isError && (
-        <div role="alert" className="flex flex-col items-start gap-1">
-          <p className="text-body font-semibold text-danger">
-            {t('similarity.trace.algorithmErrorTitle')}
-          </p>
-          <p className="text-body text-ink-secondary">
-            {t(algorithmsQuery.error.i18nKey ?? DEFAULT_UNEXPECTED_I18N_KEY)}
-          </p>
-          <Button
-            variant="secondary"
-            className="mt-1"
-            onClick={() => void algorithmsQuery.refetch()}
-          >
-            {t('similarity.trace.algorithmRetryLabel')}
-          </Button>
-        </div>
+        <Alert
+          tone="danger"
+          title={t('similarity.trace.algorithmErrorTitle')}
+          body={t(algorithmsQuery.error.i18nKey ?? DEFAULT_UNEXPECTED_I18N_KEY)}
+          action={
+            <Button
+              variant="secondary"
+              className="h-7 px-3"
+              onClick={() => void algorithmsQuery.refetch()}
+            >
+              {t('similarity.trace.algorithmRetryLabel')}
+            </Button>
+          }
+        />
       )}
 
       {traceQuery.isPending && algorithmId && (
@@ -215,12 +215,11 @@ export function SimilarityTracePage() {
       )}
 
       {traceQuery.isError && (
-        <div role="alert" className="flex flex-col gap-1">
-          <p className="text-body font-semibold text-danger">{t('similarity.trace.errorTitle')}</p>
-          <p className="text-body text-ink-secondary">
-            {t(traceQuery.error.i18nKey ?? DEFAULT_UNEXPECTED_I18N_KEY)}
-          </p>
-        </div>
+        <Alert
+          tone="danger"
+          title={t('similarity.trace.errorTitle')}
+          body={t(traceQuery.error.i18nKey ?? DEFAULT_UNEXPECTED_I18N_KEY)}
+        />
       )}
 
       {traceQuery.data && <TracePanel trace={traceQuery.data} family={family} />}

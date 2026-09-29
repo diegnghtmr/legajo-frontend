@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 
 import { DEFAULT_UNEXPECTED_I18N_KEY, type ApiError } from '../../infrastructure/apiError';
 import { fetchBenchmarks, type BenchmarkReportResponse } from '../../infrastructure/api/benchmarks';
+import { Alert } from '../../shared/components/Alert';
 import { PanelHeader } from '../../shared/components/Panel';
 import { SegmentedControl, type SegmentedOption } from '../../shared/components/SegmentedControl';
 import { Skeleton } from '../../shared/components/ui/skeleton';
@@ -122,12 +123,11 @@ export function BenchmarksPage() {
         </>
       )}
       {query.isError && (
-        <div role="alert" className="flex flex-col gap-1">
-          <p className="text-body font-semibold text-danger">{t('benchmarks.errorTitle')}</p>
-          <p className="text-body text-ink-secondary">
-            {t(query.error.i18nKey ?? DEFAULT_UNEXPECTED_I18N_KEY)}
-          </p>
-        </div>
+        <Alert
+          tone="danger"
+          title={t('benchmarks.errorTitle')}
+          body={t(query.error.i18nKey ?? DEFAULT_UNEXPECTED_I18N_KEY)}
+        />
       )}
 
       {query.data && (

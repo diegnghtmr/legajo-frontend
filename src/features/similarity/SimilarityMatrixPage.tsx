@@ -11,7 +11,9 @@ import {
   AlgoTextRadioGroup,
   type AlgoTextRadioOption,
 } from '../../shared/components/AlgoTextRadioGroup';
-import { Panel, PanelHeader } from '../../shared/components/Panel';
+import { Alert } from '../../shared/components/Alert';
+import { EmptyState } from '../../shared/components/EmptyState';
+import { PanelHeader } from '../../shared/components/Panel';
 import { CORPUS_LIST_QUERY_KEY } from '../corpus/SelectionRail';
 import { sortedPair, useSelectionStore } from '../corpus/selectionStore';
 import { SimilarityCompareView } from './SimilarityCompareView';
@@ -92,12 +94,11 @@ export function SimilarityMatrixView() {
         </>
       )}
       {matrixQuery.isError && (
-        <div role="alert" className="flex flex-col gap-1">
-          <p className="text-body font-semibold text-danger">{t('similarity.matrix.errorTitle')}</p>
-          <p className="text-body text-ink-secondary">
-            {t(matrixQuery.error.i18nKey ?? DEFAULT_UNEXPECTED_I18N_KEY)}
-          </p>
-        </div>
+        <Alert
+          tone="danger"
+          title={t('similarity.matrix.errorTitle')}
+          body={t(matrixQuery.error.i18nKey ?? DEFAULT_UNEXPECTED_I18N_KEY)}
+        />
       )}
       {matrixQuery.data && (
         <MatrixTable
@@ -154,11 +155,11 @@ export function SimilarityMatrixPage() {
   return (
     <div className="flex flex-col gap-4">
       <PanelHeader eyebrow={t('similarity.matrix.eyebrow')} title={t('similarity.matrix.title')} />
-      <Panel>
-        <p role="status" className="text-body text-ink-secondary">
-          {t('similarity.selection.emptyState')}
-        </p>
-      </Panel>
+      <EmptyState
+        role="status"
+        glyph={t('similarity.selection.emptyGlyph')}
+        title={t('similarity.selection.emptyState')}
+      />
     </div>
   );
 }

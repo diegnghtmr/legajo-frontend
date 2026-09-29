@@ -6,6 +6,7 @@ import {
   fetchEmbeddingsStatus,
   type EmbeddingsStatusResponse,
 } from '../../infrastructure/api/embeddings';
+import { Alert } from '../../shared/components/Alert';
 import { cn } from '../../shared/lib/cn';
 import { Panel, PanelHeader } from '../../shared/components/Panel';
 import { Skeleton } from '../../shared/components/ui/skeleton';
@@ -308,14 +309,11 @@ export function EmbeddingsStatusPanel() {
         </>
       )}
       {isError && (
-        <div role="alert" className="flex flex-col gap-1">
-          <p className="text-body font-semibold text-danger">
-            {t('corpus.embeddingsStatus.errorTitle')}
-          </p>
-          <p className="text-body text-ink-secondary">
-            {t(error.i18nKey ?? DEFAULT_UNEXPECTED_I18N_KEY)}
-          </p>
-        </div>
+        <Alert
+          tone="danger"
+          title={t('corpus.embeddingsStatus.errorTitle')}
+          body={t(error.i18nKey ?? DEFAULT_UNEXPECTED_I18N_KEY)}
+        />
       )}
       {data && <EmbeddingsStatusContent data={data} />}
     </Panel>

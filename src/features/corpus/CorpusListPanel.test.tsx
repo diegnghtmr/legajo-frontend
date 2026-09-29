@@ -261,6 +261,8 @@ describe('CorpusListPanel', () => {
 
       const alert = await screen.findByRole('alert');
       expect(alert).toHaveTextContent('No se pudo cargar el corpus');
+      expect(alert).toHaveAttribute('data-slot', 'alert');
+      expect(alert).toHaveAttribute('data-tone', 'danger');
       expect(
         screen.getByText(
           'No se pudo contactar al servidor. Si es la primera solicitud en un rato, el servidor gratuito puede estar despertando: puede tardar hasta un minuto en responder.',
@@ -273,7 +275,8 @@ describe('CorpusListPanel', () => {
 
       renderPanel();
 
-      expect(await screen.findByText('El corpus no tiene artículos cargados.')).toBeInTheDocument();
+      const message = await screen.findByText('El corpus no tiene artículos cargados.');
+      expect(message.closest('[data-slot="empty-state"]')).not.toBeNull();
       expect(screen.queryByText('Sin coincidencias')).not.toBeInTheDocument();
     });
   });
