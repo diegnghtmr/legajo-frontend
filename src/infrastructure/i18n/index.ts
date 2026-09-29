@@ -29,6 +29,16 @@ void i18n.use(initReactI18next).init({
   },
 });
 
+/**
+ * The document language follows the active language, so assistive
+ * technology pronounces the page in the language it is written in.
+ */
+function syncDocumentLanguage(language: string): void {
+  document.documentElement.lang = language;
+}
+i18n.on('languageChanged', syncDocumentLanguage);
+syncDocumentLanguage(i18n.language);
+
 /** Runtime language switch; components read the active language via `useTranslation`. */
 export function setLanguage(language: SupportedLanguage): Promise<unknown> {
   return i18n.changeLanguage(language);

@@ -25,4 +25,14 @@ describe('i18n setup', () => {
     await setLanguage('es');
     expect(i18n.language).toBe('es');
   });
+
+  it('keeps the document language in step with the active language', async () => {
+    expect(document.documentElement.lang).toBe('es');
+
+    await setLanguage('en');
+    expect(document.documentElement.lang).toBe('en');
+
+    await setLanguage('es');
+    expect(document.documentElement.lang).toBe('es');
+  });
 });
