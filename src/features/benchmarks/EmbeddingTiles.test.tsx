@@ -77,6 +77,8 @@ describe('EmbeddingTiles', () => {
     expect(error.className).toContain('text-ink-secondary');
     expect(error.parentElement).toHaveTextContent('842 ns ±10 ns');
     expect(error.parentElement).toBe(name.nextElementSibling);
+    expect(error.parentElement!.className).toContain('ml-auto');
+    expect(error.parentElement!.className).toContain('tabular-nums');
     expect(within(tile).queryByText('embedding-dot-product')).not.toBeInTheDocument();
   });
 

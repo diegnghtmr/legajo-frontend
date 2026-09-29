@@ -325,6 +325,28 @@ test.describe('benchmarks screen', () => {
         return { x, y, width, height };
       });
 
+    const expectValuesRightAligned = async (label: string) => {
+      for (const dimension of [384, 1536]) {
+        const tile = page.getByTestId(`embedding-tile-${dimension}`);
+        const contentRight = await tile.evaluate((element) => {
+          const style = (globalThis as unknown as StyleReader).getComputedStyle(element);
+          return (
+            element.getBoundingClientRect().right - Number.parseFloat(style.paddingRight ?? '0')
+          );
+        });
+        const rights = await tile
+          .locator('dl > div > dd')
+          .evaluateAll((elements) => elements.map((el) => el.getBoundingClientRect().right));
+        expect(rights).toHaveLength(2);
+        for (const right of rights) {
+          expect(
+            Math.abs(right - contentRight),
+            `${label}: tile ${dimension} value is right-aligned`,
+          ).toBeLessThanOrEqual(1);
+        }
+      }
+    };
+
     for (const viewport of [
       { width: 1440, height: 900 },
       { width: 1024, height: 900 },
@@ -388,6 +410,7 @@ test.describe('benchmarks screen', () => {
         `${viewport.width}: the tiles reach the card's content bottom`,
       ).toBeLessThan(2);
 
+      await expectValuesRightAligned(`${viewport.width}`);
       await row.screenshot({ path: `test-results/harness-grid/top-row-${viewport.width}.png` });
     }
 
@@ -415,6 +438,7 @@ test.describe('benchmarks screen', () => {
       [384, 1536].map((dimension) => box(page.getByTestId(`embedding-tile-${dimension}`))),
     );
     expect(Math.abs(narrowTiles[0]!.y - narrowTiles[1]!.y)).toBeLessThan(2);
+    await expectValuesRightAligned('390');
     await row.screenshot({ path: 'test-results/harness-grid/top-row-390.png' });
     const results = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa']).analyze();
     expect(results.violations).toEqual([]);

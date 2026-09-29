@@ -59,7 +59,7 @@ export function EmbeddingTilesSkeleton() {
               {EMBEDDING_FAMILIES.map((family) => (
                 <div key={family} className={LINE_CLASS}>
                   <dt className={NAME_CLASS}>{primitiveName(family)}</dt>
-                  <dd>
+                  <dd className="ml-auto text-right tabular-nums">
                     <Skeleton className="text-transparent">xxx ns ±xx ns</Skeleton>
                   </dd>
                 </div>
@@ -103,7 +103,7 @@ export function EmbeddingTiles({ results }: { results: readonly BenchmarkResult[
               {tile.entries.map((entry) => (
                 <div key={`${entry.family}-${tile.dimension}`} className={LINE_CLASS}>
                   <dt className={NAME_CLASS}>{primitiveName(entry.family)}</dt>
-                  <dd className="text-ink">
+                  <dd className="ml-auto text-right tabular-nums text-ink">
                     {formatDuration(entry.valueNs)}
                     {entry.errorNs > 0 && (
                       <span className="text-ink-secondary"> ±{formatDuration(entry.errorNs)}</span>
