@@ -365,6 +365,33 @@ describe('ClusteringPage', () => {
     expect(await screen.findByText('Ocurrió un error inesperado.')).toBeInTheDocument();
   });
 
+  it('explains a failed clustering request with the problem detail and retries it from the alert', async () => {
+    const user = userEvent.setup();
+    vi.spyOn(corpusApi, 'fetchCorpus').mockResolvedValue(CORPUS);
+    const run = vi
+      .spyOn(clusteringApi, 'runClustering')
+      .mockRejectedValueOnce({
+        kind: 'problem',
+        status: 400,
+        title: 'Bad Request',
+        detail: 'Unknown representation: bogus.',
+        i18nKey: 'errors.unknownRepresentation',
+      })
+      .mockResolvedValue(DEFAULT_RESPONSE);
+
+    renderPage();
+
+    const alert = await screen.findByRole('alert');
+    expect(alert).toHaveTextContent('Unknown representation: bogus.');
+    expect(alert).toHaveTextContent('POST /api/v1/clustering');
+    expect(alert).toHaveTextContent('HTTP 400');
+
+    await user.click(within(alert).getByRole('button', { name: 'Reintentar' }));
+
+    await waitFor(() => expect(run).toHaveBeenCalledTimes(2));
+    await waitFor(() => expect(screen.queryByRole('alert')).not.toBeInTheDocument());
+  });
+
   it('renders an accessible dendrogram for each linkage, in its own dendrogram container', async () => {
     vi.spyOn(corpusApi, 'fetchCorpus').mockResolvedValue(CORPUS);
     vi.spyOn(clusteringApi, 'runClustering').mockResolvedValue(DEFAULT_RESPONSE);

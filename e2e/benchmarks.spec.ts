@@ -531,4 +531,58 @@ test.describe('benchmarks screen', () => {
 
     expect(results.violations).toEqual([]);
   });
+
+  for (const width of [1024, 390]) {
+    test(`at ${width}px the slope tables fit their cards, with each strip on a full-width row and no inner horizontal scroll`, async ({
+      page,
+    }) => {
+      await page.setViewportSize({ width, height: 900 });
+      await page.goto('/benchmarks');
+      await expect(page.getByTestId('embedding-tile-1536')).toBeVisible();
+
+      const regions = page.getByRole('region', { name: /^Pendiente log–log/ });
+      await expect(regions).toHaveCount(3);
+      for (let index = 0; index < 3; index += 1) {
+        const region = regions.nth(index);
+        const fits = await region.evaluate(
+          (node: { scrollWidth: number; clientWidth: number }) =>
+            node.scrollWidth <= node.clientWidth,
+        );
+        expect(fits, `slope region ${index} does not scroll sideways`).toBe(true);
+        const regionBox = (await region.boundingBox())!;
+        const strip = region.locator('[data-testid^="slope-dot-"]').first().locator('..');
+        const stripBox = (await strip.boundingBox())!;
+        expect(stripBox.width, `slope strip ${index} spans most of its card`).toBeGreaterThan(
+          regionBox.width * 0.7,
+        );
+      }
+    });
+
+    test(`at ${width}px the header and status text of every slope and SLO table stay readable`, async ({
+      page,
+    }) => {
+      await page.setViewportSize({ width, height: 900 });
+      await page.goto('/benchmarks');
+      await expect(page.getByTestId('embedding-tile-1536')).toBeVisible();
+
+      const statuses = page.locator('[data-status="within"]');
+      await expect(statuses.first()).toBeVisible();
+      if (width >= 1024) {
+        // Wide enough to show the SLO tables whole: no sideways scroll.
+        const regions = page.getByRole('region', {
+          name: /Comparaciones clásicas|Los cuatro enlaces/,
+        });
+        expect(await regions.count()).toBe(2);
+        for (let index = 0; index < (await regions.count()); index += 1) {
+          const fits = await regions
+            .nth(index)
+            .evaluate(
+              (node: { scrollWidth: number; clientWidth: number }) =>
+                node.scrollWidth <= node.clientWidth,
+            );
+          expect(fits, `SLO region ${index} fits`).toBe(true);
+        }
+      }
+    });
+  }
 });

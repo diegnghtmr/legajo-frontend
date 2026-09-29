@@ -203,7 +203,11 @@ export function CorpusListPanel({
               {t('corpus.eyebrow')}
             </p>
             <p className="font-mono text-mono text-ink-muted">
-              {t('corpus.rail.countLabel', { count: data?.length ?? 0 })}
+              {isPending ? (
+                <Skeleton className="inline-block h-3 w-24 align-middle" />
+              ) : (
+                data && t('corpus.rail.countLabel', { count: data.length })
+              )}
             </p>
           </div>
           <button
@@ -234,7 +238,9 @@ export function CorpusListPanel({
       </div>
 
       <div className="border-b border-hairline p-4">
-        {embeddingsQuery.isPending && (
+        {/* One loading announcement at a time: the corpus list's own sentence
+         * speaks first, and this one takes over once the list has arrived. */}
+        {embeddingsQuery.isPending && !isPending && (
           <p role="status" className="sr-only">
             {t('corpus.rail.embeddings.loading')}
           </p>

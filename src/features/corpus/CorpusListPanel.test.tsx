@@ -263,6 +263,33 @@ describe('CorpusListPanel', () => {
       }
     });
 
+    it('announces one loading status at a time and shows no count until the corpus arrives', async () => {
+      let resolveCorpus: (
+        value: Awaited<ReturnType<typeof corpusApi.fetchCorpus>>,
+      ) => void = () => {};
+      vi.spyOn(corpusApi, 'fetchCorpus').mockReturnValue(
+        new Promise((resolve) => {
+          resolveCorpus = resolve;
+        }),
+      );
+      vi.spyOn(embeddingsApi, 'fetchEmbeddingsStatus').mockReturnValue(new Promise(() => {}));
+
+      renderPanel();
+
+      expect(screen.getAllByRole('status')).toHaveLength(1);
+      expect(screen.getByRole('status')).toHaveTextContent('Cargando el corpus…');
+      expect(screen.queryByText(/\d+ documentos/)).not.toBeInTheDocument();
+
+      resolveCorpus([
+        { id: 'doc-01', title: 'A survey of string similarity', authors: ['A. One'] },
+      ] as never);
+
+      expect(await screen.findByText('1 documentos')).toBeInTheDocument();
+      // The corpus is in; only the embeddings row is still loading.
+      expect(screen.getAllByRole('status')).toHaveLength(1);
+      expect(screen.getByRole('status')).toHaveTextContent(es.corpus.rail.embeddings.loading);
+    });
+
     it('holds no tab stop or region role while its rows are placeholders', async () => {
       vi.spyOn(corpusApi, 'fetchCorpus').mockReturnValue(new Promise(() => {}));
 
@@ -457,7 +484,7 @@ describe('CorpusListPanel', () => {
 
       renderPanel();
 
-      const status = screen.getByText(es.corpus.rail.embeddings.loading);
+      const status = await screen.findByText(es.corpus.rail.embeddings.loading);
       expect(status).toHaveAttribute('role', 'status');
       expect(status.className).toContain('sr-only');
 

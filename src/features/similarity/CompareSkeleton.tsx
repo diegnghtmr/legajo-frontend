@@ -149,9 +149,9 @@ function CompareResultsListSkeletonRow({ algorithmId }: { algorithmId: string })
           <span className="font-mono text-mono text-ink">{algorithmId}</span>
           <Skeleton className={SCORE_PLACEHOLDER} />
         </div>
-        <div className="flex items-center gap-2 text-label">
+        <div className="flex items-center gap-4 text-label">
           <Skeleton className={RAW_PLACEHOLDER} />
-          <Skeleton className={TIME_PLACEHOLDER} />
+          <Skeleton className={cn(TIME_PLACEHOLDER, 'w-[12ch]')} />
           <Skeleton className={CACHED_MARKER_PLACEHOLDER} />
         </div>
       </div>

@@ -111,8 +111,8 @@ function CompareResultsListRow({
               {result.normalizedScore.toFixed(3)}
             </span>
           </span>
-          <span className="flex items-center gap-2 text-label text-ink-muted">
-            <span className="font-mono">
+          <span className="flex items-center gap-4 text-label text-ink-muted">
+            <span className="font-mono text-ink-secondary">
               {formattedRaw === null ? (
                 <>
                   <span aria-hidden="true">—</span>
@@ -124,6 +124,7 @@ function CompareResultsListRow({
             </span>
             <span className="font-mono">
               {formatComputedNanos(result.computedNanos, i18n.language)}
+              <span className="ml-1">ns</span>
             </span>
             {result.cached && (
               <Badge variant="marker" className="-my-0.5 whitespace-nowrap">

@@ -34,10 +34,10 @@ const CLUSTERING_THRESHOLD_MS = 1_000;
 /** The fixed measurement size for every `slo-*` family ("n = 20"). */
 const SLO_FIXED_SIZE = 20;
 
-const BAR_MIN_WIDTH_CLASS = 'min-w-30';
+const BAR_MIN_WIDTH_CLASS = 'min-w-10';
 /** Fixed column widths keep the table's shape independent of its contents, so
  * the loading placeholder and the loaded table lay out identically. */
-const TABLE_CLASS = 'min-w-[35rem] table-fixed';
+const TABLE_CLASS = 'min-w-[26.5rem] table-fixed [&_td]:px-2 [&_th]:px-2';
 const STATUS_ICON_CLASS = 'size-3.5 shrink-0';
 
 /**
@@ -126,11 +126,11 @@ function ThresholdBar({
 function SloColumns() {
   return (
     <colgroup>
-      <col className="w-36" />
+      <col className="w-[6.5rem]" />
       <col />
-      <col className="w-[5.5rem]" />
+      <col className="w-[4.75rem]" />
       <col className="w-16" />
-      <col className="w-36" />
+      <col className="w-32" />
     </colgroup>
   );
 }

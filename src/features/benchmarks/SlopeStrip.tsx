@@ -18,7 +18,24 @@ import { hueForIndex } from './seriesStyle';
 const AXIS_MAX = 3.5;
 const AXIS_TICKS = [1, 2, 3] as const;
 const STRIP_HEIGHT_CLASS = 'h-4';
-const STRIP_MIN_WIDTH_CLASS = 'min-w-40';
+const STRIP_MIN_WIDTH_CLASS = 'min-w-24';
+
+/*
+ * A card narrower than `@lg` (512px) has no room for the strip beside the
+ * family and the two values, so each row becomes a small grid: the family
+ * and both values on the first line, the strip across the whole row on the
+ * second, with the column headers folded into the values. The table, its
+ * rows and its cells keep their ARIA roles, which the display change would
+ * otherwise drop.
+ */
+const NARROW_TABLE_CLASS = '@max-lg:block';
+const NARROW_ROW_CLASS =
+  '@max-lg:grid @max-lg:grid-cols-[minmax(0,1fr)_auto_auto] @max-lg:items-center @max-lg:gap-x-3';
+const NARROW_HEADER_CLASS = '@max-lg:sr-only';
+const NARROW_FAMILY_CELL_CLASS = '@max-lg:col-start-1 @max-lg:row-start-1 @max-lg:pb-0';
+const NARROW_STRIP_CELL_CLASS = '@max-lg:col-span-3 @max-lg:row-start-2 @max-lg:pt-1';
+const NARROW_EMPIRICAL_CELL_CLASS = '@max-lg:col-start-2 @max-lg:row-start-1 @max-lg:pb-0';
+const NARROW_THEORETICAL_CELL_CLASS = '@max-lg:col-start-3 @max-lg:row-start-1 @max-lg:pb-0';
 const DOT_SIZE = 10;
 const SEGMENT_OPACITY = 0.35;
 
@@ -62,8 +79,8 @@ function StripHeader() {
   const { t } = useTranslation();
 
   return (
-    <TableHeader>
-      <TableRow>
+    <TableHeader className={NARROW_HEADER_CLASS} role="rowgroup">
+      <TableRow role="row">
         <TableHead>{t('benchmarks.curves.slopeTableFamily')}</TableHead>
         <TableHead>{t('benchmarks.curves.slopeTableStrip')}</TableHead>
         <TableHead className="text-right">{t('benchmarks.curves.slopeTableEmpirical')}</TableHead>
@@ -73,9 +90,18 @@ function StripHeader() {
   );
 }
 
+/** The column name a narrow row carries inline, since its header row is folded away. */
+function InlineLabel({ children }: { children: string }) {
+  return (
+    <span aria-hidden="true" className="mr-1.5 font-sans text-label text-ink-muted @lg:hidden">
+      {children}
+    </span>
+  );
+}
+
 function FamilyCell({ family, hue }: { family: string; hue?: string }) {
   return (
-    <TableCell>
+    <TableCell role="cell" className={NARROW_FAMILY_CELL_CLASS}>
       <span className="flex items-center gap-2 font-mono text-mono text-ink">
         {hue ? (
           <span
@@ -161,6 +187,7 @@ export interface SlopeStripProps {
  * the single, focusable scroll region when it is wider than its card.
  */
 export function SlopeStrip({ families, slopes, caption }: SlopeStripProps) {
+  const { t } = useTranslation();
   const rows = families.flatMap((family, index) => {
     const slope = slopes.get(family);
     return slope ? [{ family, slope, index }] : [];
@@ -176,16 +203,16 @@ export function SlopeStrip({ families, slopes, caption }: SlopeStripProps) {
         role="region"
         aria-label={caption}
         tabIndex={0}
-        className="overflow-x-auto rounded-md focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus"
+        className="@container overflow-x-auto rounded-md focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus"
       >
-        <Table wrap={false}>
+        <Table wrap={false} role="table" className={NARROW_TABLE_CLASS}>
           <TableCaption className="sr-only">{caption}</TableCaption>
           <StripHeader />
-          <TableBody>
+          <TableBody role="rowgroup" className="@max-lg:block">
             {rows.map(({ family, slope, index }) => (
-              <TableRow key={family}>
+              <TableRow key={family} role="row" className={NARROW_ROW_CLASS}>
                 <FamilyCell family={family} hue={hueForIndex(index)} />
-                <TableCell>
+                <TableCell role="cell" className={NARROW_STRIP_CELL_CLASS}>
                   <StripMarks
                     family={family}
                     hue={hueForIndex(index)}
@@ -193,10 +220,24 @@ export function SlopeStrip({ families, slopes, caption }: SlopeStripProps) {
                     index={index}
                   />
                 </TableCell>
-                <TableCell className="text-right font-mono text-mono text-ink">
+                <TableCell
+                  role="cell"
+                  className={cn(
+                    'text-right font-mono text-mono text-ink',
+                    NARROW_EMPIRICAL_CELL_CLASS,
+                  )}
+                >
+                  <InlineLabel>{t('benchmarks.curves.slopeTableEmpirical')}</InlineLabel>
                   {formatSlope(slope.empiricalSlope)}
                 </TableCell>
-                <TableCell className="text-right font-mono text-mono text-ink-muted">
+                <TableCell
+                  role="cell"
+                  className={cn(
+                    'text-right font-mono text-mono text-ink-muted',
+                    NARROW_THEORETICAL_CELL_CLASS,
+                  )}
+                >
+                  <InlineLabel>{t('benchmarks.curves.slopeTableTheoretical')}</InlineLabel>
                   {formatSlope(slope.theoreticalExponent)}
                 </TableCell>
               </TableRow>
@@ -219,22 +260,22 @@ export interface SlopeStripSkeletonProps {
 export function SlopeStripSkeleton({ families, caption }: SlopeStripSkeletonProps) {
   return (
     <div className="mt-3">
-      <div className="overflow-hidden rounded-md">
-        <Table wrap={false}>
+      <div className="@container overflow-hidden rounded-md">
+        <Table wrap={false} role="table" className={NARROW_TABLE_CLASS}>
           <TableCaption className="sr-only">{caption}</TableCaption>
           <StripHeader />
-          <TableBody>
+          <TableBody role="rowgroup" className="@max-lg:block">
             {families.map((family) => (
-              <TableRow key={family}>
+              <TableRow key={family} role="row" className={NARROW_ROW_CLASS}>
                 <FamilyCell family={family} />
-                <TableCell>
+                <TableCell role="cell" className={NARROW_STRIP_CELL_CLASS}>
                   <Skeleton className={cn('w-full', STRIP_HEIGHT_CLASS, STRIP_MIN_WIDTH_CLASS)} />
                 </TableCell>
-                <TableCell className="text-right">
-                  <Skeleton className="ml-auto h-3 w-10" />
+                <TableCell role="cell" className={cn('text-right', NARROW_EMPIRICAL_CELL_CLASS)}>
+                  <Skeleton className="ml-auto h-3 w-10 @max-lg:w-[5.25rem]" />
                 </TableCell>
-                <TableCell className="text-right">
-                  <Skeleton className="ml-auto h-3 w-10" />
+                <TableCell role="cell" className={cn('text-right', NARROW_THEORETICAL_CELL_CLASS)}>
+                  <Skeleton className="ml-auto h-3 w-10 @max-lg:w-20" />
                 </TableCell>
               </TableRow>
             ))}
