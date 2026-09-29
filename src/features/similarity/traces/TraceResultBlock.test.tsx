@@ -101,6 +101,17 @@ describe('TraceResultBlock', () => {
     expect(await screen.findByText('Nº 1 de 2')).toBeInTheDocument();
   });
 
+  it('ranks only among the selected algorithms of the chosen family', async () => {
+    mockCompare();
+    renderBlock('jaccard', '?algorithms=levenshtein,jaccard,embedding-api&family=classic');
+
+    expect(await screen.findByText('Nº 2 de 2')).toBeInTheDocument();
+    expect(screen.queryByText('Nº 2 de 3')).not.toBeInTheDocument();
+    const ranking = screen.getByRole('region', { name: 'Frente a los demás algoritmos' });
+    expect(within(ranking).queryByText('embedding-api')).not.toBeInTheDocument();
+    expect(within(ranking).getByText('levenshtein')).toBeInTheDocument();
+  });
+
   it('shows the raw value large, and a dash with its reason when the backend returns none', async () => {
     mockCompare();
     const { unmount } = renderBlock('levenshtein');

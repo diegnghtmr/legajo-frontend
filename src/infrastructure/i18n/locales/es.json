@@ -101,7 +101,9 @@
       "groupLabel": "Familia de algoritmo",
       "all": "Todos",
       "classic": "Clásico",
-      "ai": "IA"
+      "ai": "IA",
+      "noneSelected": "Ningún algoritmo {{family}} seleccionado",
+      "noneSelectedReason": "Elige uno de sus botones de algoritmo o cambia a Todos para ver el resto."
     },
     "scoreStrip": {
       "eyebrow": "Puntaje normalizado"

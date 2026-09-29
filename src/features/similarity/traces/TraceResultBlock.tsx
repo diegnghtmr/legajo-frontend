@@ -16,6 +16,7 @@ import { algoFamilyFromKind, type AlgorithmKind } from '../algorithmFamily';
 import { parseAlgorithmIds } from '../algorithmSelection';
 import { compareQueryOptions, singleCompareQueryOptions } from '../compareQueryOptions';
 import { formatComputedNanos, formatRawValue } from '../formatters';
+import { filterRowsByFamily, parseFamilyFilter } from '../familyFilter';
 import { rankResults, type RankedResult } from '../traceRanking';
 
 type Result = CompareResponse[number]['result'];
@@ -112,7 +113,7 @@ function ScoreTile({
  * score with its rank, the raw value, the time and the degenerate flag. Every
  * value comes from the compare responses the screen already holds or shares a
  * cache entry with; the rank is a reading of the backend's `normalizedScore`
- * order among the rows the table shows. It never replaces the trace below it.
+ * order among the rows the table shows (those the family filter leaves visible). It never replaces the trace below it.
  */
 export function TraceResultBlock({
   algorithmId,
@@ -154,7 +155,17 @@ export function TraceResultBlock({
     (algorithmsQuery.data ?? []).map((algorithm) => [algorithm.id, algorithm.kind]),
   );
   const family = algoFamilyFromKind(summary?.kind ?? 'CLASSIC');
-  const ranked = selectionQuery.data ? rankResults(selectionQuery.data) : [];
+  // Only the rows the family filter leaves visible are ranked, so the number
+  // matches the table the person is reading.
+  const ranked = selectionQuery.data
+    ? rankResults(
+        filterRowsByFamily(
+          selectionQuery.data,
+          parseFamilyFilter(searchParams.get('family')),
+          new Map((algorithmsQuery.data ?? []).map((algorithm) => [algorithm.id, algorithm])),
+        ),
+      )
+    : [];
   const own = ranked.find((entry) => entry.algorithmId === algorithmId);
   const selectionPending = selectionQuery.isPending && selectedIds.length > 0;
   const rank = selectionPending ? 'pending' : own ? { rank: own.rank, count: ranked.length } : null;
