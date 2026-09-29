@@ -52,13 +52,6 @@ export function embeddingsSummaryState(
     : 'mismatch';
 }
 
-const STATUS_DOT_CLASS = {
-  allMatch: 'bg-success',
-  mismatch: 'bg-warning',
-  unknown: 'bg-ink-muted',
-  error: 'bg-ink-muted',
-} as const;
-
 interface ArticleRowProps {
   article: ArticleSummary;
   selected: boolean;
@@ -170,13 +163,9 @@ export function CorpusListPanel({
   });
 
   const embeddingsRowId = useId();
-  const summaryState = embeddingsQuery.isError
-    ? 'error'
-    : embeddingsSummaryState(embeddingsQuery.data);
   const statusText = embeddingsQuery.isError
     ? t('corpus.rail.embeddings.errorValue')
     : t(`corpus.rail.embeddings.${embeddingsSummaryState(embeddingsQuery.data)}`);
-  const statusDotClass = STATUS_DOT_CLASS[summaryState];
 
   const selectedCount = selectedIds.length;
   const filtered = (data ?? []).filter((article) => matchesQuery(article, query));
@@ -233,21 +222,11 @@ export function CorpusListPanel({
             {t('corpus.rail.embeddings.label')}
           </span>
           <span className="flex items-center gap-2">
-            <span
-              id={`${embeddingsRowId}-value`}
-              className="flex items-center gap-1.5 font-mono text-mono text-ink"
-            >
+            <span id={`${embeddingsRowId}-value`} className="font-mono text-mono text-ink">
               {embeddingsQuery.isPending ? (
                 <Skeleton className="inline-block h-3 w-20 align-middle" />
               ) : (
-                <>
-                  <span
-                    data-slot="status-dot"
-                    aria-hidden="true"
-                    className={cn('size-2 shrink-0 rounded-full', statusDotClass)}
-                  />
-                  {statusText}
-                </>
+                statusText
               )}
             </span>
             <span id={`${embeddingsRowId}-hint`} className="sr-only">
