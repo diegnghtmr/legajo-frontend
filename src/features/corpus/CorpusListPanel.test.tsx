@@ -150,6 +150,44 @@ describe('CorpusListPanel', () => {
     });
   });
 
+  it('draws a decorative search icon inside the search input', async () => {
+    renderPanel();
+
+    const input = await screen.findByRole('searchbox', { name: es.corpus.rail.searchLabel });
+    const icon = input.parentElement?.querySelector('svg');
+    expect(icon).not.toBeNull();
+    expect(icon).toHaveAttribute('aria-hidden', 'true');
+    expect(input).toHaveClass('pl-[34px]');
+  });
+
+  it('shows each selected row its 1-based selection position as a separate element after the id', async () => {
+    useSelectionStore.setState({ selectedIds: ['doc-03', 'doc-01'] });
+    renderPanel();
+
+    await screen.findByRole('button', { name: 'A survey of string similarity' });
+
+    const first = screen.getByText('doc-03');
+    const firstOrder = first.nextElementSibling;
+    expect(firstOrder).toHaveTextContent('#1');
+    expect(firstOrder).toHaveTextContent(es.corpus.rail.selectionOrderPrefix);
+    // The id element stays exactly the id: the position never joins it.
+    expect(first).toHaveTextContent(/^doc-03$/);
+    expect(screen.getByText('doc-01').nextElementSibling).toHaveTextContent('#2');
+    // The hidden prefix makes it read as a position, not as part of the id.
+    expect(
+      within(firstOrder as HTMLElement).getByText(es.corpus.rail.selectionOrderPrefix),
+    ).toHaveClass('sr-only');
+  });
+
+  it('shows no selection position on an unselected row', async () => {
+    useSelectionStore.setState({ selectedIds: ['doc-01'] });
+    renderPanel();
+
+    await screen.findByRole('button', { name: 'A survey of string similarity' });
+
+    expect(screen.getByText('doc-02').nextElementSibling).toBeNull();
+  });
+
   it('filters rows by title, id or author, but never deselects a row hidden by the filter', async () => {
     const user = userEvent.setup();
     renderPanel();
