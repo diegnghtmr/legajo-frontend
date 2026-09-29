@@ -29,8 +29,9 @@ const SAMPLER_SCRIPT = `
     for (const card of document.querySelectorAll(
       '[data-testid^="linkage-dendrogram-"]:not([data-testid*="skeleton"])',
     )) {
-      if (card.querySelector('svg')) {
-        found.push(card.querySelector('svg').parentElement);
+      const chart = card.querySelector('svg[role="img"]');
+      if (chart) {
+        found.push(chart.parentElement);
       } else {
         const measured = card.querySelector('.mt-3');
         if (measured) found.push(measured);

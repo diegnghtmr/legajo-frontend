@@ -3,18 +3,19 @@ import { describe, expect, it } from 'vitest';
 import { dendrogramCardHeight } from './dendrogramGridSizing';
 
 describe('dendrogramCardHeight', () => {
-  it('clamps a very small leaf count to the minimum readable height', () => {
-    expect(dendrogramCardHeight(2)).toBe(220);
+  it('is (n - 1) x 22 + 60 px', () => {
+    expect(dendrogramCardHeight(20)).toBe(478);
+    expect(dendrogramCardHeight(6)).toBe(170);
   });
 
-  it('grows with the leaf count between the clamped bounds', () => {
-    const small = dendrogramCardHeight(10);
-    const large = dendrogramCardHeight(30);
-    expect(large).toBeGreaterThan(small);
+  it('grows 22px per extra leaf, with no upper clamp', () => {
+    expect(dendrogramCardHeight(31) - dendrogramCardHeight(30)).toBe(22);
+    expect(dendrogramCardHeight(500)).toBe(499 * 22 + 60);
   });
 
-  it('clamps a very large leaf count to the maximum grid-card height', () => {
-    expect(dendrogramCardHeight(500)).toBe(640);
+  it('keeps the 60px of chrome for a corpus with at most one leaf', () => {
+    expect(dendrogramCardHeight(1)).toBe(60);
+    expect(dendrogramCardHeight(0)).toBe(60);
   });
 
   it('rejects a non-integer leaf count', () => {

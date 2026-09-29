@@ -7,10 +7,14 @@ import {
   type DendrogramLeafLabel,
 } from '../../shared/components/Dendrogram';
 import type { DendrogramRow } from '../../shared/components/dendrogramLayout';
-import { Panel, PanelHeader } from '../../shared/components/Panel';
+import { Panel } from '../../shared/components/Panel';
+import { Badge } from '../../shared/components/ui/badge';
 import { Skeleton } from '../../shared/components/ui/skeleton';
 import type { LinkageId } from '../../infrastructure/schemas/clustering';
+import { tryComputeCutDistance } from './cutLine';
 import { dendrogramCardHeight } from './dendrogramGridSizing';
+import { formatMetricValue } from './formatMetricValue';
+import { LeaderBadge } from './LeaderBadge';
 
 export interface DendrogramCardProps {
   linkageId: LinkageId;
@@ -18,7 +22,13 @@ export interface DendrogramCardProps {
   rows: readonly DendrogramRow[];
   leafOrder: readonly number[];
   leafLabels?: readonly DendrogramLeafLabel[];
+  /** The backend's cophenetic correlation for this linkage: the card subtitle. */
+  cophenetic?: number;
+  /** Which leader marks this linkage carries (the caller applies the ranking rule). */
+  leaders?: { tree: boolean; partition: boolean };
   cut?: DendrogramCut;
+  /** The `k` to preview on this card before it is applied (only the card of the linkage to cut gets one). */
+  previewK?: number;
 }
 
 /**
@@ -54,11 +64,18 @@ export function DendrogramCardSkeleton({ linkageId, height }: DendrogramCardSkel
            * reasoning every other real-text-line placeholder in this
            * feature already follows. */}
           <Skeleton className="h-[30px] w-32" />
+          {/* The subtitle ("Cofenética 0.951"): an invisible sizer of a
+           * typical one reserves its real line, a block stands in for it. */}
+          <div className="relative">
+            <p aria-hidden="true" className="invisible text-body">
+              Cofenética 0.000
+            </p>
+            <Skeleton className="absolute inset-y-0.5 left-0 w-28" />
+          </div>
         </div>
         {/* `mt-3`: the real card's own chart wrapper (`DendrogramCard`'s
          * `<div ref className="mt-3">`) carries this same margin below
-         * `PanelHeader` — left out here, the chart sat 12px closer to the
-         * title than the real one does. */}
+         * its header. */}
         <div className="mt-3 flex flex-col gap-2">
           {/* The real figure's own `figcaption` (`Dendrogram`'s own
            * `ariaLabel`, built from the response's own `linkageDisplayName`)
@@ -82,16 +99,38 @@ export function DendrogramCard({
   rows,
   leafOrder,
   leafLabels,
+  cophenetic,
+  leaders,
   cut,
+  previewK,
 }: DendrogramCardProps) {
   const { t } = useTranslation();
   const [containerRef, width] = useElementWidth<HTMLDivElement>();
   const height = dendrogramCardHeight(leafOrder.length);
+  const previewDistance =
+    previewK === undefined ? undefined : tryComputeCutDistance(rows, previewK);
+  const hasActions = leaders?.tree || leaders?.partition || cut !== undefined;
 
   return (
     <div data-testid={`linkage-dendrogram-${linkageId}`}>
       <Panel>
-        <PanelHeader title={linkageDisplayName} />
+        <header className="mb-3 flex flex-wrap items-start justify-between gap-x-3 gap-y-2">
+          <div className="flex flex-col gap-1">
+            <h2 className="text-title font-semibold text-ink">{linkageDisplayName}</h2>
+            {cophenetic !== undefined && (
+              <p className="text-body text-ink-muted">
+                {t('clustering.dendrogram.cophenetic', { value: formatMetricValue(cophenetic) })}
+              </p>
+            )}
+          </div>
+          {hasActions && (
+            <div className="flex flex-wrap items-center gap-1.5">
+              {leaders?.tree && <LeaderBadge kind="tree" />}
+              {leaders?.partition && <LeaderBadge kind="partition" />}
+              {cut?.k !== undefined && <Badge variant="marker">{`k = ${cut.k}`}</Badge>}
+            </div>
+          )}
+        </header>
         <div ref={containerRef} className="mt-3" style={{ minHeight: height }}>
           {width !== null && (
             <Dendrogram
@@ -99,6 +138,11 @@ export function DendrogramCard({
               leafOrder={leafOrder}
               leafLabels={leafLabels}
               cut={cut}
+              preview={
+                previewK !== undefined && previewDistance !== undefined
+                  ? { k: previewK, distance: previewDistance }
+                  : undefined
+              }
               width={width}
               height={height}
               ariaLabel={t('clustering.dendrogram.ariaLabel', { linkage: linkageDisplayName })}

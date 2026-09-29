@@ -51,6 +51,8 @@ export interface DendrogramLayoutResult {
   /** Same order as the input `rows`. */
   links: readonly DendrogramLink[];
   maxDistance: number;
+  /** For every node id (leaves and merges), the leaf ids beneath it, in drawing order. */
+  leavesOf: ReadonlyMap<number, readonly number[]>;
   /** Converts a merge distance (data units) into a pixel x: `width` at the
    * leaves (distance 0), `0` at the highest merge (the root) — the tree
    * reads left (root) to right (leaves), the distance axis. */
@@ -115,6 +117,9 @@ export interface ComputeDendrogramLayoutInput {
   leafOrder: readonly number[];
   width: number;
   height: number;
+  /** The distance range the horizontal axis spans, `[leaf side, root side]`;
+   * defaults to `[0, largest merge]`. Leaves always sit on the leaf side. */
+  domain?: readonly [number, number];
 }
 
 /**
@@ -136,6 +141,7 @@ export function computeDendrogramLayout({
   leafOrder,
   width,
   height,
+  domain,
 }: ComputeDendrogramLayoutInput): DendrogramLayoutResult {
   const n = leafOrder.length;
   assertValidLeafOrder(leafOrder);
@@ -150,22 +156,23 @@ export function computeDendrogramLayout({
   }));
 
   const maxDistance = rows.reduce((max, row) => Math.max(max, row.mergeDistance), 0);
-  const xScale = scaleLinear()
-    .domain([0, maxDistance || 1])
-    .range([width, 0]);
-  const distanceToX = (distance: number): number => (maxDistance <= 0 ? width : xScale(distance));
+  const [domainStart, domainEnd] = domain ?? [0, maxDistance || 1];
+  const xScale = scaleLinear().domain([domainStart, domainEnd]).range([width, 0]);
+  const distanceToX = (distance: number): number =>
+    domainEnd <= domainStart ? width : xScale(distance);
 
   const nodes = new Map<number, DendrogramNodePosition>();
   for (const leaf of leaves) {
     nodes.set(leaf.id, {
       id: leaf.id,
-      x: distanceToX(0),
+      x: width,
       y: leaf.y,
       isLeaf: true,
       distance: 0,
     });
   }
 
+  const leavesOf = new Map<number, readonly number[]>(leaves.map((leaf) => [leaf.id, [leaf.id]]));
   const links: DendrogramLink[] = [];
   for (const [index, row] of rows.entries()) {
     const clusterId = n + index;
@@ -182,6 +189,7 @@ export function computeDendrogramLayout({
     const x = distanceToX(row.mergeDistance);
     const y = (child1.y + child2.y) / 2;
     nodes.set(clusterId, { id: clusterId, x, y, isLeaf: false, distance: row.mergeDistance });
+    leavesOf.set(clusterId, [...(leavesOf.get(row.idx1) ?? []), ...(leavesOf.get(row.idx2) ?? [])]);
     links.push({
       id: clusterId,
       distance: row.mergeDistance,
@@ -191,5 +199,5 @@ export function computeDendrogramLayout({
     });
   }
 
-  return { n, leaves, nodes, links, maxDistance, distanceToX };
+  return { n, leaves, nodes, links, maxDistance, leavesOf, distanceToX };
 }

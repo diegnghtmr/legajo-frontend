@@ -426,6 +426,32 @@ test.describe('clustering screen', () => {
     expect((await submitButton.boundingBox())!.x).toBeCloseTo(buttonBox!.x, 0);
   });
 
+  test('each dendrogram has a "Distancia" axis, a dotted preview of the k being edited, and hover tooltips', async ({
+    page,
+  }) => {
+    await page.goto('/clustering');
+    const single = page.getByTestId('linkage-dendrogram-single');
+    await expect(single.getByRole('img')).toBeVisible();
+
+    await expect(single.locator('[data-axis-title]')).toHaveText('Distancia');
+    expect(await single.locator('[data-axis-tick]').count()).toBeGreaterThanOrEqual(3);
+
+    // The default k (2) is previewed on the linkage to cut, before any cut.
+    await expect(single.getByTestId('dendrogram-preview-label')).toHaveText('k = 2');
+    await expect(
+      page.getByTestId('linkage-dendrogram-complete').getByTestId('dendrogram-preview-line'),
+    ).toHaveCount(0);
+
+    await single.locator('[data-leaf-id="0"]').hover();
+    const leafTip = page.getByRole('tooltip');
+    await expect(leafTip).toContainText('doc-01');
+    await expect(leafTip).toContainText('Article 1');
+
+    await single.locator('[data-merge-hit="6"]').hover({ force: true });
+    await expect(page.getByRole('tooltip')).toContainText('1 / 5');
+    await expect(page.getByRole('tooltip')).toContainText('0.1000');
+  });
+
   test('"Ver en k" re-reads the silhouette and Davies–Bouldin columns while the leaders stay at k_ref', async ({
     page,
   }) => {
@@ -568,7 +594,7 @@ test.describe('clustering screen', () => {
           const region = card.getByRole('region', { name: new RegExp(linkageId, 'i') });
           const [cardBox, svgWidth, regionScrollWidth, regionClientWidth] = await Promise.all([
             card.boundingBox(),
-            card.locator('svg').getAttribute('width'),
+            card.getByRole('img').getAttribute('width'),
             region.evaluate((el) => el.scrollWidth),
             region.evaluate((el) => el.clientWidth),
           ]);

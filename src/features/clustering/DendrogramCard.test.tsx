@@ -175,4 +175,59 @@ describe('DendrogramCard', () => {
     const largeSvg = within(screen.getByTestId('linkage-dendrogram-single')).getByRole('img');
     expect(Number(largeSvg.getAttribute('height'))).toBeGreaterThan(smallHeight);
   });
+
+  const renderCard = (props: Partial<React.ComponentProps<typeof DendrogramCard>> = {}) =>
+    render(
+      <DendrogramCard
+        linkageId="single"
+        linkageDisplayName="Single"
+        rows={GOLDEN_ROWS_N6}
+        leafOrder={[0, 1, 2, 3, 4, 5]}
+        cophenetic={0.9512}
+        {...props}
+      />,
+    );
+
+  it('shows the cophenetic value as the card subtitle', () => {
+    renderCard();
+
+    expect(screen.getByText('Cofenética 0.951')).toBeInTheDocument();
+  });
+
+  it('shows the leader badges as the card actions', () => {
+    renderCard({ leaders: { tree: true, partition: true } });
+
+    const container = screen.getByTestId('linkage-dendrogram-single');
+    expect(within(container).getByText('Árbol')).toBeInTheDocument();
+    expect(within(container).getByText('Partición')).toBeInTheDocument();
+  });
+
+  it('shows no leader badge for a card that leads nothing', () => {
+    renderCard();
+
+    expect(screen.queryByText('Árbol')).not.toBeInTheDocument();
+    expect(screen.queryByText('Partición')).not.toBeInTheDocument();
+  });
+
+  it('marks the cut card with a "k = n" marker badge', () => {
+    renderCard({ cut: { distance: 0.25, labels: [0, 0, 1, 1, 2, 2], k: 3 } });
+
+    const container = screen.getByTestId('linkage-dendrogram-single');
+    const marker = within(container).getAllByText('k = 3', { selector: 'span' })[0]!;
+    expect(marker.className).toContain('font-mono');
+  });
+
+  it('draws the dotted preview line at the midpoint for a valid preview k', () => {
+    renderCard({ previewK: 3 });
+
+    const container = screen.getByTestId('linkage-dendrogram-single');
+    expect(within(container).getByTestId('dendrogram-preview-line')).toBeInTheDocument();
+    expect(within(container).getByTestId('dendrogram-preview-label')).toHaveTextContent('k = 3');
+  });
+
+  it('draws no preview for a k the loaded rows cannot place', () => {
+    renderCard({ previewK: 6 });
+
+    expect(screen.queryByTestId('dendrogram-preview-line')).not.toBeInTheDocument();
+  });
 });
