@@ -163,7 +163,7 @@ describe('SimilarityWorkbenchLayout', () => {
     await user.click(await screen.findByRole('button', { name: 'A survey of string similarity' }));
     expect(await screen.findByText('The full abstract.')).toBeInTheDocument();
 
-    await user.click(screen.getByRole('button', { name: /Ver el estado de los embeddings$/ }));
+    await user.click(screen.getByRole('button', { name: /Ver el detalle$/ }));
 
     expect(screen.queryByText('The full abstract.')).not.toBeInTheDocument();
     expect(
@@ -190,7 +190,7 @@ describe('SimilarityWorkbenchLayout', () => {
       renderLayout();
 
       const statusRow = await screen.findByRole('button', {
-        name: /Ver el estado de los embeddings$/,
+        name: /Ver el detalle$/,
       });
       await user.click(statusRow);
       await screen.findByRole('heading', { name: 'Estado de los embeddings' });
@@ -233,7 +233,7 @@ describe('SimilarityWorkbenchLayout', () => {
       renderLayout();
 
       const statusRow = await screen.findByRole('button', {
-        name: /Ver el estado de los embeddings$/,
+        name: /Ver el detalle$/,
       });
       await user.click(statusRow);
 

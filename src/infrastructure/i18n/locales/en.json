@@ -58,7 +58,8 @@
         "allMatch": "Matches the corpus",
         "mismatch": "Check match",
         "unknown": "Not verified yet",
-        "openLabel": "View the embeddings status"
+        "rowLabel": "Embeddings: {{status}}. View details",
+        "loadingValue": "loading"
       }
     },
     "tray": {
