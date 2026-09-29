@@ -170,6 +170,28 @@ test.describe('similarity compare screen', () => {
     expect(compareRequests).toHaveLength(0);
   });
 
+  test('hiding the open trace with the family filter lands focus on the results heading', async ({
+    page,
+  }) => {
+    await page.route('**/api/v1/similarity/levenshtein/trace**', async (route) => {
+      await route.fulfill({ json: DP_TRACE });
+    });
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await page.goto('/');
+
+    await page.getByRole('checkbox', { name: 'A survey of string similarity' }).check();
+    await page.getByRole('checkbox', { name: 'Embeddings for scientific text' }).check();
+
+    const row = page.getByRole('row', { name: /^levenshtein/ });
+    await row.getByRole('button', { name: 'levenshtein', exact: true }).click();
+    await expect(page.getByTestId('workbench-detail')).toBeVisible();
+
+    await page.getByRole('radio', { name: 'IA' }).click();
+
+    await expect(page.getByTestId('workbench-detail')).toHaveCount(0);
+    await expect(page.getByRole('heading', { name: 'doc-01 frente a doc-02' })).toBeFocused();
+  });
+
   test('at lg and above, activating the CTA once the pair is already shown moves focus onto the results instead of navigating anywhere', async ({
     page,
   }) => {
