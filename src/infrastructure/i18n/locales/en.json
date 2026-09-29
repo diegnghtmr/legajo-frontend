@@ -419,6 +419,7 @@
     "unexpected": "An unexpected error occurred.",
     "network": {
       "coldStart": "Could not reach the server. If this is the first request in a while, the free-tier server may be waking up: it can take up to a minute to respond."
-    }
+    },
+    "retry": "Retry"
   }
 }

@@ -2,9 +2,9 @@ import { useMemo, useState, type ReactNode } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 
-import { DEFAULT_UNEXPECTED_I18N_KEY, type ApiError } from '../../infrastructure/apiError';
+import type { ApiError } from '../../infrastructure/apiError';
 import { fetchBenchmarks, type BenchmarkReportResponse } from '../../infrastructure/api/benchmarks';
-import { Alert } from '../../shared/components/Alert';
+import { QueryErrorAlert } from '../../shared/components/QueryErrorAlert';
 import { PanelHeader } from '../../shared/components/Panel';
 import { SegmentedControl, type SegmentedOption } from '../../shared/components/SegmentedControl';
 import { Skeleton } from '../../shared/components/ui/skeleton';
@@ -70,7 +70,9 @@ function ScaleSegmentedSkeleton() {
 }
 
 /** The page title on the left and the `Escala` control on the right (below it
- * on a narrow screen), so one control drives every curve card. */
+ * on a narrow screen), so one control drives every curve card. A `null`
+ * control (the report failed to load, so there is nothing to scale) leaves
+ * the title alone. */
 function PageHeader({ control }: { control: ReactNode }) {
   const { t } = useTranslation();
 
@@ -80,12 +82,14 @@ function PageHeader({ control }: { control: ReactNode }) {
       className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between"
     >
       <PanelHeader eyebrow={t('benchmarks.eyebrow')} title={t('benchmarks.title')} />
-      <div className="mb-3 flex items-center gap-3">
-        <span id={SCALE_LABEL_ID} className="text-label text-ink-secondary">
-          {t('benchmarks.scaleGroupLabel')}
-        </span>
-        {control}
-      </div>
+      {control !== null && (
+        <div className="mb-3 flex items-center gap-3">
+          <span id={SCALE_LABEL_ID} className="text-label text-ink-secondary">
+            {t('benchmarks.scaleGroupLabel')}
+          </span>
+          {control}
+        </div>
+      )}
     </div>
   );
 }
@@ -183,7 +187,7 @@ export function BenchmarksPage() {
               onChange={setScale}
               aria-labelledby={SCALE_LABEL_ID}
             />
-          ) : (
+          ) : query.isError ? null : (
             <ScaleSegmentedSkeleton />
           )
         }
@@ -212,10 +216,11 @@ export function BenchmarksPage() {
         </>
       )}
       {query.isError && (
-        <Alert
-          tone="danger"
+        <QueryErrorAlert
           title={t('benchmarks.errorTitle')}
-          body={t(query.error.i18nKey ?? DEFAULT_UNEXPECTED_I18N_KEY)}
+          error={query.error}
+          endpoint="GET /api/v1/benchmarks"
+          onRetry={() => void query.refetch()}
         />
       )}
 

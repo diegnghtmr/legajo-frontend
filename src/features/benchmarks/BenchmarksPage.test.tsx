@@ -156,6 +156,45 @@ describe('BenchmarksPage', () => {
     ).toBeInTheDocument();
   });
 
+  it('explains a failed request with the problem detail and retries it from the alert', async () => {
+    const user = userEvent.setup();
+    const fetch = vi
+      .spyOn(benchmarksApi, 'fetchBenchmarks')
+      .mockRejectedValueOnce({
+        kind: 'problem',
+        status: 503,
+        title: 'Service Unavailable',
+        detail: 'The benchmark report is being regenerated.',
+        i18nKey: 'errors.serviceUnavailable',
+      })
+      .mockResolvedValue(REPORT);
+
+    renderWithProviders(<BenchmarksPage />);
+
+    const alert = await screen.findByRole('alert');
+    expect(alert).toHaveTextContent('The benchmark report is being regenerated.');
+    expect(alert).toHaveTextContent('GET /api/v1/benchmarks');
+    expect(alert).toHaveTextContent('HTTP 503');
+
+    const callsBeforeRetry = fetch.mock.calls.length;
+    await user.click(within(alert).getByRole('button', { name: 'Reintentar' }));
+
+    expect(await screen.findByText('12th Gen Intel® Core™ i9-12900H')).toBeInTheDocument();
+    expect(fetch.mock.calls.length).toBe(callsBeforeRetry + 1);
+  });
+
+  it('drops the scale control instead of leaving its placeholder when the query fails', async () => {
+    vi.spyOn(benchmarksApi, 'fetchBenchmarks').mockRejectedValue(new Error('boom'));
+
+    renderWithProviders(<BenchmarksPage />);
+
+    await screen.findByRole('alert');
+    const header = screen.getByTestId('benchmarks-header');
+    expect(header.querySelectorAll('[data-slot="skeleton"]')).toHaveLength(0);
+    expect(within(header).queryByText('Escala')).not.toBeInTheDocument();
+    expect(within(header).queryByRole('radiogroup')).not.toBeInTheDocument();
+  });
+
   it('shows the generic unexpected-error message when the query rejects with a plain Error', async () => {
     vi.spyOn(benchmarksApi, 'fetchBenchmarks').mockRejectedValue(new Error('boom'));
 

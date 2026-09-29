@@ -7,6 +7,7 @@ import { DEFAULT_UNEXPECTED_I18N_KEY } from '../../infrastructure/apiError';
 import type { ListSimilarityAlgorithmsResponse } from '../../infrastructure/api/similarity';
 import { algorithmsQueryOptions } from '../../infrastructure/api/similarityCatalogue';
 import type { AlgorithmId } from '../../infrastructure/schemas/similarity';
+import { QueryErrorAlert } from '../../shared/components/QueryErrorAlert';
 import { Alert } from '../../shared/components/Alert';
 import { EmptyState } from '../../shared/components/EmptyState';
 import { PanelHeader } from '../../shared/components/Panel';
@@ -240,10 +241,11 @@ export function SimilarityCompareView({ pair, openAlgorithmId }: SimilarityCompa
         </>
       )}
       {compareQuery.isError && (
-        <Alert
-          tone="danger"
+        <QueryErrorAlert
           title={t('similarity.compareErrorTitle')}
-          body={t(compareQuery.error.i18nKey ?? DEFAULT_UNEXPECTED_I18N_KEY)}
+          error={compareQuery.error}
+          endpoint="POST /api/v1/similarity/compare"
+          onRetry={() => void compareQuery.refetch()}
         />
       )}
       {compareQuery.data && (

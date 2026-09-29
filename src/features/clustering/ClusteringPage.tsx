@@ -2,7 +2,7 @@ import { useMemo, useRef, useState } from 'react';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 
-import { DEFAULT_UNEXPECTED_I18N_KEY, type ApiError } from '../../infrastructure/apiError';
+import type { ApiError } from '../../infrastructure/apiError';
 import {
   cutClustering,
   runClustering,
@@ -13,7 +13,7 @@ import {
 } from '../../infrastructure/api/clustering';
 import { fetchCorpus, type ListCorpusResponse } from '../../infrastructure/api/corpus';
 import type { LinkageId, RepresentationId } from '../../infrastructure/schemas/clustering';
-import { Alert } from '../../shared/components/Alert';
+import { QueryErrorAlert } from '../../shared/components/QueryErrorAlert';
 import { PanelHeader } from '../../shared/components/Panel';
 import { CORPUS_LIST_QUERY_KEY } from '../corpus/SelectionRail';
 import { ClusteringMetricsTable, ClusteringMetricsTableSkeleton } from './ClusteringMetricsTable';
@@ -378,10 +378,11 @@ export function ClusteringPage() {
           </>
         )}
         {clusteringQuery.isError && (
-          <Alert
-            tone="danger"
+          <QueryErrorAlert
             title={t('clustering.errorTitle')}
-            body={t(clusteringQuery.error.i18nKey ?? DEFAULT_UNEXPECTED_I18N_KEY)}
+            error={clusteringQuery.error}
+            endpoint="POST /api/v1/clustering"
+            onRetry={() => void clusteringQuery.refetch()}
           />
         )}
 
