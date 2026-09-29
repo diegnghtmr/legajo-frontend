@@ -1,10 +1,21 @@
-import { CartesianGrid, Line, LineChart, XAxis, YAxis, type DotItemDotProps } from 'recharts';
+import { useState } from 'react';
+import {
+  CartesianGrid,
+  ErrorBar,
+  Line,
+  LineChart,
+  XAxis,
+  YAxis,
+  type DotItemDotProps,
+} from 'recharts';
 import { useTranslation } from 'react-i18next';
 
 import { EmptyState } from '../../shared/components/EmptyState';
 import { Panel, PanelHeader } from '../../shared/components/Panel';
 import { Skeleton } from '../../shared/components/ui/skeleton';
 import { useElementWidth } from '../../shared/hooks/useElementWidth';
+import { cn } from '../../shared/lib/cn';
+import { readMotionDurationMs } from '../../shared/lib/motionDuration';
 import {
   Table,
   TableBody,
@@ -14,16 +25,25 @@ import {
   TableHeader,
   TableRow,
 } from '../../shared/components/ui/table';
+import { CurveLegend } from './CurveLegend';
 import { mergeSeriesIntoRows, type FamilySeries } from './grouping';
-import { logDecadeTicks } from './logDecadeTicks';
-import { dashPatternForIndex, markerShapeForIndex, type MarkerShape } from './seriesStyle';
-import { theoreticalCurvePoints } from './theoreticalCurve';
+import {
+  buildPlotModel,
+  errorKey,
+  theoreticalKey,
+  type FamilySlope,
+  type Scale,
+} from './plotModel';
+import { SeriesMarker } from './SeriesMarker';
+import {
+  dashPatternForIndex,
+  hueForIndex,
+  markerShapeForIndex,
+  type MarkerShape,
+} from './seriesStyle';
 import { formatDuration } from './units';
 
-export interface FamilySlope {
-  empiricalSlope: number;
-  theoreticalExponent: number;
-}
+export type { FamilySlope };
 
 export interface BenchmarkCurveChartProps {
   title: string;
@@ -31,7 +51,7 @@ export interface BenchmarkCurveChartProps {
   yAxisLabel: string;
   series: readonly FamilySeries[];
   slopes: ReadonlyMap<string, FamilySlope>;
-  scale: 'linear' | 'log-log';
+  scale: Scale;
   dataTableCaption: string;
   slopeTableCaption: string;
 }
@@ -39,90 +59,27 @@ export interface BenchmarkCurveChartProps {
 /** Exported so this chart's own loading skeleton reserves exactly this
  * height, causing no shift once the real chart replaces it. */
 export const CHART_HEIGHT = 280;
-const DOT_RADIUS = 4;
-
-function theoreticalKey(family: string): string {
-  return `${family}__theoretical`;
-}
+/** Series that are not isolated recede to this opacity. */
+const DIMMED_OPACITY = 0.12;
+const LINE_WIDTH = 1.5;
+const ISOLATED_LINE_WIDTH = 2.25;
+const THEORETICAL_OPACITY = 0.45;
+const WHISKER_OPACITY = 0.6;
+/** Recharts extends the cap this far to each side of the bar: 6px caps in total. */
+const WHISKER_CAP_HALF_WIDTH = 3;
 
 function formatSlopeNumber(value: number): string {
   return value.toFixed(2);
 }
 
-/**
- * A log axis has no representation for zero or a negative value (`Math.log`
- * of either is `-Infinity`/`NaN`), which breaks Recharts' domain calculation
- * for the *entire* chart, not just the offending point — every series goes
- * blank, not only the bad one. On `log-log`, such points are excluded from
- * the plotted series; they stay in the sr-only data table below, which
- * always reflects every raw measured value regardless of scale.
- */
-function plottableOnScale(
-  point: { size: number; valueNs: number },
-  scale: 'linear' | 'log-log',
-): boolean {
-  return scale !== 'log-log' || (point.size > 0 && point.valueNs > 0);
-}
-
-function seriesForPlotting(
-  series: readonly FamilySeries[],
-  scale: 'linear' | 'log-log',
-): FamilySeries[] {
-  if (scale !== 'log-log') {
-    return series as FamilySeries[];
-  }
-  return series.map((entry) => ({
-    family: entry.family,
-    points: entry.points.filter((point) => plottableOnScale(point, scale)),
-  }));
-}
-
-/** Renders one grayscale marker shape per series (color is never the only channel). */
-function seriesDot(shape: MarkerShape) {
+/** Renders one marker per measured point, in the series' shape and hue. */
+function seriesDot(shape: MarkerShape, hue: string, opacity: number) {
   return function SeriesDot(props: DotItemDotProps) {
     const { cx, cy } = props;
     if (cx === undefined || cy === undefined) {
       return null;
     }
-
-    const fill = 'var(--color-ink)';
-    switch (shape) {
-      case 'circle':
-        return <circle data-shape="circle" cx={cx} cy={cy} r={DOT_RADIUS} fill={fill} />;
-      case 'square':
-        return (
-          <rect
-            data-shape="square"
-            x={cx - DOT_RADIUS}
-            y={cy - DOT_RADIUS}
-            width={DOT_RADIUS * 2}
-            height={DOT_RADIUS * 2}
-            fill={fill}
-          />
-        );
-      case 'diamond':
-        return (
-          <rect
-            data-shape="diamond"
-            x={cx - DOT_RADIUS}
-            y={cy - DOT_RADIUS}
-            width={DOT_RADIUS * 2}
-            height={DOT_RADIUS * 2}
-            fill={fill}
-            transform={`rotate(45 ${cx} ${cy})`}
-          />
-        );
-      case 'triangle':
-        return (
-          <polygon
-            data-shape="triangle"
-            points={`${cx},${cy - DOT_RADIUS} ${cx - DOT_RADIUS},${cy + DOT_RADIUS} ${cx + DOT_RADIUS},${cy + DOT_RADIUS}`}
-            fill={fill}
-          />
-        );
-      default:
-        return null;
-    }
+    return <SeriesMarker shape={shape} cx={cx} cy={cy} fill={hue} opacity={opacity} />;
   };
 }
 
@@ -145,6 +102,13 @@ export function BenchmarkCurveChart({
 }: BenchmarkCurveChartProps) {
   const { t } = useTranslation();
   const [containerRef, width] = useElementWidth<HTMLDivElement>();
+  const [isolatedFamily, setIsolatedFamily] = useState<string | null>(null);
+  const [seenScale, setSeenScale] = useState(scale);
+  const [hasChangedScale, setHasChangedScale] = useState(false);
+  if (seenScale !== scale) {
+    setSeenScale(scale);
+    setHasChangedScale(true);
+  }
 
   if (series.length === 0) {
     return (
@@ -156,54 +120,21 @@ export function BenchmarkCurveChart({
   }
 
   const chartData = mergeSeriesIntoRows(series);
-  const plottedSeries = seriesForPlotting(series, scale);
-  const rowsBySize = new Map(
-    mergeSeriesIntoRows(plottedSeries).map((row) => [row.size, { ...row }]),
-  );
-
-  for (const { family, points } of plottedSeries) {
-    const slope = slopes.get(family);
-    if (!slope) {
-      continue;
-    }
-    for (const point of theoreticalCurvePoints(points, slope.theoreticalExponent)) {
-      const row = rowsBySize.get(point.size) ?? { size: point.size };
-      row[theoreticalKey(family)] = point.valueNs;
-      rowsBySize.set(point.size, row);
-    }
-  }
-
-  const mergedData = [...rowsBySize.values()].sort((a, b) => a.size - b.size);
+  const { rows, yTicks, yDomain } = buildPlotModel(series, slopes, scale);
   const axisScale = scale === 'log-log' ? 'log' : 'linear';
   const familiesWithSlopes = series.filter((entry) => slopes.has(entry.family));
 
-  // Recharts' own automatic log-scale ticks land on arbitrary sub-multiples
-  // of the domain (e.g. 40 µs, 300 µs, 800 µs), never true decades — explicit
-  // `ticks` (and a matching `domain`) fix the y-axis to powers of ten
-  // instead, computed from every value actually plotted on this scale
-  // (including the theoretical curves, which can extend past the empirical
-  // points' own range).
-  const yAxisTicks =
-    axisScale === 'log'
-      ? logDecadeTicks(
-          mergedData.flatMap((row) =>
-            Object.entries(row)
-              .filter(([key]) => key !== 'size')
-              .map(([, value]) => value),
-          ),
-        )
-      : [];
-  // Padded half a decade below/above the outermost ticks, in log space
-  // (never the bare tick bounds themselves): a domain that starts exactly
-  // at the lowest tick's own value plants that tick's label right where
-  // the x-axis's own first tick label already sits, in the plot's
-  // bottom-left corner — this keeps every tick's own row/column clear of
-  // that corner without adding a tick nothing plotted actually reaches.
-  const HALF_DECADE = Math.sqrt(10);
-  const yAxisDomain: [number | 'auto', number | 'auto'] =
-    yAxisTicks.length > 0
-      ? [yAxisTicks[0]! / HALF_DECADE, yAxisTicks[yAxisTicks.length - 1]! * HALF_DECADE]
-      : ['auto', 'auto'];
+  // Lines, markers and whiskers glide to their new positions over the chart
+  // duration token (zero under reduced motion, which turns the animation off).
+  const morphMs = readMotionDurationMs('--dur-chart');
+  const animation = {
+    isAnimationActive: morphMs > 0,
+    animationDuration: morphMs,
+    animationEasing: 'ease-in-out',
+  } as const;
+
+  const opacityOf = (family: string) =>
+    isolatedFamily === null || isolatedFamily === family ? 1 : DIMMED_OPACITY;
 
   return (
     <Panel>
@@ -244,7 +175,7 @@ export function BenchmarkCurveChart({
           role="group"
           aria-label={title}
           data-scale={axisScale}
-          className="min-w-0 flex-1"
+          className={cn('min-w-0 flex-1', hasChangedScale && 'chart-scale-morph')}
         >
           {width === null ? (
             // The width is not measured yet: hold the chart's final height
@@ -255,12 +186,19 @@ export function BenchmarkCurveChart({
             <LineChart
               width={width}
               height={CHART_HEIGHT}
-              data={mergedData}
+              data={rows}
               accessibilityLayer={false}
               margin={{ top: 8, right: 16, bottom: 24, left: 8 }}
             >
-              <CartesianGrid stroke="var(--color-hairline)" strokeDasharray="3 3" />
+              {/* Keyed by scale so the grid and ticks remount, and fade in
+                  (`chart-scale-morph`), when the scale changes. */}
+              <CartesianGrid
+                key={`grid-${scale}`}
+                stroke="var(--color-chart-grid)"
+                strokeDasharray="3 3"
+              />
               <XAxis
+                key={`x-${scale}`}
                 dataKey="size"
                 type="number"
                 scale={axisScale}
@@ -268,84 +206,73 @@ export function BenchmarkCurveChart({
                 className="text-mono"
               />
               <YAxis
+                key={`y-${scale}`}
                 type="number"
                 scale={axisScale}
-                domain={yAxisDomain}
-                ticks={yAxisTicks.length > 0 ? yAxisTicks : undefined}
+                domain={yDomain}
+                ticks={yTicks.length > 0 ? yTicks : undefined}
                 tickFormatter={(value: number) => formatDuration(value)}
                 className="text-mono"
                 width={72}
               />
-              {series.map((entry, index) => (
-                <Line
-                  key={entry.family}
-                  dataKey={entry.family}
-                  name={entry.family}
-                  stroke="var(--color-ink)"
-                  strokeWidth={1.5}
-                  strokeDasharray={dashPatternForIndex(index) || undefined}
-                  dot={seriesDot(markerShapeForIndex(index))}
-                  isAnimationActive={false}
-                  connectNulls
-                />
-              ))}
-              {familiesWithSlopes.map((entry) => (
-                <Line
-                  key={theoreticalKey(entry.family)}
-                  dataKey={theoreticalKey(entry.family)}
-                  name={t('benchmarks.curves.legendTheoretical', { family: entry.family })}
-                  stroke="var(--color-ink-muted)"
-                  strokeWidth={1}
-                  strokeDasharray="2 2"
-                  dot={false}
-                  isAnimationActive={false}
-                  connectNulls
-                />
-              ))}
+              {familiesWithSlopes.map((entry) => {
+                const hue = hueForIndex(series.indexOf(entry));
+                return (
+                  <Line
+                    key={theoreticalKey(entry.family)}
+                    className="benchmark-theoretical"
+                    dataKey={theoreticalKey(entry.family)}
+                    name={`${entry.family} ${t('benchmarks.curves.legendTheoretical')}`}
+                    stroke={hue}
+                    strokeOpacity={THEORETICAL_OPACITY * opacityOf(entry.family)}
+                    strokeWidth={1}
+                    strokeDasharray="2 3"
+                    dot={false}
+                    activeDot={false}
+                    connectNulls
+                    {...animation}
+                  />
+                );
+              })}
+              {series.map((entry, index) => {
+                const hue = hueForIndex(index);
+                const opacity = opacityOf(entry.family);
+                return (
+                  <Line
+                    key={entry.family}
+                    className="benchmark-series"
+                    dataKey={entry.family}
+                    name={entry.family}
+                    stroke={hue}
+                    strokeOpacity={opacity}
+                    strokeWidth={isolatedFamily === entry.family ? ISOLATED_LINE_WIDTH : LINE_WIDTH}
+                    strokeDasharray={dashPatternForIndex(index) || undefined}
+                    dot={seriesDot(markerShapeForIndex(index), hue, opacity)}
+                    connectNulls
+                    {...animation}
+                  >
+                    <ErrorBar
+                      dataKey={errorKey(entry.family)}
+                      width={WHISKER_CAP_HALF_WIDTH}
+                      stroke={hue}
+                      strokeOpacity={WHISKER_OPACITY * opacity}
+                      strokeWidth={1}
+                      {...animation}
+                    />
+                  </Line>
+                );
+              })}
             </LineChart>
           )}
           <p className="mt-1 text-center text-mono text-ink-secondary">{xAxisLabel}</p>
         </div>
       </div>
 
-      {/*
-       * The four series differ only by dash pattern (grayscale-first,
-       * `seriesStyle.ts`): without a key, that distinction is invisible.
-       * Each entry pairs a swatch matching the chart line's own dash with
-       * the algorithm id in mono — the visible text is what assistive tech
-       * reads, so the decorative swatch itself is `aria-hidden`.
-       */}
-      <ul
-        aria-label={t('benchmarks.curves.legend')}
-        className="mt-3 flex flex-wrap gap-x-4 gap-y-2"
-      >
-        {series.map((entry, index) => {
-          const dash = dashPatternForIndex(index) || undefined;
-          return (
-            <li key={entry.family} className="flex items-center gap-2">
-              <svg
-                data-testid={`legend-swatch-${entry.family}`}
-                aria-hidden="true"
-                width="20"
-                height="10"
-                className="shrink-0"
-              >
-                <line
-                  data-testid={`legend-dash-${entry.family}`}
-                  x1="0"
-                  y1="5"
-                  x2="20"
-                  y2="5"
-                  stroke="var(--color-ink)"
-                  strokeWidth="1.5"
-                  strokeDasharray={dash}
-                />
-              </svg>
-              <span className="font-mono text-mono text-ink">{entry.family}</span>
-            </li>
-          );
-        })}
-      </ul>
+      <CurveLegend
+        series={series}
+        showTheoretical={familiesWithSlopes.length > 0}
+        onIsolate={setIsolatedFamily}
+      />
 
       {familiesWithSlopes.length > 0 && (
         // The single scroll container for this table (its own keyboard
@@ -505,14 +432,21 @@ export function BenchmarkCurveChartSkeleton({
 
       <ul
         aria-label={t('benchmarks.curves.legend')}
-        className="mt-3 flex flex-wrap gap-x-4 gap-y-2"
+        className="mt-3 flex flex-wrap gap-x-2 gap-y-1"
       >
         {families.map((family) => (
-          <li key={family} className="flex items-center gap-2">
-            <Skeleton className="h-2.5 w-5 rounded-none" />
-            <span className="font-mono text-mono text-ink">{family}</span>
+          <li
+            key={family}
+            className="flex items-center gap-2 px-2 py-1 font-mono text-mono text-ink"
+          >
+            <Skeleton className="h-2.5 w-7 rounded-none" />
+            {family}
           </li>
         ))}
+        <li className="flex items-center gap-2 px-2 py-1 font-mono text-mono text-ink-secondary">
+          <Skeleton className="h-2.5 w-7 rounded-none" />
+          {t('benchmarks.curves.legendTheoretical')}
+        </li>
       </ul>
 
       <div className="mt-3 overflow-hidden rounded-md">

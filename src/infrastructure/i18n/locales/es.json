@@ -309,7 +309,7 @@
       "xAxisLength": "Longitud de secuencia (L)",
       "xAxisN": "Tamaño de muestra (n)",
       "yAxisLabel": "Tiempo",
-      "legendTheoretical": "{{family}} (teórico)",
+      "legendTheoretical": "teórico",
       "slopeTableCaption": "Pendiente log–log: {{group}}",
       "slopeTableFamily": "Familia",
       "slopeTableEmpirical": "Pendiente empírica",

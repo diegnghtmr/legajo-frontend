@@ -55,8 +55,23 @@ describe('seriesForFamilies', () => {
 
     const levenshtein = series.find((entry) => entry.family === 'levenshtein');
     expect(levenshtein?.points).toEqual([
-      { size: 50, valueNs: 7_900 },
-      { size: 100, valueNs: 29_600 },
+      { size: 50, valueNs: 7_900, errorNs: 0 },
+      { size: 100, valueNs: 29_600, errorNs: 0 },
+    ]);
+  });
+
+  it('carries each point’s JMH error, converted to nanoseconds like the score', () => {
+    const series = seriesForFamilies(
+      [
+        result({ family: 'levenshtein', size: 50, score: 7.9, error: 0.25, unit: 'us/op' }),
+        result({ family: 'levenshtein', size: 100, score: 2, error: 0.5, unit: 'ms/op' }),
+      ],
+      PAIRWISE_CLASSIC_FAMILIES,
+    );
+
+    expect(series[0]?.points).toEqual([
+      { size: 50, valueNs: 7_900, errorNs: 250 },
+      { size: 100, valueNs: 2_000_000, errorNs: 500_000 },
     ]);
   });
 
@@ -68,13 +83,15 @@ describe('seriesForFamilies', () => {
 
   it('reads the HAC linkage families', () => {
     const series = seriesForFamilies(RESULTS, HAC_LINKAGE_FAMILIES);
-    expect(series).toEqual([{ family: 'hac-single', points: [{ size: 5, valueNs: 310 }] }]);
+    expect(series).toEqual([
+      { family: 'hac-single', points: [{ size: 5, valueNs: 310, errorNs: 0 }] },
+    ]);
   });
 
   it('reads the embedding families', () => {
     const series = seriesForFamilies(RESULTS, EMBEDDING_FAMILIES);
     expect(series).toEqual([
-      { family: 'embedding-dot-product', points: [{ size: 384, valueNs: 195 }] },
+      { family: 'embedding-dot-product', points: [{ size: 384, valueNs: 195, errorNs: 0 }] },
     ]);
   });
 
@@ -91,8 +108,8 @@ describe('seriesForFamilies', () => {
 
     const levenshtein = series.find((entry) => entry.family === 'levenshtein');
     expect(levenshtein?.points).toEqual([
-      { size: 50, valueNs: 7_900 },
-      { size: 100, valueNs: 29_600 },
+      { size: 50, valueNs: 7_900, errorNs: 0 },
+      { size: 100, valueNs: 29_600, errorNs: 0 },
     ]);
   });
 });

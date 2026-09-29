@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { dashPatternForIndex, markerShapeForIndex } from './seriesStyle';
+import { dashPatternForIndex, hueForIndex, markerShapeForIndex } from './seriesStyle';
 
 describe('dashPatternForIndex', () => {
   it('assigns a distinct dash pattern for the first four series, solid first', () => {
@@ -31,5 +31,20 @@ describe('markerShapeForIndex', () => {
 
   it('wraps a negative index to the same shape as its positive equivalent (safe modulo)', () => {
     expect(markerShapeForIndex(-1)).toBe(markerShapeForIndex(3));
+  });
+});
+
+describe('hueForIndex', () => {
+  it('assigns the cluster hues in order, one per series position', () => {
+    expect(hueForIndex(0)).toBe('var(--color-cluster-1)');
+    expect(hueForIndex(3)).toBe('var(--color-cluster-4)');
+  });
+
+  it('cycles back to the first hue after the eight cluster hues', () => {
+    expect(hueForIndex(8)).toBe(hueForIndex(0));
+  });
+
+  it('wraps a negative index to the same hue as its positive equivalent (safe modulo)', () => {
+    expect(hueForIndex(-1)).toBe(hueForIndex(7));
   });
 });

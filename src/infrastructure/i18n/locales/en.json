@@ -309,7 +309,7 @@
       "xAxisLength": "Sequence length (L)",
       "xAxisN": "Sample size (n)",
       "yAxisLabel": "Time",
-      "legendTheoretical": "{{family}} (theoretical)",
+      "legendTheoretical": "theoretical",
       "slopeTableCaption": "Log–log slope: {{group}}",
       "slopeTableFamily": "Family",
       "slopeTableEmpirical": "Empirical slope",
