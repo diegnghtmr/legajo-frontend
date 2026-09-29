@@ -397,7 +397,9 @@ test.describe('44x44 touch targets at 390px', () => {
     );
   });
 
-  test('the benchmarks scale Segmented has no controls under 44px', async ({ page }) => {
+  test('the benchmarks scale Segmented and legend items have no controls under 44px', async ({
+    page,
+  }) => {
     // Same shape `benchmarks.spec.ts` mocks — every family the page reads
     // must be present, or its own chart-group derivation throws.
     function result(overrides: Record<string, unknown>) {
@@ -533,6 +535,16 @@ test.describe('44x44 touch targets at 390px', () => {
       page.getByRole('radiogroup', { name: 'Escala' }).getByRole('radio'),
       'benchmarks scale option',
     );
+    // Mid-page, so the shared tap probe (top and bottom scroll only) cannot
+    // reach it: measure the box the coarse-pointer rule gives each item.
+    const legendItems = page
+      .getByRole('list', { name: 'Leyenda de series' })
+      .first()
+      .getByRole('button');
+    for (let index = 0; index < (await legendItems.count()); index += 1) {
+      const box = await legendItems.nth(index).boundingBox();
+      expect(box?.height ?? 0).toBeGreaterThanOrEqual(44);
+    }
   });
 
   test('rejects a hit-area extension an overflow:hidden ancestor clips below 44x44, even though its own inset math alone would satisfy 44px', async ({

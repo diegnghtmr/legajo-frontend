@@ -4,8 +4,10 @@ import {
   ErrorBar,
   Line,
   LineChart,
+  Tooltip,
   XAxis,
   YAxis,
+  type ActiveDotProps,
   type DotItemDotProps,
 } from 'recharts';
 import { useTranslation } from 'react-i18next';
@@ -26,10 +28,12 @@ import {
   TableRow,
 } from '../../shared/components/ui/table';
 import { CurveLegend } from './CurveLegend';
+import { CurveTooltip } from './CurveTooltip';
 import { mergeSeriesIntoRows, type FamilySeries } from './grouping';
 import {
   buildPlotModel,
   errorKey,
+  type PlotRow,
   theoreticalKey,
   type FamilySlope,
   type Scale,
@@ -61,6 +65,7 @@ export interface BenchmarkCurveChartProps {
 export const CHART_HEIGHT = 280;
 /** Series that are not isolated recede to this opacity. */
 const DIMMED_OPACITY = 0.12;
+const ACTIVE_MARKER_RADIUS = 5;
 const LINE_WIDTH = 1.5;
 const ISOLATED_LINE_WIDTH = 2.25;
 const THEORETICAL_OPACITY = 0.45;
@@ -80,6 +85,28 @@ function seriesDot(shape: MarkerShape, hue: string, opacity: number) {
       return null;
     }
     return <SeriesMarker shape={shape} cx={cx} cy={cy} fill={hue} opacity={opacity} />;
+  };
+}
+
+/** The enlarged, hollow marker at the size under the crosshair. */
+function hollowDot(shape: MarkerShape, hue: string, opacity: number) {
+  return function HollowDot(props: ActiveDotProps) {
+    const { cx, cy } = props;
+    if (cx === undefined || cy === undefined) {
+      return null;
+    }
+    return (
+      <SeriesMarker
+        shape={shape}
+        cx={cx}
+        cy={cy}
+        radius={ACTIVE_MARKER_RADIUS}
+        fill="var(--color-paper-raised)"
+        stroke={hue}
+        opacity={opacity}
+        tagged={false}
+      />
+    );
   };
 }
 
@@ -187,7 +214,8 @@ export function BenchmarkCurveChart({
               width={width}
               height={CHART_HEIGHT}
               data={rows}
-              accessibilityLayer={false}
+              accessibilityLayer
+              title={title}
               margin={{ top: 8, right: 16, bottom: 24, left: 8 }}
             >
               {/* Keyed by scale so the grid and ticks remount, and fade in
@@ -214,6 +242,18 @@ export function BenchmarkCurveChart({
                 tickFormatter={(value: number) => formatDuration(value)}
                 className="text-mono"
                 width={72}
+              />
+              <Tooltip
+                isAnimationActive={false}
+                cursor={{ stroke: 'var(--color-ink)', strokeOpacity: 0.25, strokeWidth: 1 }}
+                content={({ payload }) => (
+                  <CurveTooltip
+                    row={payload?.[0]?.payload as PlotRow | undefined}
+                    series={series}
+                    xAxisLabel={xAxisLabel}
+                    isolatedFamily={isolatedFamily}
+                  />
+                )}
               />
               {familiesWithSlopes.map((entry) => {
                 const hue = hueForIndex(series.indexOf(entry));
@@ -248,6 +288,7 @@ export function BenchmarkCurveChart({
                     strokeWidth={isolatedFamily === entry.family ? ISOLATED_LINE_WIDTH : LINE_WIDTH}
                     strokeDasharray={dashPatternForIndex(index) || undefined}
                     dot={seriesDot(markerShapeForIndex(index), hue, opacity)}
+                    activeDot={hollowDot(markerShapeForIndex(index), hue, opacity)}
                     connectNulls
                     {...animation}
                   >

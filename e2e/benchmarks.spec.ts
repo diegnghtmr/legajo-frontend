@@ -18,7 +18,7 @@ function result(overrides: Record<string, unknown>) {
     parameter: 'length',
     size: 50,
     score: 1,
-    error: 0,
+    error: 0.4,
     unit: 'us/op',
     ...overrides,
   };
@@ -320,6 +320,96 @@ test.describe('benchmarks screen', () => {
         expect(tick).toMatch(/^(1|10|100) (ns|µs|ms|s)$/);
       }
     }
+  });
+
+  test('hovering a chart shows the crosshair tooltip with every series at the nearest size, and leaving hides it', async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await page.goto('/benchmarks');
+    const group = page.getByRole('group', { name: 'Algoritmos clásicos por pares' });
+    await expect(group.locator('svg.recharts-surface')).toBeVisible();
+
+    const box = (await group.boundingBox())!;
+    await page.mouse.move(box.x + box.width * 0.2, box.y + box.height / 2);
+
+    const tooltip = group.getByRole('tooltip');
+    await expect(tooltip).toBeVisible();
+    for (const family of ['levenshtein', 'needleman-wunsch', 'jaccard', 'tfidf-cosine']) {
+      await expect(tooltip.getByText(family)).toBeVisible();
+    }
+    await expect(tooltip).toContainText('±');
+    await expect(group.locator('.recharts-tooltip-cursor')).toHaveAttribute(
+      'stroke-opacity',
+      '0.25',
+    );
+
+    await page.mouse.move(5, 5);
+    await expect(tooltip).toBeHidden();
+  });
+
+  test('focusing the chart and pressing an arrow key reveals the same tooltip', async ({
+    page,
+  }) => {
+    await page.goto('/benchmarks');
+    const group = page.getByRole('group', { name: 'Algoritmos clásicos por pares' });
+    const plot = group.locator('svg.recharts-surface');
+    await expect(plot).toBeVisible();
+
+    await plot.focus();
+    await page.keyboard.press('ArrowRight');
+
+    await expect(group.getByRole('tooltip')).toBeVisible();
+  });
+
+  test('focusing a legend item isolates its series and releases it on blur', async ({ page }) => {
+    await page.goto('/benchmarks');
+    const group = page.getByRole('group', { name: 'Algoritmos clásicos por pares' });
+    await expect(group.locator('svg.recharts-surface')).toBeVisible();
+    const curves = group.locator('.benchmark-series .recharts-line-curve');
+    const legend = page
+      .getByRole('list', { name: 'Leyenda de series' })
+      .first()
+      .getByRole('button', { name: 'jaccard' });
+
+    await legend.focus();
+    await expect(curves.nth(2)).toHaveAttribute('stroke-width', '2.25');
+    await expect(curves.nth(0)).toHaveAttribute('stroke-opacity', '0.12');
+
+    await legend.blur();
+    await expect(curves.nth(0)).toHaveAttribute('stroke-opacity', '1');
+  });
+
+  test('the scale change fades the gridlines in, and does nothing under reduced motion', async ({
+    page,
+  }) => {
+    const animationNameOfGrid = () =>
+      page
+        .getByRole('group', { name: 'Algoritmos clásicos por pares' })
+        .locator('.recharts-cartesian-grid')
+        .first()
+        .evaluate((element) => {
+          const win = globalThis as unknown as {
+            getComputedStyle: (node: unknown) => { animationName: string };
+          };
+          return win.getComputedStyle(element).animationName;
+        });
+
+    await page.emulateMedia({ reducedMotion: 'no-preference' });
+    await page.goto('/benchmarks');
+    await expect(page.getByRole('group', { name: 'Algoritmos clásicos por pares' })).toBeVisible();
+    await page
+      .getByRole('radiogroup', { name: 'Escala' })
+      .getByRole('radio', { name: 'Log–log' })
+      .click();
+    await expect.poll(animationNameOfGrid).toBe('fade');
+
+    await page.emulateMedia({ reducedMotion: 'reduce' });
+    await page
+      .getByRole('radiogroup', { name: 'Escala' })
+      .getByRole('radio', { name: 'Lineal' })
+      .click();
+    await expect.poll(animationNameOfGrid).toBe('none');
   });
 
   test('has no automatically detectable WCAG 2.1 AA violations on the benchmarks screen', async ({

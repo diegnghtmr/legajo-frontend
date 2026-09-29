@@ -156,6 +156,84 @@ describe('BenchmarkCurveChart', () => {
     expect(curves()[1]).toHaveAttribute('stroke-width', '1.5');
   });
 
+  describe('crosshair tooltip', () => {
+    /** jsdom has no layout: give elements the size the pointer maths divides by. */
+    function stubPointerGeometry() {
+      vi.spyOn(HTMLElement.prototype, 'offsetWidth', 'get').mockReturnValue(640);
+      vi.spyOn(HTMLElement.prototype, 'offsetHeight', 'get').mockReturnValue(100);
+    }
+
+    function hoverChart(container: HTMLElement) {
+      const wrapper = container.querySelector('.recharts-wrapper') as HTMLElement;
+      fireEvent.mouseMove(wrapper, { clientX: 100, clientY: 60 });
+    }
+
+    it('shows nothing until the chart is hovered', () => {
+      stubPointerGeometry();
+      renderChart();
+
+      expect(screen.queryByRole('tooltip')).not.toBeInTheDocument();
+    });
+
+    it('snaps to the nearest measured size and lists every series at it', async () => {
+      stubPointerGeometry();
+      const { container } = renderChart();
+
+      hoverChart(container);
+
+      const tooltip = await screen.findByRole('tooltip');
+      expect(within(tooltip).getByText('50')).toBeInTheDocument();
+      expect(within(tooltip).getByText('levenshtein')).toBeInTheDocument();
+      expect(within(tooltip).getByText('jaccard')).toBeInTheDocument();
+      expect(within(tooltip).getByText('± 400 ns')).toBeInTheDocument();
+    });
+
+    it('draws a faint ink vertical line at that size', async () => {
+      stubPointerGeometry();
+      const { container } = renderChart();
+
+      hoverChart(container);
+
+      await screen.findByRole('tooltip');
+      const cursor = container.querySelector('.recharts-tooltip-cursor');
+      expect(cursor).toHaveAttribute('stroke', 'var(--color-ink)');
+      expect(cursor).toHaveAttribute('stroke-opacity', '0.25');
+      expect(cursor).toHaveAttribute('stroke-width', '1');
+    });
+
+    it('enlarges each series marker to a hollow one at that size', async () => {
+      stubPointerGeometry();
+      const { container } = renderChart();
+
+      hoverChart(container);
+
+      await screen.findByRole('tooltip');
+      const hollow = [
+        ...container.querySelectorAll('.recharts-active-dot circle, .recharts-active-dot rect'),
+      ];
+      expect(hollow).toHaveLength(SERIES.length);
+      expect(hollow[0]).toHaveAttribute('fill', 'var(--color-paper-raised)');
+      expect(hollow[0]).toHaveAttribute('stroke', 'var(--color-cluster-1)');
+    });
+
+    it('hides the tooltip again when the pointer leaves', async () => {
+      stubPointerGeometry();
+      const { container } = renderChart();
+
+      hoverChart(container);
+      await screen.findByRole('tooltip');
+      fireEvent.mouseLeave(container.querySelector('.recharts-wrapper') as HTMLElement);
+
+      expect(screen.queryByRole('tooltip')).not.toBeInTheDocument();
+    });
+
+    it('makes the plot reachable by keyboard, so focus reveals the same tooltip', () => {
+      const { container } = renderChart();
+
+      expect(container.querySelector('svg.recharts-surface')).toHaveAttribute('tabindex', '0');
+    });
+  });
+
   it('makes the legend items plain focusable buttons with no pressed state, since isolation is transient', () => {
     renderChart();
 
