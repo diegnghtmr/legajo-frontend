@@ -41,15 +41,65 @@ describe('HarnessPanel', () => {
     expect(cpuValue.className).toContain('font-mono');
   });
 
+  it('lays out six cells in order inside one description list', () => {
+    render(<HarnessPanel harness={HARNESS} />);
+
+    const cells = Array.from(document.querySelectorAll('dl > div'));
+    expect(cells.map((cell) => cell.querySelector('dt')?.textContent)).toEqual([
+      'CPU',
+      'Núcleos lógicos',
+      'RAM',
+      'JDK',
+      'Sistema operativo',
+      'Medido el',
+    ]);
+  });
+
   it('gives the CPU and the operating system two columns, the other cells one', () => {
     render(<HarnessPanel harness={HARNESS} />);
 
     const cell = (label: string) => screen.getByText(label).parentElement!;
-    expect(cell('CPU').className).toContain('@sm:col-span-2');
-    expect(cell('Sistema operativo').className).toContain('@sm:col-span-2');
+    expect(cell('CPU').className).toContain('min-[700px]:col-span-2');
+    expect(cell('Sistema operativo').className).toContain('min-[700px]:col-span-2');
     for (const label of ['Núcleos lógicos', 'RAM', 'JDK', 'Medido el']) {
-      expect(cell(label).className).not.toContain('@sm:col-span-2');
+      expect(cell(label).className).not.toContain('col-span-2');
     }
+  });
+
+  it('draws a right rule on every cell but the last of each row and a bottom rule on the first row only', () => {
+    render(<HarnessPanel harness={HARNESS} />);
+
+    const cell = (label: string) => screen.getByText(label).parentElement!.className.split(' ');
+    const hasRightRule = (label: string) => {
+      const classes = cell(label);
+      return (
+        !classes.includes('min-[700px]:border-r-0') &&
+        (classes.includes('border-r') || classes.includes('min-[700px]:border-r'))
+      );
+    };
+    for (const label of ['CPU', 'Núcleos lógicos', 'JDK', 'Sistema operativo']) {
+      expect(hasRightRule(label)).toBe(true);
+    }
+    for (const label of ['RAM', 'Medido el']) {
+      expect(hasRightRule(label)).toBe(false);
+    }
+    for (const label of ['CPU', 'Núcleos lógicos', 'RAM']) {
+      expect(cell(label)).toContain('border-b');
+      expect(cell(label)).not.toContain('min-[700px]:border-b-0');
+    }
+    for (const label of ['JDK', 'Sistema operativo', 'Medido el']) {
+      expect(cell(label)).toContain('min-[700px]:border-b-0');
+    }
+  });
+
+  it('frames the grid in a hairline ring and grows it to fill the card', () => {
+    render(<HarnessPanel harness={HARNESS} />);
+
+    const grid = document.querySelector('dl')!;
+    expect(grid.className).toContain('flex-1');
+    expect(grid.className).toContain('min-[700px]:grid-cols-4');
+    expect(grid.className).toContain('ring-hairline');
+    expect(grid.className).toContain('overflow-hidden');
   });
 
   it('localizes the measured-at date to the active language', async () => {
@@ -81,9 +131,10 @@ describe('HarnessPanelSkeleton', () => {
       expect(screen.getByText(label)).toBeInTheDocument();
     }
     expect(document.querySelectorAll('[data-slot="skeleton"]')).toHaveLength(6);
-    expect(screen.getByText('CPU').parentElement!.className).toContain('@sm:col-span-2');
+    expect(screen.getByText('CPU').parentElement!.className).toContain('min-[700px]:col-span-2');
     expect(screen.getByText('Sistema operativo').parentElement!.className).toContain(
-      '@sm:col-span-2',
+      'min-[700px]:col-span-2',
     );
+    expect(document.querySelector('dl')!.className).toContain('flex-1');
   });
 });

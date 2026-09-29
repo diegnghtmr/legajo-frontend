@@ -1,5 +1,5 @@
 import { AxeBuilder } from '@axe-core/playwright';
-import { expect, test, type Page } from '@playwright/test';
+import { expect, test, type Locator, type Page } from '@playwright/test';
 
 import { expectNoTextOverlap } from './support/textOverlap.js';
 
@@ -126,6 +126,12 @@ const BENCHMARK_REPORT = {
     },
   ],
 };
+
+/** No `dom` lib under this project's Node-typed e2e tsconfig, so the page's
+ * `getComputedStyle` is reached through `globalThis`. */
+interface StyleReader {
+  getComputedStyle(element: unknown): Record<string, string>;
+}
 
 async function mockBenchmarksApi(page: Page) {
   await page.route('**/api/v1/benchmarks', async (route) => {
@@ -307,6 +313,135 @@ test.describe('benchmarks screen', () => {
       expect(second!.y, `390: ${row} stacks`).toBeGreaterThan(first!.y + 50);
       expect(Math.abs(first!.width - second!.width)).toBeLessThan(2);
     }
+  });
+
+  test('the reference machine grid and the embedding tiles fill one shared row height', async ({
+    page,
+  }) => {
+    const row = page.getByTestId('benchmarks-row-machine');
+    const box = (locator: Locator) =>
+      locator.evaluate((element) => {
+        const { x, y, width, height } = element.getBoundingClientRect();
+        return { x, y, width, height };
+      });
+
+    const expectValuesRightAligned = async (label: string) => {
+      for (const dimension of [384, 1536]) {
+        const tile = page.getByTestId(`embedding-tile-${dimension}`);
+        const contentRight = await tile.evaluate((element) => {
+          const style = (globalThis as unknown as StyleReader).getComputedStyle(element);
+          return (
+            element.getBoundingClientRect().right - Number.parseFloat(style.paddingRight ?? '0')
+          );
+        });
+        const rights = await tile
+          .locator('dl > div > dd')
+          .evaluateAll((elements) => elements.map((el) => el.getBoundingClientRect().right));
+        expect(rights).toHaveLength(2);
+        for (const right of rights) {
+          expect(
+            Math.abs(right - contentRight),
+            `${label}: tile ${dimension} value is right-aligned`,
+          ).toBeLessThanOrEqual(1);
+        }
+      }
+    };
+
+    for (const viewport of [
+      { width: 1440, height: 900 },
+      { width: 1024, height: 900 },
+    ]) {
+      await page.setViewportSize(viewport);
+      await page.goto('/benchmarks');
+      const harnessCard = row.locator('> section').first();
+      const embeddingCard = row.locator('> section').nth(1);
+      const grid = harnessCard.locator('dl');
+      await expect(page.getByTestId('embedding-tile-1536')).toBeVisible();
+
+      const columns = await grid.evaluate(
+        (element) =>
+          (globalThis as unknown as StyleReader)
+            .getComputedStyle(element)
+            .gridTemplateColumns.split(' ').length,
+      );
+      expect(columns, `${viewport.width}: four columns`).toBe(4);
+
+      const cells = await grid.locator('> div').evaluateAll((elements) =>
+        elements.map((element) => {
+          const { x, y, width } = element.getBoundingClientRect();
+          return { x: Math.round(x), y: Math.round(y), width };
+        }),
+      );
+      expect(cells).toHaveLength(6);
+      expect(new Set(cells.map((cell) => cell.y)).size, 'two rows').toBe(2);
+      const gridBox = await box(grid);
+      const rowWidths = [cells.slice(0, 3), cells.slice(3)].map((cellsInRow) =>
+        cellsInRow.reduce((sum, cell) => sum + cell.width, 0),
+      );
+      for (const width of rowWidths) {
+        expect(Math.abs(width - gridBox.width), 'each row spans the whole grid').toBeLessThan(2);
+      }
+      const unit = gridBox.width / 4;
+      expect(Math.abs(cells[0]!.width - 2 * unit)).toBeLessThan(2);
+      expect(Math.abs(cells[4]!.width - 2 * unit)).toBeLessThan(2);
+
+      const harnessBox = await box(harnessCard);
+      const padBottom = await harnessCard.evaluate((element) =>
+        Number.parseFloat(
+          (globalThis as unknown as StyleReader).getComputedStyle(element).paddingBottom ?? '0',
+        ),
+      );
+      expect(
+        Math.abs(gridBox.y + gridBox.height - (harnessBox.y + harnessBox.height - padBottom)),
+        `${viewport.width}: the grid reaches the card's content bottom`,
+      ).toBeLessThan(2);
+
+      const embeddingBox = await box(embeddingCard);
+      expect(Math.abs(harnessBox.height - embeddingBox.height)).toBeLessThan(2);
+
+      const tiles = await Promise.all(
+        [384, 1536].map((dimension) => box(page.getByTestId(`embedding-tile-${dimension}`))),
+      );
+      expect(Math.abs(tiles[0]!.y - tiles[1]!.y), 'tiles side by side').toBeLessThan(2);
+      expect(Math.abs(tiles[0]!.width - tiles[1]!.width)).toBeLessThan(2);
+      const tilesBottom = Math.max(...tiles.map((tile) => tile.y + tile.height));
+      expect(
+        Math.abs(tilesBottom - (embeddingBox.y + embeddingBox.height - padBottom)),
+        `${viewport.width}: the tiles reach the card's content bottom`,
+      ).toBeLessThan(2);
+
+      await expectValuesRightAligned(`${viewport.width}`);
+      await row.screenshot({ path: `test-results/harness-grid/top-row-${viewport.width}.png` });
+    }
+
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto('/benchmarks');
+    await expect(page.getByTestId('embedding-tile-1536')).toBeVisible();
+    const harnessGrid = row.locator('> section').first().locator('dl');
+    const narrowColumns = await harnessGrid.evaluate(
+      (element) =>
+        (globalThis as unknown as StyleReader)
+          .getComputedStyle(element)
+          .gridTemplateColumns.split(' ').length,
+    );
+    expect(narrowColumns).toBe(2);
+    expect(await page.evaluate<number>('document.documentElement.scrollWidth')).toBeLessThanOrEqual(
+      390,
+    );
+    for (const dimension of [384, 1536]) {
+      const overflows = await page
+        .getByTestId(`embedding-tile-${dimension}`)
+        .evaluate((element) => element.scrollWidth > element.clientWidth + 1);
+      expect(overflows, `tile ${dimension} never overflows at 390`).toBe(false);
+    }
+    const narrowTiles = await Promise.all(
+      [384, 1536].map((dimension) => box(page.getByTestId(`embedding-tile-${dimension}`))),
+    );
+    expect(Math.abs(narrowTiles[0]!.y - narrowTiles[1]!.y)).toBeLessThan(2);
+    await expectValuesRightAligned('390');
+    await row.screenshot({ path: 'test-results/harness-grid/top-row-390.png' });
+    const results = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa']).analyze();
+    expect(results.violations).toEqual([]);
   });
 
   test('keeps the Escala control on the right of the page title on a wide screen', async ({
