@@ -16,6 +16,33 @@ type AlgorithmSummary = ListSimilarityAlgorithmsResponse[number];
 
 const AXIS_TICKS = [0, 0.25, 0.5, 0.75, 1] as const;
 
+/** Two dots closer than this fraction of the axis would overlap. */
+const COLLISION_GAP = 0.04;
+/** The vertical step, in px, that a dot moves up to clear a close neighbour. */
+const LANE_STEP_PX = 8;
+const LANE_COUNT = 2;
+
+/**
+ * How far, in px, each dot moves up so close scores do not sit on top of one
+ * another. Only the vertical position changes: every dot stays exactly at its
+ * score on the axis. Dots are placed from the lowest score up, each in the
+ * first lane whose last dot is far enough away.
+ */
+export function collisionOffsets(scores: readonly number[]): number[] {
+  const order = scores.map((score, index) => ({ score, index })).sort((a, b) => a.score - b.score);
+  const laneLast: number[] = Array.from({ length: LANE_COUNT }, () => Number.NEGATIVE_INFINITY);
+  const offsets = scores.map(() => 0);
+  for (const { score, index } of order) {
+    let lane = laneLast.findIndex((last) => score - last >= COLLISION_GAP);
+    if (lane === -1) {
+      lane = laneLast.indexOf(Math.min(...laneLast));
+    }
+    laneLast[lane] = score;
+    offsets[index] = lane === 0 ? 0 : -lane * LANE_STEP_PX;
+  }
+  return offsets;
+}
+
 export interface ScoreStripProps {
   rows: CompareResponse;
   catalogueById: ReadonlyMap<string, AlgorithmSummary>;
@@ -75,12 +102,16 @@ export function ScoreStrip({
   openAlgorithmId = null,
   interactive,
 }: ScoreStripProps) {
+  const offsets = collisionOffsets(rows.map(({ result }) => result.normalizedScore));
   return (
     <ScoreStripFrame>
-      {rows.map(({ algorithmId, result }) => {
+      {rows.map(({ algorithmId, result }, rowIndex) => {
         const family = algoFamilyFromKind(catalogueById.get(algorithmId)?.kind ?? 'CLASSIC');
         const isOpen = openAlgorithmId === algorithmId;
-        const position: CSSProperties = { left: `${result.normalizedScore * 100}%` };
+        const position: CSSProperties = {
+          left: `${result.normalizedScore * 100}%`,
+          marginTop: offsets[rowIndex],
+        };
         const title = `${algorithmId}: ${result.normalizedScore.toFixed(3)}`;
         const dot = (
           <>

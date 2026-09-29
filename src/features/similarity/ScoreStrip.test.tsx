@@ -8,7 +8,7 @@ import type {
 } from '../../infrastructure/api/similarity';
 import es from '../../infrastructure/i18n/locales/es.json';
 import { restoreTraceTrigger } from './traceFocusReturn';
-import { ScoreStrip, ScoreStripSkeleton } from './ScoreStrip';
+import { collisionOffsets, ScoreStrip, ScoreStripSkeleton } from './ScoreStrip';
 
 const CATALOGUE = new Map<string, ListSimilarityAlgorithmsResponse[number]>([
   ['levenshtein', { id: 'levenshtein', displayName: 'Levenshtein distance', kind: 'CLASSIC' }],
@@ -142,5 +142,32 @@ describe('ScoreStripSkeleton', () => {
     expect(screen.getByText('0.50')).toBeInTheDocument();
     expect(container.querySelectorAll('[data-skeleton-dot]')).toHaveLength(3);
     expect(container.querySelectorAll('button')).toHaveLength(0);
+  });
+});
+
+describe('collisionOffsets', () => {
+  it('leaves well-separated scores on the axis line', () => {
+    expect(collisionOffsets([0.1, 0.5, 0.9])).toEqual([0, 0, 0]);
+  });
+
+  it('lifts a dot that would sit on a close lower neighbour, whatever the input order', () => {
+    expect(collisionOffsets([0.071, 0.057, 0.9])).toEqual([-8, 0, 0]);
+  });
+
+  it('reuses the line once the neighbours are far enough behind', () => {
+    expect(collisionOffsets([0.05, 0.06, 0.07, 0.5])).toEqual([0, -8, 0, 0]);
+  });
+});
+
+describe('ScoreStrip collisions', () => {
+  it('keeps every dot at its exact score, moving only close ones vertically', () => {
+    renderStrip({ rows: [row('levenshtein', 0.057), row('embedding-api', 0.071)] });
+
+    const first = screen.getByTitle('levenshtein: 0.057');
+    const second = screen.getByTitle('embedding-api: 0.071');
+    expect(first.style.left).toBe('5.7%');
+    expect(second.style.left).toBe('7.1%');
+    expect(first.style.marginTop).toBe('0px');
+    expect(second.style.marginTop).toBe('-8px');
   });
 });
