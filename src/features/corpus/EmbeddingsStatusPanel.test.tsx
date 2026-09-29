@@ -194,6 +194,6 @@ describe('EmbeddingsStatusPanel', () => {
         'No se pudo contactar al servidor. Si es la primera solicitud en un rato, el servidor gratuito puede estar despertando: puede tardar hasta un minuto en responder.',
       ),
     ).toBeInTheDocument();
-    expect(screen.getByRole('alert')).toBeInTheDocument();
+    expect(screen.getByRole('alert')).toHaveAttribute('data-slot', 'alert');
   });
 });

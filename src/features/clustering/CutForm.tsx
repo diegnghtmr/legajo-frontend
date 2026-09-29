@@ -6,6 +6,7 @@ import { z } from 'zod';
 
 import { DEFAULT_UNEXPECTED_I18N_KEY, type ApiError } from '../../infrastructure/apiError';
 import { LinkageIdSchema, type LinkageId } from '../../infrastructure/schemas/clustering';
+import { Alert } from '../../shared/components/Alert';
 import { SegmentedControl, type SegmentedOption } from '../../shared/components/SegmentedControl';
 import { Button } from '../../shared/components/ui/button';
 import { Skeleton } from '../../shared/components/ui/skeleton';
@@ -145,14 +146,11 @@ export function CutForm({ linkages, n, defaultLinkage, onSubmit, isPending, erro
       </div>
 
       {error && !errors.k && (
-        <div role="alert" className="flex flex-col gap-1">
-          <p className="text-body font-semibold text-danger">
-            {t('clustering.cutForm.errorTitle')}
-          </p>
-          <p className="text-body text-ink-secondary">
-            {t(error.i18nKey ?? DEFAULT_UNEXPECTED_I18N_KEY)}
-          </p>
-        </div>
+        <Alert
+          tone="danger"
+          title={t('clustering.cutForm.errorTitle')}
+          body={t(error.i18nKey ?? DEFAULT_UNEXPECTED_I18N_KEY)}
+        />
       )}
     </form>
   );

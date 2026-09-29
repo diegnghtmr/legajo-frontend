@@ -12,6 +12,7 @@ import {
 } from '../../../infrastructure/api/similarity';
 import { algorithmsQueryOptions } from '../../../infrastructure/api/similarityCatalogue';
 import type { AlgorithmId } from '../../../infrastructure/schemas/similarity';
+import { Alert } from '../../../shared/components/Alert';
 import type { DpMatrixHandle } from '../../../shared/components/DpMatrix';
 import { Button, buttonVariants } from '../../../shared/components/ui/button';
 import { algoFamilyFromKind } from '../algorithmFamily';
@@ -256,14 +257,11 @@ export function TraceDetailPanel({
           <TraceBodySkeleton algorithmId={algorithmId} hideDownloadButton hideDpMetaRow />
         )}
         {traceQuery.isError && (
-          <div role="alert" className="flex flex-col gap-1">
-            <p className="text-body font-semibold text-danger">
-              {t('similarity.trace.errorTitle')}
-            </p>
-            <p className="text-body text-ink-secondary">
-              {t(traceQuery.error.i18nKey ?? DEFAULT_UNEXPECTED_I18N_KEY)}
-            </p>
-          </div>
+          <Alert
+            tone="danger"
+            title={t('similarity.trace.errorTitle')}
+            body={t(traceQuery.error.i18nKey ?? DEFAULT_UNEXPECTED_I18N_KEY)}
+          />
         )}
         {trace && (
           <TracePanel

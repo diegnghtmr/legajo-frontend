@@ -12,6 +12,8 @@ import {
 } from '../../infrastructure/api/similarity';
 import { algorithmsQueryOptions } from '../../infrastructure/api/similarityCatalogue';
 import { AlgorithmIdSchema, type AlgorithmId } from '../../infrastructure/schemas/similarity';
+import { Alert } from '../../shared/components/Alert';
+import { EmptyState } from '../../shared/components/EmptyState';
 import { PanelHeader } from '../../shared/components/Panel';
 import { AlgoTextList } from '../../shared/components/AlgoTextList';
 import { SegmentedControl, type SegmentedOption } from '../../shared/components/SegmentedControl';
@@ -238,14 +240,11 @@ export function SimilarityCompareView({ pair, openAlgorithmId }: SimilarityCompa
         </>
       )}
       {algorithmsQuery.isError && (
-        <div role="alert" className="flex flex-col gap-1">
-          <p className="text-body font-semibold text-danger">
-            {t('similarity.algorithmsErrorTitle')}
-          </p>
-          <p className="text-body text-ink-secondary">
-            {t(algorithmsQuery.error.i18nKey ?? DEFAULT_UNEXPECTED_I18N_KEY)}
-          </p>
-        </div>
+        <Alert
+          tone="danger"
+          title={t('similarity.algorithmsErrorTitle')}
+          body={t(algorithmsQuery.error.i18nKey ?? DEFAULT_UNEXPECTED_I18N_KEY)}
+        />
       )}
       {algorithmsQuery.data && (
         <AlgoTextList
@@ -256,9 +255,7 @@ export function SimilarityCompareView({ pair, openAlgorithmId }: SimilarityCompa
         />
       )}
 
-      {!hasAlgorithmsSelected && (
-        <p className="text-body text-ink-secondary">{t('similarity.selection.noAlgorithms')}</p>
-      )}
+      {!hasAlgorithmsSelected && <EmptyState title={t('similarity.selection.noAlgorithms')} />}
 
       {compareQuery.isPending && hasAlgorithmsSelected && (
         <>
@@ -276,12 +273,11 @@ export function SimilarityCompareView({ pair, openAlgorithmId }: SimilarityCompa
         </>
       )}
       {compareQuery.isError && (
-        <div role="alert" className="flex flex-col gap-1">
-          <p className="text-body font-semibold text-danger">{t('similarity.compareErrorTitle')}</p>
-          <p className="text-body text-ink-secondary">
-            {t(compareQuery.error.i18nKey ?? DEFAULT_UNEXPECTED_I18N_KEY)}
-          </p>
-        </div>
+        <Alert
+          tone="danger"
+          title={t('similarity.compareErrorTitle')}
+          body={t(compareQuery.error.i18nKey ?? DEFAULT_UNEXPECTED_I18N_KEY)}
+        />
       )}
       {compareQuery.data &&
         (isAtLeastLg ? (

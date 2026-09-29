@@ -148,6 +148,7 @@ describe('CutForm', () => {
     expect(screen.getByRole('alert')).toHaveTextContent(
       'El valor de corte k no es válido para este corpus.',
     );
+    expect(screen.getByRole('alert')).toHaveAttribute('data-slot', 'alert');
   });
 
   it('disables the form and shows a reason when n - 1 < 2 (no valid k for n = 2)', () => {

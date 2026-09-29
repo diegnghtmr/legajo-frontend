@@ -66,6 +66,7 @@ describe('ArticleAbstract', () => {
 
     const alert = await screen.findByRole('alert');
     expect(alert).toHaveTextContent('No se pudo cargar el artículo');
+    expect(alert).toHaveAttribute('data-slot', 'alert');
     expect(
       screen.getByText(
         'No se pudo contactar al servidor. Si es la primera solicitud en un rato, el servidor gratuito puede estar despertando: puede tardar hasta un minuto en responder.',

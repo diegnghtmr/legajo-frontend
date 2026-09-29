@@ -89,6 +89,7 @@
     "title": "Comparación de similitud",
     "selection": {
       "emptyState": "Selecciona 2 artículos en el panel para comparar, o 3 o más para ver la matriz.",
+      "emptyGlyph": "2 → pares / 3+ → matriz",
       "noAlgorithms": "Selecciona al menos un algoritmo para comparar.",
       "viewMatrix": "Ver la matriz de similitud"
     },

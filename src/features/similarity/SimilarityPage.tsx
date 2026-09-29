@@ -2,7 +2,8 @@ import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router';
 
-import { Panel, PanelHeader } from '../../shared/components/Panel';
+import { EmptyState } from '../../shared/components/EmptyState';
+import { PanelHeader } from '../../shared/components/Panel';
 import { buttonVariants } from '../../shared/components/ui/button';
 import { useIsAtLeastLg } from '../../shared/lib/useIsAtLeastLg';
 import { sortedPair, useSelectionStore } from '../corpus/selectionStore';
@@ -130,18 +131,18 @@ export function SimilarityPage() {
     return (
       <div className="flex flex-col gap-4">
         <PanelHeader eyebrow={t('similarity.eyebrow')} title={t('similarity.title')} />
-        <Panel>
-          <p role="status" className="text-body text-ink-secondary">
-            {t('similarity.selection.emptyState')}
-          </p>
-          {canMatrix && (
-            <div className="mt-3">
+        <EmptyState
+          role="status"
+          glyph={t('similarity.selection.emptyGlyph')}
+          title={t('similarity.selection.emptyState')}
+          action={
+            canMatrix && (
               <Link to="/similarity/matrix" className={buttonVariants({ variant: 'secondary' })}>
                 {t('similarity.selection.viewMatrix')}
               </Link>
-            </div>
-          )}
-        </Panel>
+            )
+          }
+        />
       </div>
     );
   }

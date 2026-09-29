@@ -89,6 +89,7 @@
     "title": "Similarity comparison",
     "selection": {
       "emptyState": "Select 2 articles in the panel to compare, or 3 or more to view the matrix.",
+      "emptyGlyph": "2 → pair / 3+ → matrix",
       "noAlgorithms": "Select at least one algorithm to compare.",
       "viewMatrix": "View the similarity matrix"
     },
