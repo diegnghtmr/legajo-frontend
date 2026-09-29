@@ -162,7 +162,6 @@ export function CorpusListPanel({
     queryFn: fetchEmbeddingsStatus,
   });
 
-  const embeddingsRowId = useId();
   const statusText = embeddingsQuery.isError
     ? t('corpus.rail.embeddings.errorValue')
     : t(`corpus.rail.embeddings.${embeddingsSummaryState(embeddingsQuery.data)}`);
@@ -212,25 +211,23 @@ export function CorpusListPanel({
         <button
           type="button"
           onClick={onOpenEmbeddings}
-          aria-labelledby={`${embeddingsRowId}-key ${embeddingsRowId}-value ${embeddingsRowId}-hint`}
+          aria-label={t('corpus.rail.embeddings.rowLabel', {
+            status: embeddingsQuery.isPending
+              ? t('corpus.rail.embeddings.loadingValue')
+              : statusText,
+          })}
           className="group -mx-2 flex cursor-pointer items-center justify-between gap-2 rounded-btn px-2 py-1 text-left hover:bg-paper-sunken focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus pointer-coarse:min-h-11"
         >
-          <span
-            id={`${embeddingsRowId}-key`}
-            className="text-label font-semibold text-ink-secondary"
-          >
+          <span className="text-label font-semibold text-ink-secondary">
             {t('corpus.rail.embeddings.label')}
           </span>
           <span className="flex items-center gap-2">
-            <span id={`${embeddingsRowId}-value`} className="font-mono text-mono text-ink">
+            <span className="font-mono text-mono text-ink">
               {embeddingsQuery.isPending ? (
                 <Skeleton className="inline-block h-3 w-20 align-middle" />
               ) : (
                 statusText
               )}
-            </span>
-            <span id={`${embeddingsRowId}-hint`} className="sr-only">
-              {t('corpus.rail.embeddings.openLabel')}
             </span>
             <ChevronRight
               aria-hidden="true"

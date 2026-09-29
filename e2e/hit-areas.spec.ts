@@ -264,7 +264,7 @@ test.describe('44x44 touch targets at 390px', () => {
       'corpus-list sheet Limpiar',
     );
     await expectEachAtLeast44(
-      sheet.getByRole('button', { name: /Ver el estado de los embeddings$/ }),
+      sheet.getByRole('button', { name: /Ver el detalle$/ }),
       'corpus-list sheet embeddings status row',
     );
   });

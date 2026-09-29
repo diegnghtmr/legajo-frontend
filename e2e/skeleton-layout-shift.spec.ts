@@ -785,7 +785,7 @@ for (const viewport of VIEWPORTS) {
       ]);
 
       await page.goto('/');
-      await page.getByRole('button', { name: /Ver el estado de los embeddings$/ }).click();
+      await page.getByRole('button', { name: /Ver el detalle$/ }).click();
 
       const region = page.getByTestId('embeddings-status-panel');
       await expect(page.getByText('Cargando el estado de los embeddings…')).toHaveCount(1);
