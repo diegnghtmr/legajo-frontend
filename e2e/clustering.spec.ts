@@ -333,7 +333,7 @@ test.describe('clustering screen', () => {
   });
 
   for (const width of [1440, 1280, 1024, 768, 390]) {
-    test(`at ${width}px, the parameter panel's columns stay top-aligned, never stretch to each other's height and never scroll the page`, async ({
+    test(`at ${width}px, the parameter panel's columns start at the same top edge and never scroll the page`, async ({
       page,
     }) => {
       await page.setViewportSize({ width, height: 900 });
@@ -350,8 +350,7 @@ test.describe('clustering screen', () => {
         column('Corte libre'),
       ];
 
-      // Never stretched to fill the remaining row width or the row height:
-      // each column's own computed `flex-grow` stays 0.
+      // Columns take their width from the grid track, never from flex growth.
       for (const item of columns) {
         expect(await computedFlexGrow(item)).toBe('0');
       }
@@ -362,14 +361,10 @@ test.describe('clustering screen', () => {
         (typeof boxes)[number]
       >[];
 
-      // While the columns share one row they are top-aligned, and the free
-      // cut column keeps its own (taller) height: none is stretched to
-      // another's, and none reserves a dead block for it.
-      const sameRow =
-        Math.abs(representationBox!.y - cutBox!.y) < 5 && Math.abs(linkageBox!.y - cutBox!.y) < 5;
-      if (sameRow) {
-        expect(representationBox!.height).toBeLessThan(cutBox!.height);
-        expect(linkageBox!.height).toBeLessThan(cutBox!.height);
+      // While the columns share one row they start at the same top edge.
+      if (width >= 1100) {
+        expect(Math.abs(representationBox!.y - cutBox!.y)).toBeLessThan(5);
+        expect(Math.abs(linkageBox!.y - cutBox!.y)).toBeLessThan(5);
       }
 
       // Never a horizontal scroll, wrapped or not.
@@ -547,10 +542,12 @@ test.describe('clustering screen', () => {
   test.describe('parameter panel grid', () => {
     interface ColumnMeasure {
       width: number;
+      height: number;
       borderLeft: number;
       borderTop: number;
     }
     interface PanelMeasure {
+      gridHeight: number;
       columns: ColumnMeasure[];
       footerBackground: string;
       footerHeight: number;
@@ -581,12 +578,18 @@ test.describe('clustering screen', () => {
         const sunkenToken = env.getComputedStyle(probe).backgroundColor;
         probe.remove();
         return {
+          gridHeight: (
+            grid as unknown as { getBoundingClientRect(): { height: number } }
+          ).getBoundingClientRect().height,
           columns: Array.from(
-            grid.children as Iterable<{ getBoundingClientRect(): { width: number } }>,
+            grid.children as Iterable<{
+              getBoundingClientRect(): { width: number; height: number };
+            }>,
           ).map((column) => {
             const style = env.getComputedStyle(column);
             return {
               width: column.getBoundingClientRect().width,
+              height: column.getBoundingClientRect().height,
               borderLeft: parseFloat(style.borderLeftWidth),
               borderTop: parseFloat(style.borderTopWidth),
             };
@@ -613,6 +616,10 @@ test.describe('clustering screen', () => {
       expect(third.width / first.width).toBeLessThan(1.35 * 1.05);
       expect([first.borderLeft, second.borderLeft, third.borderLeft]).toEqual([0, 1, 1]);
       expect([first.borderTop, second.borderTop, third.borderTop]).toEqual([0, 0, 0]);
+      // Every column stretches to the grid row, so each rule runs to the footer.
+      for (const column of measure.columns) {
+        expect(Math.abs(column.height - measure.gridHeight)).toBeLessThanOrEqual(1);
+      }
       expect(measure.footerBackground).toBe(measure.sunkenToken);
       expect(measure.footerHeight).toBeGreaterThanOrEqual(44);
 

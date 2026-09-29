@@ -91,7 +91,7 @@ function shortLinkageName(displayName: string): string {
  * The clustering parameter panel: one card with three numbered columns
  * (representation, linkage selection, free cut) and a status footer with the
  * corpus facts and the applied cut. From 1100px the columns share a
- * 1 : 1 : 1.35 grid split by hairline rules, aligned to the top; below that
+ * 1 : 1 : 1.35 grid split by hairline rules, with content kept at the top of each stretched column; below that
  * they stack. The footer sits on the sunken surface.
  */
 export function ClusteringParametersPanel({
@@ -128,7 +128,7 @@ export function ClusteringParametersPanel({
     <div ref={panelRef} className="scroll-mt-[calc(var(--shell-header-h)+1rem)]">
       <Panel className="overflow-hidden p-0">
         <section aria-label={t('clustering.params.label')}>
-          <div className="grid grid-cols-1 items-start min-[1100px]:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,1.35fr)]">
+          <div className="grid grid-cols-1 min-[1100px]:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,1.35fr)]">
             <ParameterColumn
               step="01"
               title={t('clustering.params.representation.title')}
