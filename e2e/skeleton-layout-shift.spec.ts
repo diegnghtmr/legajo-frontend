@@ -417,8 +417,9 @@ for (const viewport of VIEWPORTS) {
       const before = await placeholder.boundingBox();
 
       held.release();
-      const block = page.getByRole('region', { name: 'Resultado' });
-      await expect(block).toBeVisible();
+      const block = page.getByTestId('trace-result-block');
+      await expect(page.getByRole('region', { name: 'Resultado' })).toBeVisible();
+      await expect(page.getByTestId('trace-ranking-skeleton')).toHaveCount(0);
       await expect(page.getByTestId('trace-result-block-skeleton')).toHaveCount(0);
       const after = await block.boundingBox();
 
