@@ -330,43 +330,36 @@ describe('CorpusListPanel', () => {
         expect(row.querySelector('[data-slot="status-dot"]')).toBeNull();
       });
 
-      it('leads a matching value with a success dot', async () => {
-        renderPanel();
-
-        const row = await screen.findByRole('button', { name: /Ver el estado de los embeddings$/ });
-        await expect.poll(() => row.querySelector('[data-slot="status-dot"]')).not.toBeNull();
-        const dot = row.querySelector('[data-slot="status-dot"]');
-        expect(dot).toHaveAttribute('aria-hidden', 'true');
-        expect(dot?.getAttribute('class')).toContain('bg-success');
-      });
-
-      it('leads a mismatching value with a warning dot', async () => {
-        vi.spyOn(embeddingsApi, 'fetchEmbeddingsStatus').mockResolvedValue({
-          ...EMBEDDINGS_STATUS,
-          embeddingApi: { ...EMBEDDINGS_STATUS.embeddingApi, matchesCorpus: false },
-        });
-
-        renderPanel();
-
-        const row = await screen.findByRole('button', { name: /Ver el estado de los embeddings$/ });
-        await expect
-          .poll(() => row.querySelector('[data-slot="status-dot"]')?.getAttribute('class'))
-          .toContain('bg-warning');
-      });
-
-      it('leads an error value with a muted dot', async () => {
-        vi.spyOn(embeddingsApi, 'fetchEmbeddingsStatus').mockRejectedValue({
-          kind: 'network',
-          cause: 'timeout',
-          i18nKey: 'errors.network.coldStart',
-        });
+      it.each([
+        ['matching', () => undefined],
+        [
+          'mismatching',
+          () =>
+            vi.spyOn(embeddingsApi, 'fetchEmbeddingsStatus').mockResolvedValue({
+              ...EMBEDDINGS_STATUS,
+              embeddingApi: { ...EMBEDDINGS_STATUS.embeddingApi, matchesCorpus: false },
+            }),
+        ],
+        [
+          'failed',
+          () =>
+            vi.spyOn(embeddingsApi, 'fetchEmbeddingsStatus').mockRejectedValue({
+              kind: 'network',
+              cause: 'timeout',
+              i18nKey: 'errors.network.coldStart',
+            }),
+        ],
+      ])('shows the %s value as plain text, with no status dot', async (_state, arrange) => {
+        arrange();
 
         renderPanel();
 
         const row = await screen.findByRole('button', { name: /Ver el estado de los embeddings$/ });
         await expect
-          .poll(() => row.querySelector('[data-slot="status-dot"]')?.getAttribute('class'))
-          .toContain('bg-ink-muted');
+          .poll(() => row.querySelector('[class*="skeleton"], [data-slot="skeleton"]'))
+          .toBeNull();
+        expect(row.querySelector('[data-slot="status-dot"]')).toBeNull();
+        expect(row.querySelector('.rounded-full')).toBeNull();
       });
     });
 
