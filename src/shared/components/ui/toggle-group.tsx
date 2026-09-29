@@ -9,7 +9,7 @@ export const TOGGLE_GROUP_CLASS_NAME =
   'inline-flex items-center gap-0.5 rounded-md border border-hairline bg-paper-sunken p-[3px]';
 
 export const TOGGLE_GROUP_ITEM_CLASS_NAME = [
-  'rounded-btn px-3 py-1.5 text-label font-medium text-ink-secondary motion-safe:transition-colors',
+  'rounded-btn px-3 py-1.5 whitespace-nowrap text-label font-medium text-ink-secondary motion-safe:transition-colors',
   'focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring',
   'disabled:pointer-events-none disabled:opacity-45',
   'data-[state=on]:bg-paper-raised data-[state=on]:text-ink data-[state=on]:shadow-[0_1px_2px_rgb(0_0_0_/_0.06)]',

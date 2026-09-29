@@ -31,6 +31,9 @@ export interface SegmentedControlProps<TValue extends string> {
   /** `sm` tightens the option padding for a control that sits inside a
    * compact column or a card header; the track and semantics are the same. */
   size?: SegmentedSize;
+  /** `vertical` stacks the options one per row across the full width (and
+   * ArrowDown/ArrowUp move like ArrowRight/ArrowLeft); horizontal by default. */
+  orientation?: 'horizontal' | 'vertical';
 }
 
 export type SegmentedSize = 'default' | 'sm';
@@ -70,7 +73,9 @@ export function SegmentedControl<TValue extends string>({
   'aria-label': ariaLabel,
   'aria-labelledby': ariaLabelledBy,
   size = 'default',
+  orientation = 'horizontal',
 }: SegmentedControlProps<TValue>) {
+  const vertical = orientation === 'vertical';
   const matchedIndex = options.findIndex((option) => option.value === value);
   const currentIndex = matchedIndex === -1 ? 0 : matchedIndex;
 
@@ -84,12 +89,16 @@ export function SegmentedControl<TValue extends string>({
     };
 
     switch (event.key) {
+      case 'ArrowDown':
       case 'ArrowRight':
+        if (event.key === 'ArrowDown' && !vertical) break;
         event.preventDefault();
         event.stopPropagation();
         moveTo((currentIndex + 1) % options.length);
         break;
+      case 'ArrowUp':
       case 'ArrowLeft':
+        if (event.key === 'ArrowUp' && !vertical) break;
         event.preventDefault();
         event.stopPropagation();
         moveTo((currentIndex - 1 + options.length) % options.length);
@@ -112,7 +121,9 @@ export function SegmentedControl<TValue extends string>({
   return (
     <ToggleGroup
       type="single"
-      orientation="horizontal"
+      orientation={orientation}
+      aria-orientation={orientation}
+      className={vertical ? 'w-full flex-col items-stretch' : undefined}
       loop
       value={value}
       onValueChange={(next) => {
@@ -128,7 +139,7 @@ export function SegmentedControl<TValue extends string>({
           key={option.value}
           value={option.value}
           lang={option.lang}
-          className={SEGMENTED_ITEM_SIZE_CLASS_NAMES[size]}
+          className={cn(SEGMENTED_ITEM_SIZE_CLASS_NAMES[size], vertical && 'text-left')}
         >
           {option.label}
         </ToggleGroupItem>

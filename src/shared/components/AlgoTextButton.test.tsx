@@ -38,4 +38,27 @@ describe('AlgoTextButton', () => {
       /^tfidf-cosine$/,
     );
   });
+
+  it('draws no tick box unless asked to', () => {
+    render(<AlgoTextButton id="jaccard" active={false} onToggle={vi.fn()} />);
+
+    expect(screen.getByRole('button', { name: 'jaccard' }).querySelector('[data-tick]')).toBeNull();
+  });
+
+  it('draws an aria-hidden tick box that fills when active, leaving the accessible name intact', () => {
+    const { rerender } = render(
+      <AlgoTextButton id="ward" active={false} tick onToggle={vi.fn()} />,
+    );
+
+    const button = screen.getByRole('button', { name: 'ward' });
+    const tick = button.querySelector('[data-tick]');
+    expect(tick).not.toBeNull();
+    expect(tick).toHaveAttribute('aria-hidden', 'true');
+    expect(tick?.querySelector('svg')).toBeNull();
+
+    rerender(<AlgoTextButton id="ward" active tick onToggle={vi.fn()} />);
+
+    expect(button.querySelector('[data-tick]')?.querySelector('svg')).not.toBeNull();
+    expect(button.querySelector('[data-tick]')).toHaveClass('bg-ink');
+  });
 });

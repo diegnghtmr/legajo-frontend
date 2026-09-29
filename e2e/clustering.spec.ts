@@ -333,7 +333,7 @@ test.describe('clustering screen', () => {
   });
 
   for (const width of [1440, 1280, 1024, 768, 390]) {
-    test(`at ${width}px, the parameter panel's three columns take their intrinsic width, never stretch and never scroll the page`, async ({
+    test(`at ${width}px, the parameter panel's columns start at the same top edge and never scroll the page`, async ({
       page,
     }) => {
       await page.setViewportSize({ width, height: 900 });
@@ -350,8 +350,7 @@ test.describe('clustering screen', () => {
         column('Corte libre'),
       ];
 
-      // Never stretched to fill the remaining row width or the row height:
-      // each column's own computed `flex-grow` stays 0.
+      // Columns take their width from the grid track, never from flex growth.
       for (const item of columns) {
         expect(await computedFlexGrow(item)).toBe('0');
       }
@@ -362,14 +361,10 @@ test.describe('clustering screen', () => {
         (typeof boxes)[number]
       >[];
 
-      // While the columns share one row they are top-aligned, and the free
-      // cut column keeps its own (taller) height: none is stretched to
-      // another's, and none reserves a dead block for it.
-      const sameRow =
-        Math.abs(representationBox!.y - cutBox!.y) < 5 && Math.abs(linkageBox!.y - cutBox!.y) < 5;
-      if (sameRow) {
-        expect(representationBox!.height).toBeLessThan(cutBox!.height);
-        expect(linkageBox!.height).toBeLessThan(cutBox!.height);
+      // While the columns share one row they start at the same top edge.
+      if (width >= 1100) {
+        expect(Math.abs(representationBox!.y - cutBox!.y)).toBeLessThan(5);
+        expect(Math.abs(linkageBox!.y - cutBox!.y)).toBeLessThan(5);
       }
 
       // Never a horizontal scroll, wrapped or not.
@@ -542,6 +537,148 @@ test.describe('clustering screen', () => {
     expect(box!.height).toBeLessThan(52);
     const scrollWidth = await page.evaluate<number>('document.documentElement.scrollWidth');
     expect(scrollWidth).toBeLessThanOrEqual(390);
+  });
+
+  test.describe('parameter panel grid', () => {
+    interface ColumnMeasure {
+      width: number;
+      height: number;
+      borderLeft: number;
+      borderTop: number;
+    }
+    interface PanelMeasure {
+      gridHeight: number;
+      columns: ColumnMeasure[];
+      footerBackground: string;
+      footerHeight: number;
+      sunkenToken: string;
+    }
+
+    /** Measured in the browser, so the assertions read computed layout, not class names. */
+    async function measurePanel(page: Page): Promise<PanelMeasure> {
+      const panel = page.getByRole('region', { name: 'Parámetros del agrupamiento' });
+      await expect(panel.getByTestId('params-status-footer')).toBeVisible();
+      return panel.evaluate((section): PanelMeasure => {
+        const env = globalThis as unknown as {
+          document: {
+            body: { appendChild(node: unknown): void };
+            createElement(tag: string): { className: string; remove(): void };
+          };
+          getComputedStyle(element: unknown): {
+            backgroundColor: string;
+            borderLeftWidth: string;
+            borderTopWidth: string;
+          };
+        };
+        const grid = section.firstElementChild!;
+        const footer = section.querySelector('[data-testid="params-status-footer"]')!;
+        const probe = env.document.createElement('div');
+        probe.className = 'bg-paper-sunken';
+        env.document.body.appendChild(probe);
+        const sunkenToken = env.getComputedStyle(probe).backgroundColor;
+        probe.remove();
+        return {
+          gridHeight: (
+            grid as unknown as { getBoundingClientRect(): { height: number } }
+          ).getBoundingClientRect().height,
+          columns: Array.from(
+            grid.children as Iterable<{
+              getBoundingClientRect(): { width: number; height: number };
+            }>,
+          ).map((column) => {
+            const style = env.getComputedStyle(column);
+            return {
+              width: column.getBoundingClientRect().width,
+              height: column.getBoundingClientRect().height,
+              borderLeft: parseFloat(style.borderLeftWidth),
+              borderTop: parseFloat(style.borderTopWidth),
+            };
+          }),
+          footerBackground: env.getComputedStyle(footer).backgroundColor,
+          footerHeight: footer.getBoundingClientRect().height,
+          sunkenToken,
+        };
+      });
+    }
+
+    test('at 1440px the three columns split 1 : 1 : 1.35 with a 1px rule between them and a sunken footer', async ({
+      page,
+    }) => {
+      await page.setViewportSize({ width: 1440, height: 900 });
+      await page.goto('/clustering');
+      const measure = await measurePanel(page);
+
+      expect(measure.columns).toHaveLength(3);
+      const [first, second, third] = measure.columns;
+      expect(second.width / first.width).toBeGreaterThan(0.95);
+      expect(second.width / first.width).toBeLessThan(1.05);
+      expect(third.width / first.width).toBeGreaterThan(1.35 * 0.95);
+      expect(third.width / first.width).toBeLessThan(1.35 * 1.05);
+      expect([first.borderLeft, second.borderLeft, third.borderLeft]).toEqual([0, 1, 1]);
+      expect([first.borderTop, second.borderTop, third.borderTop]).toEqual([0, 0, 0]);
+      // Every column stretches to the grid row, so each rule runs to the footer.
+      for (const column of measure.columns) {
+        expect(Math.abs(column.height - measure.gridHeight)).toBeLessThanOrEqual(1);
+      }
+      expect(measure.footerBackground).toBe(measure.sunkenToken);
+      expect(measure.footerHeight).toBeGreaterThanOrEqual(44);
+
+      await page
+        .getByRole('region', { name: 'Parámetros del agrupamiento' })
+        .screenshot({ path: 'test-results/clustering-params-1440.png' });
+    });
+
+    test('at 390px the representation options stack one per row, each on a single line inside the track', async ({
+      page,
+    }) => {
+      await page.setViewportSize({ width: 390, height: 844 });
+      await page.goto('/clustering');
+      const group = page.getByRole('radiogroup', { name: 'Representación' });
+      await expect(group).toBeVisible();
+
+      const radios = group.getByRole('radio');
+      await expect(radios).toHaveCount(3);
+      const groupBox = (await group.boundingBox())!;
+      const boxes = await Promise.all(
+        [0, 1, 2].map(async (index) => (await radios.nth(index).boundingBox())!),
+      );
+      for (const [index, box] of boxes.entries()) {
+        // One line of 13px text plus padding stays well under two line boxes.
+        expect(box.height).toBeLessThanOrEqual(46);
+        expect(box.x).toBeGreaterThanOrEqual(groupBox.x);
+        expect(box.x + box.width).toBeLessThanOrEqual(groupBox.x + groupBox.width + 1);
+        if (index > 0) {
+          expect(box.y).toBeGreaterThan(boxes[index - 1]!.y);
+          expect(Math.abs(box.x - boxes[0]!.x)).toBeLessThan(2);
+        }
+      }
+      const overflow = await group.evaluate((el) => el.scrollWidth - el.clientWidth);
+      expect(overflow).toBeLessThanOrEqual(0);
+    });
+
+    for (const width of [1024, 390]) {
+      test(`at ${width}px the columns stack with top rules and the page does not scroll sideways`, async ({
+        page,
+      }) => {
+        await page.setViewportSize({ width, height: 900 });
+        await page.goto('/clustering');
+        const measure = await measurePanel(page);
+
+        const [first, second, third] = measure.columns;
+        expect([first.borderTop, second.borderTop, third.borderTop]).toEqual([0, 1, 1]);
+        expect([first.borderLeft, second.borderLeft, third.borderLeft]).toEqual([0, 0, 0]);
+        expect(second.width).toBeCloseTo(first.width, 0);
+        expect(third.width).toBeCloseTo(first.width, 0);
+        expect(measure.footerBackground).toBe(measure.sunkenToken);
+
+        const scrollWidth = await page.evaluate<number>('document.documentElement.scrollWidth');
+        expect(scrollWidth).toBeLessThanOrEqual(width);
+
+        await page
+          .getByRole('region', { name: 'Parámetros del agrupamiento' })
+          .screenshot({ path: `test-results/clustering-params-${width}.png` });
+      });
+    }
   });
 
   test('deselecting every linkage shows the reason and no linkage panels', async ({ page }) => {
