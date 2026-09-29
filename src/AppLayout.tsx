@@ -6,6 +6,7 @@ import { NavLink, Outlet, useLocation } from 'react-router';
 
 import { setLanguage, SUPPORTED_LANGUAGES, type SupportedLanguage } from './infrastructure/i18n';
 import { Logo } from './shared/components/Logo';
+import { SegmentedControl } from './shared/components/SegmentedControl';
 import { cn } from './shared/lib/cn';
 import { MAIN_CONTENT_ID, shellMetricsStyle } from './shared/lib/shellMetrics';
 import { useActiveLinkBox } from './shared/lib/useActiveLinkBox';
@@ -17,36 +18,24 @@ const LANGUAGE_AUTONYMS: Record<SupportedLanguage, string> = {
   en: 'English',
 };
 
+const LANGUAGE_OPTIONS = SUPPORTED_LANGUAGES.map((language) => ({
+  value: language,
+  label: LANGUAGE_AUTONYMS[language],
+  lang: language,
+}));
+
 function LanguageSwitch() {
   const { i18n, t } = useTranslation();
+  const current = SUPPORTED_LANGUAGES.find((language) => language === i18n.resolvedLanguage);
 
   return (
-    <div role="group" className="flex items-center gap-1" aria-label={t('language.switchLabel')}>
-      {SUPPORTED_LANGUAGES.map((language) => {
-        const active = i18n.resolvedLanguage === language;
-        return (
-          <button
-            key={language}
-            type="button"
-            lang={language}
-            aria-pressed={active}
-            onClick={() => void setLanguage(language)}
-            className={cn(
-              'rounded-btn px-2 py-1 text-label font-semibold',
-              active ? 'bg-ink text-primary-foreground' : 'text-ink-secondary hover:text-ink',
-              'focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus',
-              // Same 44px coarse-pointer hit area as the other primitives
-              // (Button, Checkbox): desktop density (the visible px-2 py-1
-              // box) is untouched, since `pointer-coarse:` only applies
-              // under `@media (pointer: coarse)`.
-              'pointer-coarse:flex pointer-coarse:items-center pointer-coarse:justify-center pointer-coarse:min-h-11 pointer-coarse:min-w-11',
-            )}
-          >
-            {LANGUAGE_AUTONYMS[language]}
-          </button>
-        );
-      })}
-    </div>
+    <SegmentedControl
+      options={LANGUAGE_OPTIONS}
+      value={current ?? SUPPORTED_LANGUAGES[0]}
+      onChange={(language) => void setLanguage(language)}
+      aria-label={t('language.switchLabel')}
+      size="sm"
+    />
   );
 }
 

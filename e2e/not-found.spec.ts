@@ -17,7 +17,7 @@ test.describe('not-found route', () => {
 
   test('English: the recovery action reads "Go to Similarity"', async ({ page }) => {
     await page.goto('/does-not-exist');
-    await page.getByRole('button', { name: 'English' }).click();
+    await page.getByRole('radio', { name: 'English' }).click();
 
     const cta = page.getByRole('link', { name: 'Go to Similarity' });
     await expect(cta).toBeVisible();

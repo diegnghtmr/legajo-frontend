@@ -17,6 +17,9 @@ export interface SegmentedOption<TValue extends string> {
    * similarity matrix's single-algorithm selector.
    */
   label: ReactNode;
+  /** The option's own language when its label is not in the page's language
+   * (the language switch shows each language by its autonym). */
+  lang?: string;
 }
 
 export interface SegmentedControlProps<TValue extends string> {
@@ -124,6 +127,7 @@ export function SegmentedControl<TValue extends string>({
         <ToggleGroupItem
           key={option.value}
           value={option.value}
+          lang={option.lang}
           className={SEGMENTED_ITEM_SIZE_CLASS_NAMES[size]}
         >
           {option.label}
