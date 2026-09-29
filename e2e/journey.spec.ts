@@ -329,14 +329,14 @@ test.describe('end-to-end journey', () => {
     await expect(nav.getByRole('link', { name: 'Agrupamiento', exact: true })).toBeVisible();
     await expect(page.getByRole('button', { name: 'Comparar' })).toBeVisible();
 
-    await page.getByRole('button', { name: 'English' }).click();
+    await page.getByRole('radio', { name: 'English' }).click();
 
     await expect(page.getByRole('heading', { name: 'Similarity comparison' })).toBeVisible();
     await expect(nav.getByRole('link', { name: 'Similarity', exact: true })).toBeVisible();
     await expect(nav.getByRole('link', { name: 'Clustering', exact: true })).toBeVisible();
     await expect(page.getByRole('button', { name: 'Compare' })).toBeVisible();
 
-    await page.getByRole('button', { name: 'Español' }).click();
+    await page.getByRole('radio', { name: 'Español' }).click();
 
     await expect(page.getByRole('heading', { name: 'Comparación de similitud' })).toBeVisible();
     await expect(nav.getByRole('link', { name: 'Similitud', exact: true })).toBeVisible();

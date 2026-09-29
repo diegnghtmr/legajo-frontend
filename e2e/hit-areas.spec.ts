@@ -323,7 +323,7 @@ test.describe('44x44 touch targets at 390px', () => {
       'nav menu toggle',
     );
     await expectEachAtLeast44(
-      page.getByRole('button', { name: /^(Español|English)$/ }),
+      page.getByRole('radio', { name: /^(Español|English)$/ }),
       'language switch',
     );
   });

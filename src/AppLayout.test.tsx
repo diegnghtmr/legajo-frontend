@@ -84,16 +84,38 @@ describe('AppLayout', () => {
 
     expect(screen.getByRole('link', { name: 'Similitud' })).toBeInTheDocument();
 
-    await user.click(screen.getByRole('button', { name: 'English' }));
+    await user.click(screen.getByRole('radio', { name: 'English' }));
 
     expect(await screen.findByRole('link', { name: 'Similarity' })).toBeInTheDocument();
     expect(screen.getByText('similarity page')).toBeInTheDocument();
   });
 
-  it('names the language switch as a group so assistive technology announces it', () => {
+  it('exposes the language switch as a named radiogroup with the current language checked', () => {
     renderLayout();
 
-    expect(screen.getByRole('group', { name: /idioma|language/i })).toBeInTheDocument();
+    const group = screen.getByRole('radiogroup', { name: /idioma|language/i });
+    expect(within(group).getByRole('radio', { name: 'Español' })).toBeChecked();
+    expect(within(group).getByRole('radio', { name: 'English' })).not.toBeChecked();
+    expect(within(group).queryByRole('button')).toBeNull();
+  });
+
+  it('keeps each language name in its own language attribute', () => {
+    renderLayout();
+
+    expect(screen.getByRole('radio', { name: 'Español' })).toHaveAttribute('lang', 'es');
+    expect(screen.getByRole('radio', { name: 'English' })).toHaveAttribute('lang', 'en');
+  });
+
+  it('switches language with the arrow keys once the group has focus', async () => {
+    const user = userEvent.setup();
+    renderLayout('/similarity');
+
+    screen.getByRole('radio', { name: 'Español' }).focus();
+    await user.keyboard('{ArrowRight}');
+
+    expect(await screen.findByRole('link', { name: 'Similarity' })).toBeInTheDocument();
+    expect(screen.getByRole('radio', { name: 'English' })).toBeChecked();
+    expect(screen.getByRole('radio', { name: 'English' })).toHaveFocus();
   });
 
   it('gives the section nav links a 44px hit area on coarse pointers, keeping desktop density unchanged', () => {
@@ -107,7 +129,7 @@ describe('AppLayout', () => {
   it('gives the language-switch buttons a 44px hit area on coarse pointers', () => {
     renderLayout();
 
-    const button = screen.getByRole('button', { name: 'English' });
+    const button = screen.getByRole('radio', { name: 'English' });
     expect(button.className).toContain('pointer-coarse:min-h-11');
     expect(button.className).toContain('pointer-coarse:min-w-11');
   });
@@ -218,7 +240,7 @@ describe('AppLayout', () => {
       const { container } = renderLayout('/similarity');
       expect(getPill(container)?.style.width).toBe('69px');
 
-      await user.click(screen.getByRole('button', { name: 'English' }));
+      await user.click(screen.getByRole('radio', { name: 'English' }));
       await screen.findByRole('link', { name: 'Similarity' });
 
       expect(getPill(container)?.style.width).toBe('70px');
