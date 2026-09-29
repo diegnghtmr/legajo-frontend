@@ -15,8 +15,17 @@ interface FocusDocument {
   querySelectorAll(selector: string): ArrayLike<FocusElement>;
 }
 
-const FOCUSABLE_SELECTOR =
-  '[tabindex]:not([tabindex="-1"]), a[href], button, input, select, textarea';
+/** A tab stop: `tabindex="-1"` takes a native control out of the tab order, so
+ * a pointer-only shortcut (the score strip's dots) inside a decorative
+ * subtree is not one. */
+const FOCUSABLE_SELECTOR = [
+  '[tabindex]:not([tabindex="-1"])',
+  'a[href]:not([tabindex="-1"])',
+  'button:not([tabindex="-1"])',
+  'input:not([tabindex="-1"])',
+  'select:not([tabindex="-1"])',
+  'textarea:not([tabindex="-1"])',
+].join(', ');
 const NATIVE_CONTROL_SELECTOR = 'a, button, input, select, textarea';
 /** `aria-hidden` set by an open dialog on the page behind it (`data-aria-hidden`) is
  * not a placeholder subtree. */

@@ -103,6 +103,9 @@
       "classic": "Clásico",
       "ai": "IA"
     },
+    "scoreStrip": {
+      "eyebrow": "Puntaje normalizado"
+    },
     "algorithmsGroupLabel": "Selección de algoritmos",
     "algorithmsLoading": "Cargando el catálogo de algoritmos…",
     "algorithmsErrorTitle": "No se pudo cargar el catálogo de algoritmos",

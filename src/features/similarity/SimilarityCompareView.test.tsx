@@ -1,6 +1,7 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { render, screen } from '@testing-library/react';
-import { MemoryRouter } from 'react-router';
+import { render, screen, waitFor } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
+import { MemoryRouter, useLocation } from 'react-router';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import * as similarityApi from '../../infrastructure/api/similarity';
@@ -177,5 +178,97 @@ describe('SimilarityCompareView loading skeletons', () => {
     // real row's own id does at a narrow width.
     expect(rows[0]).toHaveTextContent('levenshtein');
     expect(rows[1]).toHaveTextContent('jaccard');
+  });
+});
+
+function LocationProbe() {
+  const location = useLocation();
+  return <p data-testid="location">{location.pathname}</p>;
+}
+
+const CATALOGUE = [
+  { id: 'levenshtein', displayName: 'Levenshtein distance', kind: 'CLASSIC' },
+  { id: 'embedding-local', displayName: 'Embedding (MiniLM local)', kind: 'AI' },
+] as const;
+
+function result(algorithmId: string, normalizedScore: number) {
+  return {
+    algorithmId,
+    result: { normalizedScore, rawValue: 1, computedNanos: 10, cached: false, degenerate: false },
+  };
+}
+
+describe('SimilarityCompareView score strip', () => {
+  beforeEach(() => {
+    // The narrow-viewport stub above is a global; start each case wide.
+    vi.unstubAllGlobals();
+  });
+
+  it('shows the strip skeleton, with one dot per selected algorithm, while the comparison loads', async () => {
+    vi.spyOn(similarityApi, 'fetchSimilarityAlgorithms').mockResolvedValue([...CATALOGUE]);
+    vi.spyOn(similarityApi, 'compareSimilarity').mockReturnValue(new Promise(() => {}));
+
+    renderView('/similarity?algorithms=levenshtein,embedding-local');
+
+    const strip = await screen.findByTestId('score-strip');
+    expect(strip.querySelectorAll('[data-skeleton-dot]')).toHaveLength(2);
+    expect(strip.querySelectorAll('button')).toHaveLength(0);
+  });
+
+  it('shows one dot per result above the table and opens that trace when a dot is clicked', async () => {
+    const user = userEvent.setup();
+    vi.spyOn(similarityApi, 'fetchSimilarityAlgorithms').mockResolvedValue([...CATALOGUE]);
+    vi.spyOn(similarityApi, 'compareSimilarity').mockResolvedValue([
+      result('levenshtein', 0.4),
+      result('embedding-local', 0.8),
+    ] as never);
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    render(
+      <QueryClientProvider client={queryClient}>
+        <MemoryRouter initialEntries={['/similarity?algorithms=levenshtein,embedding-local']}>
+          <SimilarityCompareView pair={['doc-01', 'doc-02']} openAlgorithmId={null} />
+          <LocationProbe />
+        </MemoryRouter>
+      </QueryClientProvider>,
+    );
+
+    const dot = await screen.findByTitle('embedding-local: 0.800');
+    expect(screen.getByTitle('levenshtein: 0.400')).toBeInTheDocument();
+    expect(
+      screen.getByTestId('score-strip').compareDocumentPosition(screen.getByRole('table')),
+    ).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
+
+    await user.click(dot);
+
+    await waitFor(() =>
+      expect(screen.getByTestId('location')).toHaveTextContent('/similarity/embedding-local/trace'),
+    );
+  });
+
+  it('is visual only below lg: dots are not controls', async () => {
+    stubNarrowViewport();
+    vi.spyOn(similarityApi, 'fetchSimilarityAlgorithms').mockResolvedValue([...CATALOGUE]);
+    vi.spyOn(similarityApi, 'compareSimilarity').mockResolvedValue([
+      result('levenshtein', 0.4),
+      result('embedding-local', 0.8),
+    ] as never);
+
+    renderView('/similarity?algorithms=levenshtein,embedding-local');
+
+    const dot = await screen.findByTitle('embedding-local: 0.800');
+    expect(dot.tagName).toBe('SPAN');
+    expect(screen.getByTestId('score-strip').querySelectorAll('button')).toHaveLength(0);
+  });
+
+  it('is absent when the comparison fails', async () => {
+    vi.spyOn(similarityApi, 'fetchSimilarityAlgorithms').mockResolvedValue([...CATALOGUE]);
+    vi.spyOn(similarityApi, 'compareSimilarity').mockRejectedValue({
+      i18nKey: 'errors.unexpected',
+    });
+
+    renderView('/similarity?algorithms=levenshtein');
+
+    await screen.findByRole('alert');
+    expect(screen.queryByTestId('score-strip')).not.toBeInTheDocument();
   });
 });
