@@ -213,15 +213,14 @@ test.describe('clustering screen', () => {
     // labels = [0, 0, 1, 1, 2, 2] over 6 leaves -> two leaves per cluster.
     // A bare, compact number, not the full "Clúster N" word (see
     // `Dendrogram.tsx`'s own overlap-avoidance comment).
-    await expect(
-      completeDendrogram.getByTestId('cluster-marker').filter({ hasText: /^0$/ }),
-    ).toHaveCount(2);
-    await expect(
-      completeDendrogram.getByTestId('cluster-marker').filter({ hasText: /^1$/ }),
-    ).toHaveCount(2);
-    await expect(
-      completeDendrogram.getByTestId('cluster-marker').filter({ hasText: /^2$/ }),
-    ).toHaveCount(2);
+    // Shown one-based, as people count clusters: 1, 2 and 3.
+    for (const number of [1, 2, 3]) {
+      await expect(
+        completeDendrogram
+          .getByTestId('cluster-marker')
+          .filter({ hasText: new RegExp(`^${number}$`) }),
+      ).toHaveCount(2);
+    }
 
     // No cut line leaks onto a linkage that was not cut.
     await expect(

@@ -119,11 +119,12 @@ describe('Dendrogram', () => {
     expect(cutLines).toHaveLength(1);
     expect(cutLines[0]?.getAttribute('stroke-dasharray')).toBeTruthy();
     // labels = [0, 0, 1, 1, 2] indexed by original leaf id; rendered in
-    // LEAF_ORDER's visual order ([2, 3, 0, 1, 4]) that is [1, 1, 0, 0, 2].
+    // LEAF_ORDER's visual order ([2, 3, 0, 1, 4]) that is [1, 1, 0, 0, 2],
+    // shown one-based as people count clusters: [2, 2, 1, 1, 3].
     // A bare, compact number (not the full "Clúster N" word), so labels stay
     // legible at the default leaf spacing instead of overlapping.
     const markers = [...container.querySelectorAll('[data-testid="cluster-marker"]')];
-    expect(markers.map((marker) => marker.textContent)).toEqual(['1', '1', '0', '0', '2']);
+    expect(markers.map((marker) => marker.textContent)).toEqual(['2', '2', '1', '1', '3']);
     // Each marker is aria-hidden — the full name is carried by the leaf's
     // own <title> instead, asserted below — never announced as a bare digit.
     for (const marker of markers) {
@@ -143,7 +144,7 @@ describe('Dendrogram', () => {
     );
 
     const leafZeroTitle = container.querySelector('[data-leaf-id="0"] title');
-    expect(leafZeroTitle).toHaveTextContent('Zeroth article — Clúster 0');
+    expect(leafZeroTitle).toHaveTextContent('Zeroth article — Clúster 1');
   });
 
   it('shows a legend captioning what the cluster numbers mean, naming k', () => {
@@ -469,9 +470,9 @@ describe('Dendrogram', () => {
         chips
           .find((chip) => chip.textContent === label)!
           .previousElementSibling!.getAttribute('class');
-      expect(hue('8')).toContain('fill-cluster-1');
-      expect(hue('0')).toContain('fill-cluster-1');
-      expect(hue('9')).toContain('fill-cluster-2');
+      expect(hue('9')).toContain('fill-cluster-1');
+      expect(hue('1')).toContain('fill-cluster-1');
+      expect(hue('10')).toContain('fill-cluster-2');
     });
 
     it('draws a numbered chip in the cluster hue after each leaf label', () => {
@@ -483,7 +484,7 @@ describe('Dendrogram', () => {
       expect(rect.getAttribute('height')).toBe('16');
       expect(rect.getAttribute('rx')).toBe('4');
       const number = leaf.querySelector('[data-testid="cluster-marker"]')!;
-      expect(number).toHaveTextContent('0');
+      expect(number).toHaveTextContent('1');
       expect(number.getAttribute('class')).toContain('fill-paper-raised');
     });
   });
@@ -513,7 +514,7 @@ describe('Dendrogram', () => {
 
       const tip = screen.getByRole('tooltip');
       expect(within(tip).getByText('doc-00')).toHaveClass('font-mono');
-      expect(tip).toHaveTextContent('Clúster 0');
+      expect(tip).toHaveTextContent('Clúster 1');
       expect(tip).toHaveTextContent('Zeroth article');
       expect(tip).toHaveClass('pointer-events-none');
 
@@ -589,5 +590,15 @@ describe('Dendrogram', () => {
         expect(path.style.getPropertyValue('--i')).toBe(String(index));
       });
     });
+  });
+
+  it('names the merge-order table once, without repeating the dendrogram name', () => {
+    const { container } = render(
+      <Dendrogram rows={ROWS} leafOrder={LEAF_ORDER} ariaLabel="Dendrograma de Single" />,
+    );
+
+    const caption = container.querySelector('caption')!;
+    expect(caption).toHaveTextContent('Orden de fusión: Dendrograma de Single');
+    expect(caption.textContent!.match(/dendrograma de/gi)).toHaveLength(1);
   });
 });
