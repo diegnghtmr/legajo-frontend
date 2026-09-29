@@ -18,7 +18,7 @@ import { algoFamilyFromKind } from './algorithmFamily';
 import { DEFAULT_ALGORITHM_IDS, parseAlgorithmIds } from './algorithmSelection';
 import { compareQueryOptions } from './compareQueryOptions';
 import { filterRowsByFamily, parseFamilyFilter, type FamilyFilter } from './familyFilter';
-import { clearTraceTrigger } from './traceFocusReturn';
+import { rememberTraceTrigger } from './traceFocusReturn';
 import { CompareResultsList } from './CompareResultsList';
 import {
   AlgorithmListSkeleton,
@@ -188,7 +188,7 @@ export function SimilarityCompareView({ pair, openAlgorithmId }: SimilarityCompa
       openAlgorithmId !== null &&
       next !== 'all' &&
       algoFamilyFromKind(catalogueById.get(openAlgorithmId)?.kind ?? 'CLASSIC') !== next;
-    if (!openIsHidden) {
+    if (!openIsHidden || openAlgorithmId === null) {
       commitSearchParams((nextParams) => {
         if (next === 'all') {
           nextParams.delete('family');
@@ -206,7 +206,10 @@ export function SimilarityCompareView({ pair, openAlgorithmId }: SimilarityCompa
     nextParams.delete('documentIdA');
     nextParams.delete('documentIdB');
     searchParamsRef.current = nextParams;
-    clearTraceTrigger();
+    // The workbench restores focus to the remembered trace trigger once the
+    // panel closes; the vanished row can no longer take it, so the results
+    // heading stands in for it.
+    rememberTraceTrigger(headingRef.current, openAlgorithmId);
     focusHeadingOnTraceClose.current = true;
     navigate({ pathname: '/similarity', search: `?${nextParams.toString()}` }, { replace: true });
   }
