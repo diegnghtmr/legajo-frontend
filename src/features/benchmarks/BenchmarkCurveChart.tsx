@@ -39,6 +39,7 @@ import {
   type Scale,
 } from './plotModel';
 import { SeriesMarker } from './SeriesMarker';
+import { SlopeStrip, SlopeStripSkeleton } from './SlopeStrip';
 import {
   dashPatternForIndex,
   hueForIndex,
@@ -72,10 +73,6 @@ const THEORETICAL_OPACITY = 0.45;
 const WHISKER_OPACITY = 0.6;
 /** Recharts extends the cap this far to each side of the bar: 6px caps in total. */
 const WHISKER_CAP_HALF_WIDTH = 3;
-
-function formatSlopeNumber(value: number): string {
-  return value.toFixed(2);
-}
 
 /** Renders one marker per measured point, in the series' shape and hue. */
 function seriesDot(shape: MarkerShape, hue: string, opacity: number) {
@@ -315,50 +312,11 @@ export function BenchmarkCurveChart({
         onIsolate={setIsolatedFamily}
       />
 
-      {familiesWithSlopes.length > 0 && (
-        // The single scroll container for this table (its own keyboard
-        // focusability and accessible name — WCAG 2.1.1's
-        // `scrollable-region-focusable`, reported live at 390px against the
-        // reference benchmarks screen): none of its cells are themselves
-        // focusable, unlike `CompareTable`'s own row-as-button results
-        // table, so — like `MatrixTable`/`TfIdfTracePanel`'s own term
-        // table — this region needs to be the one reachable, focusable
-        // ancestor itself. `Table`'s own default wrapper is skipped
-        // (`wrap={false}`) so this stays the only `overflow` ancestor.
-        <div
-          role="region"
-          aria-label={slopeTableCaption}
-          tabIndex={0}
-          className="mt-3 overflow-x-auto rounded-md focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus"
-        >
-          <Table wrap={false}>
-            <TableCaption className="sr-only">{slopeTableCaption}</TableCaption>
-            <TableHeader>
-              <TableRow>
-                <TableHead>{t('benchmarks.curves.slopeTableFamily')}</TableHead>
-                <TableHead>{t('benchmarks.curves.slopeTableEmpirical')}</TableHead>
-                <TableHead>{t('benchmarks.curves.slopeTableTheoretical')}</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {familiesWithSlopes.map((entry) => {
-                const slope = slopes.get(entry.family)!;
-                return (
-                  <TableRow key={entry.family}>
-                    <TableCell className="font-mono text-mono text-ink">{entry.family}</TableCell>
-                    <TableCell className="font-mono text-mono text-ink">
-                      {formatSlopeNumber(slope.empiricalSlope)}
-                    </TableCell>
-                    <TableCell className="font-mono text-mono text-ink">
-                      {formatSlopeNumber(slope.theoreticalExponent)}
-                    </TableCell>
-                  </TableRow>
-                );
-              })}
-            </TableBody>
-          </Table>
-        </div>
-      )}
+      <SlopeStrip
+        families={series.map((entry) => entry.family)}
+        slopes={slopes}
+        caption={slopeTableCaption}
+      />
 
       {/*
        * `sr-only` on the wrapping `<div>`, never on `Table`'s own `<table>`
@@ -490,31 +448,7 @@ export function BenchmarkCurveChartSkeleton({
         </li>
       </ul>
 
-      <div className="mt-3 overflow-hidden rounded-md">
-        <Table wrap={false}>
-          <TableCaption className="sr-only">{slopeTableCaption}</TableCaption>
-          <TableHeader>
-            <TableRow>
-              <TableHead>{t('benchmarks.curves.slopeTableFamily')}</TableHead>
-              <TableHead>{t('benchmarks.curves.slopeTableEmpirical')}</TableHead>
-              <TableHead>{t('benchmarks.curves.slopeTableTheoretical')}</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {families.map((family) => (
-              <TableRow key={family}>
-                <TableCell className="font-mono text-mono text-ink">{family}</TableCell>
-                <TableCell>
-                  <Skeleton className="h-3 w-10" />
-                </TableCell>
-                <TableCell>
-                  <Skeleton className="h-3 w-10" />
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </div>
+      <SlopeStripSkeleton families={families} caption={slopeTableCaption} />
     </Panel>
   );
 }
