@@ -8,37 +8,76 @@ import { formatCpuModel, formatMeasuredAt, formatRamGib } from './formatHarness'
 
 type BenchmarkHarness = BenchmarkReportResponse['harness'];
 
-/** The CPU and the operating system are the long values: they take two columns. */
-const WIDE_CELL_CLASS = '@sm:col-span-2';
-
 /**
- * The column count follows the card's own width (a container query), not the
- * viewport's, since the card shares its row with another: one column when
- * narrow, two from 24rem, four from 48rem. `dense` lets a one-column cell fill
- * the hole a two-column one leaves. Every value fits its column on one line at
- * each count, so the loading placeholder has the same height.
+ * A four-column ruled grid from 700px, two columns below. The `dl` is the
+ * card's flexible child, so it grows to the row height the embedding card
+ * sets, and its rows share the extra space equally. The ring is an inset
+ * hairline drawn under the cells' own rules, with the corners clipped.
  */
 const GRID_CLASS =
-  'grid grid-flow-dense grid-cols-1 gap-x-6 gap-y-3 @sm:grid-cols-2 @3xl:grid-cols-4';
+  'grid flex-1 grid-cols-2 overflow-hidden rounded-md ring-1 ring-inset ring-hairline min-[700px]:grid-cols-4';
+
+const CELL_CLASS =
+  'flex min-h-[68px] min-w-0 flex-col justify-center gap-1.5 border-b border-hairline px-3.5 py-3';
 
 interface HarnessCell {
   key: string;
   label: string;
-  wide?: boolean;
+  /** Layout and rule classes: the wide cells span two columns, the last cell
+   * of each row loses its right rule, the second row loses its bottom rule. */
+  className: string;
 }
 
 function useHarnessCells(): readonly HarnessCell[] {
   const { t } = useTranslation();
 
   return [
-    { key: 'cpu', label: t('benchmarks.harness.cpuModelLabel'), wide: true },
-    { key: 'cores', label: t('benchmarks.harness.logicalCoresLabel') },
-    { key: 'ram', label: t('benchmarks.harness.ramLabel') },
-    { key: 'jdk', label: t('benchmarks.harness.jdkLabel') },
-    { key: 'os', label: t('benchmarks.harness.osLabel'), wide: true },
-    { key: 'measuredAt', label: t('benchmarks.harness.measuredAtLabel') },
+    {
+      key: 'cpu',
+      label: t('benchmarks.harness.cpuModelLabel'),
+      className: 'border-r min-[700px]:col-span-2',
+    },
+    {
+      key: 'cores',
+      label: t('benchmarks.harness.logicalCoresLabel'),
+      className: 'min-[700px]:border-r',
+    },
+    {
+      key: 'ram',
+      label: t('benchmarks.harness.ramLabel'),
+      className: 'border-r min-[700px]:border-r-0',
+    },
+    {
+      key: 'jdk',
+      label: t('benchmarks.harness.jdkLabel'),
+      className: 'min-[700px]:border-r min-[700px]:border-b-0',
+    },
+    {
+      key: 'os',
+      label: t('benchmarks.harness.osLabel'),
+      className: 'border-r min-[700px]:col-span-2 min-[700px]:border-b-0',
+    },
+    {
+      key: 'measuredAt',
+      label: t('benchmarks.harness.measuredAtLabel'),
+      className: 'min-[700px]:border-b-0',
+    },
   ];
 }
+
+/** The value's own type treatment, shared by the real value and its placeholder. */
+const VALUE_CLASS = 'text-balance break-words font-mono text-[13px] leading-[1.35]';
+
+/** Invisible stand-ins of a typical length, so a placeholder wraps over as many
+ * lines as a real value does at the same width and the card keeps its height. */
+const SKELETON_SAMPLES: Record<string, string> = {
+  cpu: 'xxxx xxx xxxxx xxxx xx-xxxxxx',
+  cores: 'xx',
+  ram: 'xx.x xxx',
+  jdk: 'xxxxxxx xxxxxxxx xx.x.x',
+  os: 'xxxxx x.x.x-x-xxxxxxx (xxxxx)',
+  measuredAt: 'xx xxx xxxx, xx:xx xxx',
+};
 
 function Term({ children }: { children: string }) {
   return (
@@ -57,23 +96,23 @@ export function HarnessPanelSkeleton() {
   const cells = useHarnessCells();
 
   return (
-    <Panel>
+    <Panel className="flex flex-col">
       <PanelHeader
         eyebrow={t('benchmarks.harness.eyebrow')}
         title={t('benchmarks.harness.title')}
       />
-      <div className="@container">
-        <dl className={GRID_CLASS}>
-          {cells.map(({ key, label, wide }) => (
-            <div key={key} className={cn('min-w-0', wide && WIDE_CELL_CLASS)}>
-              <Term>{label}</Term>
-              <dd>
-                <Skeleton className="mt-1 h-3.5 w-24" />
-              </dd>
-            </div>
-          ))}
-        </dl>
-      </div>
+      <dl className={GRID_CLASS}>
+        {cells.map(({ key, label, className }) => (
+          <div key={key} className={cn(CELL_CLASS, className)}>
+            <Term>{label}</Term>
+            <dd>
+              <Skeleton className={cn(VALUE_CLASS, 'w-fit max-w-full text-transparent')}>
+                {SKELETON_SAMPLES[key]}
+              </Skeleton>
+            </dd>
+          </div>
+        ))}
+      </dl>
     </Panel>
   );
 }
@@ -97,21 +136,19 @@ export function HarnessPanel({ harness }: { harness: BenchmarkHarness }) {
   };
 
   return (
-    <Panel>
+    <Panel className="flex flex-col">
       <PanelHeader
         eyebrow={t('benchmarks.harness.eyebrow')}
         title={t('benchmarks.harness.title')}
       />
-      <div className="@container">
-        <dl className={GRID_CLASS}>
-          {cells.map(({ key, label, wide }) => (
-            <div key={key} className={cn('min-w-0', wide && WIDE_CELL_CLASS)}>
-              <Term>{label}</Term>
-              <dd className="break-words font-mono text-mono text-ink">{values[key]}</dd>
-            </div>
-          ))}
-        </dl>
-      </div>
+      <dl className={GRID_CLASS}>
+        {cells.map(({ key, label, className }) => (
+          <div key={key} className={cn(CELL_CLASS, className)}>
+            <Term>{label}</Term>
+            <dd className={cn(VALUE_CLASS, 'text-ink')}>{values[key]}</dd>
+          </div>
+        ))}
+      </dl>
     </Panel>
   );
 }

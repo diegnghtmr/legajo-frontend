@@ -12,14 +12,26 @@ import { formatDuration } from './units';
  * its own. */
 const SKELETON_DIMENSIONS = [384, 1536] as const;
 
-/** A tile wants 16rem (its longest id and padding); it grows to share the row, and wraps below that. */
-const TILE_CLASS = 'flex min-w-0 grow basis-64 flex-col gap-2 rounded-md bg-paper-sunken p-3';
-const TILES_CLASS = 'flex flex-wrap gap-3';
+/** Two equal columns at every width; the grid grows to the row height the
+ * harness card sets, and each tile stretches with it. */
+const TILE_CLASS = 'flex min-w-0 flex-col gap-2.5 rounded-md bg-paper-sunken p-3';
+const TILES_CLASS = 'grid flex-1 grid-cols-2 gap-2';
+
+/** The family id without its `embedding-` prefix: the tile is already titled
+ * as the embedding primitives. */
+function primitiveName(family: string): string {
+  return family.replace(/^embedding-/, '');
+}
+
+/** One line: the name at the start, the value at the end; a narrow tile lets
+ * the value drop under the name instead of overflowing. */
+const LINE_CLASS = 'flex flex-wrap items-baseline justify-between gap-x-2 font-mono text-mono';
+const NAME_CLASS = 'min-w-0 font-mono text-ink-secondary [overflow-wrap:anywhere]';
 
 function TileTitle({ dimension }: { dimension: number }) {
   const { t } = useTranslation();
   return (
-    <h3 className="font-mono text-mono font-semibold text-ink">
+    <h3 className="font-mono text-[14px] font-semibold text-ink">
       {t('benchmarks.embedding.tileTitle', { dimension })}
     </h3>
   );
@@ -33,7 +45,7 @@ export function EmbeddingTilesSkeleton() {
   const { t } = useTranslation();
 
   return (
-    <Panel>
+    <Panel className="flex flex-col">
       <PanelHeader title={t('benchmarks.embedding.title')} />
       <div className={TILES_CLASS}>
         {SKELETON_DIMENSIONS.map((dimension) => (
@@ -43,12 +55,12 @@ export function EmbeddingTilesSkeleton() {
             className={TILE_CLASS}
           >
             <TileTitle dimension={dimension} />
-            <dl className="flex flex-col gap-2">
+            <dl className="flex flex-col gap-2.5">
               {EMBEDDING_FAMILIES.map((family) => (
-                <div key={family} className="flex flex-col gap-0.5">
-                  <dt className="font-mono text-label text-ink-secondary">{family}</dt>
+                <div key={family} className={LINE_CLASS}>
+                  <dt className={NAME_CLASS}>{primitiveName(family)}</dt>
                   <dd>
-                    <Skeleton className="h-4.5 w-24" />
+                    <Skeleton className="text-transparent">xxx ns ±xx ns</Skeleton>
                   </dd>
                 </div>
               ))}
@@ -77,7 +89,7 @@ export function EmbeddingTiles({ results }: { results: readonly BenchmarkResult[
   }
 
   return (
-    <Panel>
+    <Panel className="flex flex-col">
       <PanelHeader title={t('benchmarks.embedding.title')} />
       <div className={TILES_CLASS}>
         {tiles.map((tile) => (
@@ -87,14 +99,14 @@ export function EmbeddingTiles({ results }: { results: readonly BenchmarkResult[
             className={TILE_CLASS}
           >
             <TileTitle dimension={tile.dimension} />
-            <dl className="flex flex-col gap-2">
+            <dl className="flex flex-col gap-2.5">
               {tile.entries.map((entry) => (
-                <div key={`${entry.family}-${tile.dimension}`} className="flex flex-col gap-0.5">
-                  <dt className="font-mono text-label text-ink-secondary">{entry.family}</dt>
-                  <dd className="font-mono text-mono text-ink">
-                    <span>{formatDuration(entry.valueNs)}</span>
+                <div key={`${entry.family}-${tile.dimension}`} className={LINE_CLASS}>
+                  <dt className={NAME_CLASS}>{primitiveName(entry.family)}</dt>
+                  <dd className="text-ink">
+                    {formatDuration(entry.valueNs)}
                     {entry.errorNs > 0 && (
-                      <span className="text-ink-secondary"> ± {formatDuration(entry.errorNs)}</span>
+                      <span className="text-ink-secondary"> ±{formatDuration(entry.errorNs)}</span>
                     )}
                   </dd>
                 </div>
