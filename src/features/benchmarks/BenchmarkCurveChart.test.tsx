@@ -579,8 +579,8 @@ describe('BenchmarkCurveChartSkeleton', () => {
     expect(slopeRegion).toHaveClass('overflow-hidden');
     expect(slopeRegion).not.toHaveAttribute('tabindex');
     expect(within(slopeRegion).getByText('Familia')).toBeInTheDocument();
-    expect(within(slopeRegion).getByText('Pendiente empírica')).toBeInTheDocument();
-    expect(within(slopeRegion).getByText('Exponente teórico')).toBeInTheDocument();
+    expect(within(slopeRegion).getByText('Empírica')).toBeInTheDocument();
+    expect(within(slopeRegion).getByText('Teórico')).toBeInTheDocument();
     expect(within(slopeRegion).getByText('tfidf-cosine')).toBeInTheDocument();
     expect(within(slopeRegion).getAllByRole('row')).toHaveLength(1 + 4);
   });
