@@ -390,6 +390,47 @@ for (const viewport of VIEWPORTS) {
       assertSameBox(skeleton, loaded);
     });
 
+    test('docked trace: the result block above the trace keeps its box when the results arrive', async ({
+      page,
+    }) => {
+      await page.route('**/api/v1/corpus', async (route) => {
+        await route.fulfill({ json: CORPUS_TWO });
+      });
+      await page.route('**/api/v1/similarity/algorithms', async (route) => {
+        await route.fulfill({ json: ALGORITHM_CATALOGUE });
+      });
+      await page.route('**/api/v1/similarity/levenshtein/trace**', async (route) => {
+        await route.fulfill({ json: DP_LEVENSHTEIN_TRACE });
+      });
+      const held = await holdApi(page, [
+        { pattern: '**/api/v1/similarity/compare', json: COMPARE_RESULTS },
+      ]);
+
+      await page.goto(
+        `/similarity/levenshtein/trace?documentIdA=${DOC_A.id}&documentIdB=${DOC_B.id}`,
+      );
+
+      const placeholder = page.getByTestId('trace-result-block-skeleton');
+      await expect(placeholder).toBeVisible();
+      await expectSkeletonsHoldNoFocusable(page);
+      await expectAxeClean(page);
+      const before = await placeholder.boundingBox();
+
+      held.release();
+      const block = page.getByRole('region', { name: 'Resultado' });
+      await expect(block).toBeVisible();
+      await expect(page.getByTestId('trace-result-block-skeleton')).toHaveCount(0);
+      const after = await block.boundingBox();
+
+      expect(before).not.toBeNull();
+      expect(after).not.toBeNull();
+      expect(
+        Math.abs(after!.height - before!.height),
+        `block height: ${before!.height} (skeleton) vs ${after!.height} (loaded)`,
+      ).toBeLessThanOrEqual(TOLERANCE_PX);
+      expect(Math.abs(after!.width - before!.width)).toBeLessThanOrEqual(TOLERANCE_PX);
+    });
+
     test('docked trace, non-DP algorithm (embedding-api): the panel region matches its loaded box, axe-clean in both states', async ({
       page,
     }) => {
@@ -625,8 +666,12 @@ for (const viewport of VIEWPORTS) {
         await page.route('**/api/v1/similarity/algorithms', async (route) => {
           await route.fulfill({ json: ALGORITHM_CATALOGUE });
         });
+        // The result block above the trace reads the compare results, so they
+        // are held with the trace and released together: the measured
+        // skeleton then includes the block's own placeholder tiles.
         const held = await holdApi(page, [
           { pattern: `**/api/v1/similarity/${algorithmId}/trace**`, json: fixture },
+          { pattern: '**/api/v1/similarity/compare', json: COMPARE_RESULTS },
         ]);
 
         await page.goto(
@@ -653,6 +698,7 @@ for (const viewport of VIEWPORTS) {
 
         held.release();
         await waitForLoaded(page);
+        await expect(page.getByRole('region', { name: 'Resultado' })).toBeVisible();
         await expectLoadingSentencesHidden(page, LOADING_SENTENCES);
         if (hasFormula) {
           await expect(page.locator('.katex').first()).toBeVisible();

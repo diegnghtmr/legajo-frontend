@@ -24,6 +24,7 @@ import { clearTraceTrigger } from './traceFocusReturn';
 import { PanelHeader } from '../../shared/components/Panel';
 import { Button } from '../../shared/components/ui/button';
 import { TraceBodySkeleton } from './traces/TraceBodySkeleton';
+import { TraceResultBlock } from './traces/TraceResultBlock';
 
 /**
  * Routes one resolved trace to its panel by the `algorithmId` discriminator.
@@ -175,6 +176,7 @@ export function SimilarityTracePage() {
   // from the URL: the subtitle is omitted entirely rather than
   // interpolating an empty operand.
   const hasBothDocumentIds = documentIdA !== '' && documentIdB !== '';
+  const selectedAlgorithms = searchParams.get('algorithms');
 
   return (
     <div data-testid="similarity-trace-page" className="flex flex-col gap-4">
@@ -202,6 +204,14 @@ export function SimilarityTracePage() {
               {t('similarity.trace.algorithmRetryLabel')}
             </Button>
           }
+        />
+      )}
+
+      {hasBothDocumentIds && algorithmId && (
+        <TraceResultBlock
+          algorithmId={algorithmId}
+          documentIdA={documentIdA}
+          documentIdB={documentIdB}
         />
       )}
 
@@ -234,7 +244,7 @@ export function SimilarityTracePage() {
         // subtitle above already guards with `hasBothDocumentIds`.
         to={
           hasBothDocumentIds
-            ? `/similarity/${encodeURIComponent(algorithmId ?? '')}/trace?documentIdA=${encodeURIComponent(documentIdA)}&documentIdB=${encodeURIComponent(documentIdB)}`
+            ? `/similarity/${encodeURIComponent(algorithmId ?? '')}/trace?documentIdA=${encodeURIComponent(documentIdA)}&documentIdB=${encodeURIComponent(documentIdB)}${selectedAlgorithms === null ? '' : `&algorithms=${encodeURIComponent(selectedAlgorithms)}`}`
             : '/similarity'
         }
         className="w-fit text-body font-semibold text-ink underline-offset-2 hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus"

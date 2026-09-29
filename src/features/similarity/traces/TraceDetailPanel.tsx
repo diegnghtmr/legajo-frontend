@@ -1,25 +1,24 @@
 import { useEffect, useRef } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
-import { Link } from 'react-router';
+import { Link, useSearchParams } from 'react-router';
 
 import { DEFAULT_UNEXPECTED_I18N_KEY, type ApiError } from '../../../infrastructure/apiError';
 import {
-  compareSimilarity,
   fetchSimilarityTrace,
-  type CompareResponse,
   type SimilarityTraceResponse,
 } from '../../../infrastructure/api/similarity';
 import { algorithmsQueryOptions } from '../../../infrastructure/api/similarityCatalogue';
-import type { AlgorithmId } from '../../../infrastructure/schemas/similarity';
 import { Alert } from '../../../shared/components/Alert';
 import type { DpMatrixHandle } from '../../../shared/components/DpMatrix';
 import { Button, buttonVariants } from '../../../shared/components/ui/button';
 import { algoFamilyFromKind } from '../algorithmFamily';
+import { singleCompareQueryOptions } from '../compareQueryOptions';
 import { formatRawValue, formatTraceNumber } from '../formatters';
 import { TracePanel } from '../SimilarityTracePage';
 import { cn } from '../../../shared/lib/cn';
 import { TraceBodySkeleton } from './TraceBodySkeleton';
+import { TraceResultBlock } from './TraceResultBlock';
 import { TraceMetaFieldSkeleton } from './TraceMetaFieldSkeleton';
 
 export interface TraceDetailPanelProps {
@@ -73,6 +72,7 @@ export function TraceDetailPanel({
   onClose,
 }: TraceDetailPanelProps) {
   const { t } = useTranslation();
+  const [searchParams] = useSearchParams();
   const titleRef = useRef<HTMLHeadingElement>(null);
   const matrixRef = useRef<DpMatrixHandle>(null);
   const isDp = isDpAlgorithm(algorithmId);
@@ -101,15 +101,7 @@ export function TraceDetailPanel({
   // whatever the pairwise table's own selection currently is — the meta
   // row's raw value and score must be correct even reached from a
   // bookmarked deep link the table never rendered.
-  const metaQuery = useQuery<CompareResponse, ApiError>({
-    queryKey: ['similarity', 'compareSingle', documentIdA, documentIdB, algorithmId] as const,
-    queryFn: () =>
-      compareSimilarity({
-        documentIdA,
-        documentIdB,
-        algorithmIds: [algorithmId as AlgorithmId],
-      }),
-  });
+  const metaQuery = useQuery(singleCompareQueryOptions(documentIdA, documentIdB, algorithmId));
   const metaResult = metaQuery.data?.[0]?.result;
   const rawValueText = metaResult ? formatRawValue(metaResult.rawValue) : null;
   const scoreText = metaResult ? formatTraceNumber(metaResult.normalizedScore) : undefined;
@@ -148,7 +140,14 @@ export function TraceDetailPanel({
   }, [onClose]);
 
   const title = summary?.displayName ?? algorithmId;
-  const fullScreenHref = `/similarity/${encodeURIComponent(algorithmId)}/trace/full?documentIdA=${encodeURIComponent(documentIdA)}&documentIdB=${encodeURIComponent(documentIdB)}`;
+  // The full view ranks among the same algorithms the table shows, so the
+  // selection travels with the pair.
+  const fullScreenParams = new URLSearchParams({ documentIdA, documentIdB });
+  const selectedAlgorithms = searchParams.get('algorithms');
+  if (selectedAlgorithms !== null) {
+    fullScreenParams.set('algorithms', selectedAlgorithms);
+  }
+  const fullScreenHref = `/similarity/${encodeURIComponent(algorithmId)}/trace/full?${fullScreenParams.toString()}`;
 
   return (
     <aside
@@ -253,25 +252,32 @@ export function TraceDetailPanel({
             tabIndex: 0,
           })}
       >
-        {traceQuery.isPending && (
-          <TraceBodySkeleton algorithmId={algorithmId} hideDownloadButton hideDpMetaRow />
-        )}
-        {traceQuery.isError && (
-          <Alert
-            tone="danger"
-            title={t('similarity.trace.errorTitle')}
-            body={t(traceQuery.error.i18nKey ?? DEFAULT_UNEXPECTED_I18N_KEY)}
+        <div className="flex flex-col gap-4">
+          <TraceResultBlock
+            algorithmId={algorithmId}
+            documentIdA={documentIdA}
+            documentIdB={documentIdB}
           />
-        )}
-        {trace && (
-          <TracePanel
-            trace={trace}
-            family={family}
-            dpMatrixRef={matrixRef}
-            hideDpMetaRow
-            hideDpDownloadButton
-          />
-        )}
+          {traceQuery.isPending && (
+            <TraceBodySkeleton algorithmId={algorithmId} hideDownloadButton hideDpMetaRow />
+          )}
+          {traceQuery.isError && (
+            <Alert
+              tone="danger"
+              title={t('similarity.trace.errorTitle')}
+              body={t(traceQuery.error.i18nKey ?? DEFAULT_UNEXPECTED_I18N_KEY)}
+            />
+          )}
+          {trace && (
+            <TracePanel
+              trace={trace}
+              family={family}
+              dpMatrixRef={matrixRef}
+              hideDpMetaRow
+              hideDpDownloadButton
+            />
+          )}
+        </div>
       </div>
 
       <footer className="flex shrink-0 flex-wrap gap-2 border-t border-hairline p-4">

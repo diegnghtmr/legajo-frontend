@@ -133,6 +133,11 @@
       "errorTitle": "No se pudo cargar la traza",
       "algorithmErrorTitle": "No se pudo cargar los datos del algoritmo",
       "algorithmRetryLabel": "Reintentar",
+      "result": {
+        "label": "Resultado",
+        "score": "Puntaje normalizado",
+        "rank": "Nº {{rank}} de {{count}}"
+      },
       "panel": {
         "closeLabel": "Cerrar traza",
         "fullScreenLabel": "Pantalla completa"

@@ -133,6 +133,11 @@
       "errorTitle": "Could not load the trace",
       "algorithmErrorTitle": "Could not load the algorithm data",
       "algorithmRetryLabel": "Retry",
+      "result": {
+        "label": "Result",
+        "score": "Normalized score",
+        "rank": "No. {{rank}} of {{count}}"
+      },
       "panel": {
         "closeLabel": "Close trace",
         "fullScreenLabel": "Full screen"

@@ -577,7 +577,31 @@ test.describe('the docked trace panel with a large DP matrix', () => {
     // page itself.
     await expect(page.getByRole('heading', { name: 'doc-01 frente a doc-02' })).toBeVisible();
 
-    const finalPathCell = page.locator('[data-optimal-path="true"]').last();
-    await expect(finalPathCell).toBeInViewport();
+    // The result block now sits above the matrix in the panel body, so the
+    // matrix may start below the fold; what must hold is that the auto-scroll
+    // moved only the matrix's own viewport: its final path cell is inside that
+    // viewport, and neither the panel body nor the page was scrolled by it.
+    await expect(page.locator('[data-optimal-path="true"]').last()).toBeAttached();
+    const scrolled = await page.evaluate(`(() => {
+      const cells = document.querySelectorAll('[data-optimal-path="true"]');
+      const cell = cells[cells.length - 1];
+      const viewport = cell.closest('[role="region"]');
+      const view = viewport.getBoundingClientRect();
+      const box = cell.getBoundingClientRect();
+      let ancestor = viewport.parentElement;
+      let ancestorScroll = 0;
+      while (ancestor) {
+        ancestorScroll += ancestor.scrollTop;
+        ancestor = ancestor.parentElement;
+      }
+      return {
+        insideViewport:
+          box.left >= view.left - 1 && box.right <= view.right + 1 &&
+          box.top >= view.top - 1 && box.bottom <= view.bottom + 1,
+        viewportScrolled: viewport.scrollTop > 0 || viewport.scrollLeft > 0,
+        ancestorScroll,
+      };
+    })()`);
+    expect(scrolled).toEqual({ insideViewport: true, viewportScrolled: true, ancestorScroll: 0 });
   });
 });

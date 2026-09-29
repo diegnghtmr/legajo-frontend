@@ -143,6 +143,41 @@ describe('SimilarityTracePage', () => {
     expect(screen.getByRole('status')).toHaveTextContent('Cargando la traza');
   });
 
+  it('shows the result block skeleton with the trace skeleton while everything is pending', () => {
+    vi.spyOn(similarityApi, 'fetchSimilarityTrace').mockReturnValue(new Promise(() => {}));
+    vi.spyOn(similarityApi, 'compareSimilarity').mockReturnValue(new Promise(() => {}));
+
+    renderAtRoute(ROUTE);
+
+    expect(screen.getByTestId('trace-result-block-skeleton')).toBeInTheDocument();
+    expect(screen.getByTestId('trace-body-skeleton')).toBeInTheDocument();
+  });
+
+  it('shows the result block above the trace, from the compare results', async () => {
+    vi.spyOn(similarityApi, 'fetchSimilarityTrace').mockResolvedValue(JACCARD_TRACE);
+    vi.spyOn(similarityApi, 'compareSimilarity').mockImplementation(async ({ algorithmIds }) =>
+      (algorithmIds ?? []).map((algorithmId) => ({
+        algorithmId,
+        result: {
+          normalizedScore: 0.75,
+          rawValue: 12,
+          computedNanos: 100,
+          cached: false,
+          degenerate: false,
+        },
+      })),
+    );
+
+    renderAtRoute('/similarity/jaccard/trace?documentIdA=doc-01&documentIdB=doc-02');
+
+    const block = await screen.findByRole('region', { name: 'Resultado' });
+    expect(within(block).getByText('0.750')).toBeInTheDocument();
+    const trace = await screen.findByText('0.333300');
+    expect(block.compareDocumentPosition(trace) & Node.DOCUMENT_POSITION_FOLLOWING).toBe(
+      Node.DOCUMENT_POSITION_FOLLOWING,
+    );
+  });
+
   it('renders the DP panel for a DP trace (matrix cells present)', async () => {
     vi.spyOn(similarityApi, 'fetchSimilarityTrace').mockResolvedValue(DP_TRACE);
 
