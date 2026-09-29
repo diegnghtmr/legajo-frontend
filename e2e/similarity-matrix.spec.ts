@@ -82,6 +82,22 @@ test.describe('similarity matrix screen', () => {
     expect(diagonalValues).toHaveLength(3);
   });
 
+  test('shows the four heat buckets in a legend under the matrix', async ({ page }) => {
+    await selectThreeArticlesAndOpenMatrix(page);
+
+    const legend = page.getByRole('list', { name: 'Escala de color' });
+    await expect(legend.getByRole('listitem')).toHaveText([
+      '< 0.25',
+      '0.25–0.5',
+      '0.5–0.75',
+      '≥ 0.75',
+    ]);
+    const table = page.getByRole('region', { name: /Matriz de similitud por pares/ });
+    const tableBox = await table.boundingBox();
+    const legendBox = await legend.boundingBox();
+    expect(legendBox!.y).toBeGreaterThanOrEqual(tableBox!.y + tableBox!.height);
+  });
+
   test('switching the algorithm re-requests and re-renders the matrix', async ({ page }) => {
     await selectThreeArticlesAndOpenMatrix(page);
 

@@ -12,6 +12,7 @@ import {
 } from '../../../shared/components/ui/table';
 import { Skeleton } from '../../../shared/components/ui/skeleton';
 import { cn } from '../../../shared/lib/cn';
+import { staggerStyle } from '../../../shared/lib/stagger';
 import { matrixHeatClassName } from './matrixHeat';
 
 export interface MatrixTableProps {
@@ -158,8 +159,10 @@ export function MatrixTable({ documentIds, titleById, cells }: MatrixTableProps)
                 {row.map((result, colIndex) => (
                   <TableCell
                     key={documentIds[colIndex]}
+                    // Along the anti-diagonal: the corner cell first.
+                    style={staggerStyle(rowIndex + colIndex)}
                     className={cn(
-                      'min-w-16 p-1 font-mono text-mono',
+                      'enter-rise min-w-16 p-1 font-mono text-mono',
                       matrixHeatClassName(result.normalizedScore),
                     )}
                   >

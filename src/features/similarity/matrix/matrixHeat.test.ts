@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { matrixHeatClassName } from './matrixHeat';
+import { MATRIX_HEAT_BUCKETS, matrixHeatClassName } from './matrixHeat';
 
 /**
  * Boundary-exact bucket assertions: 0, just below/at each
@@ -40,5 +40,20 @@ describe('matrixHeatClassName', () => {
 
   it('buckets 1 (the always-1.0 diagonal) as matrix-high', () => {
     expect(matrixHeatClassName(1)).toBe('bg-matrix-high text-paper');
+  });
+
+  it('publishes the four buckets, lowest first, each labelled with the range it covers', () => {
+    expect(MATRIX_HEAT_BUCKETS.map((bucket) => bucket.label)).toEqual([
+      '< 0.25',
+      '0.25–0.5',
+      '0.5–0.75',
+      '≥ 0.75',
+    ]);
+  });
+
+  it('paints every published bucket with exactly the classes the cells use at its lower bound', () => {
+    for (const bucket of MATRIX_HEAT_BUCKETS) {
+      expect(matrixHeatClassName(bucket.lowerBound)).toBe(bucket.className);
+    }
   });
 });

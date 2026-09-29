@@ -233,6 +233,9 @@
       "algorithmGroupLabel": "Algoritmo de la matriz",
       "loading": "Calculando la matriz…",
       "errorTitle": "No se pudo calcular la matriz",
+      "legend": {
+        "label": "Escala de color"
+      },
       "table": {
         "caption": "Matriz de similitud por pares para el algoritmo elegido",
         "cornerLabel": "Documento",

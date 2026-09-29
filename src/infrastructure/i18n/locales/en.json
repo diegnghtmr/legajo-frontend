@@ -233,6 +233,9 @@
       "algorithmGroupLabel": "Matrix algorithm",
       "loading": "Computing the matrix…",
       "errorTitle": "Could not compute the matrix",
+      "legend": {
+        "label": "Heat scale"
+      },
       "table": {
         "caption": "Pairwise similarity matrix for the chosen algorithm",
         "cornerLabel": "Document",
