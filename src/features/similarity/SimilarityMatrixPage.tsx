@@ -17,6 +17,7 @@ import { PanelHeader } from '../../shared/components/Panel';
 import { CORPUS_LIST_QUERY_KEY } from '../corpus/SelectionRail';
 import { sortedPair, useSelectionStore } from '../corpus/selectionStore';
 import { SimilarityCompareView } from './SimilarityCompareView';
+import { MatrixHeatLegend } from './matrix/MatrixHeatLegend';
 import { MatrixTable, MatrixTableSkeleton } from './matrix/MatrixTable';
 
 /**
@@ -107,6 +108,8 @@ export function SimilarityMatrixView() {
           cells={matrixQuery.data}
         />
       )}
+      {/* Static, so it holds its place while the grid loads. */}
+      {!matrixQuery.isError && <MatrixHeatLegend />}
     </div>
   );
 }

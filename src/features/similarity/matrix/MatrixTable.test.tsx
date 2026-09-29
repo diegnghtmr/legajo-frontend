@@ -31,6 +31,32 @@ const SYMMETRIC_CELLS = [
 ];
 
 describe('MatrixTable', () => {
+  it('enters each cell staggered along the anti-diagonal, capped so a large matrix does not wait on its corner', () => {
+    render(
+      <MatrixTable documentIds={DOCUMENT_IDS} titleById={TITLE_BY_ID} cells={SYMMETRIC_CELLS} />,
+    );
+
+    const rows = screen.getAllByRole('row').slice(1);
+    rows.forEach((row, rowIndex) => {
+      within(row)
+        .getAllByRole('cell')
+        .forEach((cellElement, columnIndex) => {
+          expect(cellElement).toHaveClass('enter-rise');
+          expect(cellElement.style.getPropertyValue('--i')).toBe(String(rowIndex + columnIndex));
+        });
+    });
+  });
+
+  it('caps the stagger index at 12', () => {
+    const ids = Array.from({ length: 9 }, (_unused, index) => `doc-${index}`);
+    const cells = ids.map(() => ids.map(() => cell(0.5)));
+    render(<MatrixTable documentIds={ids} titleById={new Map()} cells={cells} />);
+
+    const lastRow = screen.getAllByRole('row').at(-1)!;
+    const lastCell = within(lastRow).getAllByRole('cell').at(-1)!;
+    expect(lastCell.style.getPropertyValue('--i')).toBe('12');
+  });
+
   it('renders exactly m x m cell values, each with 3 decimals', () => {
     render(
       <MatrixTable documentIds={DOCUMENT_IDS} titleById={TITLE_BY_ID} cells={SYMMETRIC_CELLS} />,

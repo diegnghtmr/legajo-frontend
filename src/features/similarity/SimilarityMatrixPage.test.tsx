@@ -245,6 +245,30 @@ describe('SimilarityMatrixPage — 3 or more selected', () => {
     }
   });
 
+  it('shows the heat legend under the matrix, in its loading state too so nothing shifts when the grid arrives', async () => {
+    let resolveMatrix: (value: MatrixResponse) => void = () => {};
+    vi.spyOn(similarityApi, 'fetchSimilarityMatrix').mockReturnValue(
+      new Promise((resolve) => {
+        resolveMatrix = resolve;
+      }),
+    );
+
+    renderWithProviders(<SimilarityMatrixPage />);
+
+    const legend = screen.getByRole('list', { name: 'Escala de color' });
+    const skeleton = screen.getByTestId('matrix-skeleton');
+    expect(skeleton.compareDocumentPosition(legend) & Node.DOCUMENT_POSITION_FOLLOWING).toBe(
+      Node.DOCUMENT_POSITION_FOLLOWING,
+    );
+
+    resolveMatrix(MATRIX_3X3);
+    const table = await screen.findByRole('region', { name: /Matriz de similitud por pares/ });
+    expect(table.compareDocumentPosition(legend) & Node.DOCUMENT_POSITION_FOLLOWING).toBe(
+      Node.DOCUMENT_POSITION_FOLLOWING,
+    );
+    expect(within(legend).getAllByRole('listitem')).toHaveLength(4);
+  });
+
   it('shows the mapped error message when the matrix request fails', async () => {
     vi.spyOn(similarityApi, 'fetchSimilarityMatrix').mockRejectedValue({
       kind: 'problem',
