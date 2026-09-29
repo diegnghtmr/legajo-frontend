@@ -22,7 +22,7 @@ export function LeaderBadge({ kind }: LeaderBadgeProps) {
         data-slot="leader-glyph"
         className="flex w-[22px] items-center justify-center self-stretch bg-ink text-primary-foreground"
       >
-        <Icon aria-hidden="true" className="size-3.5" />
+        <Icon aria-hidden="true" role="presentation" className="size-3.5" />
       </span>
       {kind === 'tree' ? t('clustering.leaderTree') : t('clustering.leaderPartition')}
     </Badge>

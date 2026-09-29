@@ -266,12 +266,14 @@
       "ariaLabel": "{{linkage}} dendrogram",
       "malformed": "This linkage's dendrogram could not be drawn.",
       "clusterLabel": "Cluster {{id}}",
-      "clusterLegend": "Cluster numbers (k = {{k}}) below each leaf",
+      "clusterLegend": "The numbers are the clusters for k = {{k}}. Hover a leaf to see its title.",
       "mergeTableCaption": "Merge order for the {{linkage}} dendrogram",
       "mergeTableStep": "Step",
       "mergeTableLeft": "Member A",
       "mergeTableRight": "Member B",
-      "mergeTableDistance": "Distance"
+      "mergeTableDistance": "Distance",
+      "tooltipSize": "Size",
+      "cophenetic": "Cophenetic {{value}}"
     },
     "cutForm": {
       "linkageGroupLabel": "Linkage to cut",

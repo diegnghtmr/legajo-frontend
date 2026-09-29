@@ -188,4 +188,41 @@ describe('computeDendrogramLayout', () => {
       }),
     ).toThrow(DendrogramLayoutError);
   });
+
+  describe('with a fitted distance domain', () => {
+    const fitted = () =>
+      computeDendrogramLayout({
+        rows: GOLDEN_ROWS,
+        leafOrder: GOLDEN_LEAF_ORDER,
+        width: WIDTH,
+        height: HEIGHT,
+        domain: [0.5, 4.5],
+      });
+
+    it('maps the domain end to the root side and the domain start to the leaf side', () => {
+      const result = fitted();
+
+      expect(result.distanceToX(0.5)).toBe(400);
+      expect(result.distanceToX(4.5)).toBe(0);
+      expect(result.distanceToX(2.5)).toBe(200);
+    });
+
+    it('keeps every leaf on the leaf side, whatever the smallest merge is', () => {
+      const result = fitted();
+
+      for (const leaf of result.leaves) {
+        expect(result.nodes.get(leaf.id)!.x).toBe(400);
+      }
+      expect(result.links[0]!.x).toBe(result.distanceToX(1));
+    });
+  });
+
+  it('lists the leaves under every node, leaves themselves included', () => {
+    const result = layout();
+
+    expect(result.leavesOf.get(0)).toEqual([0]);
+    expect(result.leavesOf.get(5)).toEqual([0, 1]);
+    expect(result.leavesOf.get(7)).toEqual([4, 0, 1]);
+    expect([...result.leavesOf.get(8)!].sort()).toEqual([0, 1, 2, 3, 4]);
+  });
 });

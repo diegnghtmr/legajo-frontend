@@ -296,6 +296,14 @@ export function ClusteringPage() {
     k: activeCutResult.k,
   };
 
+  const controlsMatchAppliedCut =
+    appliedCut !== undefined && appliedCut.linkageId === cutLinkage && appliedCut.k === cutK;
+  /** The dotted preview: the edited k, while it is valid and not already the applied cut. */
+  const previewK =
+    sampleSize !== undefined && isValidCutK(cutK, sampleSize) && !controlsMatchAppliedCut
+      ? cutK
+      : undefined;
+
   const cutColumn: CutColumnState = !hasLinkagesSelected
     ? { status: 'unavailable', reason: 'no-linkage' }
     : clusteringQuery.data && sampleSize !== undefined && cutLinkage !== undefined
@@ -397,6 +405,14 @@ export function ClusteringPage() {
                 rows={linkageResult.rows}
                 leafOrder={linkageResult.leafOrder}
                 leafLabels={leafLabelsFromDocumentIds(linkageResult.documentIds, corpusTitleById)}
+                cophenetic={linkageResult.evaluation.cophenetic}
+                leaders={{
+                  tree: ranking?.bestTreeFidelity === linkageResult.linkageId,
+                  partition:
+                    ranking?.leadersDiffer === true &&
+                    ranking.bestPartitionAtKRef === linkageResult.linkageId,
+                }}
+                previewK={linkageResult.linkageId === cutLinkage ? previewK : undefined}
                 cut={
                   activeCutResult?.linkageId === linkageResult.linkageId
                     ? {
@@ -415,6 +431,7 @@ export function ClusteringPage() {
                           activeCutResult,
                           linkageResult.documentIds,
                         ),
+                        k: activeCutResult.k,
                       }
                     : undefined
                 }

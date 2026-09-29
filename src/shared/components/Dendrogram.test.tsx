@@ -1,4 +1,4 @@
-import { render, screen, within } from '@testing-library/react';
+import { fireEvent, render, screen, within } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 
 import { Dendrogram } from './Dendrogram';
@@ -41,7 +41,7 @@ describe('Dendrogram', () => {
 
     // Scoped to the visible SVG leaf labels only — the sr-only merge table
     // repeats some of the same document ids as text of its own.
-    const texts = [...container.querySelectorAll('svg text.font-mono')].map(
+    const texts = [...container.querySelectorAll('svg text[data-leaf-label]')].map(
       (node) => node.textContent,
     );
     expect(texts).toEqual(['doc-02', 'doc-03', 'doc-00', 'doc-01', 'doc-04']);
@@ -157,13 +157,17 @@ describe('Dendrogram', () => {
       />,
     );
 
-    expect(screen.getByText('Números de clúster (k = 3) debajo de cada hoja')).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        'Los números son los clústeres para k = 3. Pasa el cursor por una hoja para ver su título.',
+      ),
+    ).toBeInTheDocument();
   });
 
   it('shows no legend without a cut', () => {
     render(<Dendrogram rows={ROWS} leafOrder={LEAF_ORDER} ariaLabel="Single dendrogram" />);
 
-    expect(screen.queryByText(/Números de clúster/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Los números son los clústeres/)).not.toBeInTheDocument();
   });
 
   it('wraps the merge table in a plain sr-only div, never `sr-only` on the table element itself', () => {
@@ -274,10 +278,10 @@ describe('Dendrogram', () => {
     // The card's own width (leaves run vertically now) is never grown past
     // what was given — a 200px card stays exactly 200px wide.
     expect(renderedWidth).toBe(200);
-    // The default 220px height is far too short for 11 leaves at a legible
-    // spacing; the component must heighten past what was asked for rather
-    // than shrink its labels to fit.
-    expect(renderedHeight).toBeGreaterThan(220);
+    // The default 220px height is far too short for 11 leaves at 22px a
+    // leaf; the component must heighten past what was asked for rather than
+    // shrink its labels to fit: (n - 1) x 22 + 60.
+    expect(renderedHeight).toBe(280);
     expect(svg.getAttribute('viewBox')).toBe(`0 0 ${renderedWidth} ${renderedHeight}`);
   });
 
@@ -290,5 +294,300 @@ describe('Dendrogram', () => {
     // 5 leaves comfortably fit the 220px default; the fix must not
     // heighten a chart that was already tall enough.
     expect(svg.getAttribute('height')).toBe('220');
+  });
+
+  describe('distance axis', () => {
+    it('titles the axis "Distancia" and prints mono tick labels at nice steps', () => {
+      const { container } = render(
+        <Dendrogram rows={ROWS} leafOrder={LEAF_ORDER} ariaLabel="Single dendrogram" width={640} />,
+      );
+
+      const title = container.querySelector('[data-axis-title]')!;
+      expect(title).toHaveTextContent('Distancia');
+      const ticks = [...container.querySelectorAll('[data-axis-tick] text')];
+      expect(ticks.length).toBeGreaterThanOrEqual(3);
+      for (const tick of ticks) {
+        expect(tick.getAttribute('class')).toContain('font-mono');
+      }
+      const values = ticks.map((tick) => Number(tick.textContent));
+      const step = values[1]! - values[0]!;
+      expect([1, 2, 2.5, 5, 0.5, 0.25, 0.2, 0.1]).toContain(step);
+    });
+
+    it('draws a dashed hairline gridline per tick', () => {
+      const { container } = render(
+        <Dendrogram rows={ROWS} leafOrder={LEAF_ORDER} ariaLabel="Single dendrogram" width={640} />,
+      );
+
+      const grid = container.querySelectorAll('[data-axis-tick] line');
+      expect(grid.length).toBeGreaterThanOrEqual(3);
+      for (const line of grid) {
+        expect(line.getAttribute('stroke-dasharray')).toBeTruthy();
+        expect(line.getAttribute('class')).toContain('stroke-chart-grid');
+      }
+    });
+
+    it('fits the domain to the merge range: the first merge is drawn clear of the leaf edge', () => {
+      const { container } = render(
+        <Dendrogram rows={ROWS} leafOrder={LEAF_ORDER} ariaLabel="Single dendrogram" width={640} />,
+      );
+
+      const leafEdge = 640 - 104 - 12;
+      const firstMerge = container.querySelector('[data-merge-hit="5"]')!;
+      expect(Number(firstMerge.getAttribute('cx'))).toBeLessThan(leafEdge - 10);
+      // ...and the root sits inside the plot, not on its far edge.
+      const root = container.querySelector('[data-merge-hit="8"]')!;
+      expect(Number(root.getAttribute('cx'))).toBeGreaterThan(1);
+    });
+  });
+
+  describe('cut preview', () => {
+    it('draws a dotted ink-muted line labelled with its k, and none without the prop', () => {
+      const { container, rerender } = render(
+        <Dendrogram rows={ROWS} leafOrder={LEAF_ORDER} ariaLabel="Single dendrogram" />,
+      );
+      expect(container.querySelector('[data-testid="dendrogram-preview-line"]')).toBeNull();
+
+      rerender(
+        <Dendrogram
+          rows={ROWS}
+          leafOrder={LEAF_ORDER}
+          ariaLabel="Single dendrogram"
+          preview={{ k: 3, distance: 2.5 }}
+        />,
+      );
+
+      const line = container.querySelector('[data-testid="dendrogram-preview-line"]')!;
+      expect(line.getAttribute('class')).toContain('stroke-ink-muted');
+      expect(line.getAttribute('stroke-dasharray')).toBe('1 3');
+      expect(container.querySelector('[data-testid="dendrogram-preview-label"]')).toHaveTextContent(
+        'k = 3',
+      );
+    });
+
+    it('sits at the given distance, on the same scale as the cut line', () => {
+      const { container } = render(
+        <Dendrogram
+          rows={ROWS}
+          leafOrder={LEAF_ORDER}
+          ariaLabel="Single dendrogram"
+          preview={{ k: 3, distance: 2.5 }}
+          cut={{ distance: 2.5, labels: [0, 0, 1, 1, 2] }}
+        />,
+      );
+
+      const preview = container.querySelector('[data-testid="dendrogram-preview-line"]')!;
+      const cut = container.querySelector('[data-testid="dendrogram-cut-line"]')!;
+      expect(preview.getAttribute('x1')).toBe(cut.getAttribute('x1'));
+    });
+  });
+
+  describe('applied cut', () => {
+    const CUT = { distance: 2.5, labels: [0, 0, 1, 1, 2], k: 3 };
+    const renderCut = () =>
+      render(
+        <Dendrogram
+          rows={ROWS}
+          leafOrder={LEAF_ORDER}
+          ariaLabel="Single dendrogram"
+          leafLabels={LEAF_LABELS}
+          cut={CUT}
+        />,
+      );
+
+    it('draws the dashed warning line with a "k = n" chip: ink text on warning-soft with a warning border', () => {
+      const { container } = renderCut();
+
+      const line = container.querySelector('[data-testid="dendrogram-cut-line"]')!;
+      expect(line.getAttribute('class')).toContain('stroke-warning');
+      expect(line.getAttribute('stroke-dasharray')).toBe('6 4');
+      const chip = container.querySelector('[data-testid="dendrogram-cut-chip"]')!;
+      const rect = chip.querySelector('rect')!;
+      expect(rect.getAttribute('class')).toContain('fill-warning-soft');
+      expect(rect.getAttribute('class')).toContain('stroke-warning');
+      expect(rect.getAttribute('rx')).toBe('4');
+      expect(chip.querySelector('text')!.getAttribute('class')).toContain('fill-ink');
+      expect(chip).toHaveTextContent('k = 3');
+    });
+
+    it('takes the chip k from the cut when given, and counts distinct labels otherwise', () => {
+      const { container } = render(
+        <Dendrogram
+          rows={ROWS}
+          leafOrder={LEAF_ORDER}
+          ariaLabel="Single dendrogram"
+          cut={{ distance: 2.5, labels: [0, 0, 1, 1, 2] }}
+        />,
+      );
+
+      expect(container.querySelector('[data-testid="dendrogram-cut-chip"]')).toHaveTextContent(
+        'k = 3',
+      );
+    });
+
+    it('colours a branch whose leaves share one cluster with that cluster hue, and keeps the branches above the cut ink-muted', () => {
+      const { container } = renderCut();
+
+      const path = (id: number) => container.querySelector(`path[data-merge-id="${id}"]`)!;
+      // (0, 1) are both cluster 0 -> cluster-1; (2, 3) both cluster 1 -> cluster-2.
+      expect(path(5).getAttribute('class')).toContain('stroke-cluster-1');
+      expect(path(6).getAttribute('class')).toContain('stroke-cluster-2');
+      expect(path(5).getAttribute('stroke-width')).toBe('2');
+      // Mixed clusters below the root: above the cut.
+      expect(path(7).getAttribute('class')).toContain('stroke-ink-muted');
+      expect(path(8).getAttribute('class')).toContain('stroke-ink-muted');
+    });
+
+    it('keeps every branch ink before a cut', () => {
+      const { container } = render(
+        <Dendrogram rows={ROWS} leafOrder={LEAF_ORDER} ariaLabel="Single dendrogram" />,
+      );
+
+      for (const path of container.querySelectorAll('path')) {
+        expect(path.getAttribute('class')).toContain('stroke-ink');
+        expect(path.getAttribute('class')).not.toContain('stroke-cluster');
+      }
+    });
+
+    it('wraps the hue around after eight clusters', () => {
+      const rows = Array.from({ length: 9 }, (_unused, index) => ({
+        idx1: index === 0 ? 0 : index + 1,
+        idx2: index === 0 ? 1 : 10 + index - 1,
+        mergeDistance: index + 1,
+      }));
+      const { container } = render(
+        <Dendrogram
+          rows={rows}
+          leafOrder={Array.from({ length: 10 }, (_unused, index) => index)}
+          ariaLabel="Wide"
+          cut={{ distance: 9.5, labels: [8, 1, 2, 3, 4, 5, 6, 7, 0, 9] }}
+        />,
+      );
+
+      const chips = [...container.querySelectorAll('[data-testid="cluster-marker"]')];
+      const hue = (label: string) =>
+        chips
+          .find((chip) => chip.textContent === label)!
+          .previousElementSibling!.getAttribute('class');
+      expect(hue('8')).toContain('fill-cluster-1');
+      expect(hue('0')).toContain('fill-cluster-1');
+      expect(hue('9')).toContain('fill-cluster-2');
+    });
+
+    it('draws a numbered chip in the cluster hue after each leaf label', () => {
+      const { container } = renderCut();
+
+      const leaf = container.querySelector('[data-leaf-id="0"]')!;
+      const rect = leaf.querySelector('rect.fill-cluster-1')!;
+      expect(rect.getAttribute('width')).toBe('22');
+      expect(rect.getAttribute('height')).toBe('16');
+      expect(rect.getAttribute('rx')).toBe('4');
+      const number = leaf.querySelector('[data-testid="cluster-marker"]')!;
+      expect(number).toHaveTextContent('0');
+      expect(number.getAttribute('class')).toContain('fill-paper-raised');
+    });
+  });
+
+  describe('tooltips', () => {
+    const renderTip = () =>
+      render(
+        <Dendrogram
+          rows={ROWS}
+          leafOrder={LEAF_ORDER}
+          ariaLabel="Single dendrogram"
+          leafLabels={LEAF_LABELS}
+          cut={{ distance: 2.5, labels: [0, 0, 1, 1, 2], k: 3 }}
+        />,
+      );
+
+    it('shows no tooltip until something is hovered', () => {
+      renderTip();
+
+      expect(screen.queryByRole('tooltip')).not.toBeInTheDocument();
+    });
+
+    it('hovering a leaf shows its mono id, its cluster and its corpus title, and leaving hides it', () => {
+      const { container } = renderTip();
+
+      fireEvent.pointerEnter(container.querySelector('[data-leaf-id="0"]')!);
+
+      const tip = screen.getByRole('tooltip');
+      expect(within(tip).getByText('doc-00')).toHaveClass('font-mono');
+      expect(tip).toHaveTextContent('Clúster 0');
+      expect(tip).toHaveTextContent('Zeroth article');
+      expect(tip).toHaveClass('pointer-events-none');
+
+      fireEvent.pointerLeave(container.querySelector('[data-leaf-id="0"]')!);
+      expect(screen.queryByRole('tooltip')).not.toBeInTheDocument();
+    });
+
+    it('hovering a merge shows its step out of n - 1, its distance to four decimals and its size', () => {
+      const { container } = renderTip();
+
+      fireEvent.pointerEnter(container.querySelector('[data-merge-hit="7"]')!);
+
+      const tip = screen.getByRole('tooltip');
+      expect(tip).toHaveTextContent('Paso');
+      expect(tip).toHaveTextContent('3 / 4');
+      expect(tip).toHaveTextContent('3.0000');
+      expect(tip).toHaveTextContent('Tamaño');
+      expect(tip).toHaveTextContent('3');
+    });
+
+    it('leaves out the cluster line before a cut', () => {
+      const { container } = render(
+        <Dendrogram
+          rows={ROWS}
+          leafOrder={LEAF_ORDER}
+          ariaLabel="Single dendrogram"
+          leafLabels={LEAF_LABELS}
+        />,
+      );
+
+      fireEvent.pointerEnter(container.querySelector('[data-leaf-id="0"]')!);
+
+      expect(screen.getByRole('tooltip')).not.toHaveTextContent('Clúster');
+    });
+
+    it('highlights a hovered merge subtree: other branches drop to 0.25 and other leaves to 0.35', () => {
+      const { container } = renderTip();
+
+      fireEvent.pointerEnter(container.querySelector('[data-merge-hit="7"]')!);
+
+      const opacity = (selector: string) =>
+        (container.querySelector(selector) as SVGElement).style.opacity;
+      // Merge 7 holds leaves 4, 0, 1 (with merge 5).
+      expect(opacity('path[data-merge-id="7"]')).toBe('1');
+      expect(opacity('path[data-merge-id="5"]')).toBe('1');
+      expect(opacity('path[data-merge-id="6"]')).toBe('0.25');
+      expect(opacity('[data-leaf-id="0"]')).toBe('1');
+      expect(opacity('[data-leaf-id="2"]')).toBe('0.35');
+
+      fireEvent.pointerLeave(container.querySelector('[data-merge-hit="7"]')!);
+      expect(opacity('path[data-merge-id="6"]')).toBe('1');
+      expect(opacity('[data-leaf-id="2"]')).toBe('1');
+    });
+
+    it('never carries information the sr-only merge table does not', () => {
+      renderTip();
+
+      const table = screen.getByRole('table', { hidden: true });
+      expect(within(table).getAllByRole('row', { hidden: true })).toHaveLength(ROWS.length + 1);
+    });
+  });
+
+  describe('draw-in', () => {
+    it('draws each branch from its leaves, staggered by merge step', () => {
+      const { container } = render(
+        <Dendrogram rows={ROWS} leafOrder={LEAF_ORDER} ariaLabel="Single dendrogram" />,
+      );
+
+      const paths = [...container.querySelectorAll('path')];
+      paths.forEach((path, index) => {
+        expect(path.getAttribute('pathLength')).toBe('1');
+        expect(path.getAttribute('class')).toContain('draw-in');
+        expect(path.style.getPropertyValue('--i')).toBe(String(index));
+      });
+    });
   });
 });

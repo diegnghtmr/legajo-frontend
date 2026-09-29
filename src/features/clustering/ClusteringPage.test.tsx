@@ -1026,4 +1026,80 @@ describe('ClusteringPage', () => {
       expect(screen.getByRole('radio', { name: 'tfidf-cosine' })).toHaveFocus();
     });
   });
+
+  describe('the dendrogram cards', () => {
+    it('shows the cophenetic value as the subtitle and the leader badges as the actions', async () => {
+      vi.spyOn(corpusApi, 'fetchCorpus').mockResolvedValue(CORPUS);
+      vi.spyOn(clusteringApi, 'runClustering').mockResolvedValue(DEFAULT_RESPONSE);
+
+      renderPage();
+
+      const single = await screen.findByTestId('linkage-dendrogram-single');
+      expect(within(single).getByText('Cofenética 0.950')).toBeInTheDocument();
+      expect(within(single).getByText('Árbol')).toBeInTheDocument();
+      const complete = screen.getByTestId('linkage-dendrogram-complete');
+      expect(within(complete).getByText('Partición')).toBeInTheDocument();
+      expect(
+        within(screen.getByTestId('linkage-dendrogram-average')).queryByText('Árbol'),
+      ).toBeNull();
+    });
+
+    it('previews the edited k on the card of the linkage to cut only', async () => {
+      vi.spyOn(corpusApi, 'fetchCorpus').mockResolvedValue(CORPUS);
+      vi.spyOn(clusteringApi, 'runClustering').mockResolvedValue(DEFAULT_RESPONSE);
+      const user = userEvent.setup();
+
+      renderPage();
+
+      const single = await screen.findByTestId('linkage-dendrogram-single');
+      expect(within(single).getByTestId('dendrogram-preview-label')).toHaveTextContent('k = 2');
+      const complete = screen.getByTestId('linkage-dendrogram-complete');
+      expect(within(complete).queryByTestId('dendrogram-preview-line')).toBeNull();
+
+      await user.click(screen.getByRole('radio', { name: 'Complete' }));
+      await user.click(screen.getByRole('button', { name: 'Aumentar k' }));
+
+      expect(within(single).queryByTestId('dendrogram-preview-line')).toBeNull();
+      expect(within(complete).getByTestId('dendrogram-preview-label')).toHaveTextContent('k = 3');
+    });
+
+    it('draws no preview for an invalid k', async () => {
+      vi.spyOn(corpusApi, 'fetchCorpus').mockResolvedValue(CORPUS);
+      vi.spyOn(clusteringApi, 'runClustering').mockResolvedValue(DEFAULT_RESPONSE);
+      const user = userEvent.setup();
+
+      renderPage();
+      const field = await screen.findByLabelText('k: entre 2 y 5');
+      await user.clear(field);
+      await user.type(field, '9');
+
+      expect(screen.queryByTestId('dendrogram-preview-line')).toBeNull();
+    });
+
+    it('swaps the preview for the applied cut once the controls match it, and marks the cut card with its k', async () => {
+      vi.spyOn(corpusApi, 'fetchCorpus').mockResolvedValue(CORPUS);
+      vi.spyOn(clusteringApi, 'runClustering').mockResolvedValue(DEFAULT_RESPONSE);
+      vi.spyOn(clusteringApi, 'cutClustering').mockResolvedValue({
+        labels: [0, 0, 1, 1, 2, 2],
+        k: 2,
+        documentIds: DOCUMENT_IDS_N6,
+      });
+      const user = userEvent.setup();
+
+      renderPage();
+      await user.click(await screen.findByRole('button', { name: 'Aplicar corte' }));
+
+      const single = await screen.findByTestId('linkage-dendrogram-single');
+      await waitFor(() =>
+        expect(within(single).getByTestId('dendrogram-cut-line')).toBeInTheDocument(),
+      );
+      expect(within(single).queryByTestId('dendrogram-preview-line')).toBeNull();
+      expect(within(single).getByTestId('dendrogram-cut-chip')).toHaveTextContent('k = 2');
+      expect(within(single).getAllByText('k = 2', { selector: 'span' }).length).toBeGreaterThan(0);
+
+      await user.click(screen.getByRole('button', { name: 'Aumentar k' }));
+      expect(within(single).getByTestId('dendrogram-preview-label')).toHaveTextContent('k = 3');
+      expect(within(single).getByTestId('dendrogram-cut-line')).toBeInTheDocument();
+    });
+  });
 });

@@ -266,12 +266,14 @@
       "ariaLabel": "Dendrograma de {{linkage}}",
       "malformed": "No se pudo dibujar el dendrograma de este enlace.",
       "clusterLabel": "Clúster {{id}}",
-      "clusterLegend": "Números de clúster (k = {{k}}) debajo de cada hoja",
+      "clusterLegend": "Los números son los clústeres para k = {{k}}. Pasa el cursor por una hoja para ver su título.",
       "mergeTableCaption": "Orden de fusión del dendrograma de {{linkage}}",
       "mergeTableStep": "Paso",
       "mergeTableLeft": "Miembro A",
       "mergeTableRight": "Miembro B",
-      "mergeTableDistance": "Distancia"
+      "mergeTableDistance": "Distancia",
+      "tooltipSize": "Tamaño",
+      "cophenetic": "Cofenética {{value}}"
     },
     "cutForm": {
       "linkageGroupLabel": "Enlace a cortar",
