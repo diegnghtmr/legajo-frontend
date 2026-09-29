@@ -136,7 +136,8 @@
       "result": {
         "label": "Resultado",
         "score": "Puntaje normalizado",
-        "rank": "Nº {{rank}} de {{count}}"
+        "rank": "Nº {{rank}} de {{count}}",
+        "ranking": "Frente a los demás algoritmos"
       },
       "panel": {
         "closeLabel": "Cerrar traza",

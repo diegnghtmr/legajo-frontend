@@ -150,6 +150,79 @@ describe('TraceResultBlock', () => {
     expect(similarityApi.compareSimilarity).toHaveBeenCalledTimes(2);
   });
 
+  it('lists every visible result against the others, best first, with the open row marked', async () => {
+    mockCompare();
+    renderBlock('jaccard');
+
+    const heading = await screen.findByRole('heading', { name: 'Frente a los demás algoritmos' });
+    const list = within(heading.closest('section')!).getByRole('list');
+    const items = within(list).getAllByRole('listitem');
+    expect(items.map((item) => item.textContent)).toEqual([
+      '1levenshtein0.900',
+      '2jaccard0.750',
+      '3embedding-api0.300',
+    ]);
+    expect(items[1]).toHaveAttribute('aria-current', 'true');
+    expect(items[1]).toHaveClass('bg-paper-sunken');
+    expect(items[0]).not.toHaveAttribute('aria-current');
+    // Text, not controls.
+    expect(within(list).queryAllByRole('button')).toHaveLength(0);
+  });
+
+  it('draws each ranking bar in its family colour, dimmed except for the open row', async () => {
+    mockCompare();
+    renderBlock('jaccard');
+
+    const heading = await screen.findByRole('heading', { name: 'Frente a los demás algoritmos' });
+    const items = within(heading.closest('section')!).getAllByRole('listitem');
+    const fill = (item: HTMLElement) => item.querySelector('[data-rank-fill]') as HTMLElement;
+    expect(fill(items[0]!)).toHaveClass('bg-classic', 'opacity-55');
+    expect(fill(items[1]!)).toHaveClass('bg-classic');
+    expect(fill(items[1]!)).not.toHaveClass('opacity-55');
+    expect(fill(items[2]!)).toHaveClass('bg-ai', 'opacity-55');
+    expect(fill(items[0]!).style.width).toBe('90%');
+    expect(fill(items[0]!).closest('[aria-hidden="true"]')).not.toBeNull();
+  });
+
+  it('gives tied scores the same rank', async () => {
+    mockCompare([
+      row('levenshtein', { normalizedScore: 0.5 }),
+      row('jaccard', { normalizedScore: 0.5 }),
+      row('embedding-api', { normalizedScore: 0.1 }),
+    ]);
+    renderBlock('jaccard');
+
+    const heading = await screen.findByRole('heading', { name: 'Frente a los demás algoritmos' });
+    const items = within(heading.closest('section')!).getAllByRole('listitem');
+    expect(items.map((item) => item.textContent?.[0])).toEqual(['1', '1', '3']);
+  });
+
+  it('shows no ranking when there is only one result to compare', async () => {
+    mockCompare();
+    renderBlock('jaccard', '?algorithms=jaccard');
+
+    await screen.findByRole('region', { name: 'Resultado' });
+    expect(
+      screen.queryByRole('heading', { name: 'Frente a los demás algoritmos' }),
+    ).not.toBeInTheDocument();
+  });
+
+  it('keeps the tiles and reserves the ranking rows while the selection is still loading', async () => {
+    vi.spyOn(similarityApi, 'compareSimilarity').mockImplementation(async ({ algorithmIds }) => {
+      if ((algorithmIds ?? []).length === 1) {
+        return ROWS.filter(({ algorithmId }) => algorithmId === algorithmIds![0]);
+      }
+      return new Promise<CompareResponse>(() => {});
+    });
+    const { container } = renderBlock('jaccard');
+
+    await screen.findByRole('region', { name: 'Resultado' });
+    const placeholder = container.querySelector('[data-testid="trace-ranking-skeleton"]');
+    expect(placeholder).toHaveAttribute('aria-hidden', 'true');
+    expect(placeholder?.querySelectorAll('li')).toHaveLength(6);
+    expect(screen.getByText('Frente a los demás algoritmos')).toBeInTheDocument();
+  });
+
   it('renders nothing when neither result can be fetched', async () => {
     vi.spyOn(similarityApi, 'compareSimilarity').mockRejectedValue({
       i18nKey: 'errors.unexpected',
@@ -173,6 +246,11 @@ describe('TraceResultBlock', () => {
 });
 
 describe('TraceResultBlockSkeleton', () => {
+  it('reserves one ranking row per algorithm being compared', () => {
+    const { container } = render(<TraceResultBlockSkeleton rowCount={4} />);
+    expect(container.querySelectorAll('[data-testid="trace-ranking-skeleton"] li')).toHaveLength(4);
+  });
+
   it('keeps the four real labels and holds only the values as placeholders', () => {
     const { container } = render(<TraceResultBlockSkeleton />);
 

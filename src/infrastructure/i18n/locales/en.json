@@ -136,7 +136,8 @@
       "result": {
         "label": "Result",
         "score": "Normalized score",
-        "rank": "No. {{rank}} of {{count}}"
+        "rank": "No. {{rank}} of {{count}}",
+        "ranking": "Against the other algorithms"
       },
       "panel": {
         "closeLabel": "Close trace",
