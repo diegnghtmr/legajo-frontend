@@ -165,7 +165,7 @@ test.describe('corpus selection rail', () => {
   }) => {
     await page.goto('/');
 
-    const statusRow = page.getByRole('button', { name: 'Ver el estado de los embeddings' });
+    const statusRow = page.getByRole('button', { name: /Ver el estado de los embeddings$/ });
     await expect(statusRow).toContainText('Coincide con el corpus');
 
     await statusRow.click();
@@ -173,6 +173,37 @@ test.describe('corpus selection rail', () => {
     await expect(page.getByText('embedding-local')).toBeVisible();
     await expect(page.getByText('embedding-api')).toBeVisible();
   });
+
+  for (const viewport of [
+    { width: 1440, height: 900 },
+    { width: 390, height: 844 },
+  ]) {
+    test(`at ${viewport.width}px, the embeddings status row reads as a button: chevron, hover fill, full accessible name and no axe violations`, async ({
+      page,
+    }) => {
+      await page.setViewportSize(viewport);
+      await page.goto('/');
+
+      const statusRow = page.getByRole('button', { name: /Coincide con el corpus/ });
+      await expect(statusRow).toBeVisible();
+      await expect(statusRow).toHaveAccessibleName(
+        /Embeddings.*Coincide con el corpus.*Ver el estado de los embeddings/,
+      );
+      await expect(statusRow.locator('svg.lucide-chevron-right')).toBeVisible();
+
+      await page.mouse.move(0, 0);
+      const transparent = 'rgba(0, 0, 0, 0)';
+      await expect(statusRow).toHaveCSS('background-color', transparent);
+      await statusRow.hover();
+      await expect(statusRow).not.toHaveCSS('background-color', transparent);
+      await expect(statusRow).toHaveCSS('cursor', 'pointer');
+
+      const results = await new AxeBuilder({ page })
+        .withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa'])
+        .analyze();
+      expect(results.violations).toEqual([]);
+    });
+  }
 
   test('at 1440x900, the rail scrolls independently of the page: scrolled to the bottom of a long list, its footer CTA stays visible and the page itself never scrolls', async ({
     page,

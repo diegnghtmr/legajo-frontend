@@ -1,5 +1,6 @@
 import { useId, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
+import { ChevronRight } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 
 import { DEFAULT_UNEXPECTED_I18N_KEY, type ApiError } from '../../infrastructure/apiError';
@@ -50,6 +51,13 @@ export function embeddingsSummaryState(
     ? 'allMatch'
     : 'mismatch';
 }
+
+const STATUS_DOT_CLASS = {
+  allMatch: 'bg-success',
+  mismatch: 'bg-warning',
+  unknown: 'bg-ink-muted',
+  error: 'bg-ink-muted',
+} as const;
 
 interface ArticleRowProps {
   article: ArticleSummary;
@@ -161,6 +169,15 @@ export function CorpusListPanel({
     queryFn: fetchEmbeddingsStatus,
   });
 
+  const embeddingsRowId = useId();
+  const summaryState = embeddingsQuery.isError
+    ? 'error'
+    : embeddingsSummaryState(embeddingsQuery.data);
+  const statusText = embeddingsQuery.isError
+    ? t('corpus.rail.embeddings.errorValue')
+    : t(`corpus.rail.embeddings.${embeddingsSummaryState(embeddingsQuery.data)}`);
+  const statusDotClass = STATUS_DOT_CLASS[summaryState];
+
   const selectedCount = selectedIds.length;
   const filtered = (data ?? []).filter((article) => matchesQuery(article, query));
 
@@ -206,20 +223,40 @@ export function CorpusListPanel({
         <button
           type="button"
           onClick={onOpenEmbeddings}
-          aria-label={t('corpus.rail.embeddings.openLabel')}
-          className="flex w-full items-center justify-between gap-2 text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus pointer-coarse:min-h-11"
+          aria-labelledby={`${embeddingsRowId}-key ${embeddingsRowId}-value ${embeddingsRowId}-hint`}
+          className="group -mx-2 flex cursor-pointer items-center justify-between gap-2 rounded-btn px-2 py-1 text-left hover:bg-paper-sunken focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus pointer-coarse:min-h-11"
         >
-          <span className="text-label font-semibold text-ink-secondary">
+          <span
+            id={`${embeddingsRowId}-key`}
+            className="text-label font-semibold text-ink-secondary"
+          >
             {t('corpus.rail.embeddings.label')}
           </span>
-          <span className="font-mono text-mono text-ink">
-            {embeddingsQuery.isPending ? (
-              <Skeleton className="inline-block h-3 w-20 align-middle" />
-            ) : embeddingsQuery.isError ? (
-              t('corpus.rail.embeddings.errorValue')
-            ) : (
-              t(`corpus.rail.embeddings.${embeddingsSummaryState(embeddingsQuery.data)}`)
-            )}
+          <span className="flex items-center gap-2">
+            <span
+              id={`${embeddingsRowId}-value`}
+              className="flex items-center gap-1.5 font-mono text-mono text-ink"
+            >
+              {embeddingsQuery.isPending ? (
+                <Skeleton className="inline-block h-3 w-20 align-middle" />
+              ) : (
+                <>
+                  <span
+                    data-slot="status-dot"
+                    aria-hidden="true"
+                    className={cn('size-2 shrink-0 rounded-full', statusDotClass)}
+                  />
+                  {statusText}
+                </>
+              )}
+            </span>
+            <span id={`${embeddingsRowId}-hint`} className="sr-only">
+              {t('corpus.rail.embeddings.openLabel')}
+            </span>
+            <ChevronRight
+              aria-hidden="true"
+              className="size-4 shrink-0 text-ink-muted motion-safe:transition-transform motion-safe:group-hover:translate-x-0.5"
+            />
           </span>
         </button>
       </div>
