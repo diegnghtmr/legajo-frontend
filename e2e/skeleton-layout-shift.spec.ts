@@ -507,7 +507,7 @@ for (const viewport of VIEWPORTS) {
       await expectAxeClean(page);
 
       held.release();
-      await expect(page.getByRole('region', { name: /uni[oó]n/i })).toBeVisible();
+      await expect(page.getByRole('list', { name: /^en ambos/i })).toBeVisible();
       await expectLoadingSentencesHidden(page, LOADING_SENTENCES);
       const loaded = await measure(page, region);
       await expectAxeClean(page);
@@ -612,15 +612,12 @@ for (const viewport of VIEWPORTS) {
         documentIdB: MEDIAN_DOC_B_ID,
         hasFormula: false,
         waitForLoaded: (page) =>
-          expect(page.getByRole('region', { name: /uni[oó]n/i })).toBeVisible(),
+          expect(page.getByRole('list', { name: /^en ambos/i })).toBeVisible(),
         // A justified tolerance, not the default: the skeleton reserves
-        // each field's corpus-wide median token count (setA 100, setB 105,
-        // intersection 16, union 180, over all 190 pairs), and this pair
-        // sits on the union (180) and setB (105) exactly but below the
-        // median on `setA` (86) and `intersection` (11). Measured live
-        // against this exact fixture: 18px (one field's extra wrapped
-        // line) at 1440/1024, 72px at 390, where `setA`'s 14-token excess
-        // alone costs 3 extra lines. No single real pair sits on all four
+        // the corpus-wide median count for each token group (80 only in A,
+        // 16 in both, 84 only in B, 180 together), and this pair has 75, 11
+        // and 94, so its chips wrap into a different number of lines per
+        // group, most visibly at 390. No single real pair sits on all three
         // medians at once.
         tolerancePx: 80,
       },

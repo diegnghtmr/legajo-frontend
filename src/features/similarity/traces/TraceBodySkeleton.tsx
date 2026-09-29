@@ -2,6 +2,7 @@ import { useId } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { Skeleton } from '../../../shared/components/ui/skeleton';
+import { cn } from '../../../shared/lib/cn';
 import {
   Table,
   TableBody,
@@ -13,6 +14,7 @@ import {
 import { DP_FORMULAS } from './DpTracePanel';
 import { DP_OPERATION_LEGEND } from './dpOperationLegend';
 import { FormulaCaption } from './FormulaCaption';
+import { JACCARD_GROUP_HEADING_CLASS, JACCARD_TOKEN_CLASS } from './JaccardTracePanel';
 import { TF_IDF_FORMULA } from './TfIdfTracePanel';
 import { TraceFieldSkeleton } from './TraceFieldSkeleton';
 import { TraceMetaFieldSkeleton } from './TraceMetaFieldSkeleton';
@@ -204,135 +206,106 @@ function EmbeddingTraceBodySkeleton({ algorithmId }: { algorithmId: EmbeddingAlg
 }
 
 /**
- * How many tokens the real corpus's own document pairs typically produce
- * for each Jaccard field — the corpus-wide median over every one of the
- * reference corpus's 190 possible pairs: `setA` 100
- * (range 64–142), `setB` 105 (64–142), `intersection` 16 (5–31) and `union`
- * 180 (118–248, quartiles 169/197; the median sits between 180 and 181).
- * Deliberately NOT measured from one single pair: d01/d02 (the guard's own
- * previous source for this constant) is the SMALLEST of all 190 pairs
- * (union 134), so sizing from it undershoots almost every real response.
- * The exact response still differs by pair, but per the design rule for a
- * response-dependent size, reserving this typical, corpus-wide shape —
- * rather than one fixed-width bar, or one single pair's own shape — is
- * what keeps the full-screen trace view from shifting by hundreds of
- * pixels once these token lists (which wrap over several lines) actually
- * arrive.
+ * How many tokens the real corpus's own document pairs typically produce for
+ * each Jaccard group — derived from the corpus-wide medians over every one of
+ * the reference corpus's 190 possible pairs: `setA` 100 (range 64–142),
+ * `setB` 105 (64–142), `intersection` 16 (5–31) and `union` 180 (118–248).
+ * The groups are those sets minus the intersection and the intersection
+ * itself; because medians of different fields do not add up (84 + 16 + 89 is
+ * 189), the two "only" groups are scaled to sum with the intersection to the
+ * union's own median: 80 only in A, 16 in both, 84 only in B. Deliberately NOT measured from one single pair: d01/d02 is the
+ * SMALLEST of all 190 pairs, so sizing from it undershoots almost every real
+ * response. The exact response still differs by pair, but reserving this
+ * typical, corpus-wide shape — rather than one fixed-width bar — is what keeps
+ * the full-screen trace view from shifting by hundreds of pixels once the
+ * token chips (which wrap over many lines) actually arrive.
  */
 const JACCARD_TYPICAL_TOKEN_COUNTS = {
-  setA: 100,
-  setB: 105,
-  intersection: 16,
-  union: 180,
+  onlyA: 80,
+  both: 16,
+  onlyB: 84,
 } as const;
 
 /**
- * A representative English-token length distribution (the reference
- * corpus's own tokens average 7–8 characters, sampled across several
- * pairs), not one uniform length: a comma-joined list of same-length
- * filler words packs measurably more tokens per wrapped line than a real
- * list of varied-length words does (real words leave a bigger, more
- * irregular gap at the end of each line), which under-reserves this
- * placeholder's own real height. Cycling through a small spread of
- * lengths instead reproduces that same per-line waste, without shipping a
- * long list of real corpus words merely to size a placeholder.
+ * A representative English-token length distribution (the reference corpus's
+ * own tokens average 7–8 characters, sampled across several pairs), not one
+ * uniform length: same-length filler packs measurably more chips per wrapped
+ * line than a real list of varied-length words does, which under-reserves the
+ * placeholder's own real height. Cycling through a small spread of lengths
+ * reproduces that same per-line waste without shipping real corpus words.
  */
 const JACCARD_TYPICAL_TOKEN_LENGTHS = [5, 7, 9, 6, 11, 8, 4, 10, 7, 12, 6, 8];
 
-function typicalTokenListText(tokenCount: number): string {
-  return Array.from({ length: tokenCount }, (_unused, index) =>
-    'x'.repeat(JACCARD_TYPICAL_TOKEN_LENGTHS[index % JACCARD_TYPICAL_TOKEN_LENGTHS.length]),
-  ).join(', ');
-}
-
-/** Mirrors `TokenSet`'s own box. A real token list's wrapped height depends
- * on the response, so — instead of one fixed-height bar — an invisible
- * span of the typical token count (`JACCARD_TYPICAL_TOKEN_COUNTS`) at the
- * typical token length sizes this placeholder at whatever height that
- * many comma-joined tokens actually wrap to at the current viewport
- * width, the same "invisible sizer under a `Skeleton` overlay" technique
- * the clustering metrics header skeleton already uses for its own
- * response-dependent width. */
-function TokenSetSkeleton({ tokenCount }: { tokenCount: number }) {
+/** Mirrors a real token group's box. A real group's wrapped height depends on
+ * the response, so an invisible run of chips of the typical count and length
+ * (the exact chip classes the real tokens use) sizes this placeholder at
+ * whatever height that many chips wrap to at the current width, under a
+ * `Skeleton` overlay — the same "invisible sizer" technique the clustering
+ * metrics header skeleton uses for its own response-dependent width. */
+function TokenGroupSkeleton({ label, tokenCount }: { label: string; tokenCount: number }) {
   return (
-    // A `<div>`, not the real `TokenSet`'s own `<p>`: a `Skeleton` renders a
-    // `<div>`, which HTML forbids inside `<p>` (phrasing content only).
-    // Tailwind's own preflight already zeroes `<p>` margins, so this stays
-    // the identical box either way.
-    <div className="relative break-words font-mono text-mono text-ink-secondary">
-      <span aria-hidden="true" className="invisible">
-        {typicalTokenListText(tokenCount)}
-      </span>
-      <Skeleton className="absolute inset-0" />
+    <div className="flex flex-col gap-1.5">
+      <h3 className={JACCARD_GROUP_HEADING_CLASS}>
+        {label}
+        <Skeleton className="h-3 w-6" />
+      </h3>
+      <div className="relative">
+        <div data-token-sizer aria-hidden="true" className="invisible flex flex-wrap gap-1">
+          {Array.from({ length: tokenCount }, (_unused, index) => (
+            <span key={index} className={cn(JACCARD_TOKEN_CLASS, 'border-hairline')}>
+              {'x'.repeat(
+                JACCARD_TYPICAL_TOKEN_LENGTHS[index % JACCARD_TYPICAL_TOKEN_LENGTHS.length],
+              )}
+            </span>
+          ))}
+        </div>
+        <Skeleton className="absolute inset-0" />
+      </div>
     </div>
   );
 }
 
-/** Mirrors `JaccardTracePanel`'s own fixed labels (both set names, the
- * intersection/union headings, their size labels and the coefficient) as
- * real text; only the token sets themselves — each a variable-length list
- * per document pair — stay placeholder boxes, sized to this corpus's own
- * typical token count (see `JACCARD_TYPICAL_TOKEN_COUNTS`). */
+/** Mirrors `JaccardTracePanel`'s own fixed text (the set-size names and the
+ * three group headings) as real text; the formula, the counts and the token
+ * groups — all response-dependent — stay placeholder boxes. */
 function JaccardTraceBodySkeleton() {
   const { t } = useTranslation();
-  const intersectionHeadingId = useId();
-  const unionHeadingId = useId();
 
   return (
     <div className="flex flex-col gap-4">
-      <dl className="flex flex-col gap-4">
-        <div>
-          <dt className="text-eyebrow font-semibold uppercase tracking-wide text-ink-secondary">
-            {t('similarity.trace.jaccard.setALabel')}
+      <div className="flex flex-col gap-1">
+        <Skeleton className="h-4 w-56 max-w-full" />
+      </div>
+      <dl className="flex flex-wrap gap-x-6 gap-y-1">
+        <div className="flex items-baseline gap-2">
+          <dt className="font-mono text-label text-ink-secondary">
+            {t('similarity.trace.jaccard.sizeALabel')}
           </dt>
           <dd>
-            <TokenSetSkeleton tokenCount={JACCARD_TYPICAL_TOKEN_COUNTS.setA} />
+            <Skeleton className="h-3 w-8" />
           </dd>
         </div>
-        <div>
-          <dt className="text-eyebrow font-semibold uppercase tracking-wide text-ink-secondary">
-            {t('similarity.trace.jaccard.setBLabel')}
+        <div className="flex items-baseline gap-2">
+          <dt className="font-mono text-label text-ink-secondary">
+            {t('similarity.trace.jaccard.sizeBLabel')}
           </dt>
           <dd>
-            <TokenSetSkeleton tokenCount={JACCARD_TYPICAL_TOKEN_COUNTS.setB} />
+            <Skeleton className="h-3 w-8" />
           </dd>
         </div>
       </dl>
-
-      <section aria-labelledby={intersectionHeadingId} className="flex flex-col gap-1">
-        <h3
-          id={intersectionHeadingId}
-          className="text-eyebrow font-semibold uppercase tracking-wide text-ink-secondary"
-        >
-          {t('similarity.trace.jaccard.intersectionLabel')}
-        </h3>
-        {/* A `<div>`, not a `<p>`: HTML forbids a `Skeleton`'s own `<div>`
-         * inside a `<p>` (phrasing content only) — Tailwind's own preflight
-         * already zeroes `<p>` margins, so this stays the identical box. */}
-        <div className="flex items-baseline gap-2 text-label text-ink-secondary">
-          <span>{t('similarity.trace.jaccard.intersectionSizeLabel')}</span>
-          <Skeleton className="h-3 w-10" />
-        </div>
-        <TokenSetSkeleton tokenCount={JACCARD_TYPICAL_TOKEN_COUNTS.intersection} />
-      </section>
-
-      <section aria-labelledby={unionHeadingId} className="flex flex-col gap-1">
-        <h3
-          id={unionHeadingId}
-          className="text-eyebrow font-semibold uppercase tracking-wide text-ink-secondary"
-        >
-          {t('similarity.trace.jaccard.unionLabel')}
-        </h3>
-        <div className="flex items-baseline gap-2 text-label text-ink-secondary">
-          <span>{t('similarity.trace.jaccard.unionSizeLabel')}</span>
-          <Skeleton className="h-3 w-10" />
-        </div>
-        <TokenSetSkeleton tokenCount={JACCARD_TYPICAL_TOKEN_COUNTS.union} />
-      </section>
-
-      <dl>
-        <TraceFieldSkeleton label={t('similarity.trace.jaccard.coefficientLabel')} />
-      </dl>
+      <TokenGroupSkeleton
+        label={t('similarity.trace.jaccard.onlyALabel')}
+        tokenCount={JACCARD_TYPICAL_TOKEN_COUNTS.onlyA}
+      />
+      <TokenGroupSkeleton
+        label={t('similarity.trace.jaccard.bothLabel')}
+        tokenCount={JACCARD_TYPICAL_TOKEN_COUNTS.both}
+      />
+      <TokenGroupSkeleton
+        label={t('similarity.trace.jaccard.onlyBLabel')}
+        tokenCount={JACCARD_TYPICAL_TOKEN_COUNTS.onlyB}
+      />
     </div>
   );
 }
@@ -342,13 +315,10 @@ function JaccardTraceBodySkeleton() {
  * matrix/operations regions): on the docked panel that is absorbed by the
  * panel's own scrollable body, but on the full-screen view every row
  * this table ends up with pushes the whole page taller. The term count is
- * always the union of the two documents' own vocabularies (the same field
- * `JaccardTracePanel`'s own `unionSize` reports for the same pair), so
- * this reuses the identical corpus-wide median already measured for that
- * field (`JACCARD_TYPICAL_TOKEN_COUNTS.union`, 180) rather than a second,
- * separately-tuned constant for what is the same real-world quantity.
+ * always the union of the two documents' own vocabularies, whose corpus-wide
+ * median over all 190 pairs is 180 (range 118–248, quartiles 169/197).
  */
-const TFIDF_TYPICAL_TERM_ROW_COUNT = JACCARD_TYPICAL_TOKEN_COUNTS.union;
+const TFIDF_TYPICAL_TERM_ROW_COUNT = 180;
 
 /** Mirrors `TfIdfTracePanel`'s own fixed corpus-size field and the terms
  * table's real header row (every column label is fixed chrome); the term
