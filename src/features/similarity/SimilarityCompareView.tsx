@@ -3,15 +3,10 @@ import { useQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { useNavigate, useSearchParams } from 'react-router';
 
-import { DEFAULT_UNEXPECTED_I18N_KEY, type ApiError } from '../../infrastructure/apiError';
-import {
-  compareSimilarity,
-  type CompareRequestBody,
-  type CompareResponse,
-  type ListSimilarityAlgorithmsResponse,
-} from '../../infrastructure/api/similarity';
+import { DEFAULT_UNEXPECTED_I18N_KEY } from '../../infrastructure/apiError';
+import type { ListSimilarityAlgorithmsResponse } from '../../infrastructure/api/similarity';
 import { algorithmsQueryOptions } from '../../infrastructure/api/similarityCatalogue';
-import { AlgorithmIdSchema, type AlgorithmId } from '../../infrastructure/schemas/similarity';
+import type { AlgorithmId } from '../../infrastructure/schemas/similarity';
 import { Alert } from '../../shared/components/Alert';
 import { EmptyState } from '../../shared/components/EmptyState';
 import { PanelHeader } from '../../shared/components/Panel';
@@ -19,6 +14,8 @@ import { AlgoTextList } from '../../shared/components/AlgoTextList';
 import { SegmentedControl, type SegmentedOption } from '../../shared/components/SegmentedControl';
 import { useIsAtLeastLg } from '../../shared/lib/useIsAtLeastLg';
 import { algoFamilyFromKind } from './algorithmFamily';
+import { DEFAULT_ALGORITHM_IDS, parseAlgorithmIds } from './algorithmSelection';
+import { compareQueryOptions } from './compareQueryOptions';
 import { CompareResultsList } from './CompareResultsList';
 import {
   AlgorithmListSkeleton,
@@ -28,34 +25,10 @@ import {
 import { CompareTable } from './CompareTable';
 import { ScoreStrip, ScoreStripSkeleton } from './ScoreStrip';
 
-/** The six fixed capability ids, independent of the catalogue fetch. */
-const DEFAULT_ALGORITHM_IDS = [...AlgorithmIdSchema.options];
-
 type FamilyFilter = 'all' | 'classic' | 'ai';
 
 function isFamilyFilter(value: string | null): value is FamilyFilter {
   return value === 'all' || value === 'classic' || value === 'ai';
-}
-
-/** `null` (the param is absent) means "never touched" — default to every
- * algorithm. A present-but-empty value means "the person deselected every
- * algorithm", which must stay empty, never fall back to the default.
- * A repeated id collapses to its first occurrence — two rows for the same
- * algorithm would collide on that row's own DOM id, key and `aria-current`. */
-function parseAlgorithmIds(raw: string | null): AlgorithmId[] {
-  if (raw === null) {
-    return [...DEFAULT_ALGORITHM_IDS];
-  }
-  const known = new Set<string>(DEFAULT_ALGORITHM_IDS);
-  const seen = new Set<string>();
-  const ids: AlgorithmId[] = [];
-  for (const id of raw.split(',')) {
-    if (known.has(id) && !seen.has(id)) {
-      seen.add(id);
-      ids.push(id as AlgorithmId);
-    }
-  }
-  return ids;
 }
 
 export interface SimilarityCompareViewProps {
@@ -174,16 +147,8 @@ export function SimilarityCompareView({ pair, openAlgorithmId }: SimilarityCompa
   // own CTA uses (`sortedPair`).
   const [documentIdA, documentIdB] = pair;
 
-  const compareQuery = useQuery<CompareResponse, ApiError>({
-    queryKey: ['similarity', 'compare', documentIdA, documentIdB, selectedAlgorithmIds] as const,
-    queryFn: () => {
-      const body: CompareRequestBody = {
-        documentIdA,
-        documentIdB,
-        algorithmIds: selectedAlgorithmIds,
-      };
-      return compareSimilarity(body);
-    },
+  const compareQuery = useQuery({
+    ...compareQueryOptions(documentIdA, documentIdB, selectedAlgorithmIds),
     enabled: hasAlgorithmsSelected,
   });
 
