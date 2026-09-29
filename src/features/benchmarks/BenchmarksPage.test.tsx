@@ -30,7 +30,7 @@ function result(overrides: Partial<benchmarksApi.BenchmarkReportResponse['result
 
 const REPORT: benchmarksApi.BenchmarkReportResponse = {
   harness: {
-    cpuModel: '12th Gen Intel(R) Core(TM) i9-12900H',
+    cpuModel: '12th Gen Intel® Core™ i9-12900H',
     logicalCores: 20,
     totalRamBytes: 33_363_460_096,
     jdk: 'Eclipse Adoptium 25.0.4',
@@ -138,7 +138,7 @@ describe('BenchmarksPage', () => {
 
     renderWithProviders(<BenchmarksPage />);
 
-    expect(await screen.findByText('12th Gen Intel(R) Core(TM) i9-12900H')).toBeInTheDocument();
+    expect(await screen.findByText('12th Gen Intel® Core™ i9-12900H')).toBeInTheDocument();
 
     expect(
       screen.getByRole('heading', { name: 'Algoritmos clásicos por pares' }),
@@ -159,7 +159,7 @@ describe('BenchmarksPage', () => {
     vi.spyOn(benchmarksApi, 'fetchBenchmarks').mockResolvedValue(REPORT);
 
     renderWithProviders(<BenchmarksPage />);
-    await screen.findByText('12th Gen Intel(R) Core(TM) i9-12900H');
+    await screen.findByText('12th Gen Intel® Core™ i9-12900H');
 
     const scaleGroup = screen.getByRole('radiogroup', { name: 'Escala' });
     const logLogOption = within(scaleGroup).getByRole('radio', { name: 'Log–log' });
@@ -173,7 +173,7 @@ describe('BenchmarksPage', () => {
     vi.spyOn(benchmarksApi, 'fetchBenchmarks').mockResolvedValue(REPORT);
 
     const { container } = renderWithProviders(<BenchmarksPage />);
-    await screen.findByText('12th Gen Intel(R) Core(TM) i9-12900H');
+    await screen.findByText('12th Gen Intel® Core™ i9-12900H');
 
     const chartGroups = () =>
       Array.from(container.querySelectorAll<HTMLElement>('[role="group"][data-scale]'));

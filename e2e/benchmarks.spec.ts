@@ -148,7 +148,7 @@ test.describe('benchmarks screen', () => {
     ).toBeVisible();
 
     // Harness metadata.
-    await expect(page.getByText('12th Gen Intel(R) Core(TM) i9-12900H')).toBeVisible();
+    await expect(page.getByText('12th Gen Intel® Core™ i9-12900H')).toBeVisible();
     await expect(page.getByText('Eclipse Adoptium 25.0.4')).toBeVisible();
 
     // One chart per curve group.

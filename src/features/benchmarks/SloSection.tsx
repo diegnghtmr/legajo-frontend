@@ -35,6 +35,9 @@ const CLUSTERING_THRESHOLD_MS = 1_000;
 const SLO_FIXED_SIZE = 20;
 
 const BAR_MIN_WIDTH_CLASS = 'min-w-30';
+/** Fixed column widths keep the table's shape independent of its contents, so
+ * the loading placeholder and the loaded table lay out identically. */
+const TABLE_CLASS = 'min-w-[35rem] table-fixed';
 const STATUS_ICON_CLASS = 'size-3.5 shrink-0';
 
 /**
@@ -120,6 +123,18 @@ function ThresholdBar({
   );
 }
 
+function SloColumns() {
+  return (
+    <colgroup>
+      <col className="w-36" />
+      <col />
+      <col className="w-[5.5rem]" />
+      <col className="w-16" />
+      <col className="w-36" />
+    </colgroup>
+  );
+}
+
 function SloTableHeader({ algorithmLabel }: { algorithmLabel: string }) {
   const { t } = useTranslation();
 
@@ -160,8 +175,9 @@ function SloGroup({
         tabIndex={0}
         className="overflow-x-auto rounded-md focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus"
       >
-        <Table wrap={false}>
+        <Table wrap={false} className={TABLE_CLASS}>
           <TableCaption className="sr-only">{title}</TableCaption>
+          <SloColumns />
           <SloTableHeader algorithmLabel={algorithmLabel} />
           <TableBody>
             {evaluations.map(({ evaluation, label }, index) => (
@@ -205,8 +221,9 @@ function SloGroupSkeleton({
     <div className="flex flex-col gap-2">
       <h3 className="text-label font-semibold text-ink">{title}</h3>
       <div className="overflow-hidden rounded-md">
-        <Table wrap={false}>
+        <Table wrap={false} className={TABLE_CLASS}>
           <TableCaption className="sr-only">{title}</TableCaption>
+          <SloColumns />
           <SloTableHeader algorithmLabel={algorithmLabel} />
           <TableBody>
             {labels.map((label) => (
