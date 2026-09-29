@@ -58,7 +58,7 @@
         "allMatch": "Coincide con el corpus",
         "mismatch": "Revisar coincidencia",
         "unknown": "Sin verificar",
-        "rowLabel": "Embeddings: {{status}}. Ver el detalle",
+        "rowLabel": "Embeddings: {{status}}",
         "loadingValue": "cargando"
       }
     },

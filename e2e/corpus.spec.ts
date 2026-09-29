@@ -165,7 +165,7 @@ test.describe('corpus selection rail', () => {
   }) => {
     await page.goto('/');
 
-    const statusRow = page.getByRole('button', { name: /Ver el detalle$/ });
+    const statusRow = page.getByRole('button', { name: /^Embeddings:/ });
     await expect(statusRow).toContainText('Coincide con el corpus');
 
     await statusRow.click();
@@ -186,9 +186,7 @@ test.describe('corpus selection rail', () => {
 
       const statusRow = page.getByRole('button', { name: /Coincide con el corpus/ });
       await expect(statusRow).toBeVisible();
-      await expect(statusRow).toHaveAccessibleName(
-        'Embeddings: Coincide con el corpus. Ver el detalle',
-      );
+      await expect(statusRow).toHaveAccessibleName('Embeddings: Coincide con el corpus');
       await expect(statusRow.locator('svg.lucide-chevron-right')).toBeVisible();
 
       await page.mouse.move(0, 0);
