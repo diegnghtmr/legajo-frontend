@@ -3,6 +3,7 @@ import userEvent from '@testing-library/user-event';
 import { useState } from 'react';
 import { describe, expect, it, vi } from 'vitest';
 
+import { stubMatchMedia } from '../../test/matchMedia';
 import type { ApiError } from '../../infrastructure/apiError';
 import type { LinkageId, RepresentationId } from '../../infrastructure/schemas/clustering';
 import {
@@ -51,6 +52,24 @@ function renderPanel(overrides: Partial<ClusteringParametersPanelProps> = {}) {
 }
 
 describe('ClusteringParametersPanel', () => {
+  it('stacks the representation options below 640px and keeps them in a row from 640px', () => {
+    const narrow = stubMatchMedia(false);
+    const { unmount } = renderPanel();
+    expect(screen.getByRole('radiogroup', { name: 'Representación' })).toHaveAttribute(
+      'aria-orientation',
+      'vertical',
+    );
+    unmount();
+    narrow.fireChange(true);
+    vi.unstubAllGlobals();
+
+    renderPanel();
+    expect(screen.getByRole('radiogroup', { name: 'Representación' })).toHaveAttribute(
+      'aria-orientation',
+      'horizontal',
+    );
+  });
+
   it('marks each linkage button with an aria-hidden tick box', () => {
     renderPanel({ selectedLinkages: ['single', 'ward'] });
 

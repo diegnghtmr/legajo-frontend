@@ -237,6 +237,51 @@ describe('SegmentedControl', () => {
   });
 });
 
+describe('SegmentedControl orientation', () => {
+  it('is horizontal by default and never lets an option label wrap', () => {
+    render(<ControlledSegmented />);
+
+    const group = screen.getByRole('radiogroup', { name: 'Family filter' });
+    expect(group).toHaveAttribute('aria-orientation', 'horizontal');
+    expect(group).not.toHaveClass('flex-col');
+    for (const radio of screen.getAllByRole('radio')) {
+      expect(radio).toHaveClass('whitespace-nowrap');
+    }
+  });
+
+  it('stacks the options full width when vertical, exposes aria-orientation and moves with ArrowDown/ArrowUp', async () => {
+    const user = userEvent.setup();
+    const onChange = vi.fn();
+    function Vertical() {
+      const [value, setValue] = useState<Family>('all');
+      return (
+        <SegmentedControl
+          options={OPTIONS}
+          value={value}
+          onChange={(next) => {
+            setValue(next);
+            onChange(next);
+          }}
+          orientation="vertical"
+          aria-label="Family filter"
+        />
+      );
+    }
+    render(<Vertical />);
+
+    const group = screen.getByRole('radiogroup', { name: 'Family filter' });
+    expect(group).toHaveAttribute('aria-orientation', 'vertical');
+    expect(group).toHaveClass('flex-col', 'w-full');
+
+    await user.tab();
+    await user.keyboard('{ArrowDown}');
+    expect(onChange).toHaveBeenLastCalledWith('classic');
+    await user.keyboard('{ArrowUp}{ArrowUp}');
+    expect(onChange).toHaveBeenLastCalledWith('ai');
+    expect(screen.getByRole('radio', { name: 'AI' })).toHaveFocus();
+  });
+});
+
 describe('SegmentedControlSkeleton', () => {
   it('shows every label on the real track, holding no radio and nothing focusable', () => {
     const { container } = render(

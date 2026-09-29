@@ -22,6 +22,7 @@ import {
 import { Badge } from '../../shared/components/ui/badge';
 import { Button } from '../../shared/components/ui/button';
 import { Skeleton } from '../../shared/components/ui/skeleton';
+import { useIsAtLeastSm } from '../../shared/lib/useIsAtLeastSm';
 import { cutKRange, isValidCutK } from './cutSchema';
 import { ParameterColumn } from './ParameterColumn';
 
@@ -106,6 +107,7 @@ export function ClusteringParametersPanel({
   onClearCut,
 }: ClusteringParametersPanelProps) {
   const { t } = useTranslation();
+  const isAtLeastSm = useIsAtLeastSm();
   const ids = useId();
   const representationTitleId = `${ids}-representation`;
   const linkagesTitleId = `${ids}-linkages`;
@@ -139,6 +141,7 @@ export function ClusteringParametersPanel({
                 options={REPRESENTATION_OPTIONS}
                 value={representation}
                 onChange={onRepresentationChange}
+                orientation={isAtLeastSm ? 'horizontal' : 'vertical'}
                 aria-label={t('clustering.representationGroupLabel')}
               />
             </ParameterColumn>

@@ -628,6 +628,34 @@ test.describe('clustering screen', () => {
         .screenshot({ path: 'test-results/clustering-params-1440.png' });
     });
 
+    test('at 390px the representation options stack one per row, each on a single line inside the track', async ({
+      page,
+    }) => {
+      await page.setViewportSize({ width: 390, height: 844 });
+      await page.goto('/clustering');
+      const group = page.getByRole('radiogroup', { name: 'Representación' });
+      await expect(group).toBeVisible();
+
+      const radios = group.getByRole('radio');
+      await expect(radios).toHaveCount(3);
+      const groupBox = (await group.boundingBox())!;
+      const boxes = await Promise.all(
+        [0, 1, 2].map(async (index) => (await radios.nth(index).boundingBox())!),
+      );
+      for (const [index, box] of boxes.entries()) {
+        // One line of 13px text plus padding stays well under two line boxes.
+        expect(box.height).toBeLessThanOrEqual(46);
+        expect(box.x).toBeGreaterThanOrEqual(groupBox.x);
+        expect(box.x + box.width).toBeLessThanOrEqual(groupBox.x + groupBox.width + 1);
+        if (index > 0) {
+          expect(box.y).toBeGreaterThan(boxes[index - 1]!.y);
+          expect(Math.abs(box.x - boxes[0]!.x)).toBeLessThan(2);
+        }
+      }
+      const overflow = await group.evaluate((el) => el.scrollWidth - el.clientWidth);
+      expect(overflow).toBeLessThanOrEqual(0);
+    });
+
     for (const width of [1024, 390]) {
       test(`at ${width}px the columns stack with top rules and the page does not scroll sideways`, async ({
         page,
