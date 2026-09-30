@@ -31,3 +31,8 @@ export function buildCutSchema(n: number) {
 export function isValidCutK(k: number, n: number): boolean {
   return buildCutSchema(n).shape.k.safeParse(k).success;
 }
+
+/** The cut's `k` before the user edits it: four, or the largest valid `k` when the corpus is smaller. */
+export function defaultCutK(n: number): number {
+  return Math.min(4, n - 1);
+}

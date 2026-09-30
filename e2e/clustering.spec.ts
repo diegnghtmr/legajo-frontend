@@ -155,6 +155,29 @@ test.describe('clustering screen', () => {
     ]);
   });
 
+  test('starts the free cut on average at the reference k with no cut applied', async ({
+    page,
+  }) => {
+    let cutRequests = 0;
+    await page.route('**/api/v1/clustering/cut', async (route) => {
+      cutRequests += 1;
+      await route.abort();
+    });
+    await page.setViewportSize({ width: 1467, height: 900 });
+
+    await page.goto('/clustering');
+
+    const cutGroup = page.getByRole('radiogroup', { name: 'Enlace a cortar' });
+    await expect(cutGroup.getByRole('radio', { name: 'Average' })).toBeChecked();
+    await expect(page.getByLabel('k: entre 2 y 5')).toHaveValue('4');
+    await expect(page.getByTestId('params-status-footer')).toContainText('Sin corte aplicado');
+    expect(cutRequests).toBe(0);
+
+    await page.getByRole('region', { name: 'Parámetros' }).screenshot({
+      path: 'test-results/cluster-banner/panel-1467.png',
+    });
+  });
+
   test('switching representation re-requests the clustering endpoint', async ({ page }) => {
     const requestBodies: unknown[] = [];
     await page.route('**/api/v1/clustering', async (route) => {
@@ -424,24 +447,24 @@ test.describe('clustering screen', () => {
     page,
   }) => {
     await page.goto('/clustering');
-    const single = page.getByTestId('linkage-dendrogram-single');
-    await expect(single.getByRole('img')).toBeVisible();
+    const dendrogram = page.getByTestId('linkage-dendrogram-average');
+    await expect(dendrogram.getByRole('img')).toBeVisible();
 
-    await expect(single.locator('[data-axis-title]')).toHaveText('Distancia');
-    expect(await single.locator('[data-axis-tick]').count()).toBeGreaterThanOrEqual(3);
+    await expect(dendrogram.locator('[data-axis-title]')).toHaveText('Distancia');
+    expect(await dendrogram.locator('[data-axis-tick]').count()).toBeGreaterThanOrEqual(3);
 
-    // The default k (2) is previewed on the linkage to cut, before any cut.
-    await expect(single.getByTestId('dendrogram-preview-label')).toHaveText('k = 2');
+    // The default k (4) is previewed on the linkage to cut (average), before any cut.
+    await expect(dendrogram.getByTestId('dendrogram-preview-label')).toHaveText('k = 4');
     await expect(
       page.getByTestId('linkage-dendrogram-complete').getByTestId('dendrogram-preview-line'),
     ).toHaveCount(0);
 
-    await single.locator('[data-leaf-id="0"]').hover();
+    await dendrogram.locator('[data-leaf-id="0"]').hover();
     const leafTip = page.getByRole('tooltip');
     await expect(leafTip).toContainText('doc-01');
     await expect(leafTip).toContainText('Article 1');
 
-    await single.locator('[data-merge-hit="6"]').hover({ force: true });
+    await dendrogram.locator('[data-merge-hit="6"]').hover({ force: true });
     await expect(page.getByRole('tooltip')).toContainText('1 / 5');
     await expect(page.getByRole('tooltip')).toContainText('0.1000');
   });

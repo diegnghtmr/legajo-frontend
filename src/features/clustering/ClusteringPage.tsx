@@ -24,7 +24,7 @@ import {
   LINKAGE_IDS,
   type CutColumnState,
 } from './ClusteringParametersPanel';
-import { isValidCutK } from './cutSchema';
+import { defaultCutK, isValidCutK } from './cutSchema';
 import { DendrogramCard, DendrogramCardSkeleton } from './DendrogramCard';
 import { dendrogramCardHeight } from './dendrogramGridSizing';
 import { leafLabelsFromDocumentIds } from './leafLabels';
@@ -40,8 +40,8 @@ import {
 
 const DEFAULT_REPRESENTATION: RepresentationId = 'tfidf-cosine';
 
-/** The cut's `k` before the user edits it: the smallest valid cut. */
-const DEFAULT_CUT_K = 2;
+/** The cut linkage before the user picks one, when it is among the selected. */
+const DEFAULT_CUT_LINKAGE: LinkageId = 'average';
 
 const CLUSTERING_QUERY_KEY_PREFIX = 'clustering';
 
@@ -123,7 +123,8 @@ export function ClusteringPage() {
    * the loaded response still carries it (see `cutLinkage` below), so a
    * deselected linkage never lingers as the cut target. */
   const [cutLinkageChoice, setCutLinkageChoice] = useState<LinkageId | undefined>(undefined);
-  const [cutK, setCutK] = useState<number>(DEFAULT_CUT_K);
+  /** `undefined` until the user edits k: the shown k then follows the corpus size. */
+  const [cutKChoice, setCutKChoice] = useState<number | undefined>(undefined);
   const panelRef = useRef<HTMLDivElement>(null);
   const panelOutOfView = usePanelOutOfView(panelRef);
 
@@ -238,7 +239,11 @@ export function ClusteringPage() {
   const cutLinkage =
     cutLinkageChoice !== undefined && cutLinkageIds.includes(cutLinkageChoice)
       ? cutLinkageChoice
-      : cutLinkageIds[0];
+      : cutLinkageIds.includes(DEFAULT_CUT_LINKAGE)
+        ? DEFAULT_CUT_LINKAGE
+        : LINKAGE_IDS.find((id) => cutLinkageIds.includes(id));
+  const cutSampleSize = sampleSize ?? corpusQuery.data?.length;
+  const cutK = cutKChoice ?? (cutSampleSize === undefined ? 4 : defaultCutK(cutSampleSize));
 
   const handleCutSubmit = () => {
     if (cutLinkage === undefined || sampleSize === undefined || !isValidCutK(cutK, sampleSize)) {
@@ -318,7 +323,7 @@ export function ClusteringPage() {
           linkage: cutLinkage,
           onLinkageChange: setCutLinkageChoice,
           k: cutK,
-          onKChange: setCutK,
+          onKChange: setCutKChoice,
           onApply: handleCutSubmit,
           isPending: cutMutation.isPending,
           error: activeCutError,
