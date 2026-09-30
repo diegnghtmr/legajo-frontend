@@ -30,6 +30,7 @@ const CATALOGUE: ListSimilarityAlgorithmsResponse = [
 
 const DP_TRACE: DpMatrixTrace = {
   algorithmId: 'levenshtein',
+  stemming: false,
   rowLabels: ['k', 'i', 't'],
   columnLabels: ['s', 'i', 't'],
   matrix: [
@@ -49,6 +50,7 @@ const DP_TRACE: DpMatrixTrace = {
 
 const JACCARD_TRACE: JaccardTrace = {
   algorithmId: 'jaccard',
+  stemming: false,
   setA: ['a', 'b'],
   setB: ['b', 'c'],
   intersectionSize: 1,
@@ -60,6 +62,7 @@ const JACCARD_TRACE: JaccardTrace = {
 
 const TFIDF_TRACE: TfIdfCosineTrace = {
   algorithmId: 'tfidf-cosine',
+  stemming: false,
   corpusSize: 20,
   terms: [],
   dotProduct: 0.5,
@@ -71,6 +74,7 @@ const TFIDF_TRACE: TfIdfCosineTrace = {
 
 const EMBEDDING_LOCAL_TRACE: EmbeddingLocalTrace = {
   algorithmId: 'embedding-local',
+  stemming: false,
   provider: 'sentence-transformers',
   model: 'all-MiniLM-L6-v2',
   dimension: 384,
@@ -88,6 +92,7 @@ const EMBEDDING_LOCAL_TRACE: EmbeddingLocalTrace = {
 
 const EMBEDDING_API_TRACE: EmbeddingApiTrace = {
   algorithmId: 'embedding-api',
+  stemming: false,
   provider: 'google',
   model: 'gemini-embedding-2-preview',
   dimension: 1536,
@@ -164,6 +169,7 @@ describe('SimilarityTracePage', () => {
           computedNanos: 100,
           cached: false,
           degenerate: false,
+          stemming: false,
         },
       })),
     );

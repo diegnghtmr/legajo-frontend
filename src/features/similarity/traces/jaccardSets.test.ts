@@ -5,6 +5,7 @@ import { partitionJaccardSets } from './jaccardSets';
 
 const TRACE: JaccardTrace = {
   algorithmId: 'jaccard',
+  stemming: false,
   setA: ['zeta', 'alpha', 'shared-b', 'shared-a'],
   setB: ['omega', 'shared-a', 'beta', 'shared-b'],
   intersectionSize: 2,

@@ -43,6 +43,7 @@ const GOLDEN_ROWS_N6 = [
 const CLUSTERING_RESPONSE = ['single', 'complete', 'average', 'ward'].map((linkageId) => ({
   linkageId,
   linkageDisplayName: linkageId[0]!.toUpperCase() + linkageId.slice(1),
+  stemming: false,
   rows: GOLDEN_ROWS_N6,
   leafOrder: [0, 1, 2, 3, 4, 5],
   documentIds: DOCUMENT_IDS,

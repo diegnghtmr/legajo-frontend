@@ -30,6 +30,7 @@ export const SimilarityResultSchema = z.object({
   computedNanos: z.number().int(),
   cached: z.boolean(),
   degenerate: z.boolean(),
+  stemming: z.boolean(),
 });
 
 export type SimilarityResult = z.infer<typeof SimilarityResultSchema>;
@@ -62,6 +63,7 @@ const DpTraceStepSchema = z.object({
 /** Shared by `levenshtein` and `needleman-wunsch`. */
 export const DpMatrixTraceSchema = z.object({
   algorithmId: z.enum(['levenshtein', 'needleman-wunsch']),
+  stemming: z.boolean(),
   rowLabels: z.array(z.string()),
   columnLabels: z.array(z.string()),
   matrix: z.array(z.array(z.number())),
@@ -71,6 +73,7 @@ export const DpMatrixTraceSchema = z.object({
 
 export const JaccardTraceSchema = z.object({
   algorithmId: z.literal('jaccard'),
+  stemming: z.boolean(),
   setA: z.array(z.string()),
   setB: z.array(z.string()),
   intersectionSize: z.number(),
@@ -96,6 +99,7 @@ const TfIdfTermTraceSchema = z.object({
 
 export const TfIdfCosineTraceSchema = z.object({
   algorithmId: z.literal('tfidf-cosine'),
+  stemming: z.boolean(),
   corpusSize: z.number(),
   terms: z.array(TfIdfTermTraceSchema),
   dotProduct: z.number(),
@@ -107,6 +111,7 @@ export const TfIdfCosineTraceSchema = z.object({
 
 export const EmbeddingLocalTraceSchema = z.object({
   algorithmId: z.literal('embedding-local'),
+  stemming: z.boolean(),
   provider: z.string(),
   model: z.string(),
   dimension: z.number(),
@@ -124,6 +129,7 @@ export const EmbeddingLocalTraceSchema = z.object({
 
 export const EmbeddingApiTraceSchema = z.object({
   algorithmId: z.literal('embedding-api'),
+  stemming: z.boolean(),
   provider: z.string(),
   model: z.string(),
   dimension: z.number(),

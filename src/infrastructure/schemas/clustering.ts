@@ -48,6 +48,7 @@ export const LinkageResultSchema = z
   .object({
     linkageId: LinkageIdSchema,
     linkageDisplayName: z.string(),
+    stemming: z.boolean(),
     rows: z.array(LinkageStepSchema),
     leafOrder: z.array(z.number()),
     documentIds: z.array(z.string()).min(1),
@@ -65,6 +66,7 @@ export const LinkageResultSchema = z
 export const LinkageEvaluationSchema = z.object({
   linkageId: LinkageIdSchema,
   linkageDisplayName: z.string(),
+  stemming: z.boolean(),
   evaluation: ClusteringEvaluationSchema,
 });
 

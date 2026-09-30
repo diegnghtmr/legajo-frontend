@@ -24,6 +24,7 @@ const CATALOGUE: ListSimilarityAlgorithmsResponse = [
 
 const DP_TRACE: DpMatrixTrace = {
   algorithmId: 'levenshtein',
+  stemming: false,
   rowLabels: ['k', 'i', 't'],
   columnLabels: ['s', 'i', 't'],
   matrix: [
@@ -128,6 +129,7 @@ beforeEach(() => {
         computedNanos: 100,
         cached: false,
         degenerate: false,
+        stemming: false,
       },
     },
   ]);

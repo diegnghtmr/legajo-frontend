@@ -118,6 +118,7 @@ test.describe('corpus selection rail', () => {
         computedNanos: 4200,
         cached: false,
         degenerate: false,
+        stemming: false,
       };
     }
     const matrix = [

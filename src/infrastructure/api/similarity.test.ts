@@ -14,6 +14,7 @@ const similarityResult = {
   computedNanos: 100,
   cached: false,
   degenerate: false,
+  stemming: false,
 };
 
 describe('compareSimilarity', () => {
@@ -56,6 +57,7 @@ describe('fetchSimilarityTrace', () => {
   it('GETs the trace with algorithmId in the path and document ids as query params', async () => {
     const payload = {
       algorithmId: 'jaccard',
+      stemming: false,
       setA: ['a'],
       setB: ['b'],
       intersectionSize: 0,

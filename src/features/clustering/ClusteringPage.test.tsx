@@ -56,6 +56,7 @@ function linkageResult(
   return {
     linkageId,
     linkageDisplayName: displayName,
+    stemming: false,
     rows: GOLDEN_ROWS_N6,
     leafOrder: [0, 1, 2, 3, 4, 5],
     documentIds: [...documentIds],
@@ -87,6 +88,7 @@ function linkageResultWithN(
   return {
     linkageId,
     linkageDisplayName: displayName,
+    stemming: false,
     rows: [],
     leafOrder: Array.from({ length: sampleSize }, (_unused, index) => index),
     documentIds: Array.from({ length: sampleSize }, (_unused, index) => `doc-n-${index + 1}`),

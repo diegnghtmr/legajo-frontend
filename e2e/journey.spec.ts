@@ -43,6 +43,7 @@ const COMPARE_RESULTS = [
       computedNanos: 15234,
       cached: false,
       degenerate: false,
+      stemming: false,
     },
   },
   {
@@ -53,6 +54,7 @@ const COMPARE_RESULTS = [
       computedNanos: 18211,
       cached: false,
       degenerate: false,
+      stemming: false,
     },
   },
   {
@@ -63,6 +65,7 @@ const COMPARE_RESULTS = [
       computedNanos: 9021,
       cached: false,
       degenerate: false,
+      stemming: false,
     },
   },
   {
@@ -73,6 +76,7 @@ const COMPARE_RESULTS = [
       computedNanos: 7002,
       cached: false,
       degenerate: false,
+      stemming: false,
     },
   },
   {
@@ -83,6 +87,7 @@ const COMPARE_RESULTS = [
       computedNanos: 512044,
       cached: false,
       degenerate: false,
+      stemming: false,
     },
   },
   {
@@ -93,12 +98,14 @@ const COMPARE_RESULTS = [
       computedNanos: 998,
       cached: true,
       degenerate: false,
+      stemming: false,
     },
   },
 ];
 
 const NEEDLEMAN_WUNSCH_TRACE = {
   algorithmId: 'needleman-wunsch',
+  stemming: false,
   rowLabels: ['k', 'i', 't'],
   columnLabels: ['s', 'i', 't'],
   matrix: [
@@ -171,6 +178,7 @@ const CLUSTERING_RESPONSE = [
   {
     linkageId: 'single',
     linkageDisplayName: 'Single',
+    stemming: false,
     rows: GOLDEN_ROWS_N6,
     leafOrder: [0, 1, 2, 3, 4, 5],
     documentIds: DOCUMENT_IDS_B,
@@ -179,6 +187,7 @@ const CLUSTERING_RESPONSE = [
   {
     linkageId: 'complete',
     linkageDisplayName: 'Complete',
+    stemming: false,
     rows: GOLDEN_ROWS_N6,
     leafOrder: [2, 3, 0, 1, 4, 5],
     documentIds: DOCUMENT_IDS_B,
@@ -187,6 +196,7 @@ const CLUSTERING_RESPONSE = [
   {
     linkageId: 'average',
     linkageDisplayName: 'Average',
+    stemming: false,
     rows: GOLDEN_ROWS_N6,
     leafOrder: [0, 1, 4, 5, 2, 3],
     documentIds: DOCUMENT_IDS_B,
@@ -195,6 +205,7 @@ const CLUSTERING_RESPONSE = [
   {
     linkageId: 'ward',
     linkageDisplayName: 'Ward',
+    stemming: false,
     rows: GOLDEN_ROWS_N6,
     leafOrder: [0, 1, 2, 3, 4, 5],
     documentIds: DOCUMENT_IDS_B,

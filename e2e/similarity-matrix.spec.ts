@@ -24,6 +24,7 @@ function cell(
     computedNanos: 4200,
     cached: overrides.cached ?? false,
     degenerate: overrides.degenerate ?? false,
+    stemming: false,
   };
 }
 

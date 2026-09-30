@@ -6,6 +6,7 @@ import { JaccardTracePanel } from './JaccardTracePanel';
 
 const TRACE: JaccardTrace = {
   algorithmId: 'jaccard',
+  stemming: false,
   setA: ['token-c', 'token-a', 'token-b'],
   setB: ['token-b', 'token-d', 'token-c'],
   intersectionSize: 2,

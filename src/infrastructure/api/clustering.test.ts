@@ -11,6 +11,7 @@ describe('runClustering', () => {
       {
         linkageId: 'ward',
         linkageDisplayName: 'Ward',
+        stemming: false,
         rows: [],
         leafOrder: [0, 1],
         documentIds: ['doc-01', 'doc-02'],

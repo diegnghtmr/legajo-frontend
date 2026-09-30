@@ -72,7 +72,7 @@ export interface paths {
         put?: never;
         /**
          * Multi-algorithm pairwise similarity for two documents
-         * @description `algorithmIds` is optional; omitted or `null` defaults to all six capabilities, so the default request already exercises every capability.
+         * @description `algorithmIds` is optional; omitted, `null` or empty defaults to all six capabilities, so the default request already exercises every capability. A `null` or blank entry inside `algorithmIds` is a malformed request.
          */
         post: operations["compareSimilarity"];
         delete?: never;
@@ -309,6 +309,8 @@ export interface components {
             computedNanos: number;
             cached: boolean;
             degenerate: boolean;
+            /** @description Whether Porter stemming was applied to the token streams behind this result (the server's fixed `legajo.preprocess.stemming` setting; `false` by default). Embedding capabilities do not preprocess text, so for them it only echoes the setting. */
+            stemming: boolean;
         };
         AlgorithmSimilarity: {
             algorithmId: components["schemas"]["AlgorithmId"];
@@ -317,12 +319,12 @@ export interface components {
         CompareRequest: {
             documentIdA: string;
             documentIdB: string;
-            /** @description Omitted or null defaults to all six capabilities. */
+            /** @description Omitted, null or empty defaults to all six capabilities. Entries must be non-null, non-blank ids. */
             algorithmIds?: components["schemas"]["AlgorithmId"][] | null;
         };
         MatrixRequest: {
             algorithmId: components["schemas"]["AlgorithmId"];
-            /** @description Business rule: size m ∈ [3, n] (3–20 in the reference corpus), no duplicates. */
+            /** @description Business rule: size m ∈ [3, n] (3–20 in the reference corpus), no duplicates. Entries must be non-null, non-blank ids. */
             documentIds: string[];
         };
         MatrixCell: {
@@ -346,6 +348,8 @@ export interface components {
              * @enum {string}
              */
             algorithmId: "levenshtein" | "needleman-wunsch";
+            /** @description Whether Porter stemming was applied to the token streams behind this result (the server's fixed `legajo.preprocess.stemming` setting; `false` by default). Embedding capabilities do not preprocess text, so for them it only echoes the setting. */
+            stemming: boolean;
             rowLabels: string[];
             columnLabels: string[];
             /** @description The complete DP matrix, never truncated. */
@@ -359,6 +363,8 @@ export interface components {
              * @enum {string}
              */
             algorithmId: "jaccard";
+            /** @description Whether Porter stemming was applied to the token streams behind this result (the server's fixed `legajo.preprocess.stemming` setting; `false` by default). Embedding capabilities do not preprocess text, so for them it only echoes the setting. */
+            stemming: boolean;
             setA: string[];
             setB: string[];
             intersectionSize: number;
@@ -394,6 +400,8 @@ export interface components {
              * @enum {string}
              */
             algorithmId: "tfidf-cosine";
+            /** @description Whether Porter stemming was applied to the token streams behind this result (the server's fixed `legajo.preprocess.stemming` setting; `false` by default). Embedding capabilities do not preprocess text, so for them it only echoes the setting. */
+            stemming: boolean;
             corpusSize: number;
             /** @description Only terms present in at least one of the two compared documents. */
             terms: components["schemas"]["TfIdfTermTrace"][];
@@ -414,6 +422,8 @@ export interface components {
              * @enum {string}
              */
             algorithmId: "embedding-local";
+            /** @description Whether Porter stemming was applied to the token streams behind this result (the server's fixed `legajo.preprocess.stemming` setting; `false` by default). Embedding capabilities do not preprocess text, so for them it only echoes the setting. */
+            stemming: boolean;
             provider: string;
             model: string;
             dimension: number;
@@ -440,6 +450,8 @@ export interface components {
              * @enum {string}
              */
             algorithmId: "embedding-api";
+            /** @description Whether Porter stemming was applied to the token streams behind this result (the server's fixed `legajo.preprocess.stemming` setting; `false` by default). Embedding capabilities do not preprocess text, so for them it only echoes the setting. */
+            stemming: boolean;
             provider: string;
             model: string;
             dimension: number;
@@ -467,7 +479,7 @@ export interface components {
              * @enum {string|null}
              */
             representation?: "tfidf-cosine" | "embedding-local" | "embedding-api" | null;
-            /** @description Omitted or null defaults to all four. Business rule: non-empty, no unknown ids. */
+            /** @description Omitted or null defaults to all four. Business rule: when present, non-empty, with no null, blank or unknown ids. */
             linkages?: components["schemas"]["LinkageId"][] | null;
         };
         ClusteringCutRequest: {
@@ -503,6 +515,8 @@ export interface components {
         LinkageResult: {
             linkageId: components["schemas"]["LinkageId"];
             linkageDisplayName: string;
+            /** @description Whether Porter stemming was applied to the token streams behind this result (the server's fixed `legajo.preprocess.stemming` setting; `false` by default). Embedding capabilities do not preprocess text, so for them it only echoes the setting. */
+            stemming: boolean;
             /** @description (n-1) rows (19 rows with n = 20). */
             rows: components["schemas"]["LinkageStep"][];
             leafOrder: number[];
@@ -513,6 +527,8 @@ export interface components {
         LinkageEvaluation: {
             linkageId: components["schemas"]["LinkageId"];
             linkageDisplayName: string;
+            /** @description Whether Porter stemming was applied to the token streams behind this result (the server's fixed `legajo.preprocess.stemming` setting; `false` by default). Embedding capabilities do not preprocess text, so for them it only echoes the setting. */
+            stemming: boolean;
             evaluation: components["schemas"]["ClusteringEvaluation"];
         };
         ClusterAssignment: {
@@ -732,7 +748,7 @@ export interface operations {
                     "application/json": components["schemas"]["AlgorithmSimilarity"][];
                 };
             };
-            /** @description An unknown `algorithmIds` entry (`unknown-algorithm`), an unknown `documentIdA`/`documentIdB` (`unknown-document`), or a blank required field (`about:blank`, framework-detected) — 400 because these values arrive in the request body. */
+            /** @description An unknown `algorithmIds` entry (`unknown-algorithm`), an unknown `documentIdA`/`documentIdB` (`unknown-document`), a blank required field or a `null`/blank entry in `algorithmIds` (`about:blank`, framework-detected) — 400 because these values arrive in the request body. */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -856,7 +872,7 @@ export interface operations {
                     "application/json": components["schemas"]["LinkageResult"][];
                 };
             };
-            /** @description An unknown `representation` (`unknown-representation`) or an unknown entry in `linkages` (`unknown-linkage`). */
+            /** @description An unknown `representation` (`unknown-representation`) or an unknown entry in `linkages` (`unknown-linkage`); an empty `linkages` list or a `null`/blank entry in it is a malformed request (`about:blank`). */
             400: {
                 headers: {
                     [name: string]: unknown;
