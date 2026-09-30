@@ -533,14 +533,16 @@ export function SimilarityWorkbenchLayout() {
           // whatever the center is already showing, with no separate ref
           // per mode to keep in sync. `tabIndex={-1}` keeps it out of the
           // normal Tab order (`AppLayout`'s own `<main>` landmark uses the
-          // same convention) while still being a valid `.focus()` target.
+          // same convention) while still being a valid `.focus()` target. Its ring is
+          // `focus-visible` only: a mouse click on a cell inside it focuses the
+          // region too, and must not outline the whole center.
           <div
             id={SIMILARITY_RESULTS_REGION_ID}
             data-testid="similarity-results-region"
             tabIndex={-1}
             className={cn(
               !isAtLeastLg && 'pb-52',
-              'focus:outline focus:outline-2 focus:outline-offset-2 focus:outline-focus',
+              'focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus',
             )}
           >
             <Outlet />

@@ -192,6 +192,47 @@ test.describe('similarity compare screen', () => {
     await expect(page.getByRole('heading', { name: 'doc-01 frente a doc-02' })).toBeFocused();
   });
 
+  test('a mouse click inside the results never outlines the results region, while keyboard focus still does', async ({
+    page,
+  }) => {
+    await page.route('**/api/v1/similarity/levenshtein/trace**', async (route) => {
+      await route.fulfill({ json: DP_TRACE });
+    });
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await page.goto('/');
+
+    await page.getByRole('checkbox', { name: 'A survey of string similarity' }).check();
+    await page.getByRole('checkbox', { name: 'Embeddings for scientific text' }).check();
+    const region = page.getByTestId('similarity-results-region');
+    await expect(page.getByRole('row', { name: /^levenshtein/ })).toBeVisible();
+
+    const main = page.locator('main');
+
+    // With a trace already open, a click on a cell (which holds no control of
+    // its own) focuses the nearest focusable ancestor: the results region.
+    await page
+      .getByRole('row', { name: /^levenshtein/ })
+      .getByRole('button', { name: 'levenshtein', exact: true })
+      .click();
+    await expect(page.getByTestId('workbench-detail')).toBeVisible();
+    await page
+      .getByRole('row', { name: /^jaccard/ })
+      .getByRole('cell')
+      .nth(2)
+      .click();
+    await expect(page).toHaveURL(/\/similarity\/jaccard\/trace/);
+    await expect(region).toBeFocused();
+    await expect(region).toHaveCSS('outline-style', 'none');
+    await page.locator('body').click({ position: { x: 700, y: 880 } });
+    await expect(main).toHaveCSS('outline-style', 'none');
+
+    const compareButton = page.getByRole('button', { name: 'Comparar doc-01 y doc-02' });
+    await compareButton.focus();
+    await page.keyboard.press('Enter');
+    await expect(region).toBeFocused();
+    await expect(region).toHaveCSS('outline-style', 'solid');
+  });
+
   test('at lg and above, activating the CTA once the pair is already shown moves focus onto the results instead of navigating anywhere', async ({
     page,
   }) => {
