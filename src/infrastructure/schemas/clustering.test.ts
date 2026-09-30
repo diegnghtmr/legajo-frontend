@@ -92,6 +92,7 @@ describe('LinkageResultSchema (runtime)', () => {
   const validPayload = {
     linkageId: 'ward',
     linkageDisplayName: 'Ward',
+    stemming: false,
     rows: [{ idx1: 0, idx2: 1, mergeDistance: 0.12, size: 2 }],
     leafOrder: [0, 1, 2],
     documentIds: ['doc-01', 'doc-02', 'doc-03'],
@@ -106,10 +107,20 @@ describe('LinkageResultSchema (runtime)', () => {
     expect(LinkageResultSchema.safeParse(validPayload).success).toBe(true);
   });
 
+  it('keeps the stemming indicator on a parsed linkage result', () => {
+    expect(LinkageResultSchema.parse({ ...validPayload, stemming: true }).stemming).toBe(true);
+  });
+
+  it('rejects a payload missing the required stemming flag', () => {
+    const { stemming: _stemming, ...withoutStemming } = validPayload;
+    expect(LinkageResultSchema.safeParse(withoutStemming).success).toBe(false);
+  });
+
   it('rejects an unknown linkageId', () => {
     const payload = {
       linkageId: 'centroid',
       linkageDisplayName: 'Centroid',
+      stemming: false,
       rows: [],
       leafOrder: [],
       documentIds: [],
@@ -141,6 +152,19 @@ describe('LinkageResultSchema (runtime)', () => {
         documentIds: ['doc-01', 'doc-01', 'doc-03'],
       }).success,
     ).toBe(false);
+  });
+});
+
+describe('LinkageEvaluationSchema (runtime)', () => {
+  it('keeps the stemming indicator on a parsed linkage evaluation', () => {
+    const parsed = LinkageEvaluationSchema.parse({
+      linkageId: 'ward',
+      linkageDisplayName: 'Ward',
+      stemming: true,
+      evaluation: { cophenetic: 0.8, meanSilhouette: { '2': 0.5 }, daviesBouldin: { '2': null } },
+    });
+
+    expect(parsed.stemming).toBe(true);
   });
 });
 

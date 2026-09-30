@@ -16,6 +16,7 @@ function linkageResult(
   return {
     linkageId,
     linkageDisplayName: linkageId[0]!.toUpperCase() + linkageId.slice(1),
+    stemming: false,
     rows: [],
     leafOrder: [0, 1, 2, 3, 4, 5],
     documentIds: ['d1', 'd2', 'd3', 'd4', 'd5', 'd6'],

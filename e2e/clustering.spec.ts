@@ -73,6 +73,7 @@ const DEFAULT_CLUSTERING_RESPONSE = [
   {
     linkageId: 'single',
     linkageDisplayName: 'Single',
+    stemming: false,
     rows: GOLDEN_ROWS_N6,
     leafOrder: [0, 1, 2, 3, 4, 5],
     documentIds: DOCUMENT_IDS,
@@ -81,6 +82,7 @@ const DEFAULT_CLUSTERING_RESPONSE = [
   {
     linkageId: 'complete',
     linkageDisplayName: 'Complete',
+    stemming: false,
     rows: GOLDEN_ROWS_N6,
     leafOrder: [2, 3, 0, 1, 4, 5],
     documentIds: DOCUMENT_IDS,
@@ -89,6 +91,7 @@ const DEFAULT_CLUSTERING_RESPONSE = [
   {
     linkageId: 'average',
     linkageDisplayName: 'Average',
+    stemming: false,
     rows: GOLDEN_ROWS_N6,
     leafOrder: [0, 1, 2, 3, 4, 5],
     documentIds: DOCUMENT_IDS,
@@ -97,6 +100,7 @@ const DEFAULT_CLUSTERING_RESPONSE = [
   {
     linkageId: 'ward',
     linkageDisplayName: 'Ward',
+    stemming: false,
     rows: GOLDEN_ROWS_N6,
     leafOrder: [0, 1, 2, 3, 4, 5],
     documentIds: DOCUMENT_IDS,
@@ -855,6 +859,7 @@ test.describe('clustering screen', () => {
       const response = ['single', 'complete', 'average', 'ward'].map((linkageId) => ({
         linkageId,
         linkageDisplayName: linkageId[0]!.toUpperCase() + linkageId.slice(1),
+        stemming: false,
         rows,
         leafOrder,
         documentIds,

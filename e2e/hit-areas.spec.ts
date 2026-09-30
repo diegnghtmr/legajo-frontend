@@ -38,6 +38,7 @@ function compareResultFor(algorithmId: string, overrides: Partial<Record<string,
       computedNanos: 15234,
       cached: false,
       degenerate: false,
+      stemming: false,
       ...overrides,
     },
   };
@@ -91,6 +92,7 @@ async function mockCorpusAndSimilarity(page: Page) {
     await route.fulfill({
       json: {
         algorithmId: 'jaccard',
+        stemming: false,
         setA: ['a', 'b'],
         setB: ['b', 'c'],
         intersectionSize: 1,
@@ -355,6 +357,7 @@ test.describe('44x44 touch targets at 390px', () => {
     ].map(({ linkageId, linkageDisplayName }) => ({
       linkageId,
       linkageDisplayName,
+      stemming: false,
       rows: goldenRows,
       leafOrder: [0, 1, 2, 3, 4, 5],
       documentIds,

@@ -146,5 +146,13 @@ export function buildDpTrace({
   const optimalPath = [...ascending].reverse();
   operations.reverse();
 
-  return { algorithmId, rowLabels, columnLabels, matrix, optimalPath, operations };
+  return {
+    algorithmId,
+    stemming: false,
+    rowLabels,
+    columnLabels,
+    matrix,
+    optimalPath,
+    operations,
+  };
 }

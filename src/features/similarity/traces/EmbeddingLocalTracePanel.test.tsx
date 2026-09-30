@@ -6,6 +6,7 @@ import { EmbeddingLocalTracePanel } from './EmbeddingLocalTracePanel';
 
 const TRACE: EmbeddingLocalTrace = {
   algorithmId: 'embedding-local',
+  stemming: false,
   provider: 'sentence-transformers',
   model: 'all-MiniLM-L6-v2',
   dimension: 384,

@@ -44,6 +44,7 @@ function compareResponseFor(ids: readonly AlgorithmId[]): CompareResponse {
       computedNanos: 100,
       cached: false,
       degenerate: false,
+      stemming: false,
     },
   }));
 }

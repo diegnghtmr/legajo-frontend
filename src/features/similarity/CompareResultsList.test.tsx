@@ -25,6 +25,7 @@ const ROWS: CompareResponse = [
       computedNanos: 1234567,
       cached: false,
       degenerate: false,
+      stemming: false,
     },
   },
   {
@@ -35,6 +36,7 @@ const ROWS: CompareResponse = [
       computedNanos: 900,
       cached: false,
       degenerate: true,
+      stemming: false,
     },
   },
   {
@@ -45,6 +47,7 @@ const ROWS: CompareResponse = [
       computedNanos: 42,
       cached: true,
       degenerate: false,
+      stemming: false,
     },
   },
 ];

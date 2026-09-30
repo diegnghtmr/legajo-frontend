@@ -29,6 +29,7 @@ const COMPARE_RESULTS = [
       computedNanos: 15234,
       cached: false,
       degenerate: false,
+      stemming: false,
     },
   },
   {
@@ -39,6 +40,7 @@ const COMPARE_RESULTS = [
       computedNanos: 18211,
       cached: false,
       degenerate: false,
+      stemming: false,
     },
   },
   {
@@ -49,6 +51,7 @@ const COMPARE_RESULTS = [
       computedNanos: 9021,
       cached: false,
       degenerate: false,
+      stemming: false,
     },
   },
   {
@@ -61,6 +64,7 @@ const COMPARE_RESULTS = [
       computedNanos: 7002,
       cached: false,
       degenerate: true,
+      stemming: false,
     },
   },
   {
@@ -71,6 +75,7 @@ const COMPARE_RESULTS = [
       computedNanos: 512044,
       cached: false,
       degenerate: false,
+      stemming: false,
     },
   },
   {
@@ -82,6 +87,7 @@ const COMPARE_RESULTS = [
       computedNanos: 998,
       cached: true,
       degenerate: false,
+      stemming: false,
     },
   },
 ];
@@ -494,6 +500,7 @@ const EMBEDDINGS_STATUS = {
 
 const DP_TRACE = {
   algorithmId: 'levenshtein',
+  stemming: false,
   rowLabels: ['k', 'i', 't'],
   columnLabels: ['s', 'i', 't'],
   matrix: [
@@ -645,7 +652,15 @@ function buildLargeDpTrace(size: number) {
     to: cell,
     operation: 'MATCH',
   }));
-  return { algorithmId: 'levenshtein', rowLabels, columnLabels, matrix, optimalPath, operations };
+  return {
+    algorithmId: 'levenshtein',
+    stemming: false,
+    rowLabels,
+    columnLabels,
+    matrix,
+    optimalPath,
+    operations,
+  };
 }
 
 test.describe('the docked trace panel with a large DP matrix', () => {

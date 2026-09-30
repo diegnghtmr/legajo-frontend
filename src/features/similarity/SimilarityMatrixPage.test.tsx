@@ -28,6 +28,7 @@ function matrixCell(normalizedScore: number) {
     computedNanos: 100,
     cached: false,
     degenerate: false,
+    stemming: false,
   };
 }
 
@@ -124,6 +125,7 @@ describe('SimilarityMatrixPage — exactly two selected (dropped below three whi
           computedNanos: 100,
           cached: false,
           degenerate: false,
+          stemming: false,
         },
       },
     ]);

@@ -22,6 +22,7 @@ const CATALOGUE: ListSimilarityAlgorithmsResponse = [
 
 const DP_TRACE: DpMatrixTrace = {
   algorithmId: 'levenshtein',
+  stemming: false,
   rowLabels: ['k', 'i', 't'],
   columnLabels: ['s', 'i', 't'],
   matrix: [
@@ -41,6 +42,7 @@ const DP_TRACE: DpMatrixTrace = {
 
 const JACCARD_TRACE: JaccardTrace = {
   algorithmId: 'jaccard',
+  stemming: false,
   setA: ['a', 'b'],
   setB: ['b', 'c'],
   intersectionSize: 1,
@@ -60,6 +62,7 @@ function singleCompareResultFor(algorithmId: string): CompareResponse {
         computedNanos: 100,
         cached: false,
         degenerate: false,
+        stemming: false,
       },
     },
   ];

@@ -6,6 +6,7 @@ import { TfIdfTracePanel } from './TfIdfTracePanel';
 
 const TRACE: TfIdfCosineTrace = {
   algorithmId: 'tfidf-cosine',
+  stemming: false,
   corpusSize: 20,
   terms: [
     {

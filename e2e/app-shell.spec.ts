@@ -33,6 +33,7 @@ const CLUSTERING_RESPONSE = [
 ].map(({ linkageId, linkageDisplayName }) => ({
   linkageId,
   linkageDisplayName,
+  stemming: false,
   rows: GOLDEN_ROWS,
   leafOrder: [0, 1, 2, 3, 4, 5],
   documentIds: Array.from({ length: 6 }, (_unused, index) => `doc-0${index + 1}`),

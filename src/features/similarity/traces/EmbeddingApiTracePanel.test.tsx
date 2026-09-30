@@ -6,6 +6,7 @@ import { EmbeddingApiTracePanel } from './EmbeddingApiTracePanel';
 
 const TRACE: EmbeddingApiTrace = {
   algorithmId: 'embedding-api',
+  stemming: false,
   provider: 'google',
   model: 'gemini-embedding-2-preview',
   dimension: 1536,

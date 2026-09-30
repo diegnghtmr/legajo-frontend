@@ -10,6 +10,7 @@ import { expectNoTextOverlap } from './support/textOverlap.js';
  */
 const DP_TRACE = {
   algorithmId: 'levenshtein',
+  stemming: false,
   rowLabels: ['k', 'i', 't'],
   columnLabels: ['s', 'i', 't'],
   matrix: [
@@ -33,6 +34,7 @@ const DP_TRACE = {
 
 const JACCARD_TRACE = {
   algorithmId: 'jaccard',
+  stemming: false,
   setA: ['algorithm', 'similarity', 'token'],
   setB: ['similarity', 'token', 'corpus'],
   intersectionSize: 2,
@@ -44,6 +46,7 @@ const JACCARD_TRACE = {
 
 const TFIDF_TRACE = {
   algorithmId: 'tfidf-cosine',
+  stemming: false,
   corpusSize: 20,
   terms: [
     {
@@ -69,6 +72,7 @@ const TFIDF_TRACE = {
 
 const EMBEDDING_LOCAL_TRACE = {
   algorithmId: 'embedding-local',
+  stemming: false,
   provider: 'sentence-transformers',
   model: 'all-MiniLM-L6-v2',
   dimension: 384,
@@ -86,6 +90,7 @@ const EMBEDDING_LOCAL_TRACE = {
 
 const EMBEDDING_API_TRACE = {
   algorithmId: 'embedding-api',
+  stemming: false,
   provider: 'google',
   model: 'gemini-embedding-2-preview',
   dimension: 1536,
@@ -242,7 +247,15 @@ test.describe('standalone full-screen trace view', () => {
       to: cell,
       operation: 'MATCH',
     }));
-    return { algorithmId: 'levenshtein', rowLabels, columnLabels, matrix, optimalPath, operations };
+    return {
+      algorithmId: 'levenshtein',
+      stemming: false,
+      rowLabels,
+      columnLabels,
+      matrix,
+      optimalPath,
+      operations,
+    };
   }
 
   test('has no empty-table-header violation on a large, real-shaped DP matrix — every row/column header past index 0 comes from a `labels[i - 1]` lookup that stays in bounds for the whole matrix, not only its first row/column', async ({

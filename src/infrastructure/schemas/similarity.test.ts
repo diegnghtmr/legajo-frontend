@@ -83,7 +83,17 @@ describe('SimilarityResultSchema (runtime)', () => {
     computedNanos: 45210,
     cached: true,
     degenerate: false,
+    stemming: false,
   };
+
+  it('keeps the stemming indicator on a parsed result', () => {
+    expect(SimilarityResultSchema.parse({ ...validPayload, stemming: true }).stemming).toBe(true);
+  });
+
+  it('rejects a payload missing the required stemming flag', () => {
+    const { stemming: _stemming, ...withoutStemming } = validPayload;
+    expect(SimilarityResultSchema.safeParse(withoutStemming).success).toBe(false);
+  });
 
   it('accepts a real-shaped result with a numeric rawValue', () => {
     expect(SimilarityResultSchema.safeParse(validPayload).success).toBe(true);
@@ -129,6 +139,7 @@ const matrixCell = { row: 0, col: 0 };
 describe('DpMatrixTraceSchema (runtime)', () => {
   const dpPayload = {
     algorithmId: 'needleman-wunsch',
+    stemming: false,
     rowLabels: ['A', 'B'],
     columnLabels: ['A', 'C'],
     matrix: [
@@ -147,6 +158,10 @@ describe('DpMatrixTraceSchema (runtime)', () => {
     ).toBe(true);
   });
 
+  it('keeps the stemming indicator on a parsed trace', () => {
+    expect(DpMatrixTraceSchema.parse({ ...dpPayload, stemming: true }).stemming).toBe(true);
+  });
+
   it('rejects a discriminator outside the DP pair', () => {
     expect(DpMatrixTraceSchema.safeParse({ ...dpPayload, algorithmId: 'jaccard' }).success).toBe(
       false,
@@ -157,6 +172,7 @@ describe('DpMatrixTraceSchema (runtime)', () => {
 describe('AlgorithmTraceSchema (runtime, discriminated union)', () => {
   const jaccardPayload = {
     algorithmId: 'jaccard',
+    stemming: false,
     setA: ['alignment', 'sequence'],
     setB: ['alignment', 'similarity'],
     intersectionSize: 1,
@@ -168,6 +184,11 @@ describe('AlgorithmTraceSchema (runtime, discriminated union)', () => {
 
   it('accepts a valid Jaccard trace routed by its discriminator', () => {
     expect(AlgorithmTraceSchema.safeParse(jaccardPayload).success).toBe(true);
+  });
+
+  it('keeps the stemming indicator through the trace union', () => {
+    const parsed = AlgorithmTraceSchema.parse({ ...jaccardPayload, stemming: true });
+    expect(parsed.stemming).toBe(true);
   });
 
   it('rejects a Jaccard-labeled payload shaped like a DP trace (wrong discriminator match)', () => {
