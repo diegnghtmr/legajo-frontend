@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { buildCutSchema, cutKRange, isValidCutK } from './cutSchema';
+import { buildCutSchema, cutKRange, defaultCutK, isValidCutK } from './cutSchema';
 
 describe('cutKRange', () => {
   it('bounds k to [2, n - 1]', () => {
@@ -35,5 +35,15 @@ describe('buildCutSchema', () => {
   it('rejects an unknown linkage and an out-of-range k', () => {
     expect(buildCutSchema(6).safeParse({ linkage: 'median', k: 3 }).success).toBe(false);
     expect(buildCutSchema(6).safeParse({ linkage: 'ward', k: 6 }).success).toBe(false);
+  });
+});
+
+describe('defaultCutK', () => {
+  it('starts at four, capped by the largest valid k', () => {
+    expect(defaultCutK(20)).toBe(4);
+    expect(defaultCutK(6)).toBe(4);
+    expect(defaultCutK(5)).toBe(4);
+    expect(defaultCutK(4)).toBe(3);
+    expect(defaultCutK(3)).toBe(2);
   });
 });

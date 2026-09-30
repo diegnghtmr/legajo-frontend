@@ -594,6 +594,56 @@ describe('ClusteringPage', () => {
       expect(screen.getByLabelText('k: entre 2 y 5')).toBeInTheDocument();
     });
 
+    it('starts the free cut on average at the reference k, unapplied', async () => {
+      vi.spyOn(corpusApi, 'fetchCorpus').mockResolvedValue(CORPUS);
+      vi.spyOn(clusteringApi, 'runClustering').mockResolvedValue(DEFAULT_RESPONSE);
+      vi.spyOn(clusteringApi, 'cutClustering').mockResolvedValue({
+        labels: [0, 0, 1, 1, 2, 3],
+        k: 4,
+        documentIds: DOCUMENT_IDS_N6,
+      });
+      const user = userEvent.setup();
+
+      renderPage();
+
+      const cutGroup = await screen.findByRole('radiogroup', { name: 'Enlace a cortar' });
+      expect(within(cutGroup).getByRole('radio', { name: 'Average' })).toBeChecked();
+      expect(screen.getByLabelText('k: entre 2 y 5')).toHaveValue(4);
+      expect(clusteringApi.cutClustering).not.toHaveBeenCalled();
+
+      await user.click(screen.getByRole('button', { name: 'Aplicar corte' }));
+      await waitFor(() =>
+        expect(clusteringApi.cutClustering).toHaveBeenCalledWith({
+          representation: 'tfidf-cosine',
+          linkage: 'average',
+          k: 4,
+        }),
+      );
+    });
+
+    it('falls back to the first selected linkage when average is not selected', async () => {
+      vi.spyOn(corpusApi, 'fetchCorpus').mockResolvedValue(CORPUS);
+      vi.spyOn(clusteringApi, 'runClustering').mockResolvedValue(DEFAULT_RESPONSE);
+      const user = userEvent.setup();
+
+      renderPage();
+      const cutGroup = await screen.findByRole('radiogroup', { name: 'Enlace a cortar' });
+      expect(within(cutGroup).getByRole('radio', { name: 'Average' })).toBeChecked();
+
+      vi.mocked(clusteringApi.runClustering).mockResolvedValue(
+        DEFAULT_RESPONSE.filter((result) => result.linkageId !== 'average'),
+      );
+      await user.click(screen.getByRole('button', { name: 'average' }));
+
+      await waitFor(() =>
+        expect(
+          within(screen.getByRole('radiogroup', { name: 'Enlace a cortar' })).getByRole('radio', {
+            name: 'Single',
+          }),
+        ).toBeChecked(),
+      );
+    });
+
     it('submits {representation, linkage, k} and shows the cluster labels and cut line only on that linkage after success', async () => {
       vi.spyOn(corpusApi, 'fetchCorpus').mockResolvedValue(CORPUS);
       vi.spyOn(clusteringApi, 'runClustering').mockResolvedValue(DEFAULT_RESPONSE);
@@ -640,7 +690,7 @@ describe('ClusteringPage', () => {
       vi.spyOn(clusteringApi, 'runClustering').mockResolvedValue(DEFAULT_RESPONSE);
       vi.spyOn(clusteringApi, 'cutClustering').mockResolvedValue({
         labels: [0, 0, 1, 1, 2, 2],
-        // Reversed relative to the "single" linkage's own `documentIds`
+        // Reversed relative to the "average" linkage's own `documentIds`
         // (DOCUMENT_IDS_N6): the cut request computes its own pairing and
         // is never guaranteed to share array positions with any linkage.
         documentIds: [...DOCUMENT_IDS_N6].reverse(),
@@ -652,15 +702,15 @@ describe('ClusteringPage', () => {
       await waitFor(() => expect(clusteringApi.runClustering).toHaveBeenCalled());
       await user.click(await screen.findByRole('button', { name: 'Aplicar corte' }));
 
-      const singleDendrogram = await screen.findByTestId('linkage-dendrogram-single');
+      const averageDendrogram = await screen.findByTestId('linkage-dendrogram-average');
       await waitFor(() =>
-        expect(within(singleDendrogram).getByTestId('dendrogram-cut-line')).toBeInTheDocument(),
+        expect(within(averageDendrogram).getByTestId('dendrogram-cut-line')).toBeInTheDocument(),
       );
 
       // Leaf id 0 is DOCUMENT_IDS_N6[0] ("doc-01"), which sits LAST in the
       // cut response's own (reversed) documentIds -> its label is 2. A join
       // by array position would wrongly read labels[0] = 0 for this leaf.
-      const leafZero = singleDendrogram.querySelector('[data-leaf-id="0"]') as HTMLElement;
+      const leafZero = averageDendrogram.querySelector('[data-leaf-id="0"]') as HTMLElement;
       expect(leafZero).not.toBeNull();
       expect(
         within(leafZero).getByText('3', { selector: '[data-testid="cluster-marker"]' }),
@@ -683,18 +733,18 @@ describe('ClusteringPage', () => {
       renderPage();
       await user.click(await screen.findByRole('button', { name: 'Aplicar corte' }));
 
-      const singleDendrogram = await screen.findByTestId('linkage-dendrogram-single');
+      const averageDendrogram = await screen.findByTestId('linkage-dendrogram-average');
       await waitFor(() =>
-        expect(within(singleDendrogram).getByTestId('dendrogram-cut-line')).toBeInTheDocument(),
+        expect(within(averageDendrogram).getByTestId('dendrogram-cut-line')).toBeInTheDocument(),
       );
 
       const representationGroup = screen.getByRole('radiogroup', { name: 'Representación' });
       await user.click(within(representationGroup).getByRole('radio', { name: 'embedding-local' }));
 
       await waitFor(() => expect(clusteringApi.runClustering).toHaveBeenCalledTimes(2));
-      const refreshedSingleDendrogram = await screen.findByTestId('linkage-dendrogram-single');
+      const refreshedAverageDendrogram = await screen.findByTestId('linkage-dendrogram-average');
       expect(
-        within(refreshedSingleDendrogram).queryByTestId('dendrogram-cut-line'),
+        within(refreshedAverageDendrogram).queryByTestId('dendrogram-cut-line'),
       ).not.toBeInTheDocument();
     });
 
@@ -833,7 +883,7 @@ describe('ClusteringPage', () => {
       await waitFor(() => expect(clusteringApi.runClustering).toHaveBeenCalled());
 
       // Submit the free cut against the current (all four linkages) selection;
-      // the default cut linkage is the first one, "single".
+      // the default cut linkage is "average".
       await user.click(await screen.findByRole('button', { name: 'Aplicar corte' }));
       await waitFor(() => expect(clusteringApi.cutClustering).toHaveBeenCalled());
 
@@ -877,15 +927,14 @@ describe('ClusteringPage', () => {
 
       renderPage();
       await screen.findByLabelText('k: entre 2 y 5');
-      await user.click(screen.getByRole('button', { name: 'Aumentar k' }));
-      await user.click(screen.getByRole('button', { name: 'Aumentar k' }));
+      await user.click(screen.getByRole('button', { name: 'Disminuir k' }));
       await user.click(screen.getByRole('button', { name: 'Aplicar corte' }));
 
       await waitFor(() =>
         expect(clusteringApi.cutClustering).toHaveBeenCalledWith({
           representation: 'tfidf-cosine',
-          linkage: 'single',
-          k: 4,
+          linkage: 'average',
+          k: 3,
         }),
       );
     });
@@ -905,14 +954,14 @@ describe('ClusteringPage', () => {
       const footer = screen.getByTestId('params-status-footer');
       expect(footer).toHaveTextContent('Sin corte aplicado');
 
-      await user.click(screen.getByRole('button', { name: 'Aumentar k' }));
+      await user.click(screen.getByRole('button', { name: 'Disminuir k' }));
       await user.click(screen.getByRole('button', { name: 'Aplicar corte' }));
 
-      await waitFor(() => expect(footer).toHaveTextContent('Corte en single, k = 3'));
+      await waitFor(() => expect(footer).toHaveTextContent('Corte en average, k = 3'));
       expect(screen.getByText('aplicado')).toBeInTheDocument();
       expect(screen.getByRole('button', { name: 'Aplicar corte' })).toBeDisabled();
 
-      await user.click(screen.getByRole('button', { name: 'Aumentar k' }));
+      await user.click(screen.getByRole('button', { name: 'Disminuir k' }));
       expect(screen.queryByText('aplicado')).not.toBeInTheDocument();
       expect(screen.getByRole('button', { name: 'Aplicar corte' })).toBeEnabled();
     });
@@ -929,15 +978,15 @@ describe('ClusteringPage', () => {
 
       renderPage();
       await user.click(await screen.findByRole('button', { name: 'Aplicar corte' }));
-      const singleDendrogram = await screen.findByTestId('linkage-dendrogram-single');
+      const averageDendrogram = await screen.findByTestId('linkage-dendrogram-average');
       await waitFor(() =>
-        expect(within(singleDendrogram).getByTestId('dendrogram-cut-line')).toBeInTheDocument(),
+        expect(within(averageDendrogram).getByTestId('dendrogram-cut-line')).toBeInTheDocument(),
       );
 
       await user.click(screen.getByRole('button', { name: 'Quitar corte' }));
 
       expect(
-        within(screen.getByTestId('linkage-dendrogram-single')).queryByTestId(
+        within(screen.getByTestId('linkage-dendrogram-average')).queryByTestId(
           'dendrogram-cut-line',
         ),
       ).not.toBeInTheDocument();
@@ -1035,7 +1084,7 @@ describe('ClusteringPage', () => {
       const bar = await screen.findByRole('region', { name: 'Resumen de parámetros' });
       expect(bar).toHaveTextContent('tfidf-cosine');
       expect(bar).toHaveTextContent('single, complete, average, ward');
-      expect(bar).toHaveTextContent('corte single k = 3');
+      expect(bar).toHaveTextContent('corte average k = 3');
     });
 
     it('"Editar" scrolls back to the panel and focuses its first control', async () => {
@@ -1078,16 +1127,16 @@ describe('ClusteringPage', () => {
 
       renderPage();
 
-      const single = await screen.findByTestId('linkage-dendrogram-single');
-      expect(within(single).getByTestId('dendrogram-preview-label')).toHaveTextContent('k = 2');
+      const average = await screen.findByTestId('linkage-dendrogram-average');
+      expect(within(average).getByTestId('dendrogram-preview-label')).toHaveTextContent('k = 4');
       const complete = screen.getByTestId('linkage-dendrogram-complete');
       expect(within(complete).queryByTestId('dendrogram-preview-line')).toBeNull();
 
       await user.click(screen.getByRole('radio', { name: 'Complete' }));
       await user.click(screen.getByRole('button', { name: 'Aumentar k' }));
 
-      expect(within(single).queryByTestId('dendrogram-preview-line')).toBeNull();
-      expect(within(complete).getByTestId('dendrogram-preview-label')).toHaveTextContent('k = 3');
+      expect(within(average).queryByTestId('dendrogram-preview-line')).toBeNull();
+      expect(within(complete).getByTestId('dendrogram-preview-label')).toHaveTextContent('k = 5');
     });
 
     it('draws no preview for an invalid k', async () => {
@@ -1108,7 +1157,7 @@ describe('ClusteringPage', () => {
       vi.spyOn(clusteringApi, 'runClustering').mockResolvedValue(DEFAULT_RESPONSE);
       vi.spyOn(clusteringApi, 'cutClustering').mockResolvedValue({
         labels: [0, 0, 1, 1, 2, 2],
-        k: 2,
+        k: 4,
         documentIds: DOCUMENT_IDS_N6,
       });
       const user = userEvent.setup();
@@ -1116,17 +1165,17 @@ describe('ClusteringPage', () => {
       renderPage();
       await user.click(await screen.findByRole('button', { name: 'Aplicar corte' }));
 
-      const single = await screen.findByTestId('linkage-dendrogram-single');
+      const average = await screen.findByTestId('linkage-dendrogram-average');
       await waitFor(() =>
-        expect(within(single).getByTestId('dendrogram-cut-line')).toBeInTheDocument(),
+        expect(within(average).getByTestId('dendrogram-cut-line')).toBeInTheDocument(),
       );
-      expect(within(single).queryByTestId('dendrogram-preview-line')).toBeNull();
-      expect(within(single).getByTestId('dendrogram-cut-chip')).toHaveTextContent('k = 2');
-      expect(within(single).getAllByText('k = 2', { selector: 'span' }).length).toBeGreaterThan(0);
+      expect(within(average).queryByTestId('dendrogram-preview-line')).toBeNull();
+      expect(within(average).getByTestId('dendrogram-cut-chip')).toHaveTextContent('k = 4');
+      expect(within(average).getAllByText('k = 4', { selector: 'span' }).length).toBeGreaterThan(0);
 
       await user.click(screen.getByRole('button', { name: 'Aumentar k' }));
-      expect(within(single).getByTestId('dendrogram-preview-label')).toHaveTextContent('k = 3');
-      expect(within(single).getByTestId('dendrogram-cut-line')).toBeInTheDocument();
+      expect(within(average).getByTestId('dendrogram-preview-label')).toHaveTextContent('k = 5');
+      expect(within(average).getByTestId('dendrogram-cut-line')).toBeInTheDocument();
     });
   });
 });
