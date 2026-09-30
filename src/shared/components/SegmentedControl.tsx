@@ -34,6 +34,9 @@ export interface SegmentedControlProps<TValue extends string> {
   /** `vertical` stacks the options one per row across the full width (and
    * ArrowDown/ArrowUp move like ArrowRight/ArrowLeft); horizontal by default. */
   orientation?: 'horizontal' | 'vertical';
+  /** Stretches a horizontal control to its container, sharing the width
+   * equally between the options. */
+  fullWidth?: boolean;
 }
 
 export type SegmentedSize = 'default' | 'sm';
@@ -74,6 +77,7 @@ export function SegmentedControl<TValue extends string>({
   'aria-labelledby': ariaLabelledBy,
   size = 'default',
   orientation = 'horizontal',
+  fullWidth = false,
 }: SegmentedControlProps<TValue>) {
   const vertical = orientation === 'vertical';
   const matchedIndex = options.findIndex((option) => option.value === value);
@@ -123,7 +127,7 @@ export function SegmentedControl<TValue extends string>({
       type="single"
       orientation={orientation}
       aria-orientation={orientation}
-      className={vertical ? 'w-full flex-col items-stretch' : undefined}
+      className={vertical ? 'w-full flex-col items-stretch' : fullWidth ? 'w-full' : undefined}
       loop
       value={value}
       onValueChange={(next) => {
@@ -139,7 +143,11 @@ export function SegmentedControl<TValue extends string>({
           key={option.value}
           value={option.value}
           lang={option.lang}
-          className={cn(SEGMENTED_ITEM_SIZE_CLASS_NAMES[size], vertical && 'text-left')}
+          className={cn(
+            SEGMENTED_ITEM_SIZE_CLASS_NAMES[size],
+            vertical && 'text-left',
+            fullWidth && !vertical && 'flex-1',
+          )}
         >
           {option.label}
         </ToggleGroupItem>

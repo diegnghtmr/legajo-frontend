@@ -282,6 +282,39 @@ describe('SegmentedControl orientation', () => {
   });
 });
 
+describe('SegmentedControl fullWidth', () => {
+  it('fills its container and shares the width equally between the options', () => {
+    render(
+      <SegmentedControl
+        options={OPTIONS}
+        value="all"
+        onChange={() => {}}
+        aria-label="Family filter"
+        fullWidth
+      />,
+    );
+
+    expect(screen.getByRole('radiogroup', { name: 'Family filter' })).toHaveClass('w-full');
+    for (const radio of screen.getAllByRole('radio')) {
+      expect(radio).toHaveClass('flex-1');
+    }
+  });
+
+  it('stays as wide as its options by default', () => {
+    render(
+      <SegmentedControl
+        options={OPTIONS}
+        value="all"
+        onChange={() => {}}
+        aria-label="Family filter"
+      />,
+    );
+
+    expect(screen.getByRole('radiogroup', { name: 'Family filter' })).not.toHaveClass('w-full');
+    expect(screen.getByRole('radio', { name: 'All' })).not.toHaveClass('flex-1');
+  });
+});
+
 describe('SegmentedControlSkeleton', () => {
   it('shows every label on the real track, holding no radio and nothing focusable', () => {
     const { container } = render(
