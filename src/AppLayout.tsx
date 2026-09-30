@@ -359,7 +359,7 @@ export function AppLayout() {
         id={MAIN_CONTENT_ID}
         ref={mainRef}
         tabIndex={-1}
-        className="flex flex-1 flex-col gap-6 p-(--shell-main-pad) focus:outline focus:outline-2 focus:outline-offset-2 focus:outline-focus"
+        className="flex flex-1 flex-col gap-6 p-(--shell-main-pad) focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus"
       >
         <Outlet />
       </main>
