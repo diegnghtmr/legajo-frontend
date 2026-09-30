@@ -168,11 +168,13 @@ describe('ClusteringPage', () => {
       screen.queryByText('El corte estará disponible cuando termine de cargar el agrupamiento.'),
     ).not.toBeInTheDocument();
     expect(screen.queryByRole('radiogroup', { name: 'Enlace a cortar' })).not.toBeInTheDocument();
-    expect(screen.getByText('Enlace a cortar')).toBeInTheDocument();
+    expect(within(screen.getByTestId('params-cut-band')).getByText('Enlace')).toBeInTheDocument();
     // The segmented control's own placeholder segments, scoped to the
     // group below its label (never the page's own, real linkage-selection
     // buttons elsewhere, which carry the same mono ids).
-    const segmentedGroup = screen.getByText('Enlace a cortar').parentElement;
+    const segmentedGroup = within(screen.getByTestId('params-cut-band')).getByText(
+      'Enlace',
+    ).parentElement;
     for (const linkageId of ALL_FOUR) {
       expect(segmentedGroup).toHaveTextContent(linkageId);
     }
@@ -591,7 +593,7 @@ describe('ClusteringPage', () => {
       expect(
         await screen.findByRole('radiogroup', { name: 'Enlace a cortar' }),
       ).toBeInTheDocument();
-      expect(screen.getByLabelText('k: entre 2 y 5')).toBeInTheDocument();
+      expect(screen.getByLabelText('k: 2 a 5 (ref. 4)')).toBeInTheDocument();
     });
 
     it('starts the free cut on average at the reference k, unapplied', async () => {
@@ -607,8 +609,8 @@ describe('ClusteringPage', () => {
       renderPage();
 
       const cutGroup = await screen.findByRole('radiogroup', { name: 'Enlace a cortar' });
-      expect(within(cutGroup).getByRole('radio', { name: 'Average' })).toBeChecked();
-      expect(screen.getByLabelText('k: entre 2 y 5')).toHaveValue(4);
+      expect(within(cutGroup).getByRole('radio', { name: 'average' })).toBeChecked();
+      expect(screen.getByLabelText('k: 2 a 5 (ref. 4)')).toHaveValue(4);
       expect(clusteringApi.cutClustering).not.toHaveBeenCalled();
 
       await user.click(screen.getByRole('button', { name: 'Aplicar corte' }));
@@ -628,7 +630,7 @@ describe('ClusteringPage', () => {
 
       renderPage();
       const cutGroup = await screen.findByRole('radiogroup', { name: 'Enlace a cortar' });
-      expect(within(cutGroup).getByRole('radio', { name: 'Average' })).toBeChecked();
+      expect(within(cutGroup).getByRole('radio', { name: 'average' })).toBeChecked();
 
       vi.mocked(clusteringApi.runClustering).mockResolvedValue(
         DEFAULT_RESPONSE.filter((result) => result.linkageId !== 'average'),
@@ -638,7 +640,7 @@ describe('ClusteringPage', () => {
       await waitFor(() =>
         expect(
           within(screen.getByRole('radiogroup', { name: 'Enlace a cortar' })).getByRole('radio', {
-            name: 'Single',
+            name: 'single',
           }),
         ).toBeChecked(),
       );
@@ -658,9 +660,9 @@ describe('ClusteringPage', () => {
       await waitFor(() => expect(clusteringApi.runClustering).toHaveBeenCalled());
 
       const cutGroup = await screen.findByRole('radiogroup', { name: 'Enlace a cortar' });
-      await user.click(within(cutGroup).getByRole('radio', { name: 'Complete' }));
+      await user.click(within(cutGroup).getByRole('radio', { name: 'complete' }));
 
-      const kInput = screen.getByLabelText('k: entre 2 y 5');
+      const kInput = screen.getByLabelText('k: 2 a 5 (ref. 4)');
       await user.clear(kInput);
       await user.type(kInput, '3');
       await user.click(screen.getByRole('button', { name: 'Aplicar corte' }));
@@ -764,7 +766,7 @@ describe('ClusteringPage', () => {
       await waitFor(() => expect(clusteringApi.runClustering).toHaveBeenCalled());
 
       const cutGroup = await screen.findByRole('radiogroup', { name: 'Enlace a cortar' });
-      await user.click(within(cutGroup).getByRole('radio', { name: 'Complete' }));
+      await user.click(within(cutGroup).getByRole('radio', { name: 'complete' }));
       await user.click(screen.getByRole('button', { name: 'Aplicar corte' }));
 
       const completeDendrogram = await screen.findByTestId('linkage-dendrogram-complete');
@@ -926,7 +928,7 @@ describe('ClusteringPage', () => {
       const user = userEvent.setup();
 
       renderPage();
-      await screen.findByLabelText('k: entre 2 y 5');
+      await screen.findByLabelText('k: 2 a 5 (ref. 4)');
       await user.click(screen.getByRole('button', { name: 'Disminuir k' }));
       await user.click(screen.getByRole('button', { name: 'Aplicar corte' }));
 
@@ -939,7 +941,7 @@ describe('ClusteringPage', () => {
       );
     });
 
-    it('names the applied cut in the status footer, marks the controls applied and disables the button until they change', async () => {
+    it('names the applied cut in the cut status, marks the controls applied and disables the button until they change', async () => {
       vi.spyOn(corpusApi, 'fetchCorpus').mockResolvedValue(CORPUS);
       vi.spyOn(clusteringApi, 'runClustering').mockResolvedValue(DEFAULT_RESPONSE);
       vi.spyOn(clusteringApi, 'cutClustering').mockResolvedValue({
@@ -950,8 +952,8 @@ describe('ClusteringPage', () => {
       const user = userEvent.setup();
 
       renderPage();
-      await screen.findByLabelText('k: entre 2 y 5');
-      const footer = screen.getByTestId('params-status-footer');
+      await screen.findByLabelText('k: 2 a 5 (ref. 4)');
+      const footer = screen.getByTestId('cut-status');
       expect(footer).toHaveTextContent('Sin corte aplicado');
 
       await user.click(screen.getByRole('button', { name: 'Disminuir k' }));
@@ -990,23 +992,23 @@ describe('ClusteringPage', () => {
           'dendrogram-cut-line',
         ),
       ).not.toBeInTheDocument();
-      expect(screen.getByTestId('params-status-footer')).toHaveTextContent('Sin corte aplicado');
+      expect(screen.getByTestId('cut-status')).toHaveTextContent('Sin corte aplicado');
       expect(screen.getByRole('button', { name: 'Aplicar corte' })).toBeEnabled();
     });
   });
 
-  it('lists n and k_ref in the status footer once the response has loaded', async () => {
+  it('shows n in the representation aside and k_ref in the k label once the response has loaded', async () => {
     vi.spyOn(corpusApi, 'fetchCorpus').mockResolvedValue(CORPUS);
     vi.spyOn(clusteringApi, 'runClustering').mockResolvedValue(DEFAULT_RESPONSE);
 
     renderPage();
 
-    const footer = await screen.findByTestId('params-status-footer');
-    await waitFor(() => expect(footer).toHaveTextContent('n = 6'));
-    expect(footer).toHaveTextContent('k_ref = 4');
+    await waitFor(() => expect(screen.getByText('n = 6')).toBeInTheDocument());
+    expect(screen.getByLabelText('k: 2 a 5 (ref. 4)')).toBeInTheDocument();
+    expect(screen.queryByText('k_ref = 4')).not.toBeInTheDocument();
   });
 
-  it('selects all four linkages again with "Todos"', async () => {
+  it('re-selects a deselected linkage with its own toggle, with no "Todos" button', async () => {
     vi.spyOn(corpusApi, 'fetchCorpus').mockResolvedValue(CORPUS);
     vi.spyOn(clusteringApi, 'runClustering').mockResolvedValue(DEFAULT_RESPONSE);
     const user = userEvent.setup();
@@ -1015,16 +1017,15 @@ describe('ClusteringPage', () => {
     await waitFor(() => expect(clusteringApi.runClustering).toHaveBeenCalled());
     await user.click(screen.getByRole('button', { name: 'ward' }));
     await user.click(screen.getByRole('button', { name: 'complete' }));
-
-    await user.click(screen.getByRole('button', { name: 'Todos' }));
-
-    await waitFor(() =>
-      expect(clusteringApi.runClustering).toHaveBeenLastCalledWith({
-        representation: 'tfidf-cosine',
-        linkages: ['single', 'complete', 'average', 'ward'],
-      }),
-    );
     expect(screen.queryByRole('button', { name: 'Todos' })).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: 'ward' }));
+    await user.click(screen.getByRole('button', { name: 'complete' }));
+
+    await waitFor(() => {
+      const request = vi.mocked(clusteringApi.runClustering).mock.lastCall?.[0];
+      expect([...(request?.linkages ?? [])].sort()).toEqual([...ALL_FOUR].sort());
+    });
   });
 
   describe('the sticky summary bar', () => {
@@ -1058,7 +1059,7 @@ describe('ClusteringPage', () => {
       vi.spyOn(clusteringApi, 'runClustering').mockResolvedValue(DEFAULT_RESPONSE);
 
       renderPage();
-      await screen.findByTestId('params-status-footer');
+      await screen.findByTestId('params-cut-band');
 
       expect(
         screen.queryByRole('region', { name: 'Resumen de parámetros' }),
@@ -1077,7 +1078,7 @@ describe('ClusteringPage', () => {
 
       renderPage();
       await user.click(await screen.findByRole('button', { name: 'Aplicar corte' }));
-      await screen.findByText('Corte en', { exact: false });
+      await waitFor(() => expect(screen.getByTestId('cut-status')).toHaveTextContent('Corte en'));
 
       act(() => reportIntersection({ isIntersecting: false, boundingClientRect: { top: -120 } }));
 
@@ -1093,7 +1094,7 @@ describe('ClusteringPage', () => {
       const user = userEvent.setup();
 
       renderPage();
-      await screen.findByTestId('params-status-footer');
+      await screen.findByTestId('params-cut-band');
       act(() => reportIntersection({ isIntersecting: false, boundingClientRect: { top: -120 } }));
 
       await user.click(await screen.findByRole('button', { name: 'Editar' }));
@@ -1132,7 +1133,7 @@ describe('ClusteringPage', () => {
       const complete = screen.getByTestId('linkage-dendrogram-complete');
       expect(within(complete).queryByTestId('dendrogram-preview-line')).toBeNull();
 
-      await user.click(screen.getByRole('radio', { name: 'Complete' }));
+      await user.click(screen.getByRole('radio', { name: 'complete' }));
       await user.click(screen.getByRole('button', { name: 'Aumentar k' }));
 
       expect(within(average).queryByTestId('dendrogram-preview-line')).toBeNull();
@@ -1145,7 +1146,7 @@ describe('ClusteringPage', () => {
       const user = userEvent.setup();
 
       renderPage();
-      const field = await screen.findByLabelText('k: entre 2 y 5');
+      const field = await screen.findByLabelText('k: 2 a 5 (ref. 4)');
       await user.clear(field);
       await user.type(field, '9');
 

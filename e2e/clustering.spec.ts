@@ -169,12 +169,12 @@ test.describe('clustering screen', () => {
 
     const cutGroup = page.getByRole('radiogroup', { name: 'Enlace a cortar' });
     await expect(cutGroup.getByRole('radio', { name: 'Average' })).toBeChecked();
-    await expect(page.getByLabel('k: entre 2 y 5')).toHaveValue('4');
-    await expect(page.getByTestId('params-status-footer')).toContainText('Sin corte aplicado');
+    await expect(page.getByLabel('k: 2 a 5 (ref. 4)')).toHaveValue('4');
+    await expect(page.getByTestId('cut-status')).toContainText('Sin corte aplicado');
     expect(cutRequests).toBe(0);
 
-    await page.getByRole('region', { name: 'Parámetros' }).screenshot({
-      path: 'test-results/cluster-banner/panel-1467.png',
+    await page.getByRole('region', { name: 'Parámetros del agrupamiento' }).screenshot({
+      path: 'test-results/cluster-banner-v2/panel-1467.png',
     });
   });
 
@@ -223,7 +223,7 @@ test.describe('clustering screen', () => {
 
     const cutGroup = page.getByRole('radiogroup', { name: 'Enlace a cortar' });
     await cutGroup.getByRole('radio', { name: 'Complete' }).click();
-    await page.getByLabel('k: entre 2 y 5').fill('3');
+    await page.getByLabel('k: 2 a 5 (ref. 4)').fill('3');
     await page.getByRole('button', { name: 'Aplicar corte' }).click();
 
     const completeDendrogram = page.getByTestId('linkage-dendrogram-complete');
@@ -356,7 +356,7 @@ test.describe('clustering screen', () => {
   });
 
   for (const width of [1440, 1280, 1024, 768, 390]) {
-    test(`at ${width}px, the parameter panel's columns start at the same top edge and never scroll the page`, async ({
+    test(`at ${width}px, the parameter panel's two columns start at the same top edge from 1024px and never scroll the page`, async ({
       page,
     }) => {
       await page.setViewportSize({ width, height: 900 });
@@ -367,27 +367,24 @@ test.describe('clustering screen', () => {
       // row, the header row, the column itself.
       const column = (title: string) =>
         page.getByRole('heading', { name: title, level: 3 }).locator('xpath=../../..');
-      const columns = [
-        column('Representación'),
-        column('Selección de enlaces'),
-        column('Corte libre'),
-      ];
+      const columns = [column('Representación'), column('Enlaces')];
 
       // Columns take their width from the grid track, never from flex growth.
       for (const item of columns) {
         expect(await computedFlexGrow(item)).toBe('0');
       }
 
-      const boxes = await Promise.all(columns.map((item) => item.boundingBox()));
-      expect(boxes.every((box) => box !== null)).toBe(true);
-      const [representationBox, linkageBox, cutBox] = boxes as NonNullable<
-        (typeof boxes)[number]
-      >[];
+      const [representationBox, linkageBox] = await Promise.all(
+        columns.map((item) => item.boundingBox()),
+      );
+      expect(representationBox).not.toBeNull();
+      expect(linkageBox).not.toBeNull();
 
       // While the columns share one row they start at the same top edge.
-      if (width >= 1100) {
-        expect(Math.abs(representationBox!.y - cutBox!.y)).toBeLessThan(5);
-        expect(Math.abs(linkageBox!.y - cutBox!.y)).toBeLessThan(5);
+      if (width >= 1024) {
+        expect(Math.abs(representationBox!.y - linkageBox!.y)).toBeLessThan(5);
+      } else {
+        expect(linkageBox!.y).toBeGreaterThan(representationBox!.y + representationBox!.height - 1);
       }
 
       // Never a horizontal scroll, wrapped or not.
@@ -402,7 +399,7 @@ test.describe('clustering screen', () => {
     await page.goto('/clustering');
     await expect(page.getByRole('heading', { name: 'Single' })).toBeVisible();
 
-    const field = page.getByLabel('k: entre 2 y 5');
+    const field = page.getByLabel('k: 2 a 5 (ref. 4)');
     const submitButton = page.getByRole('button', { name: 'Aplicar corte' });
     const cutColumn = page
       .getByRole('heading', { name: 'Corte libre', level: 3 })
@@ -543,7 +540,7 @@ test.describe('clustering screen', () => {
       .getByRole('radiogroup', { name: 'Enlace a cortar' })
       .getByRole('radio', { name: 'Complete' })
       .click();
-    await page.getByLabel('k: entre 2 y 5').fill('3');
+    await page.getByLabel('k: 2 a 5 (ref. 4)').fill('3');
     await page.getByRole('button', { name: 'Aplicar corte' }).click();
     await expect(
       page.getByTestId('linkage-dendrogram-complete').getByTestId('dendrogram-cut-line'),
@@ -562,26 +559,31 @@ test.describe('clustering screen', () => {
     expect(scrollWidth).toBeLessThanOrEqual(390);
   });
 
-  test.describe('parameter panel grid', () => {
-    interface ColumnMeasure {
+  test.describe('parameter panel layout', () => {
+    interface Box {
+      x: number;
+      y: number;
       width: number;
       height: number;
-      borderLeft: number;
-      borderTop: number;
     }
-    interface PanelMeasure {
-      gridHeight: number;
-      columns: ColumnMeasure[];
-      footerBackground: string;
-      footerHeight: number;
+    interface PanelStyles {
+      columnBorders: { left: number; top: number }[];
+      bandBackground: string;
+      bandBorderTop: number;
       sunkenToken: string;
     }
 
-    /** Measured in the browser, so the assertions read computed layout, not class names. */
-    async function measurePanel(page: Page): Promise<PanelMeasure> {
+    async function box(locator: Locator): Promise<Box> {
+      const found = await locator.boundingBox();
+      expect(found).not.toBeNull();
+      return found!;
+    }
+
+    /** Computed styles read in the browser, so the assertions do not depend on class names. */
+    async function readStyles(page: Page): Promise<PanelStyles> {
       const panel = page.getByRole('region', { name: 'Parámetros del agrupamiento' });
-      await expect(panel.getByTestId('params-status-footer')).toBeVisible();
-      return panel.evaluate((section): PanelMeasure => {
+      await expect(panel.getByTestId('params-cut-band')).toBeVisible();
+      return panel.evaluate((section): PanelStyles => {
         const env = globalThis as unknown as {
           document: {
             body: { appendChild(node: unknown): void };
@@ -593,62 +595,88 @@ test.describe('clustering screen', () => {
             borderTopWidth: string;
           };
         };
-        const grid = section.firstElementChild!;
-        const footer = section.querySelector('[data-testid="params-status-footer"]')!;
+        const columns = section.querySelector('[data-testid="params-columns"]')!;
+        const band = section.querySelector('[data-testid="params-cut-band"]')!;
         const probe = env.document.createElement('div');
         probe.className = 'bg-paper-sunken';
         env.document.body.appendChild(probe);
         const sunkenToken = env.getComputedStyle(probe).backgroundColor;
         probe.remove();
         return {
-          gridHeight: (
-            grid as unknown as { getBoundingClientRect(): { height: number } }
-          ).getBoundingClientRect().height,
-          columns: Array.from(
-            grid.children as Iterable<{
-              getBoundingClientRect(): { width: number; height: number };
-            }>,
-          ).map((column) => {
+          columnBorders: Array.from(columns.children).map((column) => {
             const style = env.getComputedStyle(column);
             return {
-              width: column.getBoundingClientRect().width,
-              height: column.getBoundingClientRect().height,
-              borderLeft: parseFloat(style.borderLeftWidth),
-              borderTop: parseFloat(style.borderTopWidth),
+              left: parseFloat(style.borderLeftWidth),
+              top: parseFloat(style.borderTopWidth),
             };
           }),
-          footerBackground: env.getComputedStyle(footer).backgroundColor,
-          footerHeight: footer.getBoundingClientRect().height,
+          bandBackground: env.getComputedStyle(band).backgroundColor,
+          bandBorderTop: parseFloat(env.getComputedStyle(band).borderTopWidth),
           sunkenToken,
         };
       });
     }
 
-    test('at 1440px the three columns split 1 : 1 : 1.35 with a 1px rule between them and a sunken footer', async ({
+    const toggles = (page: Page) =>
+      page.getByRole('group', { name: 'Selección de enlaces' }).getByRole('button');
+
+    test('at 1440px two equal columns share a 1px rule over four equal linkage boxes and a full-width sunken cut band', async ({
       page,
     }) => {
       await page.setViewportSize({ width: 1440, height: 900 });
       await page.goto('/clustering');
-      const measure = await measurePanel(page);
+      const styles = await readStyles(page);
+      const panel = page.getByRole('region', { name: 'Parámetros del agrupamiento' });
 
-      expect(measure.columns).toHaveLength(3);
-      const [first, second, third] = measure.columns;
-      expect(second.width / first.width).toBeGreaterThan(0.95);
-      expect(second.width / first.width).toBeLessThan(1.05);
-      expect(third.width / first.width).toBeGreaterThan(1.35 * 0.95);
-      expect(third.width / first.width).toBeLessThan(1.35 * 1.05);
-      expect([first.borderLeft, second.borderLeft, third.borderLeft]).toEqual([0, 1, 1]);
-      expect([first.borderTop, second.borderTop, third.borderTop]).toEqual([0, 0, 0]);
-      // Every column stretches to the grid row, so each rule runs to the footer.
-      for (const column of measure.columns) {
-        expect(Math.abs(column.height - measure.gridHeight)).toBeLessThanOrEqual(1);
+      const columns = ['Representación', 'Enlaces'].map((title) =>
+        page.getByRole('heading', { name: title, level: 3 }).locator('xpath=../../..'),
+      );
+      const [first, second] = await Promise.all(columns.map(box));
+      expect(Math.abs(second!.width - first!.width)).toBeLessThanOrEqual(1);
+      expect(styles.columnBorders).toEqual([
+        { left: 0, top: 0 },
+        { left: 1, top: 0 },
+      ]);
+
+      // Four equal boxes in one row, 8px apart, 36px tall.
+      const boxes = await Promise.all([0, 1, 2, 3].map((index) => box(toggles(page).nth(index))));
+      for (const [index, item] of boxes.entries()) {
+        expect(Math.abs(item.y - boxes[0]!.y)).toBeLessThanOrEqual(1);
+        expect(Math.abs(item.width - boxes[0]!.width)).toBeLessThanOrEqual(1);
+        expect(item.height).toBeCloseTo(36, 0);
+        if (index > 0) {
+          const previous = boxes[index - 1]!;
+          expect(item.x - (previous.x + previous.width)).toBeCloseTo(8, 0);
+        }
       }
-      expect(measure.footerBackground).toBe(measure.sunkenToken);
-      expect(measure.footerHeight).toBeGreaterThanOrEqual(44);
+      await expect(toggles(page)).toHaveCount(4);
 
-      await page
-        .getByRole('region', { name: 'Parámetros del agrupamiento' })
-        .screenshot({ path: 'test-results/clustering-params-1440.png' });
+      // The band spans the card under the columns, on the sunken surface.
+      const panelBox = await box(panel);
+      const bandBox = await box(page.getByTestId('params-cut-band'));
+      expect(Math.abs(bandBox.width - panelBox.width)).toBeLessThanOrEqual(2);
+      expect(bandBox.y).toBeGreaterThanOrEqual(first!.y + first!.height - 1);
+      expect(styles.bandBackground).toBe(styles.sunkenToken);
+      expect(styles.bandBorderTop).toBe(1);
+
+      // The apply button ends the band's row; the status sits under it, right-aligned.
+      const applyBox = await box(page.getByRole('button', { name: 'Aplicar corte' }));
+      const statusBox = await box(page.getByTestId('cut-status'));
+      expect(bandBox.x + bandBox.width - (applyBox.x + applyBox.width)).toBeLessThanOrEqual(24);
+      expect(statusBox.y).toBeGreaterThanOrEqual(applyBox.y + applyBox.height - 1);
+      expect(
+        Math.abs(statusBox.x + statusBox.width - (applyBox.x + applyBox.width)),
+      ).toBeLessThanOrEqual(2);
+
+      // The corpus size and the reference cut come from the loaded response.
+      await expect(
+        page.getByRole('heading', { name: 'Representación', level: 3 }).locator('xpath=../..'),
+      ).toContainText('n = 6');
+      await expect(page.getByLabel('k: 2 a 5 (ref. 4)')).toHaveValue('4');
+      await expect(page.getByTestId('params-status-footer')).toHaveCount(0);
+      await expect(page.getByRole('button', { name: 'Todos' })).toHaveCount(0);
+
+      await panel.screenshot({ path: 'test-results/cluster-banner-v2/panel-1440.png' });
     });
 
     test('at 390px the representation options stack one per row, each on a single line inside the track', async ({
@@ -665,41 +693,90 @@ test.describe('clustering screen', () => {
       const boxes = await Promise.all(
         [0, 1, 2].map(async (index) => (await radios.nth(index).boundingBox())!),
       );
-      for (const [index, box] of boxes.entries()) {
+      for (const [index, item] of boxes.entries()) {
         // One line of 13px text plus padding stays well under two line boxes.
-        expect(box.height).toBeLessThanOrEqual(46);
-        expect(box.x).toBeGreaterThanOrEqual(groupBox.x);
-        expect(box.x + box.width).toBeLessThanOrEqual(groupBox.x + groupBox.width + 1);
+        expect(item.height).toBeLessThanOrEqual(46);
+        expect(item.x).toBeGreaterThanOrEqual(groupBox.x);
+        expect(item.x + item.width).toBeLessThanOrEqual(groupBox.x + groupBox.width + 1);
         if (index > 0) {
-          expect(box.y).toBeGreaterThan(boxes[index - 1]!.y);
-          expect(Math.abs(box.x - boxes[0]!.x)).toBeLessThan(2);
+          expect(item.y).toBeGreaterThan(boxes[index - 1]!.y);
+          expect(Math.abs(item.x - boxes[0]!.x)).toBeLessThan(2);
         }
       }
       const overflow = await group.evaluate((el) => el.scrollWidth - el.clientWidth);
       expect(overflow).toBeLessThanOrEqual(0);
     });
 
-    for (const width of [1024, 390]) {
-      test(`at ${width}px the columns stack with top rules and the page does not scroll sideways`, async ({
+    for (const width of [1024, 768, 390]) {
+      test(`at ${width}px the panel wraps as specified and the page does not scroll sideways`, async ({
         page,
       }) => {
         await page.setViewportSize({ width, height: 900 });
         await page.goto('/clustering');
-        const measure = await measurePanel(page);
+        const styles = await readStyles(page);
+        const panel = page.getByRole('region', { name: 'Parámetros del agrupamiento' });
 
-        const [first, second, third] = measure.columns;
-        expect([first.borderTop, second.borderTop, third.borderTop]).toEqual([0, 1, 1]);
-        expect([first.borderLeft, second.borderLeft, third.borderLeft]).toEqual([0, 0, 0]);
-        expect(second.width).toBeCloseTo(first.width, 0);
-        expect(third.width).toBeCloseTo(first.width, 0);
-        expect(measure.footerBackground).toBe(measure.sunkenToken);
+        const sideBySide = width >= 1024;
+        expect(styles.columnBorders).toEqual(
+          sideBySide
+            ? [
+                { left: 0, top: 0 },
+                { left: 1, top: 0 },
+              ]
+            : [
+                { left: 0, top: 0 },
+                { left: 0, top: 1 },
+              ],
+        );
+        expect(styles.bandBackground).toBe(styles.sunkenToken);
 
+        // Four linkage boxes in one row from 640px; two columns below.
+        const boxes = await Promise.all([0, 1, 2, 3].map((index) => box(toggles(page).nth(index))));
+        if (width >= 640) {
+          expect(new Set(boxes.map((item) => Math.round(item.y))).size).toBe(1);
+        } else {
+          expect(Math.abs(boxes[1]!.y - boxes[0]!.y)).toBeLessThanOrEqual(1);
+          expect(boxes[2]!.y).toBeGreaterThan(boxes[0]!.y + boxes[0]!.height - 1);
+          expect(Math.abs(boxes[2]!.x - boxes[0]!.x)).toBeLessThanOrEqual(1);
+          expect(Math.abs(boxes[3]!.x - boxes[1]!.x)).toBeLessThanOrEqual(1);
+        }
+
+        // Every id shows in full, never cut with an ellipsis.
+        const clipped = await toggles(page).evaluateAll((buttons) =>
+          buttons.map((button) => {
+            const label = (
+              button as unknown as {
+                firstElementChild: { scrollWidth: number; clientWidth: number };
+              }
+            ).firstElementChild;
+            return label.scrollWidth > label.clientWidth;
+          }),
+        );
+        expect(clipped).toEqual([false, false, false, false]);
+
+        // Nothing spills out of the card, and the page never scrolls sideways.
+        const panelBox = await box(panel);
+        for (const control of [
+          page.getByRole('button', { name: 'Aplicar corte' }),
+          page.getByLabel('k: 2 a 5 (ref. 4)'),
+          page.getByRole('radiogroup', { name: 'Enlace a cortar' }),
+        ]) {
+          const controlBox = await box(control);
+          expect(controlBox.x).toBeGreaterThanOrEqual(panelBox.x - 1);
+          expect(controlBox.x + controlBox.width).toBeLessThanOrEqual(
+            panelBox.x + panelBox.width + 1,
+          );
+        }
+        if (!sideBySide) {
+          // The action and its status take their own line under Enlace and k.
+          const applyBox = await box(page.getByRole('button', { name: 'Aplicar corte' }));
+          const kBox = await box(page.getByLabel('k: 2 a 5 (ref. 4)'));
+          expect(applyBox.y).toBeGreaterThan(kBox.y + kBox.height - 1);
+        }
         const scrollWidth = await page.evaluate<number>('document.documentElement.scrollWidth');
         expect(scrollWidth).toBeLessThanOrEqual(width);
 
-        await page
-          .getByRole('region', { name: 'Parámetros del agrupamiento' })
-          .screenshot({ path: `test-results/clustering-params-${width}.png` });
+        await panel.screenshot({ path: `test-results/cluster-banner-v2/panel-${width}.png` });
       });
     }
   });

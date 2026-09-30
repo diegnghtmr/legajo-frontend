@@ -305,29 +305,28 @@
       "label": "Clustering parameters",
       "representation": {
         "title": "Representation",
-        "hint": "D = 1 − cosine; Ward operates on 2·D."
+        "hint": "D = 1 − cosine; Ward operates on 2·D.",
+        "n": "n = {{n}}"
       },
       "linkages": {
-        "title": "Linkage selection",
+        "title": "Linkages",
         "count": "{{count}} / 4",
-        "selectAll": "All",
-        "hintAll": "All four linkages are compared: the tree and partition leaders are marked."
+        "hintAll": "Tree and partition leaders are marked."
       },
       "cut": {
         "title": "Free cut",
-        "kLabel": "k: between 2 and {{max}}",
+        "linkageLabel": "Linkage",
+        "kLabel": "k: 2 to {{max}} (ref. {{kRef}})",
         "kDecrease": "Decrease k",
         "kIncrease": "Increase k",
-        "hint": "The dotted line on the dendrogram shows where the cut will fall before you apply it.",
+        "hint": "The dotted line previews the cut on the dendrogram.",
         "applied": "applied",
         "noLinkageTitle": "No linkage to cut",
         "noLinkageGlyph": "0 / 4",
         "errorTitle": "Cut unavailable",
         "errorGlyph": "—"
       },
-      "footer": {
-        "n": "n = {{n}}",
-        "kRef": "k_ref = {{kRef}}",
+      "status": {
         "appliedCut": "Cut on <mono>{{linkage}}</mono>, <mono>k = {{k}}</mono>",
         "noCut": "No cut applied",
         "clearCut": "Clear cut"

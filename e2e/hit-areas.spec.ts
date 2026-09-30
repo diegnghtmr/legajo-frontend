@@ -390,6 +390,11 @@ test.describe('44x44 touch targets at 390px', () => {
         `clustering linkage button (${linkageId})`,
       );
     }
+    // The free-cut band sits below the fold of the stacked panel at 390px;
+    // centre it so neither the top bar nor the summary bar covers it.
+    await page.getByRole('button', { name: 'Aplicar corte' }).evaluate((el) => {
+      el.scrollIntoView({ block: 'center' });
+    });
     await expectEachAtLeast44(
       page.getByRole('radiogroup', { name: 'Enlace a cortar' }).getByRole('radio'),
       'clustering cut-linkage option',
@@ -404,13 +409,12 @@ test.describe('44x44 touch targets at 390px', () => {
     );
     await expectEachAtLeast44(page.getByRole('spinbutton'), 'clustering k field');
 
-    // The quiet actions that appear only in a state: `Todos` once a linkage
-    // is deselected, `Quitar corte` once a cut is applied.
+    // The quiet action that appears only in a state: `Quitar corte` once a
+    // cut is applied. Toggling a linkage off and on again leaves all four.
     await page.getByRole('button', { name: 'ward', exact: true }).click();
-    await expectEachAtLeast44(page.getByRole('button', { name: 'Todos' }), 'clustering select-all');
-    await page.getByRole('button', { name: 'Todos' }).click();
+    await page.getByRole('button', { name: 'ward', exact: true }).click();
     await page.getByRole('button', { name: 'Aplicar corte' }).click();
-    // The status footer sits below the fold of the stacked panel at 390px;
+    // The cut status sits below the fold of the stacked panel at 390px;
     // centre it so neither the top bar nor the summary bar covers it.
     await page.getByRole('button', { name: 'Quitar corte' }).evaluate((el) => {
       el.scrollIntoView({ block: 'center' });

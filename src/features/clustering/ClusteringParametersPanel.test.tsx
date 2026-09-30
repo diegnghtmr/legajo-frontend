@@ -43,7 +43,6 @@ function renderPanel(overrides: Partial<ClusteringParametersPanelProps> = {}) {
     onRepresentationChange: vi.fn(),
     selectedLinkages: ALL_FOUR,
     onToggleLinkage: vi.fn(),
-    onSelectAllLinkages: vi.fn(),
     cut: readyCut(),
     onClearCut: vi.fn(),
     ...overrides,
@@ -70,26 +69,13 @@ describe('ClusteringParametersPanel', () => {
     );
   });
 
-  it('marks each linkage button with an aria-hidden tick box', () => {
-    renderPanel({ selectedLinkages: ['single', 'ward'] });
-
-    const group = screen.getByRole('group', { name: 'Selección de enlaces' });
-    const buttons = within(group).getAllByRole('button');
-    expect(buttons).toHaveLength(4);
-    for (const button of buttons) {
-      expect(button.querySelector('[data-tick]')).toHaveAttribute('aria-hidden', 'true');
-    }
-  });
-
-  it('lays the columns out on a 1 : 1 : 1.35 grid from 1100px with hairline rules between them', () => {
+  it('lays the representation and linkage columns in two equal tracks from 1024px, split by a hairline rule', () => {
     renderPanel();
 
-    const grid = screen.getByRole('heading', { name: 'Representación' }).closest('section > div');
-    expect(grid).toHaveClass(
-      'min-[1100px]:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,1.35fr)]',
-    );
-    const columns = ['Representación', 'Selección de enlaces', 'Corte libre'].map((name) =>
-      screen.getByRole('heading', { name }).closest('.min-w-0'),
+    const grid = screen.getByTestId('params-columns');
+    expect(grid).toHaveClass('grid', 'grid-cols-1', 'min-[1024px]:grid-cols-2');
+    const columns = ['Representación', 'Enlaces'].map((name) =>
+      screen.getByRole('heading', { name, level: 3 }).closest('.min-w-0'),
     );
     for (const [index, column] of columns.entries()) {
       expect(column).toHaveClass('min-w-0', 'px-5', 'pt-4', 'pb-[18px]', 'border-hairline');
@@ -98,26 +84,35 @@ describe('ClusteringParametersPanel', () => {
       } else {
         expect(column).toHaveClass(
           'not-first:border-t',
-          'min-[1100px]:not-first:border-t-0',
-          'min-[1100px]:not-first:border-l',
+          'min-[1024px]:not-first:border-t-0',
+          'min-[1024px]:not-first:border-l',
         );
       }
     }
   });
 
-  it('puts the status footer on a sunken surface at least 44px tall', () => {
+  it('puts the free cut in a full-width sunken band under the columns, not inside them', () => {
     renderPanel();
 
-    expect(screen.getByTestId('params-status-footer')).toHaveClass('bg-paper-sunken', 'min-h-11');
+    const band = screen.getByTestId('params-cut-band');
+    expect(band).toHaveClass('bg-paper-sunken', 'border-t', 'border-hairline');
+    expect(screen.getByTestId('params-columns')).not.toContainElement(band);
+    expect(
+      within(band).getByRole('heading', { name: 'Corte libre', level: 3 }),
+    ).toBeInTheDocument();
+    expect(within(band).getByText('03')).toBeInTheDocument();
+    expect(within(band).getByRole('radiogroup', { name: 'Enlace a cortar' })).toBeInTheDocument();
+    expect(within(band).getByRole('button', { name: 'Aplicar corte' })).toBeInTheDocument();
+    expect(screen.queryByTestId('params-status-footer')).not.toBeInTheDocument();
   });
 
-  it('is one card with three numbered columns, each titled after its control', () => {
+  it('is one card with two numbered columns and the numbered cut band, each titled after its control', () => {
     renderPanel();
 
     const card = screen.getByRole('region', { name: 'Parámetros del agrupamiento' });
     for (const [step, title] of [
       ['01', 'Representación'],
-      ['02', 'Selección de enlaces'],
+      ['02', 'Enlaces'],
       ['03', 'Corte libre'],
     ] as const) {
       expect(within(card).getByRole('heading', { name: title, level: 3 })).toBeInTheDocument();
@@ -126,6 +121,29 @@ describe('ClusteringParametersPanel', () => {
     expect(within(card).getByRole('radiogroup', { name: 'Representación' })).toBeInTheDocument();
     expect(within(card).getByRole('group', { name: 'Selección de enlaces' })).toBeInTheDocument();
     expect(within(card).getByRole('radiogroup', { name: 'Enlace a cortar' })).toBeInTheDocument();
+  });
+
+  it('stretches the representation options over the whole column when they sit in a row', () => {
+    renderPanel();
+
+    expect(screen.getByRole('radiogroup', { name: 'Representación' })).toHaveClass('w-full');
+    expect(screen.getByRole('radio', { name: 'tfidf-cosine' })).toHaveClass('flex-1');
+  });
+
+  it('shows the loaded corpus size as the representation aside, and an ellipsis while it is unknown', () => {
+    const { unmount } = renderPanel();
+    const header = () =>
+      screen.getByRole('heading', { name: 'Representación', level: 3 }).parentElement
+        ?.parentElement as HTMLElement;
+    expect(within(header()).getByText('n = 6')).toBeInTheDocument();
+    unmount();
+
+    const pending = renderPanel({ cut: { status: 'pending', sampleSizeEstimate: 20 } });
+    expect(within(header()).getByText('n = …')).toBeInTheDocument();
+    pending.unmount();
+
+    renderPanel({ cut: { status: 'unavailable', reason: 'error' } });
+    expect(within(header()).getByText('n = …')).toBeInTheDocument();
   });
 
   it('states the distance basis as the representation hint', () => {
@@ -144,39 +162,51 @@ describe('ClusteringParametersPanel', () => {
   });
 
   describe('linkage selection', () => {
-    it('counts the selected linkages out of four and offers no "Todos" while all are selected', () => {
+    it('shows four boxed toggles with the mono count and the all-linkages hint while all are selected', () => {
       renderPanel();
 
+      const group = screen.getByRole('group', { name: 'Selección de enlaces' });
+      expect(
+        within(group)
+          .getAllByRole('button')
+          .map((b) => b.textContent),
+      ).toEqual(['single', 'complete', 'average', 'ward']);
+      for (const button of within(group).getAllByRole('button')) {
+        expect(button).toHaveAttribute('aria-pressed', 'true');
+      }
       expect(screen.getByText('4 / 4')).toBeInTheDocument();
       expect(screen.queryByRole('button', { name: 'Todos' })).not.toBeInTheDocument();
       expect(
-        screen.getByText(
-          'Se comparan los cuatro enlaces: se marcan los líderes de árbol y de partición.',
-        ),
+        screen.getByText('Se marcan los líderes de árbol y de partición.'),
       ).toBeInTheDocument();
     });
 
-    it('offers a quiet "Todos" action and the leaders hint while fewer than four are selected', async () => {
-      const user = userEvent.setup();
-      const { props } = renderPanel({ selectedLinkages: ['single', 'ward'] });
+    it('presses only the selected toggles and explains when leaders appear while fewer than four are selected', () => {
+      renderPanel({ selectedLinkages: ['single', 'ward'] });
 
       expect(screen.getByText('2 / 4')).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'single' })).toHaveAttribute(
+        'aria-pressed',
+        'true',
+      );
+      expect(screen.getByRole('button', { name: 'complete' })).toHaveAttribute(
+        'aria-pressed',
+        'false',
+      );
       expect(
         screen.getByText('Los líderes se muestran cuando se comparan los cuatro enlaces.'),
       ).toBeInTheDocument();
-
-      await user.click(screen.getByRole('button', { name: 'Todos' }));
-      expect(props.onSelectAllLinkages).toHaveBeenCalledOnce();
+      expect(screen.queryByRole('button', { name: 'Todos' })).not.toBeInTheDocument();
     });
 
-    it('says a linkage is needed when none is selected, and still offers "Todos"', () => {
+    it('says a linkage is needed when none is selected', () => {
       renderPanel({ selectedLinkages: [], cut: { status: 'unavailable', reason: 'no-linkage' } });
 
-      const header = screen.getByRole('heading', { name: 'Selección de enlaces' }).parentElement
+      const header = screen.getByRole('heading', { name: 'Enlaces' }).parentElement
         ?.parentElement as HTMLElement;
       expect(within(header).getByText('0 / 4')).toBeInTheDocument();
       expect(screen.getByText('Selecciona al menos un enlace para agrupar.')).toBeInTheDocument();
-      expect(screen.getByRole('button', { name: 'Todos' })).toBeInTheDocument();
+      expect(screen.getAllByRole('button', { pressed: false })).toHaveLength(4);
     });
 
     it('reports a toggled linkage', async () => {
@@ -190,11 +220,28 @@ describe('ClusteringParametersPanel', () => {
   });
 
   describe('free cut column', () => {
+    it('labels the linkage group "Enlace" and offers the linkages as lowercase mono ids', () => {
+      renderPanel({ cut: readyCut({ linkage: 'complete' }) });
+
+      const band = screen.getByTestId('params-cut-band');
+      expect(within(band).getByText('Enlace')).toBeInTheDocument();
+      const radios = within(
+        screen.getByRole('radiogroup', { name: 'Enlace a cortar' }),
+      ).getAllByRole('radio');
+      expect(radios.map((radio) => radio.textContent)).toEqual([
+        'single',
+        'complete',
+        'average',
+        'ward',
+      ]);
+      expect(within(radios[0]!).getByText('single')).toHaveClass('font-mono');
+    });
+
     it('offers the linkages to cut as a small radiogroup, with the current one checked', () => {
       renderPanel({ cut: readyCut({ linkage: 'complete' }) });
 
       const group = screen.getByRole('radiogroup', { name: 'Enlace a cortar' });
-      expect(within(group).getByRole('radio', { name: 'Complete' })).toHaveAttribute(
+      expect(within(group).getByRole('radio', { name: 'complete' })).toHaveAttribute(
         'aria-checked',
         'true',
       );
@@ -205,7 +252,7 @@ describe('ClusteringParametersPanel', () => {
       const onLinkageChange = vi.fn();
       renderPanel({ cut: readyCut({ onLinkageChange }) });
 
-      await user.click(screen.getByRole('radio', { name: 'Ward' }));
+      await user.click(screen.getByRole('radio', { name: 'ward' }));
 
       expect(onLinkageChange).toHaveBeenCalledWith('ward');
     });
@@ -213,7 +260,7 @@ describe('ClusteringParametersPanel', () => {
     it('labels the k stepper with its range, bounded by n - 1', () => {
       renderPanel();
 
-      const field = screen.getByLabelText('k: entre 2 y 5');
+      const field = screen.getByLabelText('k: 2 a 5 (ref. 4)');
       expect(field).toHaveValue(3);
       expect(screen.getByRole('button', { name: 'Disminuir k' })).toBeEnabled();
       expect(screen.getByRole('button', { name: 'Aumentar k' })).toBeEnabled();
@@ -227,14 +274,14 @@ describe('ClusteringParametersPanel', () => {
       await user.click(screen.getByRole('button', { name: 'Aumentar k' }));
       expect(onKChange).toHaveBeenLastCalledWith(4);
 
-      await user.type(screen.getByLabelText('k: entre 2 y 5'), '1');
+      await user.type(screen.getByLabelText('k: 2 a 5 (ref. 4)'), '1');
       expect(onKChange).toHaveBeenLastCalledWith(31);
     });
 
     it('shows the range error only while k is invalid, and disables "Aplicar corte"', () => {
       renderPanel({ cut: readyCut({ k: 9 }) });
 
-      expect(screen.getByLabelText('k: entre 2 y 5')).toHaveAttribute('aria-invalid', 'true');
+      expect(screen.getByLabelText('k: 2 a 5 (ref. 4)')).toHaveAttribute('aria-invalid', 'true');
       expect(screen.getByRole('alert')).toHaveTextContent('k debe ser un entero entre 2 y 5.');
       expect(screen.getByRole('button', { name: 'Aplicar corte' })).toBeDisabled();
     });
@@ -247,7 +294,7 @@ describe('ClusteringParametersPanel', () => {
       await user.click(screen.getByRole('button', { name: 'Aplicar corte' }));
       expect(onApply).toHaveBeenCalledTimes(1);
 
-      await user.type(screen.getByLabelText('k: entre 2 y 5'), '{Enter}');
+      await user.type(screen.getByLabelText('k: 2 a 5 (ref. 4)'), '{Enter}');
       expect(onApply).toHaveBeenCalledTimes(2);
     });
 
@@ -256,7 +303,7 @@ describe('ClusteringParametersPanel', () => {
       const onApply = vi.fn();
       renderPanel({ cut: readyCut({ k: 9, onApply }) });
 
-      await user.type(screen.getByLabelText('k: entre 2 y 5'), '{Enter}');
+      await user.type(screen.getByLabelText('k: 2 a 5 (ref. 4)'), '{Enter}');
 
       expect(onApply).not.toHaveBeenCalled();
     });
@@ -340,51 +387,86 @@ describe('ClusteringParametersPanel', () => {
     it('reserves the column with skeleton blocks while the clustering loads, holding nothing focusable', () => {
       renderPanel({ cut: { status: 'pending', sampleSizeEstimate: 20 } });
 
-      const label = screen.getByText('Enlace a cortar');
+      const label = screen.getByText('Enlace');
       expect(label).toBeInTheDocument();
-      expect(screen.getByText('k: entre 2 y 19')).toBeInTheDocument();
+      expect(screen.getByText('k: 2 a 19 (ref. 4)')).toBeInTheDocument();
       expect(screen.queryByRole('radiogroup', { name: 'Enlace a cortar' })).not.toBeInTheDocument();
       expect(screen.queryByRole('button', { name: 'Aplicar corte' })).not.toBeInTheDocument();
       expect(screen.queryByRole('spinbutton')).not.toBeInTheDocument();
     });
   });
 
-  describe('status footer', () => {
-    it('lists n and k_ref as two separate items', () => {
+  describe('cut status', () => {
+    it('sits under "Aplicar corte", right-aligned in the band, and says no cut is applied when there is none', () => {
       renderPanel();
 
-      const footer = screen.getByTestId('params-status-footer');
-      expect(within(footer).getByText('n = 6')).toBeInTheDocument();
-      expect(within(footer).getByText('k_ref = 4')).toBeInTheDocument();
-      expect(footer).not.toHaveTextContent('·');
-    });
-
-    it('says no cut is applied when there is none', () => {
-      renderPanel();
-
-      expect(screen.getByText('Sin corte aplicado')).toBeInTheDocument();
+      const status = screen.getByTestId('cut-status');
+      expect(status).toHaveTextContent('Sin corte aplicado');
       expect(screen.queryByRole('button', { name: 'Quitar corte' })).not.toBeInTheDocument();
+      const action = screen.getByRole('button', { name: 'Aplicar corte' }).parentElement!;
+      expect(action).toContainElement(status);
+      expect(action).toHaveClass('min-[1024px]:ml-auto');
+      expect(screen.getByTestId('params-cut-band')).toContainElement(action);
     });
 
-    it('names the applied cut and lets the user clear it', async () => {
+    it('names the applied cut and lets the user clear it, with no middle dot anywhere', async () => {
       const user = userEvent.setup();
       const { props } = renderPanel({ appliedCut: { linkageId: 'ward', k: 3 } });
 
-      const footer = screen.getByTestId('params-status-footer');
-      expect(footer).toHaveTextContent('Corte en ward, k = 3');
-      expect(within(footer).queryByText('Sin corte aplicado')).not.toBeInTheDocument();
+      const status = screen.getByTestId('cut-status');
+      expect(status).toHaveTextContent('Corte en ward, k = 3');
+      expect(status).not.toHaveTextContent('Sin corte aplicado');
+      expect(screen.getByTestId('params-cut-band')).not.toHaveTextContent('·');
 
-      await user.click(within(footer).getByRole('button', { name: 'Quitar corte' }));
+      await user.click(within(status).getByRole('button', { name: 'Quitar corte' }));
       expect(props.onClearCut).toHaveBeenCalledOnce();
     });
 
-    it('omits n and k_ref while nothing is known about the corpus', () => {
-      renderPanel({ cut: { status: 'unavailable', reason: 'error' } });
+    it('marks "aplicado" next to the band title and not in the status', () => {
+      renderPanel({
+        cut: readyCut({ linkage: 'complete', k: 3 }),
+        appliedCut: { linkageId: 'complete', k: 3 },
+      });
 
-      const footer = screen.getByTestId('params-status-footer');
-      expect(footer).not.toHaveTextContent('n =');
-      expect(footer).toHaveTextContent('Sin corte aplicado');
+      const title = screen.getByRole('heading', { name: 'Corte libre', level: 3 });
+      expect(within(title.parentElement!).getByText('aplicado')).toBeInTheDocument();
     });
+
+    it('keeps the status and the clear button when there is no linkage to cut', () => {
+      renderPanel({
+        selectedLinkages: [],
+        cut: { status: 'unavailable', reason: 'error' },
+        appliedCut: { linkageId: 'ward', k: 3 },
+      });
+
+      expect(screen.getByTestId('cut-status')).toHaveTextContent('Corte en ward, k = 3');
+    });
+  });
+
+  it('keeps the keyboard order: representation, linkage toggles, cut linkage, k, apply, clear', async () => {
+    const user = userEvent.setup();
+    renderPanel({ appliedCut: { linkageId: 'ward', k: 3 } });
+
+    const names: string[] = [];
+    for (let step = 0; step < 15; step += 1) {
+      await user.tab();
+      const focused = document.activeElement as HTMLElement;
+      names.push(focused.getAttribute('aria-label') ?? focused.textContent ?? '');
+      if (names.at(-1) === 'Quitar corte') break;
+    }
+    expect(names).toEqual([
+      'tfidf-cosine',
+      'single',
+      'complete',
+      'average',
+      'ward',
+      'single',
+      'Disminuir k',
+      '',
+      'Aumentar k',
+      'Aplicar corte',
+      'Quitar corte',
+    ]);
   });
 
   it('stays controlled by its owner: the stepper shows whatever k the owner holds', async () => {
@@ -397,7 +479,6 @@ describe('ClusteringParametersPanel', () => {
           onRepresentationChange={() => {}}
           selectedLinkages={ALL_FOUR}
           onToggleLinkage={() => {}}
-          onSelectAllLinkages={() => {}}
           cut={readyCut({ k, onKChange: setK })}
           onClearCut={() => {}}
         />
@@ -406,6 +487,6 @@ describe('ClusteringParametersPanel', () => {
     render(<Harness />);
 
     await user.click(screen.getByRole('button', { name: 'Aumentar k' }));
-    expect(screen.getByLabelText('k: entre 2 y 5')).toHaveValue(3);
+    expect(screen.getByLabelText('k: 2 a 5 (ref. 4)')).toHaveValue(3);
   });
 });
