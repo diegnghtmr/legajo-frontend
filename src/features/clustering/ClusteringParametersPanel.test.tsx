@@ -123,11 +123,11 @@ describe('ClusteringParametersPanel', () => {
     expect(within(card).getByRole('radiogroup', { name: 'Enlace a cortar' })).toBeInTheDocument();
   });
 
-  it('stretches the representation options over the whole column when they sit in a row', () => {
+  it('stretches the representation track over the whole column, the options keeping their own width', () => {
     renderPanel();
 
     expect(screen.getByRole('radiogroup', { name: 'Representación' })).toHaveClass('w-full');
-    expect(screen.getByRole('radio', { name: 'tfidf-cosine' })).toHaveClass('flex-1');
+    expect(screen.getByRole('radio', { name: 'tfidf-cosine' })).not.toHaveClass('flex-1');
   });
 
   it('shows the loaded corpus size as the representation aside, and an ellipsis while it is unknown', () => {

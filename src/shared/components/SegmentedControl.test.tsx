@@ -283,7 +283,7 @@ describe('SegmentedControl orientation', () => {
 });
 
 describe('SegmentedControl fullWidth', () => {
-  it('fills its container and shares the width equally between the options', () => {
+  it('stretches only the track to its container, leaving the options at their own width', () => {
     render(
       <SegmentedControl
         options={OPTIONS}
@@ -296,7 +296,7 @@ describe('SegmentedControl fullWidth', () => {
 
     expect(screen.getByRole('radiogroup', { name: 'Family filter' })).toHaveClass('w-full');
     for (const radio of screen.getAllByRole('radio')) {
-      expect(radio).toHaveClass('flex-1');
+      expect(radio).not.toHaveClass('flex-1');
     }
   });
 

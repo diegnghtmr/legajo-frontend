@@ -638,6 +638,27 @@ test.describe('clustering screen', () => {
         { left: 1, top: 0 },
       ]);
 
+      // The representation track spans its column; the options keep their
+      // own width, packed from the left edge.
+      const track = page.getByRole('radiogroup', { name: 'Representación' });
+      const trackBox = await box(track);
+      const optionBoxes = await Promise.all(
+        [0, 1, 2].map((index) => box(track.getByRole('radio').nth(index))),
+      );
+      expect(Math.abs(trackBox.width - (first!.width - 40))).toBeLessThanOrEqual(2);
+      expect(optionBoxes[0]!.x - trackBox.x).toBeLessThanOrEqual(6);
+      const optionsEnd = optionBoxes[2]!.x + optionBoxes[2]!.width;
+      expect(optionsEnd).toBeLessThan(trackBox.x + trackBox.width - 100);
+      const spans = await track
+        .getByRole('radio')
+        .evaluateAll((radios) =>
+          radios.map(
+            (radio) =>
+              radio.scrollWidth - (radio as unknown as { clientWidth: number }).clientWidth,
+          ),
+        );
+      expect(spans).toEqual([0, 0, 0]);
+
       // Four equal boxes in one row, 8px apart, 36px tall.
       const boxes = await Promise.all([0, 1, 2, 3].map((index) => box(toggles(page).nth(index))));
       for (const [index, item] of boxes.entries()) {
