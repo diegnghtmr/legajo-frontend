@@ -294,7 +294,7 @@ test.describe('end-to-end journey', () => {
     // Step 2: apply a free cut on Ward at k=3 and confirm the dashed cut line is drawn on its dendrogram.
     const cutGroup = page.getByRole('radiogroup', { name: 'Enlace a cortar' });
     await cutGroup.getByRole('radio', { name: 'Ward' }).click();
-    await page.getByLabel('k: entre 2 y 5').fill('3');
+    await page.getByLabel('k: 2 a 5 (ref. 4)').fill('3');
     await page.getByRole('button', { name: 'Aplicar corte' }).click();
 
     const wardDendrogram = page.getByTestId('linkage-dendrogram-ward');

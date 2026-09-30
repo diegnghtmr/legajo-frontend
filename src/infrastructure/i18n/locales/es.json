@@ -305,29 +305,28 @@
       "label": "Parámetros del agrupamiento",
       "representation": {
         "title": "Representación",
-        "hint": "D = 1 − coseno; Ward opera sobre 2·D."
+        "hint": "D = 1 − coseno; Ward opera sobre 2·D.",
+        "n": "n = {{n}}"
       },
       "linkages": {
-        "title": "Selección de enlaces",
+        "title": "Enlaces",
         "count": "{{count}} / 4",
-        "selectAll": "Todos",
-        "hintAll": "Se comparan los cuatro enlaces: se marcan los líderes de árbol y de partición."
+        "hintAll": "Se marcan los líderes de árbol y de partición."
       },
       "cut": {
         "title": "Corte libre",
-        "kLabel": "k: entre 2 y {{max}}",
+        "linkageLabel": "Enlace",
+        "kLabel": "k: 2 a {{max}} (ref. {{kRef}})",
         "kDecrease": "Disminuir k",
         "kIncrease": "Aumentar k",
-        "hint": "La línea punteada del dendrograma muestra dónde caerá el corte antes de aplicarlo.",
+        "hint": "La línea punteada anticipa el corte en el dendrograma.",
         "applied": "aplicado",
         "noLinkageTitle": "Sin enlaces para cortar",
         "noLinkageGlyph": "0 / 4",
         "errorTitle": "Corte no disponible",
         "errorGlyph": "—"
       },
-      "footer": {
-        "n": "n = {{n}}",
-        "kRef": "k_ref = {{kRef}}",
+      "status": {
         "appliedCut": "Corte en <mono>{{linkage}}</mono>, <mono>k = {{k}}</mono>",
         "noCut": "Sin corte aplicado",
         "clearCut": "Quitar corte"

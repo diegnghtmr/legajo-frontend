@@ -10,7 +10,6 @@ import {
   type RepresentationId,
 } from '../../infrastructure/schemas/clustering';
 import { Alert } from '../../shared/components/Alert';
-import { AlgoTextList, type AlgoOption } from '../../shared/components/AlgoTextList';
 import { EmptyState } from '../../shared/components/EmptyState';
 import { NumberStepper } from '../../shared/components/NumberStepper';
 import { Panel } from '../../shared/components/Panel';
@@ -23,8 +22,9 @@ import { Badge } from '../../shared/components/ui/badge';
 import { Button } from '../../shared/components/ui/button';
 import { Skeleton } from '../../shared/components/ui/skeleton';
 import { useIsAtLeastSm } from '../../shared/lib/useIsAtLeastSm';
-import { cutKRange, isValidCutK } from './cutSchema';
-import { ParameterColumn } from './ParameterColumn';
+import { cutKRange, defaultCutK, isValidCutK } from './cutSchema';
+import { LinkageToggleGroup } from './LinkageToggle';
+import { ParameterColumn, ParameterHeader } from './ParameterColumn';
 
 const REPRESENTATION_OPTIONS: readonly SegmentedOption<RepresentationId>[] =
   RepresentationIdSchema.options.map((id) => ({
@@ -34,7 +34,6 @@ const REPRESENTATION_OPTIONS: readonly SegmentedOption<RepresentationId>[] =
 
 /** The four fixed linkage criteria; no family concept for linkages. */
 export const LINKAGE_IDS: readonly LinkageId[] = LinkageIdSchema.options;
-const LINKAGE_OPTIONS: readonly AlgoOption[] = LINKAGE_IDS.map((id) => ({ id }));
 
 export interface CutLinkageOption {
   id: LinkageId;
@@ -77,23 +76,17 @@ export interface ClusteringParametersPanelProps {
   onRepresentationChange: (representation: RepresentationId) => void;
   selectedLinkages: readonly LinkageId[];
   onToggleLinkage: (id: string) => void;
-  onSelectAllLinkages: () => void;
   cut: CutColumnState;
   appliedCut?: AppliedCut;
   onClearCut: () => void;
 }
 
-/** A linkage's display name without the trailing word ("Ward linkage" is "Ward"). */
-function shortLinkageName(displayName: string): string {
-  return displayName.replace(/\s+linkage$/i, '');
-}
-
 /**
- * The clustering parameter panel: one card with three numbered columns
- * (representation, linkage selection, free cut) and a status footer with the
- * corpus facts and the applied cut. From 1100px the columns share a
- * 1 : 1 : 1.35 grid split by hairline rules, with content kept at the top of each stretched column; below that
- * they stack. The footer sits on the sunken surface.
+ * The clustering parameter panel: one card in two rows. Row one is two
+ * numbered columns (representation, linkage toggles) split by a hairline rule
+ * from 1024px and stacked below. Row two is the free cut, a full-width band
+ * on the sunken surface: header and hint, the linkage to cut, the k stepper
+ * and, at the end, the apply button with the cut status under it.
  */
 export function ClusteringParametersPanel({
   panelRef,
@@ -101,7 +94,6 @@ export function ClusteringParametersPanel({
   onRepresentationChange,
   selectedLinkages,
   onToggleLinkage,
-  onSelectAllLinkages,
   cut,
   appliedCut,
   onClearCut,
@@ -130,11 +122,18 @@ export function ClusteringParametersPanel({
     <div ref={panelRef} className="scroll-mt-[calc(var(--shell-header-h)+1rem)]">
       <Panel className="overflow-hidden p-0">
         <section aria-label={t('clustering.params.label')}>
-          <div className="grid grid-cols-1 min-[1100px]:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,1.35fr)]">
+          <div data-testid="params-columns" className="grid grid-cols-1 min-[1024px]:grid-cols-2">
             <ParameterColumn
               step="01"
               title={t('clustering.params.representation.title')}
               titleId={representationTitleId}
+              aside={
+                <span className="font-mono text-mono text-ink-muted">
+                  {t('clustering.params.representation.n', {
+                    n: cut.status === 'ready' ? cut.n : '…',
+                  })}
+                </span>
+              }
               hint={t('clustering.params.representation.hint')}
             >
               <SegmentedControl
@@ -142,6 +141,7 @@ export function ClusteringParametersPanel({
                 value={representation}
                 onChange={onRepresentationChange}
                 orientation={isAtLeastSm ? 'horizontal' : 'vertical'}
+                fullWidth
                 aria-label={t('clustering.representationGroupLabel')}
               />
             </ParameterColumn>
@@ -157,93 +157,135 @@ export function ClusteringParametersPanel({
               }
               hint={linkagesHint}
             >
-              <div className="flex min-h-9 flex-wrap items-center gap-x-4 gap-y-4">
-                <AlgoTextList
-                  options={LINKAGE_OPTIONS}
-                  selectedIds={selectedLinkages}
-                  onToggle={onToggleLinkage}
-                  aria-label={t('clustering.linkageGroupLabel')}
-                  withTick
-                />
-                {selectedCount < LINKAGE_IDS.length && (
-                  <Button variant="ghost" className="enter-fade" onClick={onSelectAllLinkages}>
-                    {t('clustering.params.linkages.selectAll')}
-                  </Button>
-                )}
-              </div>
-            </ParameterColumn>
-
-            <ParameterColumn
-              step="03"
-              title={t('clustering.params.cut.title')}
-              titleId={cutTitleId}
-              aside={
-                appliedMatchesControls ? (
-                  <Badge variant="marker" className="enter-fade">
-                    {t('clustering.params.cut.applied')}
-                  </Badge>
-                ) : undefined
-              }
-              hint={cut.status === 'unavailable' ? undefined : t('clustering.params.cut.hint')}
-            >
-              <CutColumn cut={cut} appliedMatchesControls={appliedMatchesControls} />
+              <LinkageToggleGroup
+                ids={LINKAGE_IDS}
+                selectedIds={selectedLinkages}
+                onToggle={onToggleLinkage}
+                aria-label={t('clustering.linkageGroupLabel')}
+              />
             </ParameterColumn>
           </div>
 
-          <StatusFooter cut={cut} appliedCut={appliedCut} onClearCut={onClearCut} />
+          <CutBand
+            cut={cut}
+            appliedCut={appliedCut}
+            appliedMatchesControls={appliedMatchesControls}
+            titleId={cutTitleId}
+            onClearCut={onClearCut}
+          />
         </section>
       </Panel>
     </div>
   );
 }
 
-function CutColumn({
+/** The free-cut band: header and hint at the start, then the cut's controls (or why there are none). */
+function CutBand({
   cut,
+  appliedCut,
   appliedMatchesControls,
+  titleId,
+  onClearCut,
 }: {
   cut: CutColumnState;
+  appliedCut?: AppliedCut;
   appliedMatchesControls: boolean;
+  titleId: string;
+  onClearCut: () => void;
 }) {
   const { t } = useTranslation();
 
-  if (cut.status === 'unavailable') {
-    return cut.reason === 'no-linkage' ? (
-      <EmptyState
-        glyph={t('clustering.params.cut.noLinkageGlyph')}
-        title={t('clustering.params.cut.noLinkageTitle')}
-        reason={t('clustering.cutForm.unavailableNoLinkage')}
-      />
-    ) : (
-      <EmptyState
-        glyph={t('clustering.params.cut.errorGlyph')}
-        title={t('clustering.params.cut.errorTitle')}
-        reason={t('clustering.cutForm.unavailableError')}
-      />
-    );
-  }
+  return (
+    <div
+      data-testid="params-cut-band"
+      className="flex flex-col gap-3 border-t border-hairline bg-paper-sunken px-5 py-4"
+    >
+      <div className="flex flex-wrap items-end gap-x-6 gap-y-4">
+        <div className="flex w-full min-w-0 flex-col gap-2 min-[1024px]:w-[220px] min-[1024px]:shrink-0">
+          <ParameterHeader
+            step="03"
+            // Muted ink falls just short of AA on the sunken surface.
+            stepClassName="text-ink-secondary"
+            title={t('clustering.params.cut.title')}
+            titleId={titleId}
+            marker={
+              appliedMatchesControls ? (
+                <Badge variant="marker" className="enter-fade self-center">
+                  {t('clustering.params.cut.applied')}
+                </Badge>
+              ) : undefined
+            }
+          />
+          {cut.status !== 'unavailable' && (
+            <p className="text-label text-ink-secondary">{t('clustering.params.cut.hint')}</p>
+          )}
+        </div>
 
-  if (cut.status === 'pending') {
-    return <CutColumnSkeleton sampleSizeEstimate={cut.sampleSizeEstimate} />;
-  }
+        {cut.status === 'ready' && (
+          <ReadyCutControls cut={cut} appliedCut={appliedCut} onClearCut={onClearCut} />
+        )}
+        {cut.status === 'pending' && (
+          <CutControlsSkeleton sampleSizeEstimate={cut.sampleSizeEstimate} />
+        )}
+        {cut.status === 'unavailable' && (
+          <>
+            <div className="min-w-0 grow">
+              {cut.reason === 'no-linkage' ? (
+                <EmptyState
+                  glyph={t('clustering.params.cut.noLinkageGlyph')}
+                  title={t('clustering.params.cut.noLinkageTitle')}
+                  reason={t('clustering.cutForm.unavailableNoLinkage')}
+                />
+              ) : (
+                <EmptyState
+                  glyph={t('clustering.params.cut.errorGlyph')}
+                  title={t('clustering.params.cut.errorTitle')}
+                  reason={t('clustering.cutForm.unavailableError')}
+                />
+              )}
+            </div>
+            <div className="flex w-full flex-col items-start min-[1024px]:ml-auto min-[1024px]:w-auto min-[1024px]:items-end">
+              <CutStatus appliedCut={appliedCut} onClearCut={onClearCut} />
+            </div>
+          </>
+        )}
+      </div>
 
-  return <ReadyCutColumn cut={cut} appliedMatchesControls={appliedMatchesControls} />;
+      {cut.status === 'ready' && cut.error && (
+        <Alert
+          tone="danger"
+          title={t('clustering.cutForm.errorTitle')}
+          body={t(cut.error.i18nKey ?? DEFAULT_UNEXPECTED_I18N_KEY)}
+        />
+      )}
+    </div>
+  );
 }
 
-function ReadyCutColumn({
+/** The cut's fixed-width label above a control. */
+function FieldLabel({ children }: { children: string }) {
+  return <span className="text-label text-ink-secondary">{children}</span>;
+}
+
+function ReadyCutControls({
   cut,
-  appliedMatchesControls,
+  appliedCut,
+  onClearCut,
 }: {
   cut: ReadyCutColumnState;
-  appliedMatchesControls: boolean;
+  appliedCut?: AppliedCut;
+  onClearCut: () => void;
 }) {
   const { t } = useTranslation();
   const { min, max, hasRange } = cutKRange(cut.n);
   const kIsValid = hasRange && isValidCutK(cut.k, cut.n);
+  const appliedMatchesControls =
+    appliedCut !== undefined && appliedCut.linkageId === cut.linkage && appliedCut.k === cut.k;
   const canApply = kIsValid && !cut.isPending && !appliedMatchesControls;
 
   const linkageOptions: readonly SegmentedOption<LinkageId>[] = cut.linkages.map((linkage) => ({
     value: linkage.id,
-    label: <span className="font-mono">{shortLinkageName(linkage.displayName)}</span>,
+    label: <span className="font-mono">{linkage.id}</span>,
   }));
 
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
@@ -253,18 +295,14 @@ function ReadyCutColumn({
     }
   };
 
-  const submit = (
-    <Button type="submit" disabled={!canApply} className="w-fit">
-      {cut.isPending ? t('clustering.cutForm.pending') : t('clustering.cutForm.submit')}
-    </Button>
-  );
-
   return (
-    <form onSubmit={handleSubmit} className="flex flex-col gap-3" noValidate>
+    <form
+      onSubmit={handleSubmit}
+      className="flex min-w-0 grow flex-wrap items-end gap-x-6 gap-y-4"
+      noValidate
+    >
       <div className="flex flex-col gap-1.5">
-        <span className="text-label text-ink-secondary">
-          {t('clustering.cutForm.linkageGroupLabel')}
-        </span>
+        <FieldLabel>{t('clustering.params.cut.linkageLabel')}</FieldLabel>
         <SegmentedControl
           size="sm"
           options={linkageOptions}
@@ -277,7 +315,7 @@ function ReadyCutColumn({
       {hasRange ? (
         <NumberStepper
           id="cut-k"
-          label={t('clustering.params.cut.kLabel', { max })}
+          label={t('clustering.params.cut.kLabel', { max, kRef: cut.kRef ?? defaultCutK(cut.n) })}
           value={cut.k}
           min={min}
           max={max}
@@ -286,41 +324,35 @@ function ReadyCutColumn({
           increaseLabel={t('clustering.params.cut.kIncrease')}
           error={t('clustering.cutForm.errors.kRange', { min, max })}
           slider
-          trailing={submit}
+          className="min-w-0"
         />
       ) : (
-        <div className="flex flex-col gap-1.5">
-          <p className="text-label text-ink-muted">{t('clustering.cutForm.noValidRange')}</p>
-          <div>{submit}</div>
-        </div>
+        <p className="text-label text-ink-secondary">{t('clustering.cutForm.noValidRange')}</p>
       )}
 
-      {cut.error && (
-        <Alert
-          tone="danger"
-          title={t('clustering.cutForm.errorTitle')}
-          body={t(cut.error.i18nKey ?? DEFAULT_UNEXPECTED_I18N_KEY)}
-        />
-      )}
+      <div className="flex w-full flex-col items-start gap-1.5 min-[1024px]:ml-auto min-[1024px]:w-auto min-[1024px]:items-end">
+        <Button type="submit" disabled={!canApply}>
+          {cut.isPending ? t('clustering.cutForm.pending') : t('clustering.cutForm.submit')}
+        </Button>
+        <CutStatus appliedCut={appliedCut} onClearCut={onClearCut} />
+      </div>
     </form>
   );
 }
 
 /**
- * Mirrors `ReadyCutColumn`'s own boxes with the same wrappers, the real
+ * Mirrors `ReadyCutControls`' own boxes with the same wrappers, the real
  * labels (the k range comes from the corpus-size estimate) and placeholder
- * blocks where a value or control will be — nothing here is focusable.
+ * blocks where a value or control will be; nothing here is focusable.
  */
-function CutColumnSkeleton({ sampleSizeEstimate }: { sampleSizeEstimate: number }) {
+function CutControlsSkeleton({ sampleSizeEstimate }: { sampleSizeEstimate: number }) {
   const { t } = useTranslation();
   const { max, hasRange } = cutKRange(sampleSizeEstimate);
 
   return (
-    <div className="flex flex-col gap-3">
+    <div className="flex min-w-0 grow flex-wrap items-end gap-x-6 gap-y-4">
       <div className="flex flex-col gap-1.5">
-        <span className="text-label text-ink-secondary">
-          {t('clustering.cutForm.linkageGroupLabel')}
-        </span>
+        <FieldLabel>{t('clustering.params.cut.linkageLabel')}</FieldLabel>
         <SegmentedControlSkeleton
           size="sm"
           labels={LINKAGE_IDS.map((linkageId) => (
@@ -332,61 +364,47 @@ function CutColumnSkeleton({ sampleSizeEstimate }: { sampleSizeEstimate: number 
       </div>
 
       {hasRange ? (
-        <div className="flex flex-col gap-1.5">
-          <span className="text-label text-ink-secondary">
-            {t('clustering.params.cut.kLabel', { max })}
-          </span>
+        <div className="flex min-w-0 flex-col gap-1.5">
+          <FieldLabel>
+            {t('clustering.params.cut.kLabel', { max, kRef: defaultCutK(sampleSizeEstimate) })}
+          </FieldLabel>
           <div className="flex flex-wrap items-center gap-3">
             <Skeleton className="h-9 w-[110px] rounded-btn pointer-coarse:h-[46px]" />
             <Skeleton className="h-5 w-[140px]" />
-            <Skeleton className="h-9 w-28 pointer-coarse:h-11" />
           </div>
         </div>
       ) : (
-        <div className="flex flex-col gap-1.5">
-          <p className="text-label text-ink-muted">{t('clustering.cutForm.noValidRange')}</p>
-          <Skeleton className="h-9 w-28 pointer-coarse:h-11" />
-        </div>
+        <p className="text-label text-ink-secondary">{t('clustering.cutForm.noValidRange')}</p>
       )}
+
+      <div className="flex w-full flex-col items-start gap-1.5 min-[1024px]:ml-auto min-[1024px]:w-auto min-[1024px]:items-end">
+        <Skeleton className="h-9 w-[107px] pointer-coarse:h-11" />
+        <CutStatus />
+      </div>
     </div>
   );
 }
 
-function StatusFooter({
-  cut,
+/**
+ * The cut status under the apply button: no cut, or the dashed sample, the
+ * cut's linkage and k, and the icon button that clears it.
+ */
+function CutStatus({
   appliedCut,
   onClearCut,
 }: {
-  cut: CutColumnState;
   appliedCut?: AppliedCut;
-  onClearCut: () => void;
+  onClearCut?: () => void;
 }) {
   const { t } = useTranslation();
 
   return (
     <div
-      data-testid="params-status-footer"
-      className="flex min-h-11 flex-wrap items-center justify-between gap-x-4 gap-y-2 border-t border-hairline bg-paper-sunken py-1.5 pr-3 pl-5"
+      data-testid="cut-status"
+      className="flex min-h-6 flex-wrap items-center gap-2 text-label text-ink-secondary"
     >
-      <div className="flex items-center gap-4 font-mono text-mono text-ink-secondary">
-        {cut.status === 'ready' && (
-          <>
-            <span>{t('clustering.params.footer.n', { n: cut.n })}</span>
-            {cut.kRef !== undefined && (
-              <span>{t('clustering.params.footer.kRef', { kRef: cut.kRef })}</span>
-            )}
-          </>
-        )}
-        {cut.status === 'pending' && (
-          <>
-            <Skeleton className="h-[17px] w-12" />
-            <Skeleton className="h-[17px] w-16" />
-          </>
-        )}
-      </div>
-
       {appliedCut ? (
-        <div className="enter-fade flex items-center gap-2 text-label text-ink-secondary">
+        <div className="enter-fade flex items-center gap-2">
           <svg width="18" height="8" aria-hidden="true" className="shrink-0">
             <line
               x1="0"
@@ -400,21 +418,21 @@ function StatusFooter({
           </svg>
           <span>
             <Trans
-              i18nKey="clustering.params.footer.appliedCut"
+              i18nKey="clustering.params.status.appliedCut"
               values={{ linkage: appliedCut.linkageId, k: appliedCut.k }}
               components={{ mono: <span className="font-mono text-ink" /> }}
             />
           </span>
           <Button
             variant="ghost"
-            aria-label={t('clustering.params.footer.clearCut')}
+            aria-label={t('clustering.params.status.clearCut')}
             onClick={onClearCut}
           >
             <X aria-hidden="true" className="size-4" />
           </Button>
         </div>
       ) : (
-        <span className="text-label text-ink-secondary">{t('clustering.params.footer.noCut')}</span>
+        <span>{t('clustering.params.status.noCut')}</span>
       )}
     </div>
   );

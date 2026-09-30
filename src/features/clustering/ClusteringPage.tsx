@@ -52,10 +52,10 @@ const CLUSTERING_QUERY_KEY_PREFIX = 'clustering';
 const DEFAULT_SKELETON_LEAF_COUNT = 20;
 
 /**
- * Clustering screen: the parameter panel at the top (three numbered columns:
- * representation, linkage selection, and the free cut — linkage to cut, k,
- * `Aplicar corte` — over a status footer; a summary bar pins under the top
- * bar once it scrolls out of view), the metrics comparison table applying the fixed ranking
+ * Clustering screen: the parameter panel at the top (two numbered columns,
+ * representation and the linkage toggles, over the free-cut band: linkage to
+ * cut, k, `Aplicar corte` with the cut status under it; a summary bar pins
+ * under the top bar once it scrolls out of view), the metrics comparison table applying the fixed ranking
  * rule over the backend's own numbers (`ranking.ts`, `ClusteringMetricsTable`),
  * and a 2×2 dendrogram grid below (`DendrogramCard`, one card per linkage,
  * filling its own width).
@@ -233,8 +233,6 @@ export function ClusteringPage() {
     return new Map(corpusQuery.data.map((document) => [document.id, document.title] as const));
   }, [corpusQuery.data]);
 
-  const selectAllLinkages = () => setSelectedLinkages([...LINKAGE_IDS]);
-
   const cutLinkageIds = clusteringQuery.data?.map((result) => result.linkageId) ?? [];
   const cutLinkage =
     cutLinkageChoice !== undefined && cutLinkageIds.includes(cutLinkageChoice)
@@ -353,7 +351,6 @@ export function ClusteringPage() {
           onRepresentationChange={setRepresentation}
           selectedLinkages={selectedLinkages}
           onToggleLinkage={toggleLinkage}
-          onSelectAllLinkages={selectAllLinkages}
           cut={cutColumn}
           appliedCut={appliedCut}
           onClearCut={() => setCutResult(undefined)}

@@ -34,8 +34,8 @@ export interface SegmentedControlProps<TValue extends string> {
   /** `vertical` stacks the options one per row across the full width (and
    * ArrowDown/ArrowUp move like ArrowRight/ArrowLeft); horizontal by default. */
   orientation?: 'horizontal' | 'vertical';
-  /** Stretches a horizontal control to its container, sharing the width
-   * equally between the options. */
+  /** Stretches a horizontal control's track to its container; the options
+   * keep their own width, packed at the start. */
   fullWidth?: boolean;
 }
 
@@ -143,11 +143,7 @@ export function SegmentedControl<TValue extends string>({
           key={option.value}
           value={option.value}
           lang={option.lang}
-          className={cn(
-            SEGMENTED_ITEM_SIZE_CLASS_NAMES[size],
-            vertical && 'text-left',
-            fullWidth && !vertical && 'flex-1',
-          )}
+          className={cn(SEGMENTED_ITEM_SIZE_CLASS_NAMES[size], vertical && 'text-left')}
         >
           {option.label}
         </ToggleGroupItem>
