@@ -1,4 +1,4 @@
-import { useId, useState, type CSSProperties } from 'react';
+import { useId, useLayoutEffect, useRef, useState, type CSSProperties } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { cn } from '../lib/cn';
@@ -78,7 +78,6 @@ const TICK_SPACING_PX = 90;
  * card taller, never wider than the card itself.
  */
 const LEAF_SPACING = 22;
-const TOOLTIP_WIDTH_ESTIMATE = 230;
 const CLUSTER_HUES = 8;
 
 const BRANCH_STROKE = [
@@ -154,6 +153,9 @@ export function Dendrogram({
   const { t } = useTranslation();
   const titleId = useId();
   const [hover, setHover] = useState<Hover | null>(null);
+  const regionRef = useRef<HTMLDivElement>(null);
+  const tooltipRef = useRef<HTMLDivElement>(null);
+  const anchorRef = useRef<SVGGElement>(null);
   // The distance (horizontal) axis always renders at exactly the given
   // `width` — the card's own measured, responsive width — and is never
   // grown past it: a continuous distance scale always fits any width.
@@ -163,6 +165,84 @@ export function Dendrogram({
   const minChartHeight = leafCount > 1 ? (leafCount - 1) * LEAF_SPACING : requestedChartHeight;
   const chartHeight = Math.max(requestedChartHeight, minChartHeight);
   const renderHeight = chartHeight + MARGIN_TOP + MARGIN_BOTTOM;
+
+  useLayoutEffect(() => {
+    const region = regionRef.current;
+    const tip = tooltipRef.current;
+    const anchor = anchorRef.current;
+    if (!hover || !region || !tip || !anchor) return;
+
+    // Measure before paint at a safe origin. Wrapping, translations and cut
+    // labels determine the real size; an estimate can grow the scroll region.
+    const place = () => {
+      tip.style.visibility = 'hidden';
+      tip.style.left = `${region.scrollLeft}px`;
+      tip.style.top = `${region.scrollTop}px`;
+      const bounds = region.getBoundingClientRect();
+      const availableWidth = region.clientWidth || bounds.width;
+      const availableHeight = region.clientHeight || bounds.height;
+      const fullWidth = Math.max(0, Math.min(280, availableWidth - 8));
+      tip.style.width = 'max-content';
+      tip.style.maxWidth = `${fullWidth}px`;
+      tip.style.minWidth = `${Math.min(140, fullWidth)}px`;
+      let size = tip.getBoundingClientRect();
+      const point = anchor.getBoundingClientRect();
+      const x = point.left - bounds.left;
+      const top = point.top - bounds.top;
+      const bottom = point.bottom - bounds.top;
+      const gap = 8;
+      let left = Math.max(4, Math.min(x, availableWidth - size.width - 4));
+      let y = bottom + gap;
+      if (y + size.height > availableHeight - 4) y = top - gap - size.height;
+      if (y < 4) {
+        // A middle row may leave too little room above and below. Rewrap
+        // within each horizontal side, measuring the resulting height too.
+        const right = point.right - bounds.left + gap;
+        const sides = [
+          { space: x - gap - 4, rightEdge: x - gap },
+          { space: availableWidth - right - 4, rightEdge: availableWidth - 4 },
+        ].sort((a, b) => b.space - a.space);
+        let fitted = false;
+        for (const side of sides) {
+          if (side.space <= 0) continue;
+          const sideWidth = Math.min(fullWidth, side.space);
+          tip.style.maxWidth = `${sideWidth}px`;
+          tip.style.minWidth = `${Math.min(140, sideWidth)}px`;
+          size = tip.getBoundingClientRect();
+          if (size.width > side.space || size.height > availableHeight - 8) continue;
+          left = side.rightEdge - size.width;
+          y = top;
+          fitted = true;
+          break;
+        }
+        if (!fitted) {
+          // No clipping or hidden content: arbitrary titles that cannot fit
+          // the fixed chart are unsupported, rather than silently truncated.
+          tip.style.maxWidth = `${fullWidth}px`;
+          tip.style.minWidth = `${Math.min(140, fullWidth)}px`;
+          size = tip.getBoundingClientRect();
+          left = x;
+          y = top;
+        }
+      }
+      left = Math.max(4, Math.min(left, availableWidth - size.width - 4));
+      y = Math.max(4, Math.min(y, availableHeight - size.height - 4));
+      tip.style.left = `${left + region.scrollLeft}px`;
+      tip.style.top = `${y + region.scrollTop}px`;
+      tip.style.visibility = 'visible';
+    };
+    place();
+    const observer = new ResizeObserver(place);
+    observer.observe(region);
+    observer.observe(tip);
+    region.addEventListener('scroll', place);
+    window.addEventListener('resize', place);
+    return () => {
+      observer.disconnect();
+      region.removeEventListener('scroll', place);
+      window.removeEventListener('resize', place);
+    };
+  }, [hover, width, renderHeight, leafLabels, cut]);
 
   let layout;
   try {
@@ -212,11 +292,6 @@ export function Dendrogram({
   const leafById = new Map(layout.leaves.map((leaf) => [leaf.id, leaf] as const));
   const hoveredNode = hover ? layout.nodes.get(hover.id) : undefined;
 
-  const tooltipPosition = hoveredNode && {
-    left: Math.max(4, Math.min(MARGIN_LEFT + hoveredNode.x + 12, width - TOOLTIP_WIDTH_ESTIMATE)),
-    top: MARGIN_TOP + hoveredNode.y + 10,
-  };
-
   return (
     <figure className="flex flex-col gap-2">
       <figcaption id={titleId} className="text-label text-ink-secondary">
@@ -230,6 +305,7 @@ export function Dendrogram({
        * it, so it never leaves the chart's box.
        */}
       <div
+        ref={regionRef}
         role="region"
         aria-label={ariaLabel}
         tabIndex={0}
@@ -277,9 +353,12 @@ export function Dendrogram({
             {hover?.kind === 'leaf' && leafById.get(hover.id) && (
               <rect
                 x={-MARGIN_LEFT}
-                y={leafById.get(hover.id)!.y - LEAF_SPACING / 2}
+                y={Math.max(0, leafById.get(hover.id)!.y - LEAF_SPACING / 2)}
                 width={width}
-                height={LEAF_SPACING}
+                height={
+                  Math.min(chartHeight, leafById.get(hover.id)!.y + LEAF_SPACING / 2) -
+                  Math.max(0, leafById.get(hover.id)!.y - LEAF_SPACING / 2)
+                }
                 rx={4}
                 className="fill-paper-sunken"
               />
@@ -316,7 +395,10 @@ export function Dendrogram({
             {layout.links.map((link) => (
               <g
                 key={`hit-${link.id}`}
-                onPointerEnter={() => setHover({ kind: 'merge', id: link.id })}
+                onPointerEnter={(event) => {
+                  anchorRef.current = event.currentTarget;
+                  setHover({ kind: 'merge', id: link.id });
+                }}
               >
                 <circle data-merge-hit={link.id} cx={link.x} cy={link.y} r={8} fill="transparent" />
                 <circle
@@ -337,7 +419,10 @@ export function Dendrogram({
                   key={leaf.id}
                   data-leaf-id={leaf.id}
                   data-leaf-y={leaf.y}
-                  onPointerEnter={() => setHover({ kind: 'leaf', id: leaf.id })}
+                  onPointerEnter={(event) => {
+                    anchorRef.current = event.currentTarget;
+                    setHover({ kind: 'leaf', id: leaf.id });
+                  }}
                   className="motion-safe:transition-opacity motion-safe:duration-(--dur-base)"
                   style={{ opacity: dimmed ? 0.35 : 1 }}
                 >
@@ -466,15 +551,16 @@ export function Dendrogram({
           </g>
         </svg>
 
-        {hover && hoveredNode && tooltipPosition && (
+        {hover && hoveredNode && (
           <div
+            ref={tooltipRef}
             role="tooltip"
-            style={tooltipPosition}
+            style={{ left: 0, top: 0, visibility: 'hidden', overflowWrap: 'anywhere' }}
             className="pointer-events-none absolute z-10 max-w-[280px] min-w-[140px] rounded-md bg-ink px-2.5 py-2 text-label leading-[1.45] text-primary-foreground shadow-pop"
           >
             {hover.kind === 'leaf' ? (
               <>
-                <div className="flex items-baseline justify-between gap-3">
+                <div className="flex flex-wrap items-baseline justify-between gap-3">
                   <span className="font-mono">{leafLabelFor(leafLabels, hover.id)}</span>
                   {cutLabels?.[hover.id] !== undefined && (
                     <span>
@@ -557,7 +643,7 @@ function MergeTooltip({
 }) {
   const { t } = useTranslation();
   const line = (label: string, value: string) => (
-    <div className="flex items-baseline justify-between gap-3">
+    <div className="flex flex-wrap items-baseline justify-between gap-3">
       <span className="text-primary-foreground/70">{label}</span>
       <span className="font-mono">{value}</span>
     </div>
