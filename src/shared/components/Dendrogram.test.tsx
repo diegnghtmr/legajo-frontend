@@ -1,5 +1,5 @@
 import { fireEvent, render, screen, within } from '@testing-library/react';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import { Dendrogram } from './Dendrogram';
 
@@ -500,6 +500,117 @@ describe('Dendrogram', () => {
           cut={{ distance: 2.5, labels: [0, 0, 1, 1, 2], k: 3 }}
         />,
       );
+
+    it('dendrogram hover fits measured final-leaf content above its anchor and repositions on scroll', () => {
+      const rect = (x: number, y: number, width: number, height: number) =>
+        new DOMRect(x, y, width, height);
+      const measurement = vi
+        .spyOn(Element.prototype, 'getBoundingClientRect')
+        .mockImplementation(function (this: Element) {
+          if (this.getAttribute('role') === 'tooltip') return rect(0, 0, 280, 100);
+          if (this.getAttribute('role') === 'region') return rect(20, 30, 320, 220);
+          return rect(236, 179, 104, 22);
+        });
+      try {
+        const { container } = renderTip();
+        const region = screen.getByRole('region');
+        Object.defineProperties(region, {
+          clientWidth: { value: 320 },
+          clientHeight: { value: 220 },
+        });
+        fireEvent.pointerEnter(container.querySelector('[data-leaf-id="4"]')!);
+        const tip = screen.getByRole('tooltip');
+        const left = Number.parseFloat(tip.style.left);
+        const top = Number.parseFloat(tip.style.top);
+        expect(left).toBeGreaterThanOrEqual(0);
+        expect(left + 280).toBeLessThanOrEqual(320);
+        expect(top).toBeGreaterThanOrEqual(0);
+        expect(top + 100).toBeLessThanOrEqual(149);
+        expect(tip).toHaveTextContent('Fourth article');
+        region.scrollLeft = 40;
+        fireEvent.scroll(region);
+        expect(Number.parseFloat(tip.style.left)).toBe(left + 40);
+      } finally {
+        measurement.mockRestore();
+      }
+    });
+
+    it.each(['[data-leaf-id="2"]', '[data-merge-hit="7"]'])(
+      'dendrogram hover fits measured content below a top anchor: %s',
+      (selector) => {
+        const measurement = vi
+          .spyOn(Element.prototype, 'getBoundingClientRect')
+          .mockImplementation(function (this: Element) {
+            if (this.getAttribute('role') === 'tooltip') return new DOMRect(0, 0, 180, 70);
+            if (this.getAttribute('role') === 'region') return new DOMRect(0, 0, 320, 220);
+            return new DOMRect(180, 17, 104, 22);
+          });
+        try {
+          const { container } = renderTip();
+          fireEvent.pointerEnter(container.querySelector(selector)!);
+          const tip = screen.getByRole('tooltip');
+          expect(Number.parseFloat(tip.style.top)).toBeGreaterThanOrEqual(39);
+          expect(Number.parseFloat(tip.style.top) + 70).toBeLessThanOrEqual(220);
+          expect(Number.parseFloat(tip.style.left) + 180).toBeLessThanOrEqual(320);
+        } finally {
+          measurement.mockRestore();
+        }
+      },
+    );
+
+    it.each([
+      { width: 320, x: 216, anchorWidth: 104, height: 160 },
+      { width: 320, x: 4, anchorWidth: 16, height: 160 },
+      { width: 120, x: 100, anchorWidth: 16, height: 70 },
+    ])(
+      'dendrogram hover adapts wrapping to a fitting side in $width px at $x',
+      ({ width, x, anchorWidth, height }) => {
+        const measurement = vi
+          .spyOn(Element.prototype, 'getBoundingClientRect')
+          .mockImplementation(function (this: Element) {
+            if (this.getAttribute('role') === 'region') return new DOMRect(0, 0, width, 220);
+            if (this.getAttribute('role') === 'tooltip') {
+              const tip = this as HTMLElement;
+              const measuredWidth = Math.max(
+                Number.parseFloat(tip.style.minWidth || '140px'),
+                Number.parseFloat(tip.style.maxWidth) || 280,
+              );
+              return new DOMRect(0, 0, measuredWidth, height);
+            }
+            return new DOMRect(x, 90, anchorWidth, 22);
+          });
+        try {
+          const { container } = renderTip();
+          fireEvent.pointerEnter(container.querySelector('[data-leaf-id="0"]')!);
+          const tip = screen.getByRole('tooltip');
+          const size = tip.getBoundingClientRect();
+          const left = Number.parseFloat(tip.style.left);
+          const top = Number.parseFloat(tip.style.top);
+          expect(left).toBeGreaterThanOrEqual(0);
+          expect(left + size.width).toBeLessThanOrEqual(width);
+          expect(top).toBeGreaterThanOrEqual(0);
+          expect(top + size.height).toBeLessThanOrEqual(220);
+          expect(
+            left + size.width <= x ||
+              left >= x + anchorWidth ||
+              top + size.height <= 90 ||
+              top >= 112,
+          ).toBe(true);
+          expect(tip).toHaveTextContent('Zeroth article');
+        } finally {
+          measurement.mockRestore();
+        }
+      },
+    );
+
+    it('dendrogram hover keeps the final-leaf highlight within the plot band', () => {
+      const { container } = renderTip();
+      fireEvent.pointerEnter(container.querySelector('[data-leaf-id="4"]')!);
+      const highlight = container.querySelector('rect.fill-paper-sunken')!;
+      const bottom = Number(highlight.getAttribute('y')) + Number(highlight.getAttribute('height'));
+      expect(bottom).toBeLessThanOrEqual(160);
+      expect(Number(highlight.getAttribute('height'))).toBeGreaterThan(0);
+    });
 
     it('shows no tooltip until something is hovered', () => {
       renderTip();

@@ -2,6 +2,7 @@ import { AxeBuilder } from '@axe-core/playwright';
 import { expect, test, type Locator, type Page } from '@playwright/test';
 
 import { expectNoTextOverlap } from './support/textOverlap.js';
+import { loadFixture } from './support/fixtures.js';
 
 /** The one DOM member this file's own browser-side callback needs, spelled
  * out locally rather than adding the `dom` lib (which this project's
@@ -116,6 +117,118 @@ async function mockClusteringApi(page: Page) {
     await route.fulfill({ json: DEFAULT_CLUSTERING_RESPONSE });
   });
 }
+
+test.describe('dendrogram hover', () => {
+  const corpus = loadFixture<{ id: string; title: string }[]>('corpus.json');
+  const response = loadFixture<unknown>('clustering-default.json');
+
+  for (const width of [390, 1024, 1440]) {
+    test(`contains long titles and excludes the axis band at ${width}px`, async ({ page }) => {
+      await page.setViewportSize({ width, height: 900 });
+      const midTitle = `${corpus.find((doc) => doc.id === 'd11')!.title} ${'Adaptive placement keeps the complete title readable. '.repeat(
+        8,
+      )}`;
+      const hoverCorpus = corpus.map((doc) =>
+        doc.id === 'd11' ? { ...doc, title: midTitle } : doc,
+      );
+      await page.route('**/api/v1/corpus', (route) => route.fulfill({ json: hoverCorpus }));
+      await page.route('**/api/v1/clustering', (route) => route.fulfill({ json: response }));
+      await page.goto('/clustering');
+      const card = page.getByTestId('linkage-dendrogram-single');
+      const region = card.getByRole('region');
+      await expect(card.getByRole('img')).toBeVisible();
+      await region.scrollIntoViewIfNeeded();
+      const dimensions = () =>
+        region.evaluate((el) => [el.scrollWidth, el.scrollHeight, el.clientWidth, el.clientHeight]);
+      const pageDimensions = () =>
+        page.evaluate<number[]>(
+          '[document.documentElement.scrollWidth, document.documentElement.scrollHeight]',
+        );
+      let before = await dimensions();
+      let pageBefore = await pageDimensions();
+      let cardBefore = await card.boundingBox();
+      const verify = async (anchor: Locator) => {
+        await anchor.hover();
+        const tip = region.getByRole('tooltip');
+        await expect(tip).toBeVisible();
+        await expect.poll(dimensions).toEqual(before);
+        expect(await pageDimensions()).toEqual(pageBefore);
+        expect(await card.boundingBox()).toEqual(cardBefore);
+        const [box, bounds, point] = await Promise.all([
+          tip.boundingBox(),
+          region.boundingBox(),
+          anchor.boundingBox(),
+        ]);
+        expect(box!.x).toBeGreaterThanOrEqual(bounds!.x);
+        expect(box!.y).toBeGreaterThanOrEqual(bounds!.y);
+        expect(box!.x + box!.width).toBeLessThanOrEqual(bounds!.x + bounds!.width + 1);
+        expect(box!.y + box!.height).toBeLessThanOrEqual(bounds!.y + bounds!.height + 1);
+        expect(
+          box!.x + box!.width <= point!.x ||
+            box!.x >= point!.x + point!.width ||
+            box!.y + box!.height <= point!.y ||
+            box!.y >= point!.y + point!.height,
+          JSON.stringify({ tooltip: box, region: bounds, anchor: point }),
+        ).toBe(true);
+      };
+      await verify(region.locator('[data-leaf-id]').first());
+      await verify(region.locator('[data-leaf-id="10"]'));
+      await expect(region.getByRole('tooltip')).toContainText(midTitle.trim());
+      const last = region.locator('[data-leaf-id="5"]');
+      await verify(last);
+      await expect(region.getByRole('tooltip')).toContainText(
+        corpus.find((doc) => doc.id === 'd06')!.title,
+      );
+      const highlight = await region.locator('rect.fill-paper-sunken').boundingBox();
+      for (const tick of await region.locator('[data-axis-tick] text').all()) {
+        const box = await tick.boundingBox();
+        expect(highlight!.y + highlight!.height).toBeLessThanOrEqual(box!.y);
+      }
+      await verify(region.locator('[data-merge-hit]').first());
+      await last.hover();
+      await page.setViewportSize({ width: width === 390 ? 430 : width - 80, height: 900 });
+      await expect
+        .poll(async () => {
+          const tip = await region.getByRole('tooltip').boundingBox();
+          const box = await region.boundingBox();
+          return (
+            tip !== null &&
+            box !== null &&
+            tip.x >= box.x &&
+            tip.x + tip.width <= box.x + box.width + 1 &&
+            tip.y >= box.y &&
+            tip.y + tip.height <= box.y + box.height + 1
+          );
+        })
+        .toBe(true);
+      await page.route('**/api/v1/clustering/cut', (route) =>
+        route.fulfill({
+          json: {
+            labels: corpus.map((_doc, index) => index % 4),
+            k: 4,
+            documentIds: corpus.map((doc) => doc.id),
+          },
+        }),
+      );
+      await page
+        .getByRole('radiogroup', { name: 'Enlace a cortar' })
+        .getByRole('radio', { name: 'Single' })
+        .click();
+      await page.getByRole('button', { name: 'Aplicar corte' }).click();
+      await expect(card.getByTestId('dendrogram-cut-line')).toBeAttached();
+      await region.scrollIntoViewIfNeeded();
+      before = await dimensions();
+      pageBefore = await pageDimensions();
+      cardBefore = await card.boundingBox();
+      await verify(last);
+      await expect(region.getByRole('tooltip')).toContainText('Clúster');
+      await expect(region.getByRole('tooltip')).toContainText(
+        corpus.find((doc) => doc.id === 'd06')!.title,
+      );
+      await verify(region.locator('[data-merge-hit]').first());
+    });
+  }
+});
 
 test.describe('clustering screen', () => {
   test.beforeEach(async ({ page }) => {
