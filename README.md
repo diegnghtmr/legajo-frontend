@@ -209,10 +209,10 @@ repo's Docker image is the equivalent for the local Compose stack and any
 other container-based host. The backend runs on Render and allows this
 frontend's deployed origin through CORS.
 
-**Public URLs (pending deploy):**
+**Public URLs:**
 
-- Frontend (Vercel): _pending — not deployed yet_
-- Backend API base (Render): _pending — not deployed yet_
+- Frontend (Vercel): https://legajo-frontend.vercel.app
+- Backend API base (Render): https://legajo-backend.onrender.com
 
 **Cold start.** The backend runs on Render's free tier, which suspends the
 service when idle; the first request after a period of inactivity can take
