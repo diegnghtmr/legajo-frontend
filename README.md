@@ -209,6 +209,16 @@ repo's Docker image is the equivalent for the local Compose stack and any
 other container-based host. The backend runs on Render and allows this
 frontend's deployed origin through CORS.
 
+### Native Git deployment policy
+
+The existing Vercel project uses native Git integration with this repository.
+Under **Settings > Environments > Production**, the Production branch is `main`.
+Under **Settings > Environments > Preview**, **Branch Tracking** is disabled
+so Git updates do not create preview deployments. This dashboard control is
+separate from the repository safeguard in `vercel.json`: `main: true` and
+`"*": false` under `git.deploymentEnabled`, alongside the SPA fallback.
+Disabling Preview Branch Tracking does not prevent manual CLI/API previews.
+
 **Public URLs:**
 
 - Frontend (Vercel): https://legajo-frontend.vercel.app
