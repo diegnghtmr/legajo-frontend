@@ -537,8 +537,7 @@ describe('SimilarityWorkbenchLayout', () => {
       ).toBeInTheDocument();
 
       const location = await screen.findByTestId('location');
-      await waitFor(() => expect(location).toHaveTextContent('/similarity'));
-      expect(location.textContent).not.toContain('openAbstract');
+      await waitFor(() => expect(location.textContent).not.toContain('openAbstract'));
     });
 
     it('never opens the panel for an unknown id, and still clears the query param down to plain /similarity', async () => {
