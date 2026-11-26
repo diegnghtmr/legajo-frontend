@@ -229,3 +229,7 @@ service when idle; the first request after a period of inactivity can take
 tens of seconds while the instance wakes up. Before a live demo, poll
 `GET <backend URL>/actuator/health` until it returns 200 so the instance is
 already warm when the audience watches.
+
+## License
+
+MIT, see [LICENSE](LICENSE).
