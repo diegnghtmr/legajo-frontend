@@ -1,235 +1,150 @@
-# Legajo — frontend
+<!-- markdownlint-disable-next-line MD041 -->
+<div align="center">
 
-Single-page app for Legajo: corpus selection, six-capability similarity
-comparison with traces, matrix view, four-linkage hierarchical clustering with
-metrics and cut, embeddings status, bilingual ES/EN, WCAG 2.1 AA. Consumes the
-backend's OpenAPI contract; never computes similarity, linkages, cuts or
-metrics itself.
+<h1>Legajo · Web App</h1>
 
-This README only covers what an engineer needs to run and build the app.
+<p><strong>A workbench for students to see how text similarity and clustering work on research abstracts.</strong></p>
 
-## Stack
+<p>
+<a href="https://github.com/diegnghtmr/legajo-frontend/actions/workflows/frontend.yml"><img src="https://img.shields.io/github/actions/workflow/status/diegnghtmr/legajo-frontend/frontend.yml?branch=main&amp;style=for-the-badge&amp;labelColor=1F1F28&amp;label=CI" alt="CI"></a>
+<img src="https://img.shields.io/badge/React-19.3-E0C15A?style=for-the-badge&amp;labelColor=1F1F28" alt="React 19.3">
+<img src="https://img.shields.io/badge/TypeScript-5.9-E0C15A?style=for-the-badge&amp;labelColor=1F1F28" alt="TypeScript 5.9">
+<img src="https://img.shields.io/badge/Vite-8-E0C15A?style=for-the-badge&amp;labelColor=1F1F28" alt="Vite 8">
+<a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-7FB4CA?style=for-the-badge&amp;labelColor=1F1F28" alt="License: MIT"></a>
+</p>
 
-React 19.2, Vite 8, TypeScript 5.9 (strict), Tailwind CSS 4 (CSS-first
-`@theme`, no `tailwind.config`), Vitest 4 + Testing Library, Playwright with
-axe, `openapi-typescript` for generated API types.
+<p>
+<a href="https://diegnghtmr.me/en/work/legajo/"><strong>Case study</strong></a> &bull;
+<a href="#quick-start"><strong>Quick start</strong></a> &bull;
+<a href="#architecture"><strong>Architecture</strong></a> &bull;
+<a href="https://github.com/diegnghtmr/legajo-backend"><strong>Backend repo</strong></a>
+</p>
 
-## Requirements
+</div>
 
-- Docker (29+) and Docker Compose. Every check, build and test in this repo
-  runs inside a container — see "Checks run in containers" below — so a host
-  install of Node is not required to work on this app.
-- Node 24 LTS is still pinned via `.nvmrc` and `package.json#engines` for
-  editor tooling (IntelliSense, `tsc` in your IDE); it is never required to
-  run a check.
+<p align="center"><img width="100%" alt="Similarity scores for two abstracts with a Needleman–Wunsch alignment path highlighted in red" src="docs/assets/similarity-trace.png"></p>
 
-## Running with Docker
+A similarity score alone does not explain why two abstracts match. Legajo shows the score and its trace together, then lets you compare other methods or see how a change in linkage groups the same corpus. The browser renders the results returned by the API rather than implementing its own algorithms.
 
-Build the production image (`Dockerfile`, multi-stage: Node 24 build →
-`nginx-unprivileged` runtime). `VITE_API_BASE_URL` is a **required build-time**
-value — Vite inlines it into the bundle, so it cannot change after the image
-is built. There is no default: the build fails with a clear error if
-`--build-arg VITE_API_BASE_URL` is missing, empty, or has any whitespace
-inside the value (surrounding whitespace is trimmed; interior whitespace is
-rejected outright, never silently stripped — a typo like `http://local
-host:8080` must fail, not quietly become `http://localhost:8080`), rather
-than silently shipping a bundle pointing at the wrong API. Every caller
-passes it explicitly — this command, the `image-smoke` CI job, and the
-backend repository's Compose `frontend` service, which defaults
-this same argument to `http://localhost:8080`:
+## Features
+
+- **Pairwise comparison.** Rank a pair of abstracts across six similarity capabilities and inspect method-specific traces.
+- **Similarity matrix.** Select three or more documents and view their pairwise scores for one method at a time.
+- **Hierarchical clustering.** Compare single, complete, average, and Ward dendrograms, inspect internal metrics, and cut a tree into a chosen number of groups.
+- **Benchmark curves.** View versioned JMH runtimes and measured slopes alongside theoretical complexity; the page does not run JMH.
+- **Bilingual interface.** Use the workbench in English or Spanish and inspect the embedding provider status.
+
+## Preview
+
+![Corpus checklist and 12-by-12 grayscale matrix using local embeddings](docs/assets/corpus-selection.png)
+
+Choose abstracts from the reference corpus; darker cells indicate higher similarity.
+
+![Average-linkage and Ward dendrograms with a dashed cut line and three numbered Ward clusters](docs/assets/ward-dendrogram.png)
+
+Compare two trees side by side and cut one into a fixed number of clusters.
+
+![Log–log runtime charts and tables comparing measured slopes to theoretical complexity](docs/assets/benchmark-curves.png)
+
+The benchmark page charts the CSV exports checked into the backend.
+
+## Quick start
+
+Install Docker **29+** and Docker Compose. No host Node installation is needed for the container workflow; Node **24 LTS** is pinned for editor tooling.
 
 ```sh
-docker build --build-arg VITE_API_BASE_URL=http://localhost:8080 \
-  -t legajo-frontend:local .
+git clone https://github.com/diegnghtmr/legajo-frontend.git
+git clone https://github.com/diegnghtmr/legajo-backend.git
+cd legajo-backend
+LEGAJO_FRONTEND_DIR=../legajo-frontend docker compose up -d --build --wait
 ```
 
-Run it. The container listens on `:8080` (it runs as a non-root user, so it
-cannot bind `:80` itself); publish it on host `:80`:
+Open <http://localhost>. The backend listens on <http://localhost:8080>; the default stack uses precomputed vectors and does not require an embedding API key. To build and serve only this repository's image with an already-running backend, run the following from the frontend root:
 
 ```sh
+docker build --build-arg VITE_API_BASE_URL=http://localhost:8080 -t legajo-frontend:local .
 docker run --rm -p 80:8080 legajo-frontend:local
 ```
 
-The image ships a `HEALTHCHECK` that polls `/`; `docker ps` shows
-`healthy`/`unhealthy` once it settles.
+| Variable               | Purpose                                                                                            | Default                                                                                      |
+| ---------------------- | -------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------- |
+| `VITE_API_BASE_URL`    | Browser-reachable API URL embedded at build time; it cannot change when the container starts.      | Required explicitly for a standalone image; backend Compose supplies `http://localhost:8080` |
+| `LEGAJO_FRONTEND_DIR`  | Frontend build context read by the backend Compose file.                                           | `../frontend`                                                                                |
+| `LEGAJO_FRONTEND_PORT` | Host port published by the backend Compose file for the frontend. The container listens on `8080`. | `80`                                                                                         |
 
-## Checks run in containers
+The image build rejects a missing or empty API argument and interior whitespace; surrounding whitespace is trimmed. In Vite development, an empty `VITE_API_BASE_URL` uses the `/api` proxy to `http://localhost:8080` instead.
 
-Nothing in this repo is verified on the host — every check below runs inside
-a container. `scripts/npm-in-docker.sh` runs an `npm` command
-against the pinned `node:24-alpine` image, with the repo bind-mounted and
-`node_modules` kept in its own named Docker volume (so the container and any
-host-installed `node_modules` never collide). `scripts/e2e-in-docker.sh` uses
-its own pinned Playwright image and its own `node_modules` volume, for a
-different reason: that image is glibc/Ubuntu while `node:24-alpine` is
-musl/Alpine, and this repo's native dependencies can't share binaries across
-the two (see the comment at the top of that script). `scripts/smoke-image.sh`
-is unrelated to either volume — it has no Node/`node_modules` of its own at
-all, only a `curl`-based check that runs in a separate, minimal pinned image
-(see the comment at the top of that script for why).
+### Deployment
 
-| Check                                         | Container command                                                                            |
-| --------------------------------------------- | -------------------------------------------------------------------------------------------- |
-| Install dependencies                          | `scripts/npm-in-docker.sh ci`                                                                |
-| Format check                                  | `scripts/npm-in-docker.sh run format:check`                                                  |
-| Lint                                          | `scripts/npm-in-docker.sh run lint`                                                          |
-| Typecheck                                     | `scripts/npm-in-docker.sh run typecheck`                                                     |
-| Design token conformance                      | `scripts/npm-in-docker.sh run check:tokens`                                                  |
-| Unit/contract tests with coverage             | `scripts/npm-in-docker.sh run test:coverage`                                                 |
-| Production build                              | `scripts/npm-in-docker.sh run build`                                                         |
-| API types drift (after `npm run api:types`)   | `scripts/npm-in-docker.sh run api:types` then `git diff --exit-code src/shared/types/api.ts` |
-| Mocked end-to-end (Playwright + axe)          | `scripts/e2e-in-docker.sh`                                                                   |
-| Full-stack end-to-end, no mocks (see below)   | `scripts/e2e-fullstack-in-docker.sh`                                                         |
-| Image smoke test                              | needs a running container — see "Image smoke test" below                                     |
-| `docker-volume.sh` volume-ownership helper    | `scripts/tests/docker-volume.test.sh`                                                        |
-| `VITE_API_BASE_URL` trim/validate guard       | `scripts/tests/api-base-url-guard.test.sh`                                                   |
-| Stale full-stack e2e project reclaim decision | `scripts/tests/fullstack-stale-reclaim.test.sh`                                              |
+The [web app on Vercel](https://legajo-frontend.vercel.app) points to the [API on Render](https://legajo-backend.onrender.com). The first API request after inactivity can take tens of seconds; use `/actuator/health` on the API before a live walkthrough. The backend must explicitly allow the browser origin. [vercel.json](vercel.json) allows Git deployments for `main` only and rewrites SPA routes to `/index.html`; the production project uses `main` with preview branch tracking disabled. That does not prevent manual previews. The container serves the same SPA fallback through [nginx.conf](nginx.conf).
 
-`scripts/tests/fullstack-stale-reclaim.test.sh` includes a real `hidepid=2`
-case (a `/proc` mount option that hides another user's processes from an
-unprivileged viewer) that reports itself skipped, rather than failed, on a
-runtime that can't create a private mount namespace or mount `/proc` that
-way at all — set `LEGAJO_STALE_RECLAIM_REQUIRE_HIDEPID=1` to turn that skip
-into a failure instead (CI's own `script-tests` job sets it, since GitHub's
-Ubuntu runners are expected to always support it).
+## Architecture
 
-`scripts/e2e-fullstack-in-docker.sh` identifies the owner of a Compose
-project it might reclaim as a stale leftover by a THREE-part identity —
-host, pid namespace, and PID (`scripts/docker/fullstack-e2e-labels.override.yml`
-labels every container with it) — never host and PID alone: two containers
-sharing this host's Docker socket can report the same hostname while
-running in separate pid namespaces, where the same PID number names a
-completely different (or nonexistent) process. A project is only ever
-reclaimed when host AND pid namespace both match this run's own and the
-labelled PID is confirmed gone; an unlabelled or legacy project (from
-before the pid-namespace label existed) is always left untouched.
+React routes and feature components display the corpus, matrices, traces, trees, and charts. The backend owns the algorithms and returns the same scores, traces, and metrics regardless of client. The browser does not accept PDF uploads for ingestion.
+
+```mermaid
+flowchart LR
+    U["Student in the browser"] --> F["legajo-frontend: React workbench"]
+    F --> C["Axios client with generated API types"]
+    C -->|"HTTP /api/v1"| B["legajo-backend: Java API"]
+    B --> D["Versioned corpus and vectors"]
+    B --> J["Versioned JMH results and slopes"]
+```
+
+### Contract workflow
+
+The backend owns the OpenAPI contract; [contract/openapi-legajo.yaml](contract/openapi-legajo.yaml) is the checked-in copy. In a workspace where the backend is `../backend`, refresh it with `scripts/npm-in-docker.sh run api:sync`, then run `scripts/npm-in-docker.sh run api:types` and include the regenerated [api.ts](src/shared/types/api.ts) with the contract change. Do not edit it by hand; CI regenerates it and checks for a diff.
+
+## Tech stack
+
+| Layer               | Technology                                                               |
+| ------------------- | ------------------------------------------------------------------------ |
+| Application         | React 19.3, TypeScript 5.9 strict, React Router, TanStack Query, Zustand |
+| Interface           | Tailwind CSS 4 with CSS-first `@theme`, Recharts, i18next                |
+| Build and serving   | Vite 8, Node 24, nginx-unprivileged                                      |
+| Contract and checks | Axios, `openapi-typescript`, Vitest 4, Testing Library, Playwright, axe  |
+
+## Testing
+
+### Checks run in containers
+
+```sh
+scripts/npm-in-docker.sh ci
+scripts/npm-in-docker.sh run format:check
+scripts/npm-in-docker.sh run lint
+scripts/npm-in-docker.sh run typecheck
+scripts/npm-in-docker.sh run check:tokens
+scripts/npm-in-docker.sh run test:coverage
+scripts/e2e-in-docker.sh
+```
+
+The npm wrapper uses the pinned Alpine Node image. The mocked Playwright suite uses a separate Ubuntu image and a separate `node_modules` volume because native dependencies cannot be shared across libc implementations. `run test` omits coverage; `run format` rewrites files and `run preview` serves a prior build. The production build and API URL guard can be checked by building the image as shown above.
+
+### Full-stack E2E (no mocks)
+
+With the sibling backend checkout available, run from this repo:
+
+```sh
+LEGAJO_BACKEND_DIR=../legajo-backend scripts/e2e-fullstack-in-docker.sh
+```
+
+The wrapper defaults to `../backend`; it starts the stack from the backend Compose file, runs Playwright against the real 20-document corpus, and tears the stack down on exit. The suite cross-checks actual scores and cluster membership, and a guard rejects API interception. The wrapper only reclaims a stale Compose project when its host and PID namespace labels match, the labeled PID is gone, and all three labels are present.
 
 ### Image smoke test
 
-Needs a container already running (see "Running with Docker" above):
+With the frontend image already running:
 
 ```sh
-docker run --rm --network host \
-  -v "$(pwd)":/workspace:ro -w /workspace \
-  curlimages/curl:8.15.0 sh scripts/smoke-image.sh <base-url>
+docker run --rm --network host -v "$PWD":/workspace:ro -w /workspace \
+  curlimages/curl:8.15.0 sh scripts/smoke-image.sh http://localhost
 ```
 
-It can run right away, with no separate wait step: it has its own bounded
-readiness wait — a real wall-clock deadline (up to 30s total, each probe's
-own timeout capped by whatever is left of that budget) — plus a
-connect/total timeout on every ordinary request, so a not-yet-ready or hung
-container fails it clearly instead of hanging forever. It then checks the
-root document, all three security headers nginx.conf sets
-(`X-Content-Type-Options: nosniff`, `Referrer-Policy:
-strict-origin-when-cross-origin`, `X-Frame-Options: DENY`) plus a `Server`
-header with no version number (`server_tokens off`), that a deep SPA route
-(e.g. `/clustering`) falls back to the same `index.html` with the same
-`Cache-Control: no-cache`, and the cache headers on the hashed
-`/assets/*` output (cached for a year) — every check fails loudly on an
-empty or missing value rather than treating it as a pass.
+The check has a 30-second readiness budget. It verifies response headers, SPA fallback on deep routes, `no-cache` on HTML, and long caching for hashed assets. [CI](.github/workflows/frontend.yml) also runs the dependency, format, lint, type, token, coverage, build, contract drift, and mocked browser checks; independent jobs cover the image, the [shell helper tests](scripts/tests/), and real-stack E2E. The stale-project helper test skips the `hidepid=2` case where private mounts are unsupported; CI sets `LEGAJO_STALE_RECLAIM_REQUIRE_HIDEPID=1` to require it.
 
-## Full-stack e2e (no mocks)
+## Related repositories
 
-`npm run e2e` / `scripts/e2e-in-docker.sh` (above) mock every API response
-with `page.route`. A separate suite, `e2e-fullstack/`, runs the same Flow
-A/Flow B journeys against a **real, already-running backend** —
-zero interception anywhere (a static guard spec,
-`e2e-fullstack/no-mocks.guard.spec.ts`, fails the suite if one is ever
-added) — with the real, versioned 20-document corpus (ids `d01..d20`) and
-real numbers cross-checked against the backend directly (e.g.
-needleman-wunsch(d01, d02) ≈ 0.0707, the same value the backend's own
-`scripts/smoke.sh` asserts).
-
-It has its own Playwright config (`playwright.fullstack.config.ts`, no
-`webServer`) and its own npm script:
-
-```sh
-scripts/e2e-fullstack-in-docker.sh
-```
-
-This brings up the full stack from the sibling backend repository's
-`docker-compose.yml` (`backend` + `frontend`, the latter built from
-THIS checkout), runs `npm run e2e:fullstack` inside the same pinned
-Playwright image `scripts/e2e-in-docker.sh` uses, always tears the stack
-down afterwards, and dumps Compose logs on failure. It looks for the backend
-checkout at `../backend` by default; override with `LEGAJO_BACKEND_DIR` if
-your sibling checkout lives elsewhere (in CI it is `legajo-backend/`, see
-`.github/workflows/frontend.yml`'s `fullstack-e2e` job).
-
-## Scripts
-
-| Script                            | What it does                                                                                                               |
-| --------------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
-| `npm run dev`                     | Vite dev server; proxies `/api` to `http://localhost:8080`                                                                 |
-| `npm run build`                   | Type-checks (`tsc -b`) then builds the production bundle                                                                   |
-| `npm run preview`                 | Serves the production build locally                                                                                        |
-| `npm run typecheck`               | `tsc -b` across the app and tooling projects                                                                               |
-| `npm run lint`                    | ESLint (flat config)                                                                                                       |
-| `npm run format` / `format:check` | Prettier, write or check                                                                                                   |
-| `npm run test`                    | Vitest unit/component/contract-type tests                                                                                  |
-| `npm run test:coverage`           | Vitest with V8 coverage report                                                                                             |
-| `npm run e2e`                     | Builds, then runs Playwright + axe against the preview server                                                              |
-| `npm run e2e:fullstack`           | Runs the no-mocks Playwright + axe suite (`e2e-fullstack/`) against an already-running full-stack Compose stack            |
-| `npm run check:tokens`            | Fails if a hex color literal appears in `src/` outside the `@theme` block of `src/index.css` (generated `api.ts` excluded) |
-| `npm run api:sync`                | Copies `../backend/docs/openapi-legajo.yaml` into `contract/openapi-legajo.yaml` (workspace layout only)                   |
-| `npm run api:types`               | Regenerates `src/shared/types/api.ts` from `contract/openapi-legajo.yaml`                                                  |
-
-## Contract workflow
-
-The backend owns `docs/openapi-legajo.yaml`; this repo never edits it. A
-vendored copy lives at `contract/openapi-legajo.yaml` so CI can generate types
-without reaching into the private, sibling `backend/` repo:
-
-1. In the workspace layout (`legajo-general/{backend,frontend}`), run
-   `npm run api:sync` to refresh `contract/openapi-legajo.yaml` from the
-   backend after a contract change.
-2. Run `npm run api:types` to regenerate `src/shared/types/api.ts`. Commit the
-   regenerated file — it is generated but versioned, and CI fails on
-   `git diff --exit-code src/shared/types/api.ts` after regenerating (contract
-   drift check).
-3. Never hand-edit `src/shared/types/api.ts`.
-
-## Environment
-
-- `VITE_API_BASE_URL` — base URL of the backend API, set at **build time**
-  (Vite inlines it into the bundle; it cannot be changed at runtime). Empty in
-  development (the Vite proxy handles `/api`); required and validated as an
-  absolute URL for a production build (`src/infrastructure/env.ts`) — set to
-  the deployed Render URL for Vercel, or passed as `--build-arg
-VITE_API_BASE_URL=...` for the Docker image, where a missing or empty value
-  fails the build immediately with a clear error (no silent default: see
-  "Running with Docker"). `.env.example` documents this variable for local
-  `npm run dev`/`npm run build` use; never commit a real value.
-
-## Deployment
-
-Static Vercel deployment of the Vite build; `vercel.json` rewrites every route
-to `/index.html` (SPA fallback). The `nginx.conf`/`try_files` fallback in this
-repo's Docker image is the equivalent for the local Compose stack and any
-other container-based host. The backend runs on Render and allows this
-frontend's deployed origin through CORS.
-
-### Native Git deployment policy
-
-The existing Vercel project uses native Git integration with this repository.
-Under **Settings > Environments > Production**, the Production branch is `main`.
-Under **Settings > Environments > Preview**, **Branch Tracking** is disabled
-so Git updates do not create preview deployments. This dashboard control is
-separate from the repository safeguard in `vercel.json`: `main: true` and
-`"*": false` under `git.deploymentEnabled`, alongside the SPA fallback.
-Disabling Preview Branch Tracking does not prevent manual CLI/API previews.
-
-**Public URLs:**
-
-- Frontend (Vercel): https://legajo-frontend.vercel.app
-- Backend API base (Render): https://legajo-backend.onrender.com
-
-**Cold start.** The backend runs on Render's free tier, which suspends the
-service when idle; the first request after a period of inactivity can take
-tens of seconds while the instance wakes up. Before a live demo, poll
-`GET <backend URL>/actuator/health` until it returns 200 so the instance is
-already warm when the audience watches.
+- [legajo-backend](https://github.com/diegnghtmr/legajo-backend) — similarity and clustering algorithms, corpus ingestion, and benchmark exports.
 
 ## License
 
-MIT, see [LICENSE](LICENSE).
+Released under the [MIT License](LICENSE).
