@@ -141,6 +141,10 @@ docker run --rm --network host -v "$PWD":/workspace:ro -w /workspace \
 
 The check has a 30-second readiness budget. It verifies response headers, SPA fallback on deep routes, `no-cache` on HTML, and long caching for hashed assets. [CI](.github/workflows/frontend.yml) also runs the dependency, format, lint, type, token, coverage, build, contract drift, and mocked browser checks; independent jobs cover the image, the [shell helper tests](scripts/tests/), and real-stack E2E. The stale-project helper test skips the `hidepid=2` case where private mounts are unsupported; CI sets `LEGAJO_STALE_RECLAIM_REQUIRE_HIDEPID=1` to require it.
 
+## Documentation
+
+- [Frontend reference](docs/frontend-reference.md) — script catalog, image and real-stack validation, API environment, and Vercel Git deployment policy.
+
 ## Related repositories
 
 - [legajo-backend](https://github.com/diegnghtmr/legajo-backend) — similarity and clustering algorithms, corpus ingestion, and benchmark exports.
